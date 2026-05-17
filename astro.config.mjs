@@ -37,4 +37,9 @@ export default defineConfig({
 	],
 
   adapter: cloudflare(),
+  vite: {
+    server: {
+      allowedHosts: true,
+    },
+  },
 });

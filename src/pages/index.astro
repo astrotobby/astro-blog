@@ -1,262 +1,697 @@
 ---
+import { Image } from 'astro:assets';
+import { getCollection } from 'astro:content';
 import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
+import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
-import { getCollection } from 'astro:content';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
 
 const posts = (await getCollection('blog')).sort(
-	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
-).slice(0, 6);
----
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
 
+const featuredPost = posts[0];
+const recentPosts  = posts.slice(1, 7);
+---
 <!doctype html>
 <html lang="en">
-	<head>
-		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-		<style>
-			.hero {
-				padding: 4em 1em 3em;
-				max-width: 860px;
-				margin: 0 auto;
-				text-align: center;
-			}
-			.hero h1 {
-				font-size: 2.8em;
-				line-height: 1.2;
-				margin-bottom: 0.4em;
-				color: rgb(var(--black));
-			}
-			.hero h1 span {
-				color: var(--accent);
-			}
-			.hero p {
-				font-size: 1.15em;
-				color: rgb(var(--gray-dark));
-				max-width: 580px;
-				margin: 0 auto 2em;
-				line-height: 1.7;
-			}
-			.hero-cta {
-				display: flex;
-				gap: 1em;
-				justify-content: center;
-				flex-wrap: wrap;
-			}
-			.btn-primary {
-				background: var(--accent);
-				color: white;
-				padding: 0.75em 1.8em;
-				border-radius: 6px;
-				text-decoration: none;
-				font-weight: 600;
-				transition: opacity 0.2s;
-			}
-			.btn-primary:hover { opacity: 0.85; }
-			.btn-secondary {
-				border: 2px solid var(--accent);
-				color: var(--accent);
-				padding: 0.75em 1.8em;
-				border-radius: 6px;
-				text-decoration: none;
-				font-weight: 600;
-				transition: all 0.2s;
-			}
-			.btn-secondary:hover { background: var(--accent); color: white; }
-			.topics {
-				background: rgb(var(--gray-light));
-				padding: 3em 1em;
-			}
-			.topics-inner {
-				max-width: 860px;
-				margin: 0 auto;
-			}
-			.topics h2 {
-				text-align: center;
-				margin-bottom: 1.5em;
-				font-size: 1.6em;
-			}
-			.topics-grid {
-				display: grid;
-				grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-				gap: 1em;
-			}
-			.topic-card {
-				background: white;
-				border-radius: 10px;
-				padding: 1.5em 1em;
-				text-align: center;
-				border: 1px solid rgba(var(--gray), 0.3);
-				transition: transform 0.2s, box-shadow 0.2s;
-			}
-			.topic-card:hover {
-				transform: translateY(-3px);
-				box-shadow: 0 6px 20px rgba(var(--black), 8%);
-			}
-			.topic-icon { font-size: 2em; margin-bottom: 0.4em; }
-			.topic-card h3 { font-size: 0.95em; margin: 0; color: rgb(var(--black)); }
-			.recent {
-				max-width: 860px;
-				margin: 0 auto;
-				padding: 3em 1em;
-			}
-			.recent h2 {
-				font-size: 1.6em;
-				margin-bottom: 1.5em;
-			}
-			.posts-grid {
-				display: grid;
-				grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-				gap: 1.5em;
-			}
-			.post-card {
-				border: 1px solid rgba(var(--gray), 0.3);
-				border-radius: 10px;
-				overflow: hidden;
-				transition: transform 0.2s, box-shadow 0.2s;
-				text-decoration: none;
-				color: inherit;
-				display: block;
-			}
-			.post-card:hover {
-				transform: translateY(-3px);
-				box-shadow: 0 6px 20px rgba(var(--black), 8%);
-			}
-			.post-card-body { padding: 1.2em; }
-			.post-date {
-				font-size: 0.8em;
-				color: rgb(var(--gray));
-				margin-bottom: 0.4em;
-			}
-			.post-card h3 {
-				margin: 0 0 0.5em;
-				font-size: 1em;
-				line-height: 1.4;
-				color: rgb(var(--black));
-			}
-			.post-card p {
-				margin: 0;
-				font-size: 0.88em;
-				color: rgb(var(--gray-dark));
-				line-height: 1.5;
-			}
-			.view-all {
-				text-align: center;
-				margin-top: 2em;
-			}
-			.view-all a {
-				color: var(--accent);
-				text-decoration: none;
-				font-weight: 600;
-			}
-			.view-all a:hover { text-decoration: underline; }
-			.author-strip {
-				background: rgb(var(--gray-light));
-				padding: 2.5em 1em;
-				border-top: 1px solid rgba(var(--gray), 0.2);
-			}
-			.author-strip-inner {
-				max-width: 860px;
-				margin: 0 auto;
-				display: flex;
-				align-items: center;
-				gap: 1.5em;
-				flex-wrap: wrap;
-			}
-			.author-avatar {
-				width: 64px;
-				height: 64px;
-				border-radius: 50%;
-				background: var(--accent);
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				font-size: 1.8em;
-				flex-shrink: 0;
-			}
-			.author-info h3 { margin: 0 0 0.2em; font-size: 1.1em; }
-			.author-info p { margin: 0; font-size: 0.9em; color: rgb(var(--gray-dark)); }
-			.author-info a { color: var(--accent); text-decoration: none; }
-		</style>
-	</head>
-	<body>
-		<Header />
-		<main>
+  <head>
+    <BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
+  </head>
+  <body>
+    <Header />
 
-			<!-- HERO -->
-			<section class="hero">
-				<h1>The Signal on <span>AI</span> That Actually Matters</h1>
-				<p>Deep dives on AI video tools, agentic workflows, vibe coding, and answer engine optimization. No hype. Just what works — from a creator who builds with these tools daily.</p>
-				<div class="hero-cta">
-					<a href="/blog" class="btn-primary">Read the Blog</a>
-					<a href="/about" class="btn-secondary">About Astro Tobby</a>
-				</div>
-			</section>
+    <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
+    <section class="hero">
+      <div class="hero-bg-grid"></div>
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span class="badge-dot"></span>
+          AI &amp; Technology Intelligence
+        </div>
+        <h1 class="hero-title">
+          The Signal<br/>
+          <span class="gradient-text">Through the Noise</span>
+        </h1>
+        <p class="hero-subtitle">
+          Deep-dive analysis on AI agents, multi-agent systems, LLMs, and the technologies
+          reshaping how we build, think, and create — written for builders and curious minds.
+        </p>
+        <div class="hero-cta">
+          <a href="/blog" class="btn-primary">Explore Articles</a>
+          <a href="/about" class="btn-ghost">About the Author</a>
+        </div>
+        <!-- Floating stats -->
+        <div class="hero-stats">
+          <div class="stat">
+            <span class="stat-num">{posts.length}+</span>
+            <span class="stat-label">Articles</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat">
+            <span class="stat-num">2026</span>
+            <span class="stat-label">Frontier Coverage</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat">
+            <span class="stat-num">AI</span>
+            <span class="stat-label">Focused</span>
+          </div>
+        </div>
+      </div>
+      <!-- Decorative orb -->
+      <div class="hero-orb"></div>
+    </section>
 
-			<!-- TOPICS -->
-			<section class="topics">
-				<div class="topics-inner">
-					<h2>What We Cover</h2>
-					<div class="topics-grid">
-						<div class="topic-card">
-							<div class="topic-icon">🎬</div>
-							<h3>AI Video Tools</h3>
-						</div>
-						<div class="topic-card">
-							<div class="topic-icon">🤖</div>
-							<h3>Agentic AI</h3>
-						</div>
-						<div class="topic-card">
-							<div class="topic-icon">💻</div>
-							<h3>Vibe Coding</h3>
-						</div>
-						<div class="topic-card">
-							<div class="topic-icon">🔍</div>
-							<h3>Answer Engine Optimization</h3>
-						</div>
-						<div class="topic-card">
-							<div class="topic-icon">⚡</div>
-							<h3>AI Automation</h3>
-						</div>
-						<div class="topic-card">
-							<div class="topic-icon">💰</div>
-							<h3>Creator Monetization</h3>
-						</div>
-					</div>
-				</div>
-			</section>
+    <main>
+      <!-- ── Featured Post ─────────────────────────────────────────────────── -->
+      {featuredPost && (
+        <section class="featured-section">
+          <div class="section-label">
+            <span class="label-dot"></span>
+            Featured Article
+          </div>
+          <a href={`/blog/${featuredPost.id}/`} class="featured-card">
+            <div class="featured-image-wrap">
+              {featuredPost.data.heroImage && (
+                <Image
+                  width={900}
+                  height={450}
+                  src={featuredPost.data.heroImage}
+                  alt={featuredPost.data.title}
+                  class="featured-img"
+                />
+              )}
+              <div class="featured-img-overlay"></div>
+            </div>
+            <div class="featured-body">
+              <div class="post-meta">
+                <FormattedDate date={featuredPost.data.pubDate} />
+              </div>
+              <h2 class="featured-title">{featuredPost.data.title}</h2>
+              {featuredPost.data.description && (
+                <p class="featured-desc">{featuredPost.data.description}</p>
+              )}
+              <span class="read-more">Read Article →</span>
+            </div>
+          </a>
+        </section>
+      )}
 
-			<!-- RECENT POSTS -->
-			<section class="recent">
-				<h2>Latest Articles</h2>
-				<div class="posts-grid">
-					{posts.map(post => (
-						<a href={`/blog/${post.id}/`} class="post-card">
-							<div class="post-card-body">
-								<p class="post-date">{post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
-								<h3>{post.data.title}</h3>
-								{post.data.description && <p>{post.data.description.slice(0, 100)}{post.data.description.length > 100 ? '...' : ''}</p>}
-							</div>
-						</a>
-					))}
-				</div>
-				<div class="view-all">
-					<a href="/blog">→ View all articles</a>
-				</div>
-			</section>
+      <!-- ── Recent Posts Grid ─────────────────────────────────────────────── -->
+      <section class="recent-section">
+        <div class="section-header">
+          <div class="section-label">
+            <span class="label-dot label-dot--green"></span>
+            Recent Articles
+          </div>
+          <a href="/blog" class="view-all">View All →</a>
+        </div>
 
-			<!-- AUTHOR STRIP -->
-			<section class="author-strip">
-				<div class="author-strip-inner">
-					<div class="author-avatar">🚀</div>
-					<div class="author-info">
-						<h3>Written by Astro Tobby (Tobias Chanzera)</h3>
-						<p>AI video creator & content strategist. Founder of PixelMind Studio. Runway ML Certified. Based in Nairobi, Kenya. <a href="/about">Read more →</a></p>
-					</div>
-				</div>
-			</section>
+        <div class="posts-grid">
+          {recentPosts.map((post) => (
+            <a href={`/blog/${post.id}/`} class="post-card">
+              <div class="card-image-wrap">
+                {post.data.heroImage ? (
+                  <Image
+                    width={480}
+                    height={240}
+                    src={post.data.heroImage}
+                    alt={post.data.title}
+                    class="card-img"
+                  />
+                ) : (
+                  <div class="card-img-placeholder"></div>
+                )}
+                <div class="card-img-overlay"></div>
+              </div>
+              <div class="card-body">
+                <p class="card-date">
+                  <FormattedDate date={post.data.pubDate} />
+                </p>
+                <h3 class="card-title">{post.data.title}</h3>
+                {post.data.description && (
+                  <p class="card-desc">{post.data.description}</p>
+                )}
+                <span class="card-cta">Read more →</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
 
-		</main>
-		<Footer />
-	</body>
+      <!-- ── Newsletter / CTA Banner ───────────────────────────────────────── -->
+      <section class="cta-banner">
+        <div class="cta-glow"></div>
+        <div class="cta-content">
+          <h2>Stay Ahead of the Curve</h2>
+          <p>Follow AstroSignal for weekly insights on AI, multi-agent systems, and emerging tech.</p>
+          <div class="cta-actions">
+            <a href="https://twitter.com/astrotobby" target="_blank" rel="noopener" class="btn-primary">
+              Follow on X / Twitter
+            </a>
+            <a href="/rss.xml" class="btn-ghost">RSS Feed</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <Footer />
+  </body>
 </html>
+
+<style>
+  /* ── Hero ────────────────────────────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    padding: 7em 2em 5em;
+    text-align: center;
+    z-index: 1;
+  }
+
+  /* Subtle dot-grid background */
+  .hero-bg-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle, rgba(0, 212, 255, 0.12) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .hero-orb {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle,
+      rgba(0, 212, 255, 0.06) 0%,
+      rgba(0, 255, 157, 0.04) 40%,
+      transparent 70%
+    );
+    border-radius: 50%;
+    pointer-events: none;
+    animation: orbPulse 6s ease-in-out infinite;
+  }
+
+  @keyframes orbPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+    50%       { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 780px;
+    margin: 0 auto;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.35em 1em;
+    border-radius: 100px;
+    background: rgba(0, 212, 255, 0.08);
+    border: 1px solid rgba(0, 212, 255, 0.25);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #00d4ff;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 1.5em;
+  }
+
+  .badge-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #00d4ff;
+    box-shadow: 0 0 8px #00d4ff;
+    animation: dotPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes dotPulse {
+    0%, 100% { box-shadow: 0 0 6px #00d4ff; }
+    50%       { box-shadow: 0 0 14px #00d4ff, 0 0 28px rgba(0,212,255,0.4); }
+  }
+
+  .hero-title {
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-weight: 900;
+    line-height: 1.05;
+    margin-bottom: 0.6em;
+    color: #e8f4fd;
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #00d4ff 0%, #00ff9d 60%, #00d4ff 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradientShift 5s ease infinite;
+  }
+
+  @keyframes gradientShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .hero-subtitle {
+    font-size: 1.15rem;
+    color: rgba(138, 180, 204, 0.85);
+    max-width: 600px;
+    margin: 0 auto 2em;
+    line-height: 1.7;
+  }
+
+  .hero-cta {
+    display: flex;
+    gap: 1em;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 3em;
+  }
+
+  .btn-primary {
+    display: inline-block;
+    padding: 0.75em 2em;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #00d4ff, #00b4d8);
+    color: #020b18;
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: all 0.25s ease;
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.5), 0 8px 24px rgba(0,0,0,0.3);
+    color: #020b18;
+    text-shadow: none;
+  }
+
+  .btn-ghost {
+    display: inline-block;
+    padding: 0.75em 2em;
+    border-radius: 10px;
+    background: transparent;
+    color: rgba(0, 212, 255, 0.85);
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    transition: all 0.25s ease;
+  }
+  .btn-ghost:hover {
+    background: rgba(0, 212, 255, 0.08);
+    border-color: rgba(0, 212, 255, 0.6);
+    color: #00d4ff;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
+    transform: translateY(-2px);
+  }
+
+  .hero-stats {
+    display: inline-flex;
+    align-items: center;
+    gap: 1.5em;
+    padding: 0.9em 2em;
+    background: rgba(0, 212, 255, 0.05);
+    border: 1px solid rgba(0, 212, 255, 0.12);
+    border-radius: 100px;
+    backdrop-filter: blur(10px);
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1em;
+  }
+
+  .stat-num {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #00d4ff;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+    color: rgba(138, 180, 204, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .stat-divider {
+    width: 1px;
+    height: 28px;
+    background: rgba(0, 212, 255, 0.2);
+  }
+
+  /* ── Main content ────────────────────────────────────────────────────────── */
+  main {
+    max-width: 1100px;
+    width: calc(100% - 2em);
+    margin: 0 auto;
+    padding: 2em 1em 4em;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Section labels ──────────────────────────────────────────────────────── */
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #00d4ff;
+    margin-bottom: 1.25em;
+  }
+
+  .label-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #00d4ff;
+    box-shadow: 0 0 8px #00d4ff;
+  }
+
+  .label-dot--green {
+    background: #00ff9d;
+    box-shadow: 0 0 8px #00ff9d;
+  }
+
+  /* ── Featured card ───────────────────────────────────────────────────────── */
+  .featured-section {
+    margin-bottom: 4em;
+  }
+
+  .featured-card {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 0;
+    border-radius: 20px;
+    overflow: hidden;
+    background: rgba(5, 20, 40, 0.72);
+    border: 1px solid rgba(0, 212, 255, 0.15);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+  }
+
+  .featured-card:hover {
+    border-color: rgba(0, 212, 255, 0.4);
+    box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.2), 0 8px 40px rgba(0, 212, 255, 0.15), 0 20px 60px rgba(0,0,0,0.5);
+    transform: translateY(-4px);
+  }
+
+  .featured-image-wrap {
+    position: relative;
+    overflow: hidden;
+    min-height: 280px;
+  }
+
+  .featured-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 0;
+    transition: transform 0.5s ease;
+  }
+
+  .featured-card:hover .featured-img {
+    transform: scale(1.04);
+  }
+
+  .featured-img-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.08), rgba(0, 255, 157, 0.04));
+    pointer-events: none;
+  }
+
+  .featured-body {
+    padding: 2.5em 2em;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.75em;
+  }
+
+  .post-meta {
+    font-size: 0.8rem;
+    color: rgba(0, 212, 255, 0.7);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+
+  .featured-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1.25;
+    color: #e8f4fd;
+    margin: 0;
+  }
+
+  .featured-desc {
+    font-size: 0.92rem;
+    color: rgba(138, 180, 204, 0.75);
+    line-height: 1.65;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .read-more {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #00d4ff;
+    margin-top: 0.5em;
+    transition: gap 0.2s ease;
+  }
+
+  .featured-card:hover .read-more {
+    color: #00ff9d;
+    text-shadow: 0 0 10px rgba(0, 255, 157, 0.5);
+  }
+
+  /* ── Recent posts grid ───────────────────────────────────────────────────── */
+  .recent-section {
+    margin-bottom: 4em;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5em;
+  }
+
+  .view-all {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(0, 212, 255, 0.7);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+  .view-all:hover {
+    color: #00ff9d;
+    text-shadow: 0 0 10px rgba(0, 255, 157, 0.4);
+  }
+
+  .posts-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5em;
+  }
+
+  .post-card {
+    display: flex;
+    flex-direction: column;
+    border-radius: 16px;
+    overflow: hidden;
+    background: rgba(5, 20, 40, 0.65);
+    border: 1px solid rgba(0, 212, 255, 0.10);
+    text-decoration: none;
+    transition: all 0.28s ease;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.35);
+  }
+
+  .post-card:hover {
+    border-color: rgba(0, 212, 255, 0.35);
+    box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.15), 0 8px 30px rgba(0, 212, 255, 0.12), 0 16px 40px rgba(0,0,0,0.4);
+    transform: translateY(-5px);
+  }
+
+  .card-image-wrap {
+    position: relative;
+    overflow: hidden;
+    height: 180px;
+    flex-shrink: 0;
+  }
+
+  .card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 0;
+    transition: transform 0.4s ease;
+  }
+
+  .post-card:hover .card-img {
+    transform: scale(1.06);
+  }
+
+  .card-img-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(0, 100, 160, 0.3), rgba(0, 150, 100, 0.2));
+  }
+
+  .card-img-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(5, 20, 40, 0.5) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .card-body {
+    padding: 1.25em 1.4em 1.5em;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 0.4em;
+  }
+
+  .card-date {
+    font-size: 0.75rem;
+    color: rgba(0, 212, 255, 0.6);
+    font-weight: 500;
+    margin: 0;
+    letter-spacing: 0.03em;
+  }
+
+  .card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.35;
+    color: #e8f4fd;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card-desc {
+    font-size: 0.82rem;
+    color: rgba(138, 180, 204, 0.65);
+    line-height: 1.55;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    flex: 1;
+  }
+
+  .card-cta {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgba(0, 212, 255, 0.7);
+    margin-top: 0.5em;
+    transition: color 0.2s ease;
+  }
+
+  .post-card:hover .card-cta {
+    color: #00ff9d;
+    text-shadow: 0 0 8px rgba(0, 255, 157, 0.4);
+  }
+
+  /* ── CTA Banner ──────────────────────────────────────────────────────────── */
+  .cta-banner {
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px;
+    padding: 3.5em 2em;
+    text-align: center;
+    background: rgba(0, 20, 40, 0.7);
+    border: 1px solid rgba(0, 212, 255, 0.18);
+    box-shadow: 0 4px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  .cta-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 500px;
+    height: 200px;
+    background: radial-gradient(ellipse,
+      rgba(0, 212, 255, 0.12) 0%,
+      rgba(0, 255, 157, 0.06) 40%,
+      transparent 70%
+    );
+    pointer-events: none;
+  }
+
+  .cta-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  .cta-content h2 {
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #00d4ff, #00ff9d);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5em;
+  }
+
+  .cta-content p {
+    color: rgba(138, 180, 204, 0.8);
+    font-size: 1rem;
+    margin-bottom: 1.75em;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .cta-actions {
+    display: flex;
+    gap: 1em;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* ── Responsive ──────────────────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .featured-card { grid-template-columns: 1fr; }
+    .featured-image-wrap { min-height: 220px; }
+    .posts-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 600px) {
+    .hero { padding: 4em 1.5em 3em; }
+    .hero-stats { flex-wrap: wrap; gap: 1em; }
+    .posts-grid { grid-template-columns: 1fr; }
+    .cta-banner { padding: 2.5em 1.5em; }
+    .cta-content h2 { font-size: 1.5rem; }
+  }
+</style>

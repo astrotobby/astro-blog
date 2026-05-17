@@ -3,70 +3,174 @@ const today = new Date();
 ---
 
 <footer>
-	<div class="footer-inner">
-		<p>&copy; {today.getFullYear()} <strong>AstroSignal</strong> by Astro Tobby. All rights reserved.</p>
-		<div class="footer-links">
-			<a href="/about">About</a>
-			<a href="/contact">Contact</a>
-			<a href="/privacy-policy">Privacy Policy</a>
-		</div>
-		<div class="social-links">
-			<a href="https://twitter.com/astrotobby" target="_blank">
-				<span class="sr-only">Follow Astro Tobby on Twitter</span>
-				<svg viewBox="0 0 16 16" aria-hidden="true" width="24" height="24"
-					><path fill="currentColor" d="M5.026 15c6.038 0 9.341-5.003 9.341-9.334 0-.14 0-.282-.006-.422A6.685 6.685 0 0 0 16 3.542a6.658 6.658 0 0 1-1.889.518 3.301 3.301 0 0 0 1.447-1.817 6.533 6.533 0 0 1-2.087.793A3.286 3.286 0 0 0 7.875 6.03a9.325 9.325 0 0 1-6.767-3.429 3.289 3.289 0 0 0 1.018 4.382A3.323 3.323 0 0 1 .64 6.575v.045a3.288 3.288 0 0 0 2.632 3.218 3.203 3.203 0 0 1-.865.115 3.23 3.23 0 0 1-.614-.057 3.283 3.283 0 0 0 3.067 2.277A6.588 6.588 0 0 1 .78 13.58a6.32 6.32 0 0 1-.78-.045A9.344 9.344 0 0 0 5.026 15z"></path></svg
-				>
-			</a>
-			<a href="https://github.com/astrotobby" target="_blank">
-				<span class="sr-only">Astro Tobby on GitHub</span>
-				<svg viewBox="0 0 16 16" aria-hidden="true" width="24" height="24"
-					><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path></svg
-				>
-			</a>
-		</div>
-	</div>
+  <!-- Ambient glow divider -->
+  <div class="footer-glow-divider"></div>
+
+  <div class="footer-inner">
+    <!-- Brand column -->
+    <div class="footer-brand">
+      <div class="footer-logo">
+        <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="14" cy="14" r="12" stroke="url(#footerGrad)" stroke-width="2"/>
+          <path d="M8 14 L14 8 L20 14 L14 20 Z" fill="url(#footerGrad)" opacity="0.8"/>
+          <circle cx="14" cy="14" r="3" fill="url(#footerGrad)"/>
+          <defs>
+            <linearGradient id="footerGrad" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#00d4ff"/>
+              <stop offset="100%" stop-color="#00ff9d"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="footer-brand-name">AstroSignal</span>
+      </div>
+      <p class="footer-tagline">Navigating the frontier of AI, technology, and the future.</p>
+    </div>
+
+    <!-- Links column -->
+    <div class="footer-links-group">
+      <h4>Navigate</h4>
+      <a href="/">Home</a>
+      <a href="/blog">Blog</a>
+      <a href="/about">About</a>
+    </div>
+
+    <div class="footer-links-group">
+      <h4>Legal</h4>
+      <a href="/privacy-policy">Privacy Policy</a>
+    </div>
+
+    <!-- Social column -->
+    <div class="footer-links-group">
+      <h4>Connect</h4>
+      <a href="https://twitter.com/astrotobby" target="_blank" rel="noopener">Twitter / X</a>
+      <a href="https://github.com/astrotobby" target="_blank" rel="noopener">GitHub</a>
+      <a href="/rss.xml" target="_blank">RSS Feed</a>
+    </div>
+  </div>
+
+  <!-- Bottom bar -->
+  <div class="footer-bottom">
+    <p>&copy; {today.getFullYear()} <strong>AstroSignal</strong> by Astro Tobby. All rights reserved.</p>
+  </div>
 </footer>
+
 <style>
-	footer {
-		padding: 2em 1em;
-		background: linear-gradient(var(--gray-gradient)) no-repeat;
-		color: rgb(var(--gray));
-		margin-top: 3em;
-	}
-	.footer-inner {
-		max-width: 860px;
-		margin: 0 auto;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1em;
-		text-align: center;
-	}
-	.footer-links {
-		display: flex;
-		gap: 1.5em;
-		flex-wrap: wrap;
-		justify-content: center;
-	}
-	.footer-links a {
-		text-decoration: none;
-		color: rgb(var(--gray));
-		font-size: 0.9rem;
-	}
-	.footer-links a:hover {
-		color: rgb(var(--gray-dark));
-		text-decoration: underline;
-	}
-	.social-links {
-		display: flex;
-		justify-content: center;
-		gap: 1em;
-	}
-	.social-links a {
-		text-decoration: none;
-		color: rgb(var(--gray));
-	}
-	.social-links a:hover {
-		color: rgb(var(--gray-dark));
-	}
+  footer {
+    position: relative;
+    z-index: 1;
+    margin-top: 5em;
+    background: rgba(2, 8, 18, 0.9);
+    border-top: 1px solid rgba(0, 212, 255, 0.10);
+  }
+
+  .footer-glow-divider {
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(0, 212, 255, 0.5) 30%,
+      rgba(0, 255, 157, 0.5) 50%,
+      rgba(0, 212, 255, 0.5) 70%,
+      transparent 100%
+    );
+  }
+
+  .footer-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 3em 2em 2em;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 2.5em;
+  }
+
+  /* Brand */
+  .footer-brand {}
+
+  .footer-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75em;
+    filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.4));
+  }
+
+  .footer-brand-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #00d4ff, #00ff9d);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .footer-tagline {
+    font-size: 0.875rem;
+    color: rgba(138, 180, 204, 0.65);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* Link groups */
+  .footer-links-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+  }
+
+  .footer-links-group h4 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(0, 212, 255, 0.6);
+    margin: 0 0 0.4em 0;
+  }
+
+  .footer-links-group a {
+    font-size: 0.9rem;
+    color: rgba(138, 180, 204, 0.7);
+    text-decoration: none;
+    transition: color 0.2s ease, text-shadow 0.2s ease;
+    width: fit-content;
+  }
+
+  .footer-links-group a:hover {
+    color: #00d4ff;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
+  }
+
+  /* Bottom */
+  .footer-bottom {
+    border-top: 1px solid rgba(0, 212, 255, 0.07);
+    padding: 1.25em 2em;
+    text-align: center;
+  }
+
+  .footer-bottom p {
+    margin: 0;
+    font-size: 0.82rem;
+    color: rgba(138, 180, 204, 0.45);
+  }
+
+  .footer-bottom strong {
+    color: rgba(0, 212, 255, 0.7);
+  }
+
+  @media (max-width: 900px) {
+    .footer-inner {
+      grid-template-columns: 1fr 1fr;
+      gap: 2em;
+    }
+    .footer-brand { grid-column: 1 / -1; }
+  }
+
+  @media (max-width: 540px) {
+    .footer-inner {
+      grid-template-columns: 1fr;
+      padding: 2em 1.5em 1.5em;
+    }
+    .footer-bottom { padding: 1em 1.5em; }
+  }
 </style>
