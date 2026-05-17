@@ -1,0 +1,46 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+<html lang="en">
+  <head>
+    <BaseHead title="Privacy Policy | AstroSignal" description="Privacy Policy for AstroSignal" />
+  </head>
+  <body>
+    <Header />
+    <main>
+      <h1>Privacy Policy</h1>
+      <p><strong>Last updated: May 17, 2026</strong></p>
+      <p>This Privacy Policy describes how AstroSignal ("we", "us", or "our") collects, uses, and shares information when you visit <strong>astrotobby.site</strong>.</p>
+
+      <h2>Information We Collect</h2>
+      <p>We collect minimal data. When you visit this site, basic analytics data may be collected including pages visited, time on site, and general geographic region. We do not collect your name, email, or personal details unless you contact us directly.</p>
+
+      <h2>Analytics</h2>
+      <p>This site may use privacy-respecting analytics tools to understand traffic patterns and improve content. No personally identifiable information is stored.</p>
+
+      <h2>Cookies</h2>
+      <p>This site uses minimal cookies necessary for basic functionality. We do not use tracking cookies for advertising purposes.</p>
+
+      <h2>Third-Party Links</h2>
+      <p>AstroSignal contains links to third-party websites including AI tools, platforms, and services. We are not responsible for the privacy practices of those sites. We encourage you to review their privacy policies.</p>
+
+      <h2>Affiliate Disclosure</h2>
+      <p>Some links on this site may be affiliate links. This means we may earn a small commission if you click and make a purchase, at no additional cost to you. This helps support the blog and keep content free.</p>
+
+      <h2>Data Security</h2>
+      <p>This site is hosted on Cloudflare Workers, which provides industry-standard security. We take reasonable measures to protect any information submitted to us.</p>
+
+      <h2>Your Rights</h2>
+      <p>You have the right to request deletion of any personal data you've submitted to us. Contact us at <a href="mailto:Chanzeratobias@gmail.com">Chanzeratobias@gmail.com</a> for any privacy-related requests.</p>
+
+      <h2>Changes to This Policy</h2>
+      <p>We may update this policy from time to time. Changes will be posted on this page with an updated date.</p>
+
+      <h2>Contact</h2>
+      <p>Questions about this policy? Email: <a href="mailto:Chanzeratobias@gmail.com">Chanzeratobias@gmail.com</a></p>
+    </main>
+    <Footer />
+  </body>
+</html>
