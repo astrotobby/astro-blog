@@ -3,30 +3,18 @@ const today = new Date();
 ---
 
 <footer>
-  <!-- Ambient glow divider -->
-  <div class="footer-glow-divider"></div>
-
   <div class="footer-inner">
-    <!-- Brand column -->
     <div class="footer-brand">
       <div class="footer-logo">
         <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="14" cy="14" r="12" stroke="url(#footerGrad)" stroke-width="2"/>
-          <path d="M8 14 L14 8 L20 14 L14 20 Z" fill="url(#footerGrad)" opacity="0.8"/>
-          <circle cx="14" cy="14" r="3" fill="url(#footerGrad)"/>
-          <defs>
-            <linearGradient id="footerGrad" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#00d4ff"/>
-              <stop offset="100%" stop-color="#00ff9d"/>
-            </linearGradient>
-          </defs>
+          <circle cx="14" cy="14" r="12" stroke="#10b981" stroke-width="2"/>
+          <path d="M8 14 L14 8 L20 14 L14 20 Z" fill="#10b981"/>
         </svg>
         <span class="footer-brand-name">AstroSignal</span>
       </div>
       <p class="footer-tagline">Navigating the frontier of AI, technology, and the future.</p>
     </div>
 
-    <!-- Links column -->
     <div class="footer-links-group">
       <h4>Navigate</h4>
       <a href="/">Home</a>
@@ -39,32 +27,22 @@ const today = new Date();
       <a href="/privacy-policy">Privacy Policy</a>
     </div>
 
-    <!-- Social column -->
     <div class="footer-links-group">
       <h4>Connect</h4>
       <div class="footer-social-icons">
-        <a href="https://x.com/AstroboyTobby1" target="_blank" rel="noopener" aria-label="X (Twitter)">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-          </svg>
+        <a href="https://x.com/AstroboyTobby1" target="_blank" rel="noopener" aria-label="X">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         </a>
         <a href="https://www.instagram.com/astro_tobby/" target="_blank" rel="noopener" aria-label="Instagram">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-          </svg>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
         </a>
         <a href="https://www.facebook.com/AstroteeSignal" target="_blank" rel="noopener" aria-label="Facebook">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-            <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
-          </svg>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
         </a>
       </div>
     </div>
   </div>
 
-  <!-- Bottom bar -->
   <div class="footer-bottom">
     <p>&copy; {today.getFullYear()} <strong>AstroSignal</strong> by Astro Tobby. All rights reserved.</p>
   </div>
@@ -72,136 +50,97 @@ const today = new Date();
 
 <style>
   footer {
-    position: relative;
-    z-index: 1;
-    margin-top: 5em;
-    background: rgba(2, 8, 18, 0.9);
-    border-top: 1px solid rgba(0, 212, 255, 0.10);
-  }
-
-  .footer-glow-divider {
-    height: 1px;
-    background: linear-gradient(90deg,
-      transparent 0%,
-      rgba(0, 212, 255, 0.5) 30%,
-      rgba(0, 255, 157, 0.5) 50%,
-      rgba(0, 212, 255, 0.5) 70%,
-      transparent 100%
-    );
+    background: #f8fafc;
+    border-top: 1px solid rgba(16, 185, 129, 0.1);
+    padding: 4rem 0 2rem;
+    margin-top: 6rem;
   }
 
   .footer-inner {
     max-width: 1100px;
     margin: 0 auto;
-    padding: 3em 2em 2em;
+    padding: 0 2rem;
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr;
-    gap: 2.5em;
+    gap: 3rem;
   }
 
-  /* Brand */
   .footer-logo {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 0.75em;
-    filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.4));
+    margin-bottom: 1rem;
   }
 
   .footer-brand-name {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 1.1rem;
+    font-size: 1.25rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #00d4ff, #00ff9d);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #0f172a;
   }
 
   .footer-tagline {
-    font-size: 0.875rem;
-    color: rgba(138, 180, 204, 0.65);
+    font-size: 0.95rem;
+    color: #64748b;
     line-height: 1.6;
-    margin: 0;
-  }
-
-  /* Link groups */
-  .footer-links-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5em;
+    max-width: 300px;
   }
 
   .footer-links-group h4 {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: rgba(0, 212, 255, 0.6);
-    margin: 0 0 0.4em 0;
+    letter-spacing: 0.05em;
+    color: #10b981;
+    margin-bottom: 1.25rem;
   }
 
   .footer-links-group a {
-    font-size: 0.9rem;
-    color: rgba(138, 180, 204, 0.7);
-    text-decoration: none;
-    transition: color 0.2s ease, text-shadow 0.2s ease;
-    width: fit-content;
+    display: block;
+    font-size: 0.95rem;
+    color: #475569;
+    margin-bottom: 0.75rem;
+    transition: color 0.2s ease;
   }
 
   .footer-links-group a:hover {
-    color: #00d4ff;
-    text-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
+    color: #10b981;
   }
 
   .footer-social-icons {
     display: flex;
-    gap: 1.25em;
-    margin-top: 0.5em;
+    gap: 1.25rem;
   }
 
   .footer-social-icons a {
-    color: rgba(138, 180, 204, 0.6);
-    transition: all 0.25s ease;
+    color: #64748b;
+    transition: all 0.2s ease;
   }
 
   .footer-social-icons a:hover {
-    color: #00d4ff;
-    transform: translateY(-3px);
-    filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.6));
+    color: #10b981;
+    transform: translateY(-2px);
   }
 
-  /* Bottom bar */
   .footer-bottom {
-    border-top: 1px solid rgba(0, 212, 255, 0.07);
-    padding: 1.25em 2em;
+    max-width: 1100px;
+    margin: 3rem auto 0;
+    padding: 2rem 2rem 0;
+    border-top: 1px solid rgba(16, 185, 129, 0.05);
     text-align: center;
   }
 
   .footer-bottom p {
-    margin: 0;
-    font-size: 0.82rem;
-    color: rgba(138, 180, 204, 0.45);
-  }
-
-  .footer-bottom strong {
-    color: rgba(0, 212, 255, 0.7);
+    font-size: 0.9rem;
+    color: #94a3b8;
   }
 
   @media (max-width: 900px) {
-    .footer-inner {
-      grid-template-columns: 1fr 1fr;
-      gap: 2em;
-    }
+    .footer-inner { grid-template-columns: 1fr 1fr; }
     .footer-brand { grid-column: 1 / -1; }
   }
 
-  @media (max-width: 540px) {
-    .footer-inner {
-      grid-template-columns: 1fr;
-      padding: 2em 1.5em 1.5em;
-    }
-    .footer-bottom { padding: 1em 1.5em; }
+  @media (max-width: 600px) {
+    .footer-inner { grid-template-columns: 1fr; }
   }
 </style>
