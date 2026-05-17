@@ -42,10 +42,32 @@ const today = new Date();
     <!-- Social column -->
     <div class="footer-links-group">
       <h4>Connect</h4>
-      <a href="https://x.com/AstroboyTobby1" target="_blank" rel="noopener">X (Twitter)</a>
-      <a href="https://www.instagram.com/astro_tobby/" target="_blank" rel="noopener">Instagram</a>
-      <a href="https://www.facebook.com/AstroteeSignal" target="_blank" rel="noopener">Facebook</a>
-      <a href="/rss.xml" target="_blank">RSS Feed</a>
+      <div class="footer-social-icons">
+        <a href="https://x.com/AstroboyTobby1" target="_blank" rel="noopener" aria-label="X (Twitter)">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+          </svg>
+        </a>
+        <a href="https://www.instagram.com/astro_tobby/" target="_blank" rel="noopener" aria-label="Instagram">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+          </svg>
+        </a>
+        <a href="https://www.facebook.com/AstroteeSignal" target="_blank" rel="noopener" aria-label="Facebook">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+            <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+          </svg>
+        </a>
+        <a href="/rss.xml" target="_blank" aria-label="RSS Feed">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 11a9 9 0 0 1 9 9"></path>
+            <path d="M4 4a16 16 0 0 1 16 16"></path>
+            <circle cx="5" cy="19" r="1"></circle>
+          </svg>
+        </a>
+      </div>
     </div>
   </div>
 
@@ -85,8 +107,6 @@ const today = new Date();
   }
 
   /* Brand */
-  .footer-brand {}
-
   .footer-logo {
     display: flex;
     align-items: center;
@@ -140,6 +160,23 @@ const today = new Date();
   .footer-links-group a:hover {
     color: #00d4ff;
     text-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
+  }
+
+  .footer-social-icons {
+    display: flex;
+    gap: 1.25em;
+    margin-top: 0.5em;
+  }
+
+  .footer-social-icons a {
+    color: rgba(138, 180, 204, 0.6);
+    transition: all 0.25s ease;
+  }
+
+  .footer-social-icons a:hover {
+    color: #00d4ff;
+    transform: translateY(-3px);
+    filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.6));
   }
 
   /* Bottom */
