@@ -2,47 +2,260 @@
 import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
+import { getCollection } from 'astro:content';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+
+const posts = (await getCollection('blog')).sort(
+	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+).slice(0, 6);
 ---
 
 <!doctype html>
 <html lang="en">
 	<head>
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
+		<style>
+			.hero {
+				padding: 4em 1em 3em;
+				max-width: 860px;
+				margin: 0 auto;
+				text-align: center;
+			}
+			.hero h1 {
+				font-size: 2.8em;
+				line-height: 1.2;
+				margin-bottom: 0.4em;
+				color: rgb(var(--black));
+			}
+			.hero h1 span {
+				color: var(--accent);
+			}
+			.hero p {
+				font-size: 1.15em;
+				color: rgb(var(--gray-dark));
+				max-width: 580px;
+				margin: 0 auto 2em;
+				line-height: 1.7;
+			}
+			.hero-cta {
+				display: flex;
+				gap: 1em;
+				justify-content: center;
+				flex-wrap: wrap;
+			}
+			.btn-primary {
+				background: var(--accent);
+				color: white;
+				padding: 0.75em 1.8em;
+				border-radius: 6px;
+				text-decoration: none;
+				font-weight: 600;
+				transition: opacity 0.2s;
+			}
+			.btn-primary:hover { opacity: 0.85; }
+			.btn-secondary {
+				border: 2px solid var(--accent);
+				color: var(--accent);
+				padding: 0.75em 1.8em;
+				border-radius: 6px;
+				text-decoration: none;
+				font-weight: 600;
+				transition: all 0.2s;
+			}
+			.btn-secondary:hover { background: var(--accent); color: white; }
+			.topics {
+				background: rgb(var(--gray-light));
+				padding: 3em 1em;
+			}
+			.topics-inner {
+				max-width: 860px;
+				margin: 0 auto;
+			}
+			.topics h2 {
+				text-align: center;
+				margin-bottom: 1.5em;
+				font-size: 1.6em;
+			}
+			.topics-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+				gap: 1em;
+			}
+			.topic-card {
+				background: white;
+				border-radius: 10px;
+				padding: 1.5em 1em;
+				text-align: center;
+				border: 1px solid rgba(var(--gray), 0.3);
+				transition: transform 0.2s, box-shadow 0.2s;
+			}
+			.topic-card:hover {
+				transform: translateY(-3px);
+				box-shadow: 0 6px 20px rgba(var(--black), 8%);
+			}
+			.topic-icon { font-size: 2em; margin-bottom: 0.4em; }
+			.topic-card h3 { font-size: 0.95em; margin: 0; color: rgb(var(--black)); }
+			.recent {
+				max-width: 860px;
+				margin: 0 auto;
+				padding: 3em 1em;
+			}
+			.recent h2 {
+				font-size: 1.6em;
+				margin-bottom: 1.5em;
+			}
+			.posts-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+				gap: 1.5em;
+			}
+			.post-card {
+				border: 1px solid rgba(var(--gray), 0.3);
+				border-radius: 10px;
+				overflow: hidden;
+				transition: transform 0.2s, box-shadow 0.2s;
+				text-decoration: none;
+				color: inherit;
+				display: block;
+			}
+			.post-card:hover {
+				transform: translateY(-3px);
+				box-shadow: 0 6px 20px rgba(var(--black), 8%);
+			}
+			.post-card-body { padding: 1.2em; }
+			.post-date {
+				font-size: 0.8em;
+				color: rgb(var(--gray));
+				margin-bottom: 0.4em;
+			}
+			.post-card h3 {
+				margin: 0 0 0.5em;
+				font-size: 1em;
+				line-height: 1.4;
+				color: rgb(var(--black));
+			}
+			.post-card p {
+				margin: 0;
+				font-size: 0.88em;
+				color: rgb(var(--gray-dark));
+				line-height: 1.5;
+			}
+			.view-all {
+				text-align: center;
+				margin-top: 2em;
+			}
+			.view-all a {
+				color: var(--accent);
+				text-decoration: none;
+				font-weight: 600;
+			}
+			.view-all a:hover { text-decoration: underline; }
+			.author-strip {
+				background: rgb(var(--gray-light));
+				padding: 2.5em 1em;
+				border-top: 1px solid rgba(var(--gray), 0.2);
+			}
+			.author-strip-inner {
+				max-width: 860px;
+				margin: 0 auto;
+				display: flex;
+				align-items: center;
+				gap: 1.5em;
+				flex-wrap: wrap;
+			}
+			.author-avatar {
+				width: 64px;
+				height: 64px;
+				border-radius: 50%;
+				background: var(--accent);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 1.8em;
+				flex-shrink: 0;
+			}
+			.author-info h3 { margin: 0 0 0.2em; font-size: 1.1em; }
+			.author-info p { margin: 0; font-size: 0.9em; color: rgb(var(--gray-dark)); }
+			.author-info a { color: var(--accent); text-decoration: none; }
+		</style>
 	</head>
 	<body>
 		<Header />
 		<main>
-			<h1>🧑‍🚀 Hello, Astronaut!</h1>
-			<p>
-				Welcome to the official <a href="https://astro.build/">Astro</a> blog starter template. This template
-				serves as a lightweight, minimally-styled starting point for anyone looking to build a personal
-				website, blog, or portfolio with Astro.
-			</p>
-			<p>
-				This template comes with a few integrations already configured in your
-				<code>astro.config.mjs</code> file. You can customize your setup with
-				<a href="https://astro.build/integrations">Astro Integrations</a> to add tools like Tailwind,
-				React, or Vue to your project.
-			</p>
-			<p>Here are a few ideas on how to get started with the template:</p>
-			<ul>
-				<li>Edit this page in <code>src/pages/index.astro</code></li>
-				<li>Edit the site header items in <code>src/components/Header.astro</code></li>
-				<li>Add your name to the footer in <code>src/components/Footer.astro</code></li>
-				<li>Check out the included blog posts in <code>src/content/blog/</code></li>
-				<li>Customize the blog post page layout in <code>src/layouts/BlogPost.astro</code></li>
-			</ul>
-			<p>
-				Have fun! If you get stuck, remember to
-				<a href="https://docs.astro.build/">read the docs</a>
-				or <a href="https://astro.build/chat">join us on Discord</a> to ask questions.
-			</p>
-			<p>
-				Looking for a blog template with a bit more personality? Check out
-				<a href="https://github.com/Charca/astro-blog-template">astro-blog-template</a>
-				by <a href="https://twitter.com/Charca">Maxi Ferreira</a>.
-			</p>
+
+			<!-- HERO -->
+			<section class="hero">
+				<h1>The Signal on <span>AI</span> That Actually Matters</h1>
+				<p>Deep dives on AI video tools, agentic workflows, vibe coding, and answer engine optimization. No hype. Just what works — from a creator who builds with these tools daily.</p>
+				<div class="hero-cta">
+					<a href="/blog" class="btn-primary">Read the Blog</a>
+					<a href="/about" class="btn-secondary">About Astro Tobby</a>
+				</div>
+			</section>
+
+			<!-- TOPICS -->
+			<section class="topics">
+				<div class="topics-inner">
+					<h2>What We Cover</h2>
+					<div class="topics-grid">
+						<div class="topic-card">
+							<div class="topic-icon">🎬</div>
+							<h3>AI Video Tools</h3>
+						</div>
+						<div class="topic-card">
+							<div class="topic-icon">🤖</div>
+							<h3>Agentic AI</h3>
+						</div>
+						<div class="topic-card">
+							<div class="topic-icon">💻</div>
+							<h3>Vibe Coding</h3>
+						</div>
+						<div class="topic-card">
+							<div class="topic-icon">🔍</div>
+							<h3>Answer Engine Optimization</h3>
+						</div>
+						<div class="topic-card">
+							<div class="topic-icon">⚡</div>
+							<h3>AI Automation</h3>
+						</div>
+						<div class="topic-card">
+							<div class="topic-icon">💰</div>
+							<h3>Creator Monetization</h3>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- RECENT POSTS -->
+			<section class="recent">
+				<h2>Latest Articles</h2>
+				<div class="posts-grid">
+					{posts.map(post => (
+						<a href={`/blog/${post.id}/`} class="post-card">
+							<div class="post-card-body">
+								<p class="post-date">{post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+								<h3>{post.data.title}</h3>
+								{post.data.description && <p>{post.data.description.slice(0, 100)}{post.data.description.length > 100 ? '...' : ''}</p>}
+							</div>
+						</a>
+					))}
+				</div>
+				<div class="view-all">
+					<a href="/blog">→ View all articles</a>
+				</div>
+			</section>
+
+			<!-- AUTHOR STRIP -->
+			<section class="author-strip">
+				<div class="author-strip-inner">
+					<div class="author-avatar">🚀</div>
+					<div class="author-info">
+						<h3>Written by Astro Tobby (Tobias Chanzera)</h3>
+						<p>AI video creator & content strategist. Founder of PixelMind Studio. Runway ML Certified. Based in Nairobi, Kenya. <a href="/about">Read more →</a></p>
+					</div>
+				</div>
+			</section>
+
 		</main>
 		<Footer />
 	</body>
