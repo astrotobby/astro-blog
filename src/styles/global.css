@@ -1,141 +1,255 @@
 /*
-  The CSS in this style tag is based off of Bear Blog's default CSS.
-  https://github.com/HermanMartinus/bearblog/blob/297026a877bc2ab2b3bdfbd6b9f7961c350917dd/templates/styles/blog/default.css
-  License MIT: https://github.com/HermanMartinus/bearblog/blob/master/LICENSE.md
- */
+  AstroSignal — World-Class Blue-Green Ambient Theme
+  Designed for maximum visual impression and visitor retention.
+*/
 
+/* ─── Google Fonts ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+/* ─── CSS Custom Properties ─────────────────────────────────────────────────── */
 :root {
-	--accent: #2337ff;
-	--accent-dark: #000d8a;
-	--black: 15, 18, 25;
-	--gray: 96, 115, 159;
-	--gray-light: 229, 233, 240;
-	--gray-dark: 34, 41, 57;
-	--gray-gradient: rgba(var(--gray-light), 50%), #fff;
-	--box-shadow:
-		0 2px 6px rgba(var(--gray), 25%), 0 8px 24px rgba(var(--gray), 33%),
-		0 16px 32px rgba(var(--gray), 33%);
+  /* Brand palette */
+  --accent:           #00d4ff;
+  --accent-2:         #00ff9d;
+  --accent-dark:      #0077b6;
+  --accent-glow:      rgba(0, 212, 255, 0.35);
+  --accent-2-glow:    rgba(0, 255, 157, 0.25);
+
+  /* Backgrounds */
+  --bg-deep:          #020b18;
+  --bg-card:          rgba(5, 20, 40, 0.72);
+  --bg-card-hover:    rgba(0, 40, 70, 0.85);
+  --bg-glass:         rgba(0, 212, 255, 0.06);
+  --bg-glass-border:  rgba(0, 212, 255, 0.18);
+
+  /* Text */
+  --text-primary:     #e8f4fd;
+  --text-secondary:   #8ab4cc;
+  --text-muted:       #4a7a99;
+
+  /* Legacy compat vars used by existing components */
+  --black:            232, 244, 253;
+  --gray:             138, 180, 204;
+  --gray-light:       10, 30, 55;
+  --gray-dark:        200, 230, 248;
+  --gray-gradient:    rgba(2, 11, 24, 0) 0%, rgba(2, 11, 24, 1) 100%;
+
+  /* Shadows */
+  --box-shadow:
+    0 0 0 1px rgba(0, 212, 255, 0.15),
+    0 4px 16px rgba(0, 212, 255, 0.12),
+    0 16px 48px rgba(0, 20, 40, 0.6);
+  --glow-shadow:
+    0 0 20px rgba(0, 212, 255, 0.4),
+    0 0 60px rgba(0, 212, 255, 0.15);
 }
+
+/* ─── Reset & Base ───────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-	font-family: var(--font-atkinson);
-	margin: 0;
-	padding: 0;
-	text-align: left;
-	background: linear-gradient(var(--gray-gradient)) no-repeat;
-	background-size: 100% 600px;
-	word-wrap: break-word;
-	overflow-wrap: break-word;
-	color: rgb(var(--gray-dark));
-	font-size: 20px;
-	line-height: 1.7;
+  font-family: 'Inter', var(--font-atkinson), sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-deep);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(0, 100, 180, 0.28) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(0, 180, 120, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 30% at 50% 50%, rgba(0, 50, 100, 0.12) 0%, transparent 70%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  font-size: 18px;
+  line-height: 1.75;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  text-align: left;
+  min-height: 100vh;
 }
-main {
-	width: 720px;
-	max-width: calc(100% - 2em);
-	margin: auto;
-	padding: 3em 1em;
+
+/* Ambient animated orb — top-left */
+body::before {
+  content: '';
+  position: fixed;
+  top: -20%;
+  left: -10%;
+  width: 60vw;
+  height: 60vw;
+  background: radial-gradient(circle, rgba(0, 150, 220, 0.12) 0%, transparent 65%);
+  border-radius: 50%;
+  animation: orbFloat 18s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 0;
 }
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-	margin: 0 0 0.5rem 0;
-	color: rgb(var(--black));
-	line-height: 1.2;
+
+/* Ambient animated orb — bottom-right */
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -15%;
+  right: -10%;
+  width: 50vw;
+  height: 50vw;
+  background: radial-gradient(circle, rgba(0, 200, 130, 0.10) 0%, transparent 65%);
+  border-radius: 50%;
+  animation: orbFloat 22s ease-in-out infinite alternate-reverse;
+  pointer-events: none;
+  z-index: 0;
 }
-h1 {
-	font-size: 3.052em;
+
+@keyframes orbFloat {
+  0%   { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(3vw, 4vh) scale(1.08); }
+  100% { transform: translate(-2vw, -3vh) scale(0.95); }
 }
-h2 {
-	font-size: 2.441em;
+
+/* ─── Typography ─────────────────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  margin: 0 0 0.6rem 0;
+  color: var(--text-primary);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
-h3 {
-	font-size: 1.953em;
-}
-h4 {
-	font-size: 1.563em;
-}
-h5 {
-	font-size: 1.25em;
-}
-strong,
-b {
-	font-weight: 700;
-}
+
+h1 { font-size: 3.052em; font-weight: 800; }
+h2 { font-size: 2.441em; font-weight: 700; }
+h3 { font-size: 1.953em; font-weight: 700; }
+h4 { font-size: 1.563em; font-weight: 600; }
+h5 { font-size: 1.25em;  font-weight: 600; }
+h6 { font-size: 1em;     font-weight: 600; }
+
+strong, b { font-weight: 700; }
+
+p { margin-bottom: 1em; }
+.prose p { margin-bottom: 1.8em; }
+
 a {
-	color: var(--accent);
+  color: var(--accent);
+  text-decoration: none;
+  transition: color 0.2s ease, text-shadow 0.2s ease;
 }
 a:hover {
-	color: var(--accent);
-}
-p {
-	margin-bottom: 1em;
-}
-.prose p {
-	margin-bottom: 2em;
-}
-textarea {
-	width: 100%;
-	font-size: 16px;
-}
-input {
-	font-size: 16px;
-}
-table {
-	width: 100%;
-}
-img {
-	max-width: 100%;
-	height: auto;
-	border-radius: 8px;
-}
-code {
-	padding: 2px 5px;
-	background-color: rgb(var(--gray-light));
-	border-radius: 2px;
-}
-pre {
-	padding: 1.5em;
-	border-radius: 8px;
-}
-pre > code {
-	all: unset;
-}
-blockquote {
-	border-left: 4px solid var(--accent);
-	padding: 0 0 0 20px;
-	margin: 0;
-	font-size: 1.333em;
-}
-hr {
-	border: none;
-	border-top: 1px solid rgb(var(--gray-light));
-}
-@media (max-width: 720px) {
-	body {
-		font-size: 18px;
-	}
-	main {
-		padding: 1em;
-	}
+  color: var(--accent-2);
+  text-shadow: 0 0 12px rgba(0, 255, 157, 0.5);
 }
 
+/* ─── Layout ─────────────────────────────────────────────────────────────────── */
+main {
+  position: relative;
+  z-index: 1;
+  width: 720px;
+  max-width: calc(100% - 2em);
+  margin: auto;
+  padding: 3em 1em;
+}
+
+/* ─── Images ─────────────────────────────────────────────────────────────────── */
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+/* ─── Code ───────────────────────────────────────────────────────────────────── */
+code {
+  padding: 2px 7px;
+  background: rgba(0, 212, 255, 0.10);
+  border: 1px solid rgba(0, 212, 255, 0.20);
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: var(--accent);
+}
+
+pre {
+  padding: 1.5em;
+  border-radius: 12px;
+  background: rgba(0, 10, 25, 0.85) !important;
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  overflow-x: auto;
+}
+pre > code {
+  all: unset;
+  color: var(--text-primary);
+}
+
+/* ─── Blockquote ─────────────────────────────────────────────────────────────── */
+blockquote {
+  border-left: 3px solid var(--accent);
+  padding: 0.5em 0 0.5em 1.5em;
+  margin: 1.5em 0;
+  font-size: 1.1em;
+  color: var(--text-secondary);
+  background: rgba(0, 212, 255, 0.04);
+  border-radius: 0 8px 8px 0;
+}
+
+/* ─── HR ─────────────────────────────────────────────────────────────────────── */
+hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  margin: 2em 0;
+  opacity: 0.4;
+}
+
+/* ─── Tables ─────────────────────────────────────────────────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th, td {
+  padding: 0.6em 1em;
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  text-align: left;
+}
+th {
+  background: rgba(0, 212, 255, 0.08);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ─── Form elements ──────────────────────────────────────────────────────────── */
+textarea {
+  width: 100%;
+  font-size: 16px;
+}
+input {
+  font-size: 16px;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--accent-dark), var(--accent-2));
+  border-radius: 4px;
+}
+
+/* ─── Accessibility ──────────────────────────────────────────────────────────── */
 .sr-only {
-	border: 0;
-	padding: 0;
-	margin: 0;
-	position: absolute !important;
-	height: 1px;
-	width: 1px;
-	overflow: hidden;
-	/* IE6, IE7 - a 0 height clip, off to the bottom right of the visible 1px box */
-	clip: rect(1px 1px 1px 1px);
-	/* maybe deprecated but we need to support legacy browsers */
-	clip: rect(1px, 1px, 1px, 1px);
-	/* modern browsers, clip-path works inwards from each corner */
-	clip-path: inset(50%);
-	/* added line to stop words getting smushed together (as they go onto separate lines and some screen readers do not understand line feeds as a space */
-	white-space: nowrap;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  position: absolute !important;
+  height: 1px;
+  width: 1px;
+  overflow: hidden;
+  clip: rect(1px 1px 1px 1px);
+  clip: rect(1px, 1px, 1px, 1px);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  body { font-size: 16px; }
+  main { padding: 1.5em 1em; }
+  h1   { font-size: 2.2em; }
+  h2   { font-size: 1.8em; }
 }
