@@ -7,7 +7,10 @@
 		"directory": "./dist",
 		"binding": "ASSETS"
 	},
-	"observability": {
-		"enabled": true
-	}
+		"observability": {
+			"enabled": true
+		},
+		"ai": {
+			"binding": "AI"
+		}
 }
