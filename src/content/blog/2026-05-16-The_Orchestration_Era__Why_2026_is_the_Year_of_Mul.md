@@ -5,7 +5,6 @@ pubDate: "2026-05-16"
 date: "2026-05-16"
 description: ""
 ---
-image: "/orchestration-era.jpg"
 
 <h3>Beyond the Chatbot: The Rise of the Digital Workforce</h3>
 

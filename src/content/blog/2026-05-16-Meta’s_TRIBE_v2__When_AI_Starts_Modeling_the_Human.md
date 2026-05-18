@@ -5,7 +5,6 @@ pubDate: "2026-05-16"
 date: "2026-05-16"
 description: ""
 ---
-image: "/meta-tribe.jpg"
 
 <h3>The Digital Twin of the Mind: Understanding Meta’s TRIBE v2</h3>
 
