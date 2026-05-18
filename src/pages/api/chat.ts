@@ -15,23 +15,31 @@ function cleanMessageHistory(messages: Message[]): Message[] {
   let lastRole: 'user' | 'assistant' | null = null;
 
   for (const msg of messages) {
-    if (!msg.content || msg.content.trim() === '') continue;
+    const content = String(msg.content || '').trim();
+    if (!content) continue;
     
     // Normalize role: 'bot' becomes 'assistant'
     const role = msg.role === 'assistant' || msg.role === 'bot' ? 'assistant' : 'user';
     
     if (lastRole === role) {
-      cleaned[cleaned.length - 1].content += "\n" + msg.content.trim();
+      cleaned[cleaned.length - 1].content += "\n" + content;
       continue;
     }
     
-    cleaned.push({ role, content: msg.content.trim() });
+    cleaned.push({ role, content });
     lastRole = role;
   }
 
-  // Ensure conversation starts with user and ends with user
-  while (cleaned.length > 0 && cleaned[0].role !== 'user') cleaned.shift();
-  while (cleaned.length > 0 && cleaned[cleaned.length - 1].role !== 'user') cleaned.pop();
+  // Anthropic requires the conversation to start with 'user'
+  while (cleaned.length > 0 && cleaned[0].role !== 'user') {
+    cleaned.shift();
+  }
+
+  // Anthropic requires the conversation to end with 'user' if we want a response
+  // (or it can end with assistant if we are continuing, but for a new prompt it must be user)
+  while (cleaned.length > 0 && cleaned[cleaned.length - 1].role !== 'user') {
+    cleaned.pop();
+  }
 
   return cleaned;
 }
@@ -41,7 +49,7 @@ export const POST: APIRoute = async (context) => {
     const apiKey = (cfEnv as any).ANTHROPIC_API_KEY;
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured on Cloudflare.' }),
+        JSON.stringify({ error: 'ANTHROPIC_API_KEY is missing. Please set it in Cloudflare Secrets.' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -55,18 +63,21 @@ export const POST: APIRoute = async (context) => {
         content: String(m.content || ''),
       }));
     } else {
-      messages = [{ role: 'user', content: String(body.message || body.content || '') }];
+      const directContent = body.message || body.content || body;
+      messages = [{ role: 'user', content: String(directContent || '') }];
     }
 
-    messages = cleanMessageHistory(messages);
-    if (messages.length === 0) {
+    const cleanedMessages = cleanMessageHistory(messages);
+    
+    if (cleanedMessages.length === 0) {
       return new Response(
-        JSON.stringify({ error: 'No valid messages provided.' }),
+        JSON.stringify({ error: 'No valid message history found. Try clearing your chat.' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // Call Anthropic API with streaming
+    // Call Anthropic API
+    // Using Claude 3.5 Sonnet for better reliability and reasoning
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -75,19 +86,23 @@ export const POST: APIRoute = async (context) => {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
+        model: 'claude-3-5-sonnet-20241022',
         max_tokens: 1024,
         system: "You are Tobby's Assistant, a helpful AI on the AstroSignal blog. Help visitors with questions about AI, technology, and the blog content. Be concise, friendly, and informative.",
-        messages,
-        stream: false, // We'll handle streaming manually
+        messages: cleanedMessages,
       }),
     });
 
     if (!anthropicRes.ok) {
-      const errText = await anthropicRes.text();
-      console.error('Anthropic API Error:', errText);
+      const errData = await anthropicRes.json().catch(() => ({}));
+      const errorDetail = errData.error?.message || `HTTP ${anthropicRes.status}`;
+      console.error('Anthropic API Error:', errData);
+      
       return new Response(
-        JSON.stringify({ error: `Anthropic API error: ${anthropicRes.status}` }),
+        JSON.stringify({ 
+          error: `Anthropic Error: ${errorDetail}`,
+          type: errData.error?.type || 'api_error'
+        }),
         { status: anthropicRes.status, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -97,24 +112,20 @@ export const POST: APIRoute = async (context) => {
 
     if (!botResponse) {
       return new Response(
-        JSON.stringify({ error: 'No response from AI model.' }),
+        JSON.stringify({ error: 'The AI returned an empty response.' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // Return the response as plain text for streaming consumption
     return new Response(botResponse, {
       status: 200,
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Transfer-Encoding': 'chunked',
-      },
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     });
 
   } catch (err) {
-    console.error('Chat API Error:', err);
+    console.error('Chat API Exception:', err);
     return new Response(
-      JSON.stringify({ error: `Server error: ${String(err)}` }),
+      JSON.stringify({ error: `Server Exception: ${String(err)}` }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
