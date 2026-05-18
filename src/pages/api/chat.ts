@@ -18,7 +18,7 @@ export const POST: APIRoute = async (context) => {
     const body = await context.request.json() as any;
 
     // Handle ALL possible formats the frontend might send
-    let messages: Array<{ role: string; content: string }> = [];
+    let messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
 
     if (Array.isArray(body.messages)) {
       // Format: { messages: [{role, content}] }
@@ -39,11 +39,11 @@ export const POST: APIRoute = async (context) => {
       );
     }
 
-    // Ensure all messages have valid roles
+    // Ensure all messages have valid roles (convert 'bot' to 'assistant')
     messages = messages.map(m => ({
-      role: m.role === 'assistant' ? 'assistant' : 'user',
+      role: (m.role === 'assistant' || m.role === 'bot') ? 'assistant' : 'user',
       content: String(m.content),
-    }));
+    })) as Array<{ role: 'user' | 'assistant'; content: string }>;
 
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -72,10 +72,15 @@ export const POST: APIRoute = async (context) => {
     const data = await anthropicRes.json() as any;
     const text = data.content?.find((b: any) => b.type === 'text')?.text ?? '';
 
-    return new Response(
-      JSON.stringify({ message: text, role: 'assistant' }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    // Return streaming response for compatibility with frontend
+    // The frontend expects to stream the response text character by character
+    return new Response(text, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Transfer-Encoding': 'chunked',
+      },
+    });
 
   } catch (err) {
     console.error('Chat API error:', err);

@@ -91,6 +91,12 @@
             color: white;
             border-bottom-right-radius: 2px;
         }
+        .chat-msg.assistant {
+            align-self: flex-start;
+            background-color: #f3f4f6;
+            color: #1f2937;
+            border-bottom-left-radius: 2px;
+        }
         .chat-msg.bot {
             align-self: flex-start;
             background-color: #f3f4f6;
@@ -129,6 +135,10 @@
         }
         #chat-widget-send:hover {
             opacity: 0.9;
+        }
+        #chat-widget-send:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         .typing-indicator {
             display: flex;
@@ -186,6 +196,7 @@
     const sendBtn = document.getElementById('chat-widget-send');
 
     let history = JSON.parse(localStorage.getItem(CONFIG.storageKey) || '[]');
+    let isLoading = false;
 
     function saveHistory() {
         localStorage.setItem(CONFIG.storageKey, JSON.stringify(history));
@@ -202,7 +213,7 @@
 
     function showTyping() {
         const typingDiv = document.createElement('div');
-        typingDiv.className = 'chat-msg bot typing-indicator-container';
+        typingDiv.className = 'chat-msg assistant typing-indicator-container';
         typingDiv.innerHTML = `
             <div class="typing-indicator">
                 <div class="typing-dot"></div>
@@ -218,9 +229,13 @@
     function loadHistory() {
         messagesEl.innerHTML = '';
         if (history.length === 0) {
-            appendMessage('bot', CONFIG.welcomeMessage);
+            appendMessage('assistant', CONFIG.welcomeMessage);
         } else {
-            history.forEach(msg => appendMessage(msg.role, msg.content));
+            history.forEach(msg => {
+                // Normalize role: convert 'bot' to 'assistant' for display
+                const displayRole = msg.role === 'bot' ? 'assistant' : msg.role;
+                appendMessage(displayRole, msg.content);
+            });
         }
     }
 
@@ -237,12 +252,15 @@
 
     async function handleSend() {
         const text = inputEl.value.trim();
-        if (!text) return;
+        if (!text || isLoading) return;
 
         inputEl.value = '';
         appendMessage('user', text);
         history.push({ role: 'user', content: text });
         saveHistory();
+
+        isLoading = true;
+        sendBtn.disabled = true;
 
         const typingIndicator = showTyping();
 
@@ -255,14 +273,14 @@
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || 'Failed to fetch');
+                throw new Error(errorData.error || `HTTP ${response.status}`);
             }
 
             // Remove typing indicator
             typingIndicator.remove();
 
             // Create bot message div for streaming
-            const botMsgDiv = appendMessage('bot', '');
+            const botMsgDiv = appendMessage('assistant', '');
             
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -278,17 +296,30 @@
                 messagesEl.scrollTop = messagesEl.scrollHeight;
             }
 
-            history.push({ role: 'bot', content: botResponse });
+            // Ensure we capture the final decoded bytes
+            const finalChunk = decoder.decode();
+            if (finalChunk) {
+                botResponse += finalChunk;
+                botMsgDiv.innerText = botResponse;
+            }
+
+            // Save to history with normalized role
+            history.push({ role: 'assistant', content: botResponse });
             saveHistory();
 
         } catch (err) {
             typingIndicator.remove();
-            appendMessage('bot', 'Error: ' + err.message);
+            const errorMsg = `Error: ${err.message}`;
+            appendMessage('assistant', errorMsg);
             console.error('Chat Widget Error:', err);
+        } finally {
+            isLoading = false;
+            sendBtn.disabled = false;
+            inputEl.focus();
         }
     }
 
     sendBtn.onclick = handleSend;
-    inputEl.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
+    inputEl.onkeypress = (e) => { if (e.key === 'Enter' && !isLoading) handleSend(); };
 
 })();
