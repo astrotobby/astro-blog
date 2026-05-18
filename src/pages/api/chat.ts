@@ -13,8 +13,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     // Access the Cloudflare runtime
     const runtime = locals.runtime;
-    if (!runtime || !runtime.env || !runtime.env.AI) {
-      return new Response(JSON.stringify({ error: 'AI service not available' }), {
+    if (!runtime) {
+      return new Response(JSON.stringify({ error: 'Cloudflare Runtime not found in Astro locals' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    if (!runtime.env || !runtime.env.AI) {
+      return new Response(JSON.stringify({ error: 'AI binding not found in environment' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
