@@ -1,11 +1,11 @@
 ---
-image: "/blog-placeholder-1.jpg"
+image: "/ai-video-tools.jpg"
 title: "AI-Generated Video Is No Longer a Tool — It's a Ta"
 pubDate: "2026-05-11"
 date: "2026-05-11"
 description: ""
 ---
-image: "/blog-placeholder-1.jpg"
+image: "/ai-video-tools.jpg"
 
 <p> AI video generation in 2026 has crossed the point of no return. Sora 2, Veo 3, Kling AI, and Runway Gen-4 are not just tools — they're rewriting who gets to tell visual stories. Here's what's really happening.</p>
 <hr />

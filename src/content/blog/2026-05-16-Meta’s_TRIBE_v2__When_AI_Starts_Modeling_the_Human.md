@@ -1,11 +1,11 @@
 ---
-image: "/blog-placeholder-1.jpg"
+image: "/meta-tribe.jpg"
 title: "Meta’s TRIBE v2  When AI Starts Modeling the Human"
 pubDate: "2026-05-16"
 date: "2026-05-16"
 description: ""
 ---
-image: "/blog-placeholder-1.jpg"
+image: "/meta-tribe.jpg"
 
 <h3>The Digital Twin of the Mind: Understanding Meta’s TRIBE v2</h3>
 
