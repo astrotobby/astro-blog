@@ -1,11 +1,11 @@
 ---
-image: "/blog-placeholder-1.jpg"
+image: "/ai-vs-humans.jpg"
 title: "AI vs Humans  Who Will Be Smarter in 10 Years"
 pubDate: "2026-04-26"
 date: "2026-04-26"
 description: ""
 ---
-image: "/blog-placeholder-1.jpg"
+image: "/ai-vs-humans.jpg"
 
 <br /><p><br /></p><div class="separator" style="clear: both; text-align: center;"><a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhgW9R167IJ7rfEfISI-TFR8wo_NH8vCt9JS4jUg2H1j841ZO_OVA1TN7j3nCBdjR-IOmnM30xDcksbTxM-6w6TEaNtoRWsHoo7BlwksL-Q2RYiwhVHs8KPoGMl8Oh1fUdtORzXz_4RZGjtvla2FtO60fAnsSUCKR8HeUss9lwfcWntPpmSOLzHpl9eyx0/s1408/Gemini_Generated_Image_253cj5253cj5253c.png" style="margin-left: 1em; margin-right: 1em;"><img border="0" data-original-height="768" data-original-width="1408" height="171" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhgW9R167IJ7rfEfISI-TFR8wo_NH8vCt9JS4jUg2H1j841ZO_OVA1TN7j3nCBdjR-IOmnM30xDcksbTxM-6w6TEaNtoRWsHoo7BlwksL-Q2RYiwhVHs8KPoGMl8Oh1fUdtORzXz_4RZGjtvla2FtO60fAnsSUCKR8HeUss9lwfcWntPpmSOLzHpl9eyx0/w400-h171/Gemini_Generated_Image_253cj5253cj5253c.png" width="400" /></a></div><p></p>
 <p data-end="843" data-start="767"><b>What if the next intelligent species doesn’t come from space… but from code?</b></p>
