@@ -4,7 +4,7 @@
         apiEndpoint: '/api/chat',
         primaryColor: '#4F46E5',
         botName: 'Tobby\'s Assistant',
-        welcomeMessage: 'Hi there! I\'m Tobby\'s Assistant. How can I help you navigate the blog today?',
+        welcomeMessage: 'Hi there! I\'m Tobby\'s Assistant. I\'ve been upgraded to use Cloudflare AI! How can I help you today?',
         storageKey: 'chat_widget_history'
     };
 
@@ -100,6 +100,7 @@
             width: 90%;
             text-align: center;
             border: 1px solid #fecaca;
+            padding: 8px;
         }
         #chat-widget-input-container {
             padding: 16px;
