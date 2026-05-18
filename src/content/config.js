@@ -9,7 +9,7 @@ const blog = defineCollection({
         description: z.string().optional().default(''),
         tags: z.array(z.string()).optional().default([]),
         author: z.string().optional().default('Astro Tobby'),
-        heroImage: z.string().optional(),
+        image: z.string().optional(),
     }),
 });
 
