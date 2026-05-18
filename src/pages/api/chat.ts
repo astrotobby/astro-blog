@@ -11,12 +11,11 @@ interface Message {
 
 export const POST: APIRoute = async (context) => {
   try {
-    // Access Cloudflare AI binding
     const ai = (cfEnv as any).AI;
     
     if (!ai) {
       return new Response(
-        JSON.stringify({ error: 'Cloudflare AI binding not found. Please ensure "ai" is configured in wrangler.jsonc.' }),
+        JSON.stringify({ error: 'Cloudflare AI binding not found.' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -24,7 +23,6 @@ export const POST: APIRoute = async (context) => {
     const body = await context.request.json() as any;
     let messages: Message[] = [];
 
-    // Add system prompt
     messages.push({
       role: 'system',
       content: "You are Tobby's Assistant, a helpful AI on the AstroSignal blog. Help visitors with questions about AI, technology, and the blog content. Be concise, friendly, and informative."
@@ -42,29 +40,23 @@ export const POST: APIRoute = async (context) => {
       messages.push({ role: 'user', content: String(directContent || '') });
     }
 
-    // Call Cloudflare Workers AI
-    // Using Llama 3.1 8B Instruct which is fast and reliable
-    const response = await ai.run('@cf/meta/llama-3.1-8b-instruct', {
+    // Call Cloudflare Workers AI with streaming enabled
+    const stream = await ai.run('@cf/meta/llama-3.1-8b-instruct', {
       messages,
-      stream: false
+      stream: true
     });
 
-    const botResponse = response.response || response.text || '';
-
-    if (!botResponse) {
-      return new Response(
-        JSON.stringify({ error: 'The AI returned an empty response.' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    return new Response(botResponse, {
-      status: 200,
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    // Return the stream directly to the client
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
     });
 
   } catch (err) {
-    console.error('Cloudflare AI Error:', err);
+    console.error('Cloudflare AI Streaming Error:', err);
     return new Response(
       JSON.stringify({ error: `AI Error: ${String(err)}` }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
