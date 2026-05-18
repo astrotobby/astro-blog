@@ -5,7 +5,6 @@ pubDate: "2026-05-16"
 date: "2026-05-16"
 description: ""
 ---
-image: "/vibe-coding.jpg"
 
 <h3>The Death of the Syntax Error: Welcome to Vibe Coding</h3>
 
