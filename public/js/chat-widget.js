@@ -2,7 +2,7 @@
     // Configuration
     const CONFIG = {
         apiEndpoint: '/api/chat',
-        primaryColor: '#4F46E5', // Updated to match the blog's accent color (indigo-600)
+        primaryColor: '#4F46E5', // Indigo-600
         botName: 'Tobby\'s Assistant',
         welcomeMessage: 'Hi there! I\'m Tobby\'s Assistant. How can I help you navigate the blog today?',
         storageKey: 'chat_widget_history'
@@ -13,7 +13,7 @@
         #chat-widget-container {
             position: fixed;
             bottom: 20px;
-            right: 20px;
+            left: 20px; /* Moved to bottom-left */
             z-index: 9999;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
@@ -36,7 +36,7 @@
         #chat-widget-window {
             position: absolute;
             bottom: 72px;
-            right: 0;
+            left: 0; /* Align window to the left */
             width: 360px;
             height: 520px;
             background: white;
@@ -253,7 +253,10 @@
                 body: JSON.stringify({ messages: history })
             });
 
-            if (!response.ok) throw new Error('Failed to fetch');
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Failed to fetch');
+            }
 
             // Remove typing indicator
             typingIndicator.remove();
@@ -280,8 +283,8 @@
 
         } catch (err) {
             typingIndicator.remove();
-            appendMessage('bot', 'Sorry, I encountered an error. Please try again.');
-            console.error(err);
+            appendMessage('bot', 'Error: ' + err.message);
+            console.error('Chat Widget Error:', err);
         }
     }
 
