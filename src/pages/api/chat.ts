@@ -1,20 +1,20 @@
+// @ts-ignore
+import { env as cfEnv } from 'cloudflare:workers';
 import type { APIRoute } from 'astro';
 
 export const prerender = false;
 
-interface CloudflareEnv {
-  ANTHROPIC_API_KEY: string;
+interface CFEnv {
+  ANTHROPIC_API_KEY?: string;
 }
 
 export const POST: APIRoute = async (context) => {
   try {
-    // Astro v6 fix: access env through context.locals.runtime (NOT Astro.locals)
-    const runtime = (context.locals as { runtime?: { env?: CloudflareEnv } }).runtime;
-    const apiKey = runtime?.env?.ANTHROPIC_API_KEY;
+    const apiKey = (cfEnv as CFEnv).ANTHROPIC_API_KEY;
 
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured. Set it in Cloudflare Pages → Settings → Environment Variables.' }),
+        JSON.stringify({ error: 'ANTHROPIC_API_KEY not set. Add it in Cloudflare Pages → Settings → Environment Variables.' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -42,7 +42,7 @@ export const POST: APIRoute = async (context) => {
       body: JSON.stringify({
         model: 'claude-3-5-haiku-20241022',
         max_tokens: 1024,
-        system: "You are Tobby's Assistant, a helpful AI on the AstroSignal blog (astrotobby.site). Help visitors with questions about AI video creation, AI tools, content creation, and topics covered on this blog. Be concise and friendly.",
+        system: "You are Tobby's Assistant, a helpful AI on the AstroSignal blog (astrotobby.site). Help visitors with questions about AI video creation, AI tools, content creation, and topics on this blog. Be concise and friendly.",
         messages,
       }),
     });
