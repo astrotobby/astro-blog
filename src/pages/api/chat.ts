@@ -4,33 +4,46 @@ import type { APIRoute } from 'astro';
 
 export const prerender = false;
 
-interface CFEnv {
-  ANTHROPIC_API_KEY?: string;
-}
-
 export const POST: APIRoute = async (context) => {
   try {
-    const apiKey = (cfEnv as CFEnv).ANTHROPIC_API_KEY;
+    const apiKey = (cfEnv as any).ANTHROPIC_API_KEY;
 
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: 'ANTHROPIC_API_KEY not set. Add it in Cloudflare Pages → Settings → Environment Variables.' }),
+        JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured.' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    const body = await context.request.json() as {
-      messages: Array<{ role: string; content: string }>;
-    };
+    const body = await context.request.json() as any;
 
-    const { messages } = body;
+    // Handle ALL possible formats the frontend might send
+    let messages: Array<{ role: string; content: string }> = [];
 
-    if (!messages || !Array.isArray(messages)) {
+    if (Array.isArray(body.messages)) {
+      // Format: { messages: [{role, content}] }
+      messages = body.messages;
+    } else if (typeof body.message === 'string') {
+      // Format: { message: "hello" }
+      messages = [{ role: 'user', content: body.message }];
+    } else if (typeof body.content === 'string') {
+      // Format: { content: "hello" }
+      messages = [{ role: 'user', content: body.content }];
+    } else if (typeof body === 'string') {
+      // Format: plain string
+      messages = [{ role: 'user', content: body }];
+    } else {
       return new Response(
-        JSON.stringify({ error: 'Invalid request: messages array required.' }),
+        JSON.stringify({ error: 'Invalid request format.' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
+
+    // Ensure all messages have valid roles
+    messages = messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: String(m.content),
+    }));
 
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -49,28 +62,25 @@ export const POST: APIRoute = async (context) => {
 
     if (!anthropicRes.ok) {
       const errText = await anthropicRes.text();
-      console.error('Anthropic API error:', errText);
+      console.error('Anthropic API error:', anthropicRes.status, errText);
       return new Response(
-        JSON.stringify({ error: `Anthropic API error: ${anthropicRes.status}` }),
+        JSON.stringify({ error: `Anthropic API error: ${anthropicRes.status}`, detail: errText }),
         { status: anthropicRes.status, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    const data = await anthropicRes.json() as {
-      content: Array<{ type: string; text: string }>;
-    };
-
-    const text = data.content?.find(b => b.type === 'text')?.text ?? '';
+    const data = await anthropicRes.json() as any;
+    const text = data.content?.find((b: any) => b.type === 'text')?.text ?? '';
 
     return new Response(
-      JSON.stringify({ message: text }),
+      JSON.stringify({ message: text, role: 'assistant' }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
 
   } catch (err) {
     console.error('Chat API error:', err);
     return new Response(
-      JSON.stringify({ error: 'Internal server error. Check Cloudflare logs.' }),
+      JSON.stringify({ error: `Internal error: ${String(err)}` }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
