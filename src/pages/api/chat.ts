@@ -25,7 +25,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // System prompt for the blog assistant
     const systemPrompt = {
       role: 'system',
-      content: 'You are a helpful, welcoming assistant for Astro Tobby\'s blog. Your goal is to help visitors navigate the blog, answer questions about AI and technology content, and provide a friendly experience. Keep your responses concise and engaging.'
+      content: 'You are Tobby\'s Assistant, a helpful and welcoming AI for Tobby\'s blog. Your goal is to help visitors navigate the blog, answer questions about AI and technology content, and provide a friendly experience. Keep your responses concise and engaging.'
     };
 
     const chatMessages = [systemPrompt, ...messages];
