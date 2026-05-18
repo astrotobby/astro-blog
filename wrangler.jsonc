@@ -1,16 +1,31 @@
 {
-	"compatibility_date": "2026-05-16",
-	"compatibility_flags": ["global_fetch_strictly_public"],
-	"name": "astro-blog",
-	"main": "@astrojs/cloudflare/entrypoints/server",
-	"assets": {
-		"directory": "./dist",
-		"binding": "ASSETS"
-	},
-		"observability": {
-			"enabled": true
-		},
-		"ai": {
-			"binding": "AI"
-		}
+"compatibility_date": "2026-05-16",
+"compatibility_flags": ["global_fetch_strictly_public"],
+"name": "astro-blog",
+"main": "@astrojs/cloudflare/entrypoints/server",
+"assets": {
+"directory": "./dist",
+"binding": "ASSETS"
+},
+"observability": {
+"enabled": true
+},
+"ai": {
+"binding": "AI"
+},
+"vars": {
+"ENVIRONMENT": "production"
+},
+"env": {
+"production": {
+"vars": {
+"ENVIRONMENT": "production"
+}
+},
+"development": {
+"vars": {
+"ENVIRONMENT": "development"
+}
+}
+}
 }

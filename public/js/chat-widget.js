@@ -5,7 +5,9 @@
         primaryColor: '#4F46E5', // Indigo-600
         botName: 'Tobby\'s Assistant',
         welcomeMessage: 'Hi there! I\'m Tobby\'s Assistant. How can I help you navigate the blog today?',
-        storageKey: 'chat_widget_history'
+        storageKey: 'chat_widget_history',
+        maxRetries: 3,
+        retryDelay: 1000 // ms
     };
 
     // Inject Styles
@@ -13,7 +15,7 @@
         #chat-widget-container {
             position: fixed;
             bottom: 20px;
-            left: 20px; /* Moved to bottom-left */
+            left: 20px;
             z-index: 9999;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
@@ -36,7 +38,7 @@
         #chat-widget-window {
             position: absolute;
             bottom: 72px;
-            left: 0; /* Align window to the left */
+            left: 0;
             width: 360px;
             height: 520px;
             background: white;
@@ -80,6 +82,8 @@
             line-height: 1.5;
             word-wrap: break-word;
             animation: msgFadeIn 0.2s ease-out;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
         }
         @keyframes msgFadeIn {
             from { opacity: 0; transform: translateY(5px); }
@@ -97,11 +101,12 @@
             color: #1f2937;
             border-bottom-left-radius: 2px;
         }
-        .chat-msg.bot {
+        .chat-msg.error {
             align-self: flex-start;
-            background-color: #f3f4f6;
-            color: #1f2937;
+            background-color: #fee2e2;
+            color: #991b1b;
             border-bottom-left-radius: 2px;
+            border-left: 3px solid #dc2626;
         }
         #chat-widget-input-container {
             padding: 16px;
@@ -118,9 +123,11 @@
             outline: none;
             font-size: 14px;
             transition: border-color 0.2s;
+            font-family: inherit;
         }
         #chat-widget-input:focus {
             border-color: ${CONFIG.primaryColor};
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
         #chat-widget-send {
             background: ${CONFIG.primaryColor};
@@ -132,8 +139,9 @@
             font-weight: 600;
             font-size: 14px;
             transition: opacity 0.2s;
+            font-family: inherit;
         }
-        #chat-widget-send:hover {
+        #chat-widget-send:hover:not(:disabled) {
             opacity: 0.9;
         }
         #chat-widget-send:disabled {
@@ -158,6 +166,13 @@
             0%, 80%, 100% { transform: scale(0); }
             40% { transform: scale(1.0); }
         }
+        @media (max-width: 480px) {
+            #chat-widget-window {
+                width: calc(100vw - 40px);
+                height: calc(100vh - 100px);
+                max-height: 600px;
+            }
+        }
     `;
 
     const styleSheet = document.createElement("style");
@@ -171,7 +186,7 @@
         <div id="chat-widget-window">
             <div id="chat-widget-header">
                 <span>${CONFIG.botName}</span>
-                <button id="chat-widget-close" style="background:none;border:none;color:white;cursor:pointer;font-size:24px;line-height:1;">&times;</button>
+                <button id="chat-widget-close" style="background:none;border:none;color:white;cursor:pointer;font-size:24px;line-height:1;padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;">&times;</button>
             </div>
             <div id="chat-widget-messages"></div>
             <div id="chat-widget-input-container">
@@ -205,7 +220,7 @@
     function appendMessage(role, text) {
         const msgDiv = document.createElement('div');
         msgDiv.className = `chat-msg ${role}`;
-        msgDiv.innerText = text;
+        msgDiv.textContent = text;
         messagesEl.appendChild(msgDiv);
         messagesEl.scrollTop = messagesEl.scrollHeight;
         return msgDiv;
@@ -213,7 +228,7 @@
 
     function showTyping() {
         const typingDiv = document.createElement('div');
-        typingDiv.className = 'chat-msg assistant typing-indicator-container';
+        typingDiv.className = 'chat-msg assistant';
         typingDiv.innerHTML = `
             <div class="typing-indicator">
                 <div class="typing-dot"></div>
@@ -232,7 +247,7 @@
             appendMessage('assistant', CONFIG.welcomeMessage);
         } else {
             history.forEach(msg => {
-                // Normalize role: convert 'bot' to 'assistant' for display
+                // Normalize role for display
                 const displayRole = msg.role === 'bot' ? 'assistant' : msg.role;
                 appendMessage(displayRole, msg.content);
             });
@@ -271,46 +286,49 @@
                 body: JSON.stringify({ messages: history })
             });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `HTTP ${response.status}`);
-            }
-
-            // Remove typing indicator
             typingIndicator.remove();
 
-            // Create bot message div for streaming
-            const botMsgDiv = appendMessage('assistant', '');
-            
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let botResponse = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => 'Unknown error');
+                let errorMsg = 'Error: Unable to get response';
                 
-                const chunk = decoder.decode(value, { stream: true });
-                botResponse += chunk;
-                botMsgDiv.innerText = botResponse;
-                messagesEl.scrollTop = messagesEl.scrollHeight;
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMsg = `Error: ${errorData.error || errorText}`;
+                } catch {
+                    errorMsg = `Error: ${response.status} - ${errorText || 'Server error'}`;
+                }
+                
+                appendMessage('error', errorMsg);
+                console.error('Chat API Error:', errorMsg);
+                isLoading = false;
+                sendBtn.disabled = false;
+                inputEl.focus();
+                return;
             }
 
-            // Ensure we capture the final decoded bytes
-            const finalChunk = decoder.decode();
-            if (finalChunk) {
-                botResponse += finalChunk;
-                botMsgDiv.innerText = botResponse;
+            // Read response as text
+            const botResponse = await response.text();
+
+            if (!botResponse) {
+                appendMessage('error', 'Error: Empty response from server');
+                isLoading = false;
+                sendBtn.disabled = false;
+                inputEl.focus();
+                return;
             }
 
-            // Save to history with normalized role
+            // Display bot response
+            appendMessage('assistant', botResponse);
+
+            // Save to history
             history.push({ role: 'assistant', content: botResponse });
             saveHistory();
 
         } catch (err) {
             typingIndicator.remove();
-            const errorMsg = `Error: ${err.message}`;
-            appendMessage('assistant', errorMsg);
+            const errorMsg = `Error: ${err.message || 'Network error'}`;
+            appendMessage('error', errorMsg);
             console.error('Chat Widget Error:', err);
         } finally {
             isLoading = false;
