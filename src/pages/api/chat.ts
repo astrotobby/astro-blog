@@ -1,60 +1,77 @@
 import type { APIRoute } from 'astro';
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const prerender = false;
+
+interface CloudflareEnv {
+  ANTHROPIC_API_KEY: string;
+}
+
+export const POST: APIRoute = async (context) => {
   try {
-    const { messages } = await request.json();
+    // Astro v6 fix: access env through context.locals.runtime (NOT Astro.locals)
+    const runtime = (context.locals as { runtime?: { env?: CloudflareEnv } }).runtime;
+    const apiKey = runtime?.env?.ANTHROPIC_API_KEY;
 
-    if (!messages || !Array.isArray(messages)) {
-      return new Response(JSON.stringify({ error: 'Invalid messages' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured. Set it in Cloudflare Pages → Settings → Environment Variables.' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Access the Cloudflare runtime
-    const runtime = locals.runtime;
-    if (!runtime) {
-      return new Response(JSON.stringify({ error: 'Cloudflare Runtime not found in Astro locals' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    if (!runtime.env || !runtime.env.AI) {
-      return new Response(JSON.stringify({ error: 'AI binding not found in environment' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    const ai = runtime.env.AI;
-
-    // System prompt for the blog assistant
-    const systemPrompt = {
-      role: 'system',
-      content: 'You are Tobby\'s Assistant, a helpful and welcoming AI for Tobby\'s blog. Your goal is to help visitors navigate the blog, answer questions about AI and technology content, and provide a friendly experience. Keep your responses concise and engaging.'
+    const body = await context.request.json() as {
+      messages: Array<{ role: string; content: string }>;
     };
 
-    const chatMessages = [systemPrompt, ...messages];
+    const { messages } = body;
 
-    // Call Cloudflare Workers AI with streaming
-    const response = await ai.run('@cf/meta/llama-3-8b-instruct', {
-      messages: chatMessages,
-      stream: true,
-    });
+    if (!messages || !Array.isArray(messages)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid request: messages array required.' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // Return the stream directly
-    return new Response(response, {
+    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
       headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
       },
+      body: JSON.stringify({
+        model: 'claude-3-5-haiku-20241022',
+        max_tokens: 1024,
+        system: "You are Tobby's Assistant, a helpful AI on the AstroSignal blog (astrotobby.site). Help visitors with questions about AI video creation, AI tools, content creation, and topics covered on this blog. Be concise and friendly.",
+        messages,
+      }),
     });
 
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    if (!anthropicRes.ok) {
+      const errText = await anthropicRes.text();
+      console.error('Anthropic API error:', errText);
+      return new Response(
+        JSON.stringify({ error: `Anthropic API error: ${anthropicRes.status}` }),
+        { status: anthropicRes.status, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const data = await anthropicRes.json() as {
+      content: Array<{ type: string; text: string }>;
+    };
+
+    const text = data.content?.find(b => b.type === 'text')?.text ?? '';
+
+    return new Response(
+      JSON.stringify({ message: text }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+
+  } catch (err) {
+    console.error('Chat API error:', err);
+    return new Response(
+      JSON.stringify({ error: 'Internal server error. Check Cloudflare logs.' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 };
