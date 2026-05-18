@@ -1,11 +1,11 @@
 ---
-heroImage: "/blog-placeholder-1.jpg"
+image: "/blog-placeholder-1.jpg"
 title: "Vibe Coding  The Intuitive Language Reshaping Deve"
 pubDate: "2026-05-16"
 date: "2026-05-16"
 description: ""
 ---
-heroImage: "/blog-placeholder-1.jpg"
+image: "/blog-placeholder-1.jpg"
 
 <h3>The Death of the Syntax Error: Welcome to Vibe Coding</h3>
 

@@ -1,11 +1,11 @@
 ---
-heroImage: "/blog-placeholder-1.jpg"
+image: "/blog-placeholder-1.jpg"
 title: "LLM Benchmarks in 2026  Why Raw Scores Are Lying t"
 pubDate: "2026-05-05"
 date: "2026-05-05"
 description: ""
 ---
-heroImage: "/blog-placeholder-1.jpg"
+image: "/blog-placeholder-1.jpg"
 
 <p> </p><p data-path-to-node="7"></p><hr data-path-to-node="8" /><h3 data-path-to-node="9"><b data-index-in-node="0" data-path-to-node="10"> The LLM Throne: Why Raw Benchmarks Are Lying to You in 2026</b></h3><p data-path-to-node="11"><b data-index-in-node="0" data-path-to-node="11">The Hook:</b>
 GPT-5 and Claude Mythos are fighting for the top spot on the leaderboard, but here’s the truth: benchmarks are being "gamed." For the real-world power user, a 0.5% increase in MMLU scores means nothing. Here is what actually matters for your workflow.</p><p data-path-to-node="12"><b data-index-in-node="0" data-path-to-node="12">Post Body Highlights:</b></p><ul data-path-to-node="13"><li><p data-path-to-node="13,0,0"><b data-index-in-node="0" data-path-to-node="13,0,0">The Benchmark Trap:</b> Discuss how models are now trained specifically to pass tests, leading to "brittle" intelligence that fails in creative or nuanced real-world scenarios.</p></li><li><p data-path-to-node="13,1,0"><b data-index-in-node="0" data-path-to-node="13,1,0">Latency vs. Logic:</b> In a world where speed is a commodity, why a "slower" model with better architectural reasoning is winning for developers and content creators.</p></li><li><p data-path-to-node="13,2,0"><b data-index-in-node="0" data-path-to-node="13,2,0">The "Vibe Check":</b> A raw comparison of the "personalities" of the current top models—which one handles sarcasm, which one is too censored, and which one actually follows system prompts.</p></li></ul><p data-path-to-node="14"><b data-index-in-node="0" data-path-to-node="14">Visual Suggestion:</b>

@@ -7,7 +7,7 @@ import Header from '../components/Header.astro';
 import AdBanner from '../components/AdBanner.astro';
 
 type Props = CollectionEntry<'blog'>['data'];
-const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
+const { title, description, pubDate, updatedDate, image } = Astro.props;
 ---
 <html lang="en">
   <head>
@@ -78,7 +78,7 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
         Back to archive
       </a>
       <article>
-        {heroImage && <img src={heroImage} alt="" class="hero-img" />}
+        {image && <img src={image} alt="" class="hero-img" loading="eager" />}
         
         <!-- Position 1: Below hero image / above header -->
         <AdBanner minHeight="250px" margin="0 0 40px 0" />

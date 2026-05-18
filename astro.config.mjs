@@ -37,6 +37,9 @@ export default defineConfig({
 	],
 
   adapter: cloudflare(),
+  image: {
+    service: { entrypoint: 'astro/assets/services/noop' }
+  },
   vite: {
     server: {
       allowedHosts: true,

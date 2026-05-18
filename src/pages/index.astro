@@ -222,7 +222,7 @@ const recentPosts = posts.slice(1, 4);
 				</div>
 				{featuredPost && (
 					<a href={`/blog/${featuredPost.id}/`} class="featured-card">
-						<img src={featuredPost.data.heroImage || '/blog-placeholder-about.jpg'} alt="" class="featured-image" />
+						<img src={featuredPost.data.image || '/blog-placeholder-about.jpg'} alt="" class="featured-image" loading="lazy" />
 						<div class="featured-content">
 							<p class="post-date"><FormattedDate date={featuredPost.data.pubDate} /></p>
 							<h3 class="post-title" style="font-size: 2.25rem;">{featuredPost.data.title}</h3>
@@ -240,7 +240,7 @@ const recentPosts = posts.slice(1, 4);
 				<div class="posts-grid">
 					{recentPosts.map((post) => (
 						<a href={`/blog/${post.id}/`} class="post-card">
-							<img src={post.data.heroImage || '/blog-placeholder-about.jpg'} alt="" class="post-image" />
+							<img src={post.data.image || '/blog-placeholder-about.jpg'} alt="" class="post-image" loading="lazy" />
 							<div class="post-content">
 								<p class="post-date"><FormattedDate date={post.data.pubDate} /></p>
 								<h3 class="post-title">{post.data.title}</h3>

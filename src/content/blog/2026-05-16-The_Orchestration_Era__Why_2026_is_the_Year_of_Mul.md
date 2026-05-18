@@ -1,11 +1,11 @@
 ---
-heroImage: "/blog-placeholder-1.jpg"
+image: "/blog-placeholder-1.jpg"
 title: "The Orchestration Era  Why 2026 is the Year of Mul"
 pubDate: "2026-05-16"
 date: "2026-05-16"
 description: ""
 ---
-heroImage: "/blog-placeholder-1.jpg"
+image: "/blog-placeholder-1.jpg"
 
 <h3>Beyond the Chatbot: The Rise of the Digital Workforce</h3>
 
