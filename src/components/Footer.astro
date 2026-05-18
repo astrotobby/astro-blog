@@ -5,13 +5,7 @@ const today = new Date();
 <footer>
   <div class="footer-inner">
     <div class="footer-brand">
-      <div class="footer-logo">
-        <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="14" cy="14" r="12" stroke="#10b981" stroke-width="2"/>
-          <path d="M8 14 L14 8 L20 14 L14 20 Z" fill="#10b981"/>
-        </svg>
-        <span class="footer-brand-name">AstroSignal</span>
-      </div>
+      <span class="footer-brand-name">AstroSignal</span>
       <p class="footer-tagline">Navigating the frontier of AI, technology, and the future.</p>
     </div>
 
@@ -44,46 +38,40 @@ const today = new Date();
   </div>
 
   <div class="footer-bottom">
-    <p>&copy; {today.getFullYear()} <strong>AstroSignal</strong> by Astro Tobby. All rights reserved.</p>
+    <p>&copy; {today.getFullYear()} AstroSignal. Built for the future.</p>
   </div>
 </footer>
 
 <style>
   footer {
-    background: #f8fafc;
-    border-top: 1px solid rgba(16, 185, 129, 0.1);
-    padding: 4rem 0 2rem;
-    margin-top: 6rem;
+    background: #FFFFFF;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    padding: 5rem 0 3rem;
+    margin-top: 8rem;
   }
 
   .footer-inner {
-    max-width: 1100px;
+    max-width: 1000px;
     margin: 0 auto;
-    padding: 0 2rem;
+    padding: 0 1.5rem;
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr;
-    gap: 3rem;
-  }
-
-  .footer-logo {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+    gap: 4rem;
   }
 
   .footer-brand-name {
-    font-family: 'Space Grotesk', sans-serif;
     font-size: 1.25rem;
-    font-weight: 700;
-    color: #0f172a;
+    font-weight: 800;
+    color: #1A1A1A;
+    display: block;
+    margin-bottom: 1rem;
   }
 
   .footer-tagline {
     font-size: 0.95rem;
-    color: #64748b;
+    color: #4A5568;
     line-height: 1.6;
-    max-width: 300px;
+    max-width: 320px;
   }
 
   .footer-links-group h4 {
@@ -91,20 +79,20 @@ const today = new Date();
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #10b981;
-    margin-bottom: 1.25rem;
+    color: #718096;
+    margin-bottom: 1.5rem;
   }
 
   .footer-links-group a {
     display: block;
     font-size: 0.95rem;
-    color: #475569;
-    margin-bottom: 0.75rem;
+    color: #4A5568;
+    margin-bottom: 0.85rem;
     transition: color 0.2s ease;
   }
 
   .footer-links-group a:hover {
-    color: #10b981;
+    color: #4F46E5;
   }
 
   .footer-social-icons {
@@ -113,34 +101,34 @@ const today = new Date();
   }
 
   .footer-social-icons a {
-    color: #64748b;
+    color: #718096;
     transition: all 0.2s ease;
   }
 
   .footer-social-icons a:hover {
-    color: #10b981;
+    color: #4F46E5;
     transform: translateY(-2px);
   }
 
   .footer-bottom {
-    max-width: 1100px;
-    margin: 3rem auto 0;
-    padding: 2rem 2rem 0;
-    border-top: 1px solid rgba(16, 185, 129, 0.05);
+    max-width: 1000px;
+    margin: 4rem auto 0;
+    padding: 2.5rem 1.5rem 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.04);
     text-align: center;
   }
 
   .footer-bottom p {
     font-size: 0.9rem;
-    color: #94a3b8;
+    color: #718096;
   }
 
   @media (max-width: 900px) {
-    .footer-inner { grid-template-columns: 1fr 1fr; }
+    .footer-inner { grid-template-columns: 1fr 1fr; gap: 3rem; }
     .footer-brand { grid-column: 1 / -1; }
   }
 
   @media (max-width: 600px) {
-    .footer-inner { grid-template-columns: 1fr; }
+    .footer-inner { grid-template-columns: 1fr; gap: 2.5rem; }
   }
 </style>

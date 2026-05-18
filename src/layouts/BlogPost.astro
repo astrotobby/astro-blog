@@ -13,53 +13,59 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
     <BaseHead title={title} description={description} />
     <style>
       main {
-        max-width: 800px;
-        width: calc(100% - 2rem);
+        max-width: 720px; /* Optimized for reading comfort */
+        width: calc(100% - 3rem);
         margin: 0 auto;
-        padding: 4rem 1rem;
+        padding: 6rem 0;
       }
       .back-link {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        color: #10b981;
+        color: #4F46E5;
         font-weight: 600;
         text-decoration: none;
-        margin-bottom: 2rem;
+        margin-bottom: 3rem;
         transition: all 0.2s ease;
+        font-size: 0.95rem;
       }
       .back-link:hover {
-        color: #059669;
+        color: #4338CA;
         transform: translateX(-4px);
       }
       .hero-img {
         width: 100%;
-        border-radius: 24px;
-        margin-bottom: 3rem;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        border-radius: 16px;
+        margin-bottom: 4rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.04);
       }
       .article-header {
-        margin-bottom: 3rem;
-        text-align: center;
+        margin-bottom: 4rem;
+        text-align: left;
       }
       .article-date {
-        color: #10b981;
+        color: #4F46E5;
         font-weight: 600;
-        margin-bottom: 0.5rem;
+        margin-bottom: 1rem;
+        font-size: 1rem;
       }
       .article-title {
         font-size: 3rem;
         font-weight: 800;
-        color: #0f172a;
-        line-height: 1.1;
+        color: #1A1A1A;
+        line-height: 1.15;
+        letter-spacing: -0.03em;
       }
       .prose {
-        color: #334155;
+        font-size: 1.125rem;
+        color: #2D3748;
         line-height: 1.8;
       }
       @media (max-width: 720px) {
         .article-title { font-size: 2.25rem; }
-        main { padding: 2rem 1rem; }
+        main { padding: 4rem 0; }
+        .hero-img { margin-bottom: 2.5rem; }
       }
     </style>
   </head>
@@ -67,8 +73,8 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
     <Header />
     <main>
       <a href="/blog" class="back-link">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-        Back to all articles
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        Back to archive
       </a>
       <article>
         {heroImage && <img src={heroImage} alt="" class="hero-img" />}
