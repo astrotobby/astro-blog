@@ -4,7 +4,7 @@
         apiEndpoint: '/api/chat',
         primaryColor: '#4F46E5',
         botName: 'Tobby\'s Assistant',
-        welcomeMessage: 'Hi there! I\'m Tobby\'s Assistant. I\'ve been upgraded to use Cloudflare AI! How can I help you today?',
+        welcomeMessage: 'Hi there! I\'m Tobby\'s Assistant. I now support real-time streaming! How can I help you today?',
         storageKey: 'chat_widget_history'
     };
 
@@ -291,14 +291,49 @@
                 return;
             }
 
-            const botResponse = await response.text();
-            appendMessage('assistant', botResponse);
-            history.push({ role: 'assistant', content: botResponse });
+            // Create a message div for the streaming response
+            const botMsgDiv = appendMessage('assistant', '');
+            let fullResponse = '';
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                
+                // Cloudflare Workers AI returns data in SSE format: data: {"response": "..."}
+                const lines = chunk.split('\n');
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const dataStr = line.slice(6);
+                        if (dataStr === '[DONE]') continue;
+                        try {
+                            const data = JSON.parse(dataStr);
+                            if (data.response) {
+                                fullResponse += data.response;
+                                botMsgDiv.textContent = fullResponse;
+                                messagesEl.scrollTop = messagesEl.scrollHeight;
+                            }
+                        } catch (e) {
+                            // If not JSON, it might be raw text (depending on provider)
+                            fullResponse += dataStr;
+                            botMsgDiv.textContent = fullResponse;
+                            messagesEl.scrollTop = messagesEl.scrollHeight;
+                        }
+                    }
+                }
+            }
+
+            history.push({ role: 'assistant', content: fullResponse });
             saveHistory();
 
         } catch (err) {
-            typingIndicator.remove();
+            if (typingIndicator) typingIndicator.remove();
             appendMessage('error', 'Network error. Please check your connection.');
+            console.error('Streaming Error:', err);
         } finally {
             isLoading = false;
             sendBtn.disabled = false;
