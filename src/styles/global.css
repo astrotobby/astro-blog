@@ -1,38 +1,31 @@
 /*
-  AstroSignal — World-Class White-Green Ambient Theme
-  Designed for maximum visibility, elegance, and fast navigation.
+  AstroSignal — "Nordic Clean" High-Retention Theme
+  Designed for anti-eye-strain, long-form reading, and WCAG 2.1 AA accessibility.
+  Strict 60-30-10 Rule implementation.
 */
 
 /* ─── Google Fonts ─────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Charter&display=swap');
 
 /* ─── CSS Custom Properties ─────────────────────────────────────────────────── */
 :root {
-  /* Brand palette: Emerald Green & Pure White */
-  --accent:           #10b981; /* Emerald 500 */
-  --accent-light:     #34d399; /* Emerald 400 */
-  --accent-dark:      #059669; /* Emerald 600 */
-  --accent-glow:      rgba(16, 185, 129, 0.2);
+  /* 60% - Dominant Background (Anti-Glare) */
+  --bg-primary:       #F8F9FA;
+  --bg-secondary:     #FFFFFF; /* Used for cards/sidebar */
   
-  /* Backgrounds */
-  --bg-primary:       #ffffff;
-  --bg-secondary:     #f8fafc; /* Slate 50 */
-  --bg-card:          #ffffff;
-  --bg-glass:         rgba(255, 255, 255, 0.8);
-  --bg-glass-border:  rgba(16, 185, 129, 0.15);
+  /* 30% - Secondary Text/Structure (Deep Charcoal) */
+  --text-heading:     #1A1A1A;
+  --text-body:        #2D3748; /* Softer gray for paragraph endurance */
+  --text-muted:       #718096;
+  
+  /* 10% - Accent/CTA (Indigo/Electric Blue) */
+  --accent:           #4F46E5;
+  --accent-hover:     #4338CA;
+  --accent-soft:      rgba(79, 70, 229, 0.08);
 
-  /* Text */
-  --text-primary:     #0f172a; /* Slate 900 */
-  --text-secondary:   #475569; /* Slate 600 */
-  --text-muted:       #94a3b8; /* Slate 400 */
-
-  /* Shadows */
-  --box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.05), 
-    0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --hover-shadow:
-    0 20px 25px -5px rgba(16, 185, 129, 0.1),
-    0 8px 10px -6px rgba(16, 185, 129, 0.1);
+  /* Shadows & Borders */
+  --box-shadow:       0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --border-light:     rgba(0, 0, 0, 0.06);
 }
 
 /* ─── Reset & Base ───────────────────────────────────────────────────────────── */
@@ -42,123 +35,122 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   margin: 0;
   padding: 0;
   background-color: var(--bg-primary);
-  background-image: 
-    radial-gradient(circle at 0% 0%, rgba(16, 185, 129, 0.05) 0%, transparent 40%),
-    radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.03) 0%, transparent 40%);
-  color: var(--text-primary);
+  color: var(--text-body);
   font-size: 18px;
-  line-height: 1.7;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  min-height: 100vh;
+  line-height: 1.8; /* Increased line height for readability */
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ─── Typography ─────────────────────────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Space Grotesk', sans-serif;
-  margin: 0 0 0.6rem 0;
-  color: var(--text-primary);
-  line-height: 1.2;
+  color: var(--text-heading);
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 2.5rem 0 1.25rem;
   letter-spacing: -0.02em;
 }
 
-h1 { font-size: 3rem; font-weight: 800; }
-h2 { font-size: 2.25rem; font-weight: 700; }
-h3 { font-size: 1.75rem; font-weight: 700; }
-h4 { font-size: 1.5rem; font-weight: 600; }
+h1 { font-size: 2.5rem; margin-top: 0; }
+h2 { font-size: 2rem; border-bottom: 1px solid var(--border-light); padding-bottom: 0.5rem; }
+h3 { font-size: 1.5rem; }
 
-strong, b { font-weight: 700; }
+p {
+  margin-bottom: 1.75rem;
+  max-width: 70ch; /* Optimized line length for reading comfort */
+}
 
+/* Links (Strict 10% Accent) */
 a {
-  color: var(--accent-dark);
+  color: var(--accent);
   text-decoration: none;
   transition: all 0.2s ease;
+  font-weight: 500;
 }
+
 a:hover {
-  color: var(--accent);
+  color: var(--accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
-/* ─── Layout ─────────────────────────────────────────────────────────────────── */
+/* ─── Layout & Containers ────────────────────────────────────────────────────── */
 main {
-  width: 1000px;
-  max-width: calc(100% - 2rem);
-  margin: auto;
-  padding: 4rem 1rem;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem;
 }
 
-/* ─── Code ───────────────────────────────────────────────────────────────────── */
-code {
-  padding: 0.2em 0.4em;
+/* Ambient Cards */
+.card {
   background: var(--bg-secondary);
-  border: 1px solid rgba(16, 185, 129, 0.1);
-  border-radius: 6px;
-  font-size: 0.9em;
-  color: var(--accent-dark);
-}
-
-pre {
-  padding: 1.5rem;
   border-radius: 12px;
-  background: #1e293b !important; /* Slate 800 for contrast */
-  color: #f8fafc;
-  overflow-x: auto;
+  padding: 2rem;
   box-shadow: var(--box-shadow);
+  border: 1px solid var(--border-light);
+  margin-bottom: 2rem;
 }
 
-/* ─── Blockquote ─────────────────────────────────────────────────────────────── */
-blockquote {
+/* ─── Prose Styling ──────────────────────────────────────────────────────────── */
+.prose {
+  font-size: 1.125rem;
+  color: var(--text-body);
+}
+
+.prose blockquote {
   border-left: 4px solid var(--accent);
   padding: 1rem 1.5rem;
-  margin: 2rem 0;
+  margin: 2.5rem 0;
+  background: var(--accent-soft);
   font-style: italic;
-  color: var(--text-secondary);
-  background: var(--bg-secondary);
-  border-radius: 0 12px 12px 0;
+  border-radius: 0 8px 8px 0;
 }
 
-/* ─── HR ─────────────────────────────────────────────────────────────────────── */
-hr {
-  border: none;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.2), transparent);
-  margin: 3rem 0;
+.prose img {
+  border-radius: 8px;
+  box-shadow: var(--box-shadow);
+  margin: 2rem 0;
+}
+
+.prose code {
+  background: var(--bg-secondary);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  border: 1px solid var(--border-light);
 }
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 10px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
 ::-webkit-scrollbar-thumb {
-  background: var(--accent-light);
+  background: #cbd5e1;
   border: 3px solid var(--bg-primary);
   border-radius: 10px;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* ─── Performance & Mobile Optimization ───────────────────────────────────────── */
-@media (max-width: 768px) {
-  body { font-size: 16px; }
-  main { padding: 2rem 1rem; }
-  h1 { font-size: 2.25rem; }
-  h2 { font-size: 1.75rem; }
-  
-  /* Disable heavy animations on mobile for speed */
+/* ─── Accessibility ──────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
   * {
-    animation-duration: 0.1s !important;
-    transition-duration: 0.1s !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
-/* Fast Navigation Utilities */
-.nav-link-active {
-  color: var(--accent-dark);
-  font-weight: 600;
-  border-bottom: 2px solid var(--accent);
+@media (max-width: 768px) {
+  body { font-size: 17px; }
+  main { padding: 2.5rem 1.25rem; }
+  h1 { font-size: 2rem; }
 }

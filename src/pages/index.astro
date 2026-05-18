@@ -20,79 +20,87 @@ const recentPosts = posts.slice(1, 4);
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
 		<style>
 			.hero {
-				padding: 6rem 1rem;
+				padding: 8rem 1.5rem;
 				text-align: center;
-				background: linear-gradient(to bottom, #f8fafc, #ffffff);
+				background: #FFFFFF;
+				border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 			}
 			.hero h1 {
-				font-size: 4rem;
-				margin-bottom: 1rem;
-				color: #0f172a;
+				font-size: 3.5rem;
+				margin-bottom: 1.5rem;
+				color: #1A1A1A;
+				letter-spacing: -0.03em;
 			}
 			.hero p {
 				font-size: 1.25rem;
-				color: #475569;
-				max-width: 600px;
-				margin: 0 auto 2.5rem;
+				color: #4A5568;
+				max-width: 640px;
+				margin: 0 auto 3rem;
+				line-height: 1.6;
 			}
 			.hero-actions {
 				display: flex;
-				gap: 1rem;
+				gap: 1.25rem;
 				justify-content: center;
 			}
 			.btn {
-				padding: 0.8rem 2rem;
-				border-radius: 12px;
+				padding: 0.875rem 2.25rem;
+				border-radius: 8px;
 				font-weight: 600;
 				transition: all 0.2s ease;
+				font-size: 1rem;
 			}
 			.btn-primary {
-				background: #10b981;
+				background: #4F46E5;
 				color: white;
 			}
 			.btn-primary:hover {
-				background: #059669;
+				background: #4338CA;
 				transform: translateY(-2px);
-				box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);
+				box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.2);
 			}
 			.btn-secondary {
-				background: #f1f5f9;
-				color: #0f172a;
+				background: #F1F5F9;
+				color: #1A1A1A;
 			}
 			.btn-secondary:hover {
-				background: #e2e8f0;
+				background: #E2E8F0;
 			}
 
 			.section {
-				max-width: 1100px;
-				margin: 0 auto 6rem;
+				max-width: 1000px;
+				margin: 8rem auto;
 				padding: 0 1.5rem;
 			}
 			.section-title {
-				font-size: 1.75rem;
-				margin-bottom: 2rem;
+				font-size: 1.5rem;
+				margin-bottom: 3rem;
 				display: flex;
 				justify-content: space-between;
 				align-items: center;
+				color: #1A1A1A;
 			}
 			.section-title a {
-				font-size: 1rem;
-				color: #10b981;
+				font-size: 0.95rem;
+				color: #4F46E5;
+				font-weight: 600;
 			}
 
 			.featured-card {
 				display: grid;
-				grid-template-columns: 1fr 1fr;
-				gap: 3rem;
-				background: #ffffff;
-				border-radius: 24px;
-				padding: 2.5rem;
-				border: 1px solid #f1f5f9;
-				box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-				transition: transform 0.3s ease;
+				grid-template-columns: 1.2fr 1fr;
+				gap: 4rem;
+				background: #FFFFFF;
+				border-radius: 16px;
+				padding: 3rem;
+				box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+				border: 1px solid rgba(0, 0, 0, 0.04);
+				text-decoration: none;
+				transition: transform 0.3s ease, box-shadow 0.3s ease;
 			}
 			.featured-card:hover {
 				transform: translateY(-4px);
+				box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08);
 			}
 			.featured-content {
 				display: flex;
@@ -101,73 +109,75 @@ const recentPosts = posts.slice(1, 4);
 			}
 			.featured-image {
 				width: 100%;
-				height: 350px;
+				height: 400px;
 				object-fit: cover;
-				border-radius: 16px;
+				border-radius: 12px;
 			}
 
 			.posts-grid {
 				display: grid;
 				grid-template-columns: repeat(3, 1fr);
-				gap: 2rem;
+				gap: 2.5rem;
 			}
 			.post-card {
-				background: #ffffff;
-				border-radius: 20px;
+				background: #FFFFFF;
+				border-radius: 12px;
 				overflow: hidden;
-				border: 1px solid #f1f5f9;
+				box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+				border: 1px solid rgba(0, 0, 0, 0.04);
+				text-decoration: none;
 				transition: all 0.3s ease;
 			}
 			.post-card:hover {
 				transform: translateY(-5px);
-				box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+				box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08);
 			}
 			.post-image {
 				width: 100%;
-				height: 200px;
+				height: 220px;
 				object-fit: cover;
 			}
 			.post-content {
-				padding: 1.5rem;
+				padding: 2rem;
 			}
 			.post-date {
-				font-size: 0.85rem;
-				color: #10b981;
+				font-size: 0.875rem;
+				color: #4F46E5;
 				font-weight: 600;
-				margin-bottom: 0.5rem;
+				margin-bottom: 0.75rem;
 			}
 			.post-title {
-				font-size: 1.25rem;
-				margin-bottom: 0.75rem;
-				color: #0f172a;
+				font-size: 1.35rem;
+				margin-bottom: 1rem;
+				color: #1A1A1A;
+				line-height: 1.3;
 			}
 			.post-desc {
-				font-size: 0.95rem;
-				color: #64748b;
+				font-size: 1rem;
+				color: #4A5568;
 				line-height: 1.6;
 			}
 
 			.cta-banner {
-				background: #10b981;
-				border-radius: 32px;
-				padding: 5rem 2rem;
+				background: #1A1A1A;
+				border-radius: 24px;
+				padding: 6rem 2rem;
 				text-align: center;
 				color: white;
-				margin-bottom: 6rem;
+				margin-bottom: 8rem;
 			}
-			.cta-banner h2 { color: white; font-size: 2.5rem; margin-bottom: 1rem; }
-			.cta-banner p { color: rgba(255, 255, 255, 0.9); margin-bottom: 2.5rem; font-size: 1.1rem; }
+			.cta-banner h2 { color: white; font-size: 2.5rem; margin-bottom: 1rem; letter-spacing: -0.02em; }
+			.cta-banner p { color: #A0AEC0; margin-bottom: 3rem; font-size: 1.15rem; }
 			.cta-socials {
 				display: flex;
 				gap: 1.5rem;
 				justify-content: center;
 			}
 			.cta-social-btn {
-				background: rgba(255, 255, 255, 0.2);
-				backdrop-filter: blur(10px);
+				background: #4F46E5;
 				color: white;
-				padding: 0.8rem 1.5rem;
-				border-radius: 12px;
+				padding: 0.875rem 1.75rem;
+				border-radius: 8px;
 				font-weight: 600;
 				display: flex;
 				align-items: center;
@@ -175,19 +185,20 @@ const recentPosts = posts.slice(1, 4);
 				transition: all 0.2s ease;
 			}
 			.cta-social-btn:hover {
-				background: white;
-				color: #10b981;
+				background: #4338CA;
 				transform: translateY(-2px);
 			}
 
 			@media (max-width: 900px) {
-				.featured-card { grid-template-columns: 1fr; gap: 1.5rem; padding: 1.5rem; }
+				.featured-card { grid-template-columns: 1fr; gap: 2rem; padding: 2rem; }
 				.posts-grid { grid-template-columns: repeat(2, 1fr); }
-				.hero h1 { font-size: 2.5rem; }
+				.hero h1 { font-size: 2.75rem; }
+				.section { margin: 5rem auto; }
 			}
 			@media (max-width: 600px) {
 				.posts-grid { grid-template-columns: 1fr; }
 				.cta-socials { flex-direction: column; }
+				.hero { padding: 5rem 1.5rem; }
 			}
 		</style>
 	</head>
@@ -195,24 +206,24 @@ const recentPosts = posts.slice(1, 4);
 		<Header />
 		<main>
 			<section class="hero">
-				<h1>The Signal <span style="color: #10b981;">Through the Noise</span></h1>
-				<p>Deep-dive analysis on AI agents, multi-agent systems, LLMs, and the technologies reshaping how we build, think, and create.</p>
+				<h1>The Signal <span style="color: #4F46E5;">Through the Noise</span></h1>
+				<p>Deep-dive analysis on AI agents, multi-agent systems, and the technologies reshaping our future.</p>
 				<div class="hero-actions">
-					<a href="/blog" class="btn btn-primary">Explore Articles</a>
-					<a href="/about" class="btn btn-secondary">About the Author</a>
+					<a href="/blog" class="btn btn-primary">Read Articles</a>
+					<a href="/about" class="btn btn-secondary">Learn More</a>
 				</div>
 			</section>
 
 			<section class="section">
 				<div class="section-title">
-					<h2>Featured Article</h2>
+					<h2>Featured Insight</h2>
 				</div>
 				{featuredPost && (
 					<a href={`/blog/${featuredPost.id}/`} class="featured-card">
 						<img src={featuredPost.data.heroImage || '/blog-placeholder-about.jpg'} alt="" class="featured-image" />
 						<div class="featured-content">
 							<p class="post-date"><FormattedDate date={featuredPost.data.pubDate} /></p>
-							<h3 class="post-title" style="font-size: 2rem;">{featuredPost.data.title}</h3>
+							<h3 class="post-title" style="font-size: 2.25rem;">{featuredPost.data.title}</h3>
 							<p class="post-desc">{featuredPost.data.description}</p>
 						</div>
 					</a>
@@ -221,8 +232,8 @@ const recentPosts = posts.slice(1, 4);
 
 			<section class="section">
 				<div class="section-title">
-					<h2>Recent Articles</h2>
-					<a href="/blog">View All &rarr;</a>
+					<h2>Latest Updates</h2>
+					<a href="/blog">View All Articles &rarr;</a>
 				</div>
 				<div class="posts-grid">
 					{recentPosts.map((post) => (
@@ -240,8 +251,8 @@ const recentPosts = posts.slice(1, 4);
 
 			<section class="section">
 				<div class="cta-banner">
-					<h2>Stay Ahead of the Curve</h2>
-					<p>Follow AstroSignal for weekly insights on AI, multi-agent systems, and emerging tech.</p>
+					<h2>Join the Exploration</h2>
+					<p>Follow AstroSignal for weekly insights on the frontier of technology.</p>
 					<div class="cta-socials">
 						<a href="https://x.com/AstroboyTobby1" target="_blank" rel="noopener" class="cta-social-btn">
 							<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
@@ -250,10 +261,6 @@ const recentPosts = posts.slice(1, 4);
 						<a href="https://www.instagram.com/astro_tobby/" target="_blank" rel="noopener" class="cta-social-btn">
 							<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
 							Instagram
-						</a>
-						<a href="https://www.facebook.com/AstroteeSignal" target="_blank" rel="noopener" class="cta-social-btn">
-							<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
-							Facebook
 						</a>
 					</div>
 				</div>
