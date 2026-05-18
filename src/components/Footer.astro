@@ -1,26 +1,22 @@
 ---
 const today = new Date();
 ---
-
 <footer>
   <div class="footer-inner">
     <div class="footer-brand">
       <span class="footer-brand-name">Astro Tobby</span>
       <p class="footer-tagline">Navigating the frontier of AI, technology, and the future.</p>
     </div>
-
     <div class="footer-links-group">
       <h4>Navigate</h4>
       <a href="/">Home</a>
       <a href="/blog">Blog</a>
       <a href="/about">About</a>
     </div>
-
     <div class="footer-links-group">
       <h4>Legal</h4>
       <a href="/privacy-policy">Privacy Policy</a>
     </div>
-
     <div class="footer-links-group">
       <h4>Connect</h4>
       <div class="footer-social-vertical">
@@ -39,20 +35,18 @@ const today = new Date();
       </div>
     </div>
   </div>
-
   <div class="footer-bottom">
     <p>&copy; {today.getFullYear()} Astro Tobby. Built for the future.</p>
   </div>
 </footer>
-
 <style>
   footer {
-    background: #FFFFFF;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F9FAFB 100%);
     border-top: 1px solid rgba(0, 0, 0, 0.06);
     padding: 5rem 0 3rem;
     margin-top: 8rem;
   }
-
+  
   .footer-inner {
     max-width: 1000px;
     margin: 0 auto;
@@ -61,22 +55,25 @@ const today = new Date();
     grid-template-columns: 2fr 1fr 1fr 1fr;
     gap: 4rem;
   }
-
+  
   .footer-brand-name {
     font-size: 1.25rem;
     font-weight: 800;
-    color: #1A1A1A;
+    background: linear-gradient(135deg, #0F172A 0%, #4F46E5 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     display: block;
     margin-bottom: 1rem;
   }
-
+  
   .footer-tagline {
     font-size: 0.95rem;
     color: #4A5568;
     line-height: 1.6;
     max-width: 320px;
   }
-
+  
   .footer-links-group h4 {
     font-size: 0.85rem;
     font-weight: 700;
@@ -85,25 +82,42 @@ const today = new Date();
     color: #718096;
     margin-bottom: 1.5rem;
   }
-
+  
   .footer-links-group a {
     display: block;
     font-size: 0.95rem;
     color: #4A5568;
     margin-bottom: 0.85rem;
-    transition: color 0.2s ease;
+    transition: all 0.2s ease;
+    position: relative;
+    padding-left: 0;
   }
-
+  
+  .footer-links-group a::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: #4F46E5;
+    transition: width 0.3s ease;
+    bottom: -2px;
+  }
+  
   .footer-links-group a:hover {
     color: #4F46E5;
   }
-
+  
+  .footer-links-group a:hover::before {
+    width: 100%;
+  }
+  
   .footer-social-vertical {
     display: flex;
     flex-direction: column;
     gap: 1rem;
   }
-
+  
   .footer-social-vertical a {
     display: flex;
     align-items: center;
@@ -112,13 +126,17 @@ const today = new Date();
     text-decoration: none;
     font-size: 0.95rem;
     transition: all 0.2s ease;
+    padding: 0.5rem;
+    border-radius: 8px;
+    margin-left: -0.5rem;
   }
-
+  
   .footer-social-vertical a:hover {
     color: #4F46E5;
+    background: rgba(79, 70, 229, 0.05);
     transform: translateX(4px);
   }
-
+  
   .footer-bottom {
     max-width: 1000px;
     margin: 4rem auto 0;
@@ -126,18 +144,26 @@ const today = new Date();
     border-top: 1px solid rgba(0, 0, 0, 0.04);
     text-align: center;
   }
-
+  
   .footer-bottom p {
     font-size: 0.9rem;
     color: #718096;
   }
-
+  
   @media (max-width: 900px) {
-    .footer-inner { grid-template-columns: 1fr 1fr; gap: 3rem; }
-    .footer-brand { grid-column: 1 / -1; }
+    .footer-inner { 
+      grid-template-columns: 1fr 1fr; 
+      gap: 3rem; 
+    }
+    .footer-brand { 
+      grid-column: 1 / -1; 
+    }
   }
-
+  
   @media (max-width: 600px) {
-    .footer-inner { grid-template-columns: 1fr; gap: 2.5rem; }
+    .footer-inner { 
+      grid-template-columns: 1fr; 
+      gap: 2.5rem; 
+    }
   }
 </style>
