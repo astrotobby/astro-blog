@@ -4,6 +4,45 @@ import type { APIRoute } from 'astro';
 
 export const prerender = false;
 
+/**
+ * Cleans and normalizes the message history to meet Anthropic API requirements:
+ * - Alternating user/assistant pattern
+ * - No consecutive messages from the same role
+ * - Starts with a user message
+ * - Removes empty messages
+ */
+function cleanMessageHistory(messages: Array<{ role: 'user' | 'assistant'; content: string }>): Array<{ role: 'user' | 'assistant'; content: string }> {
+  if (messages.length === 0) return [];
+
+  const cleaned: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+  let lastRole: 'user' | 'assistant' | null = null;
+
+  for (const msg of messages) {
+    // Skip empty messages
+    if (!msg.content || msg.content.trim() === '') continue;
+
+    const role = msg.role === 'assistant' ? 'assistant' : 'user';
+
+    // Skip consecutive messages from the same role
+    if (lastRole === role) continue;
+
+    cleaned.push({ role, content: msg.content.trim() });
+    lastRole = role;
+  }
+
+  // Ensure the first message is from the user
+  if (cleaned.length > 0 && cleaned[0].role !== 'user') {
+    cleaned.shift();
+  }
+
+  // Ensure the last message is from the user (the API will respond with assistant)
+  if (cleaned.length > 0 && cleaned[cleaned.length - 1].role !== 'user') {
+    cleaned.pop();
+  }
+
+  return cleaned;
+}
+
 export const POST: APIRoute = async (context) => {
   try {
     const apiKey = (cfEnv as any).ANTHROPIC_API_KEY;
@@ -39,11 +78,25 @@ export const POST: APIRoute = async (context) => {
       );
     }
 
-    // Ensure all messages have valid roles (convert 'bot' to 'assistant')
+    // Normalize roles (convert 'bot' to 'assistant')
     messages = messages.map(m => ({
       role: (m.role === 'assistant' || m.role === 'bot') ? 'assistant' : 'user',
       content: String(m.content),
     })) as Array<{ role: 'user' | 'assistant'; content: string }>;
+
+    // Clean and validate message history
+    messages = cleanMessageHistory(messages);
+
+    // Ensure we have at least one message
+    if (messages.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'No valid messages provided.' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Log for debugging
+    console.log('Cleaned messages:', JSON.stringify(messages, null, 2));
 
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
