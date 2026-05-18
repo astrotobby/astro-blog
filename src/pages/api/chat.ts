@@ -24,19 +24,24 @@ function cleanMessageHistory(messages: Array<{ role: 'user' | 'assistant'; conte
     const role = msg.role === 'assistant' ? 'assistant' : 'user';
 
     // Skip consecutive messages from the same role
-    if (lastRole === role) continue;
+    if (lastRole === role) {
+      // If it's the same role, update the content of the last message instead of skipping
+      // This ensures we don't lose information if the user sends multiple messages
+      cleaned[cleaned.length - 1].content += "\n" + msg.content.trim();
+      continue;
+    }
 
     cleaned.push({ role, content: msg.content.trim() });
     lastRole = role;
   }
 
   // Ensure the first message is from the user
-  if (cleaned.length > 0 && cleaned[0].role !== 'user') {
+  while (cleaned.length > 0 && cleaned[0].role !== 'user') {
     cleaned.shift();
   }
 
   // Ensure the last message is from the user (the API will respond with assistant)
-  if (cleaned.length > 0 && cleaned[cleaned.length - 1].role !== 'user') {
+  while (cleaned.length > 0 && cleaned[cleaned.length - 1].role !== 'user') {
     cleaned.pop();
   }
 
@@ -60,16 +65,12 @@ export const POST: APIRoute = async (context) => {
     let messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
 
     if (Array.isArray(body.messages)) {
-      // Format: { messages: [{role, content}] }
       messages = body.messages;
     } else if (typeof body.message === 'string') {
-      // Format: { message: "hello" }
       messages = [{ role: 'user', content: body.message }];
     } else if (typeof body.content === 'string') {
-      // Format: { content: "hello" }
       messages = [{ role: 'user', content: body.content }];
     } else if (typeof body === 'string') {
-      // Format: plain string
       messages = [{ role: 'user', content: body }];
     } else {
       return new Response(
@@ -78,16 +79,14 @@ export const POST: APIRoute = async (context) => {
       );
     }
 
-    // Normalize roles (convert 'bot' to 'assistant')
+    // Normalize roles and clean history
     messages = messages.map(m => ({
       role: (m.role === 'assistant' || m.role === 'bot') ? 'assistant' : 'user',
       content: String(m.content),
     })) as Array<{ role: 'user' | 'assistant'; content: string }>;
 
-    // Clean and validate message history
     messages = cleanMessageHistory(messages);
 
-    // Ensure we have at least one message
     if (messages.length === 0) {
       return new Response(
         JSON.stringify({ error: 'No valid messages provided.' }),
@@ -95,9 +94,7 @@ export const POST: APIRoute = async (context) => {
       );
     }
 
-    // Log for debugging
-    console.log('Cleaned messages:', JSON.stringify(messages, null, 2));
-
+    // Use streaming if possible, but for now let's fix the 400 error first
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -106,7 +103,7 @@ export const POST: APIRoute = async (context) => {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
+        model: 'claude-3-5-sonnet-20241022', // Upgraded to Sonnet for better performance
         max_tokens: 1024,
         system: "You are Tobby's Assistant, a helpful AI on the AstroSignal blog (astrotobby.site). Help visitors with questions about AI video creation, AI tools, content creation, and topics on this blog. Be concise and friendly.",
         messages,
@@ -115,9 +112,19 @@ export const POST: APIRoute = async (context) => {
 
     if (!anthropicRes.ok) {
       const errText = await anthropicRes.text();
-      console.error('Anthropic API error:', anthropicRes.status, errText);
+      let errorDetail;
+      try {
+        errorDetail = JSON.parse(errText);
+      } catch (e) {
+        errorDetail = errText;
+      }
+      
+      console.error('Anthropic API error:', anthropicRes.status, errorDetail);
       return new Response(
-        JSON.stringify({ error: `Anthropic API error: ${anthropicRes.status}`, detail: errText }),
+        JSON.stringify({ 
+          error: `Anthropic API error: ${anthropicRes.status}`, 
+          detail: errorDetail 
+        }),
         { status: anthropicRes.status, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -125,13 +132,11 @@ export const POST: APIRoute = async (context) => {
     const data = await anthropicRes.json() as any;
     const text = data.content?.find((b: any) => b.type === 'text')?.text ?? '';
 
-    // Return streaming response for compatibility with frontend
-    // The frontend expects to stream the response text character by character
+    // Return plain text for the frontend to "stream"
     return new Response(text, {
       status: 200,
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
-        'Transfer-Encoding': 'chunked',
       },
     });
 
