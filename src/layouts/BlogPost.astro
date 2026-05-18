@@ -4,6 +4,7 @@ import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
+import AdBanner from '../components/AdBanner.astro';
 
 type Props = CollectionEntry<'blog'>['data'];
 const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
@@ -13,7 +14,7 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
     <BaseHead title={title} description={description} />
     <style>
       main {
-        max-width: 720px; /* Optimized for reading comfort */
+        max-width: 720px;
         width: calc(100% - 3rem);
         margin: 0 auto;
         padding: 6rem 0;
@@ -78,6 +79,10 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
       </a>
       <article>
         {heroImage && <img src={heroImage} alt="" class="hero-img" />}
+        
+        <!-- Position 1: Below hero image / above header -->
+        <AdBanner minHeight="250px" margin="0 0 40px 0" />
+
         <header class="article-header">
           <div class="article-date">
             <FormattedDate date={pubDate} />
@@ -85,11 +90,56 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
           </div>
           <h1 class="article-title">{title}</h1>
         </header>
-        <div class="prose">
+
+        <div class="prose" id="article-content">
           <slot />
         </div>
+
+        <!-- Position 3: Bottom of article -->
+        <AdBanner minHeight="250px" margin="40px 0 0 0" />
       </article>
     </main>
+
+    <!-- Mid-article dynamic injection script -->
+    <script is:inline>
+      document.addEventListener('DOMContentLoaded', () => {
+        const prose = document.getElementById('article-content');
+        if (!prose) return;
+        
+        const paragraphs = prose.querySelectorAll('p');
+        if (paragraphs.length >= 4) {
+          const midIndex = Math.floor(paragraphs.length / 2);
+          const target = paragraphs[midIndex];
+          
+          const adContainer = document.createElement('div');
+          adContainer.className = 'ad-container';
+          adContainer.style.minHeight = '250px';
+          adContainer.style.margin = '40px auto';
+          adContainer.style.display = 'flex';
+          adContainer.style.justifyContent = 'center';
+          adContainer.style.alignItems = 'center';
+          adContainer.style.width = '100%';
+          adContainer.style.background = 'rgba(0, 0, 0, 0.02)';
+          adContainer.style.borderRadius = '8px';
+          adContainer.style.overflow = 'hidden';
+
+          // Inject Adsterra Native Banner code
+          const script = document.createElement('script');
+          script.async = true;
+          script.dataset.cfasync = "false";
+          script.src = "https://pl29385882.effectivecpmnetwork.com/9443ced55ad6dc338cd7a9fec5677f94/invoke.js";
+          
+          const div = document.createElement('div');
+          div.id = 'container-9443ced55ad6dc338cd7a9fec5677f94';
+          
+          adContainer.appendChild(script);
+          adContainer.appendChild(div);
+          
+          target.parentNode.insertBefore(adContainer, target);
+        }
+      });
+    </script>
+
     <Footer />
   </body>
 </html>

@@ -5,6 +5,7 @@ import Footer from '../components/Footer.astro';
 import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
 import { getCollection } from 'astro:content';
 import FormattedDate from '../components/FormattedDate.astro';
+import AdBanner from '../components/AdBanner.astro';
 
 const posts = (await getCollection('blog')).sort(
 	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
@@ -205,6 +206,7 @@ const recentPosts = posts.slice(1, 4);
 	<body>
 		<Header />
 		<main>
+				<AdBanner minHeight="90px" margin="0 auto 20px" />
 			<section class="hero">
 				<h1>The Signal <span style="color: #4F46E5;">Through the Noise</span></h1>
 				<p>Deep-dive analysis on AI agents, multi-agent systems, and the technologies reshaping our future.</p>
@@ -248,7 +250,7 @@ const recentPosts = posts.slice(1, 4);
 					))}
 				</div>
 			</section>
-
+				<AdBanner minHeight="250px" margin="40px auto" />
 			<section class="section">
 				<div class="cta-banner">
 					<h2>Join the Exploration</h2>

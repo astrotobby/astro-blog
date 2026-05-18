@@ -4,6 +4,7 @@ import BaseHead from '../../components/BaseHead.astro';
 import Footer from '../../components/Footer.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
+import AdBanner from '../../components/AdBanner.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
 
 const posts = (await getCollection('blog')).sort(
@@ -103,6 +104,7 @@ const posts = (await getCollection('blog')).sort(
   </head>
   <body>
     <Header />
+    <AdBanner minHeight="90px" margin="0 auto 20px" />
     <section class="page-header">
       <h1 class="page-title">The Archive</h1>
       <p class="page-subtitle">A collection of deep dives into the future of technology and artificial intelligence.</p>
@@ -120,6 +122,7 @@ const posts = (await getCollection('blog')).sort(
           </a>
         ))}
       </div>
+    <AdBanner minHeight="250px" margin="40px auto" />
     </main>
     <Footer />
   </body>
