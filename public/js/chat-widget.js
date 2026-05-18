@@ -3,8 +3,8 @@
     const CONFIG = {
         apiEndpoint: '/api/chat',
         primaryColor: '#4F46E5', // Updated to match the blog's accent color (indigo-600)
-        botName: 'Astro Assistant',
-        welcomeMessage: 'Hi there! I\'m the Astro Assistant. How can I help you navigate the blog today?',
+        botName: 'Tobby\'s Assistant',
+        welcomeMessage: 'Hi there! I\'m Tobby\'s Assistant. How can I help you navigate the blog today?',
         storageKey: 'chat_widget_history'
     };
 
