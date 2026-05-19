@@ -1,5 +1,5 @@
 ---
-image: "/meta-tribe.jpg"
+image: "/meta-tribe-v2-new.jpg"
 title: "Meta’s TRIBE v2  When AI Starts Modeling the Human"
 pubDate: "2026-05-16"
 date: "2026-05-16"
