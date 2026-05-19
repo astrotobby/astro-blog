@@ -2,7 +2,7 @@
 title: 'Best AI Video Tools in 2026: The Complete Creator Guide to Runway, Kling, Sora, and Beyond'
 description: 'AI video generation has exploded. This no-fluff guide breaks down the best AI video tools in 2026 -- what each one is actually good at, what it costs, and how to build a production-ready workflow.'
 pubDate: '2026-05-19'
-image: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=1200&auto=format&fit=crop&q=80'
+image: '/ai-video-tools-2026.png'
 tags: ['AI Video', 'Runway ML', 'Kling AI', 'Sora', 'AI Tools', 'Content Creation', '2026']
 ---
 
