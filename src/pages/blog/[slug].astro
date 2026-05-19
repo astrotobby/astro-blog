@@ -1,0 +1,26 @@
+---
+import { getCollection, render } from 'astro:content';
+import BlogPost from '../../layouts/BlogPost.astro';
+
+const { slug } = Astro.params;
+
+if (!slug) {
+  return Astro.redirect('/404');
+}
+
+const posts = await getCollection('blog');
+
+// Match by id (without extension) or decoded slug
+const post = posts.find(
+  (p) => p.id === slug || p.id === decodeURIComponent(slug)
+);
+
+if (!post) {
+  return Astro.redirect('/404');
+}
+
+const { Content } = await render(post);
+---
+<BlogPost {...post.data}>
+  <Content />
+</BlogPost>
