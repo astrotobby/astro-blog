@@ -2,7 +2,7 @@
 title: 'Top 7 AI Video Tools Dominating Content Creation in 2026'
 description: 'A deep-dive into the AI video tools every creator needs to know from text-to-video to auto-editing pipelines that save hours every week.'
 pubDate: '2026-05-15'
-image: '/blog-placeholder-2.jpg'
+image: '/ai-video-tools-2026-v2.png'
 ---
 
 AI video tools have stopped being a novelty. They are now the production backbone for creators who want to ship content at scale without a full studio team.
