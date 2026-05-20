@@ -2,7 +2,7 @@
 title: 'Agentic AI in 2026: How Multi-Agent Systems Are Rewriting the Rules of Work'
 description: 'AI agents have crossed from experiment to mainstream. This deep dive covers multi-agent systems, the top frameworks, what it means for creators and developers, and where the next 12 months are heading.'
 pubDate: '2026-05-19'
-image: '/agentic-ai-2026.png'
+image: '/agentic-ai-2026-new.png'
 tags: ['AI Agents', 'Multi-Agent Systems', 'AI Trends', 'Agentic AI', '2026']
 ---
 
