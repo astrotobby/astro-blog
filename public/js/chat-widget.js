@@ -2,7 +2,7 @@
     // Configuration
     const CONFIG = {
         apiEndpoint: '/api/chat',
-        primaryColor: '#4F46E5',
+        primaryColor: '#10B981',
         botName: 'Tobby\'s Assistant',
         welcomeMessage: 'Hi there! I\'m Tobby\'s Assistant. I now support real-time streaming! How can I help you today?',
         storageKey: 'chat_widget_history'
@@ -13,7 +13,7 @@
         #chat-widget-container {
             position: fixed;
             bottom: 20px;
-            left: 20px;
+            right: 20px;
             z-index: 9999;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
@@ -35,7 +35,7 @@
         #chat-widget-window {
             position: absolute;
             bottom: 72px;
-            left: 0;
+            right: 0;
             width: 360px;
             height: 520px;
             background: white;
