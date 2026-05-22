@@ -2,7 +2,7 @@
 title: "Elon Musk vs. Sam Altman: The OpenAI Lawsuit and Its Stakes for Humanity and AI"
 pubDate: 2026-05-21
 description: "Federal jury verdict in Elon Musk's lawsuit against Sam Altman, OpenAI, and Microsoft — what it really means for AGI, safety, power concentration, and humanity's future."
-heroImage: "/images/musk-altman.jpg"
+image: "/blog-placeholder-1.jpg"
 ---
 
 # Elon Musk vs. Sam Altman: The OpenAI Lawsuit and Its Stakes for Humanity and AI

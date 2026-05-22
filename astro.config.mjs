@@ -9,7 +9,7 @@ import cloudflare from '@astrojs/cloudflare';
 // https://astro.build/config
 export default defineConfig({
   output: 'server',
-  site: 'https://example.com',
+  site: 'https://astrotobby.site',
   integrations: [mdx(), sitemap()],
 
   fonts: [
