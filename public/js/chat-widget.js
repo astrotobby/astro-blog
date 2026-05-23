@@ -4,7 +4,7 @@
         apiEndpoint: '/api/chat',
         primaryColor: '#10B981',
         botName: 'Tobby\'s Assistant',
-        welcomeMessage: 'Hi there! I\'m Tobby\'s Assistant. I now support real-time streaming! How can I help you today?',
+        welcomeMessage: 'Hi there! I\'m Tobby\'s Assistant.! How can I help you today?',
         storageKey: 'chat_widget_history'
     };
 
