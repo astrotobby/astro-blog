@@ -1,0 +1,13 @@
+(node:2443) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[NoAdapterInstalled] Cannot use server-rendered pages without an adapter. Please install and configure the appropriate server adapter for your final deployment.
+  Hint:
+    See https://docs.astro.build/en/guides/on-demand-rendering/ for more information.
+  Error reference:
+    https://docs.astro.build/en/reference/errors/no-adapter-installed/
+  Location:
+    /home/ubuntu/astro-blog/node_modules/astro/dist/core/build/index.js:87:13
+  Stack trace:
+    at AstroBuilder.setup (file:///home/ubuntu/astro-blog/node_modules/astro/dist/core/build/index.js:87:13)
+    at async build (file:///home/ubuntu/astro-blog/node_modules/astro/dist/core/build/index.js:48:3)
+    at async runCommand (file:///home/ubuntu/astro-blog/node_modules/astro/dist/cli/index.js:206:7)

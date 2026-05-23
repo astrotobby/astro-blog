@@ -1,5 +1,5 @@
 ---
-title: 'Top 7 AI Video Tools Dominating Content Creation in 2026'
+title: "Top 7 AI Video Tools Dominating Content Creation in 2026"
 description: 'A deep-dive into the AI video tools every creator needs to know from text-to-video to auto-editing pipelines that save hours every week.'
 pubDate: '2026-05-15'
 image: '/ai-video-tools-2026-v2.png'

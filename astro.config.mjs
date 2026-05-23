@@ -35,9 +35,13 @@ export default defineConfig({
               ],
           },
       },
-	],
+		],
 
-  adapter: cloudflare(),
+  adapter: cloudflare({
+    platformProxy: {
+      enabled: false
+    }
+  }),
   image: {
     service: { entrypoint: 'astro/assets/services/noop' }
   },

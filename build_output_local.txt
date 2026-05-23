@@ -1,0 +1,16 @@
+(node:2366) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+15:24:04 [@astrojs/cloudflare] Enabling image processing with Cloudflare Images for production with the "IMAGES" Images binding.
+15:24:04 [@astrojs/cloudflare] Enabling sessions with Cloudflare KV with the "SESSION" KV binding.
+⎔ Establishing remote connection...
+Failed to start the remote proxy session, see the error details below:
+
+You must be logged in to use wrangler dev in remote mode. Try logging in, or run wrangler dev --local.
+  Location:
+    /home/ubuntu/astro-blog/node_modules/wrangler/wrangler-dist/cli.js:312798:11
+  Stack trace:
+    at /home/ubuntu/astro-blog/node_modules/wrangler/wrangler-dist/cli.js:312798:11
+    at async startRemoteProxySession (/home/ubuntu/astro-blog/node_modules/wrangler/wrangler-dist/cli.js:312774:18)
+    at async file:///home/ubuntu/astro-blog/node_modules/@cloudflare/vite-plugin/dist/index.mjs:52626:80
+    at async getDevMiniflareOptions (file:///home/ubuntu/astro-blog/node_modules/@cloudflare/vite-plugin/dist/index.mjs:52623:70)
+    at async _createServer (file:///home/ubuntu/astro-blog/node_modules/vite/dist/node/chunks/config.js:25622:86)
