@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760" role="img" aria-labelledby="title desc">
+  <title id="title">Agentic coding workflow comparison</title>
+  <desc id="desc">A workflow diagram showing prompt, plan, code, test, review, and ship stages for AI coding agents.</desc>
+  <rect width="1400" height="760" fill="#F8FAFC"/>
+  <text x="700" y="92" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="46" font-weight="800" fill="#0F172A">How modern coding agents ship work</text>
+  <text x="700" y="138" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="24" fill="#475569">The battle is no longer autocomplete. It is orchestration.</text>
+  <g font-family="Inter, Arial, sans-serif">
+    <g transform="translate(90 230)">
+      <rect width="190" height="160" rx="18" fill="#0F766E"/>
+      <text x="95" y="72" text-anchor="middle" font-size="28" font-weight="800" fill="#fff">Prompt</text>
+      <text x="95" y="112" text-anchor="middle" font-size="18" fill="#CCFBF1">Goal and context</text>
+    </g>
+    <g transform="translate(325 230)">
+      <rect width="190" height="160" rx="18" fill="#2563EB"/>
+      <text x="95" y="72" text-anchor="middle" font-size="28" font-weight="800" fill="#fff">Plan</text>
+      <text x="95" y="112" text-anchor="middle" font-size="18" fill="#DBEAFE">Repo reasoning</text>
+    </g>
+    <g transform="translate(560 230)">
+      <rect width="190" height="160" rx="18" fill="#7C3AED"/>
+      <text x="95" y="72" text-anchor="middle" font-size="28" font-weight="800" fill="#fff">Code</text>
+      <text x="95" y="112" text-anchor="middle" font-size="18" fill="#EDE9FE">Multi-file edits</text>
+    </g>
+    <g transform="translate(795 230)">
+      <rect width="190" height="160" rx="18" fill="#EA580C"/>
+      <text x="95" y="72" text-anchor="middle" font-size="28" font-weight="800" fill="#fff">Test</text>
+      <text x="95" y="112" text-anchor="middle" font-size="18" fill="#FFEDD5">CI feedback</text>
+    </g>
+    <g transform="translate(1030 230)">
+      <rect width="190" height="160" rx="18" fill="#334155"/>
+      <text x="95" y="72" text-anchor="middle" font-size="28" font-weight="800" fill="#fff">Review</text>
+      <text x="95" y="112" text-anchor="middle" font-size="18" fill="#E2E8F0">Human judgment</text>
+    </g>
+    <path d="M280 310h45M515 310h45M750 310h45M985 310h45M1220 310h90" stroke="#94A3B8" stroke-width="8" stroke-linecap="round"/>
+    <path d="M1294 294l28 16-28 16z" fill="#94A3B8"/>
+    <text x="1220" y="520" text-anchor="middle" font-size="32" font-weight="800" fill="#0F172A">Ship</text>
+    <text x="700" y="610" text-anchor="middle" font-size="24" fill="#334155">Claude Code leans into controlled execution. Codex leans into connected, parallel collaboration.</text>
+  </g>
+</svg>
