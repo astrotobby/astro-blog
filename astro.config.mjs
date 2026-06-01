@@ -9,7 +9,7 @@ export default defineConfig({
   output: 'static',
   adapter: cloudflare(),
   site: 'https://astrotobby.site',
-  integrations: [mdx(), sitemap()],
+  integrations: [mdx(), sitemap({ entryLimit: 10000 })],
 
   fonts: [
     {
