@@ -3,12 +3,9 @@
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import { defineConfig, fontProviders } from 'astro/config';
-
-import cloudflare from '@astrojs/cloudflare';
-
 // https://astro.build/config
 export default defineConfig({
-  output: 'server',
+  output: 'static',
   site: 'https://astrotobby.site',
   integrations: [mdx(), sitemap()],
 
@@ -37,7 +34,7 @@ export default defineConfig({
       },
 		],
 
-  adapter: cloudflare({
+({
     platformProxy: {
       enabled: false
     }
