@@ -6,6 +6,7 @@ import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
 import { getCollection } from 'astro:content';
 import FormattedDate from '../components/FormattedDate.astro';
 import AdBanner from '../components/AdBanner.astro';
+import Newsletter from '../components/Newsletter.astro';
 
 const posts = (await getCollection('blog')).sort(
 	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
@@ -250,9 +251,9 @@ const recentPosts = posts.slice(1, 4);
 					))}
 				</div>
 			</section>
-				<AdBanner minHeight="250px" margin="40px auto" />
-			<section class="section">
-				<div class="cta-banner">
+<Newsletter />
+				<section class="section">
+					<div class="cta-banner">
 					<h2>Join the Exploration</h2>
 					<p>Follow Astro Tobby for weekly insights on the frontier of technology.</p>
 					<div class="cta-socials">

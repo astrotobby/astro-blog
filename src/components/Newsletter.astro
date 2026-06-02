@@ -1,0 +1,211 @@
+---
+---
+<section class="newsletter-section">
+    <div class="newsletter-container">
+        <div class="newsletter-content">
+            <h2>Stay Updated</h2>
+            <p>Get notified whenever I publish a new post about AI, technology, and the future.</p>
+        </div>
+        <form id="newsletter-form" class="newsletter-form">
+            <div class="input-group">
+                <input 
+                    type="email" 
+                    id="email" 
+                    name="email" 
+                    placeholder="Enter your email" 
+                    required 
+                    aria-label="Email address"
+                />
+                <button type="submit" id="submit-btn">
+                    <span>Subscribe</span>
+                    <svg class="spinner" viewBox="0 0 24 24" style="display: none;">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                    </svg>
+                </button>
+            </div>
+            <p id="form-message" class="form-message"></p>
+        </form>
+    </div>
+</section>
+
+<style>
+    .newsletter-section {
+        background: #1a1a1a;
+        color: white;
+        padding: 4rem 2rem;
+        border-radius: 16px;
+        margin: 4rem 0;
+    }
+
+    .newsletter-container {
+        max-width: 600px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    .newsletter-content h2 {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        color: white;
+    }
+
+    .newsletter-content p {
+        color: #a0aec0;
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+    }
+
+    .newsletter-form {
+        width: 100%;
+    }
+
+    .input-group {
+        display: flex;
+        gap: 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 0.5rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    input[type="email"] {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: white;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        outline: none;
+    }
+
+    input[type="email"]::placeholder {
+        color: #718096;
+    }
+
+    button {
+        background: #4F46E5;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 120px;
+    }
+
+    button:hover {
+        background: #4338CA;
+    }
+
+    button:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .form-message {
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        min-height: 1.25rem;
+    }
+
+    .form-message.success {
+        color: #48bb78;
+    }
+
+    .form-message.error {
+        color: #f56565;
+    }
+
+    .spinner {
+        animation: rotate 2s linear infinite;
+        width: 20px;
+        height: 20px;
+        margin-left: 8px;
+    }
+
+    .spinner circle {
+        stroke-dasharray: 62;
+        stroke-dashoffset: 0;
+        transform-origin: center;
+        animation: dash 1.5s ease-in-out infinite;
+    }
+
+    @keyframes rotate {
+        100% { transform: rotate(360deg); }
+    }
+
+    @keyframes dash {
+        0% { stroke-dashoffset: 62; }
+        50% { stroke-dashoffset: 15; transform: rotate(135deg); }
+        100% { stroke-dashoffset: 62; transform: rotate(450deg); }
+    }
+
+    @media (max-width: 480px) {
+        .input-group {
+            flex-direction: column;
+        }
+        button {
+            width: 100%;
+        }
+    }
+</style>
+
+<script>
+    const form = document.getElementById('newsletter-form') as HTMLFormElement;
+    const messageEl = document.getElementById('form-message');
+    const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+    const spinner = submitBtn?.querySelector('.spinner') as HTMLElement;
+    const btnText = submitBtn?.querySelector('span') as HTMLElement;
+
+    form?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        const email = formData.get('email');
+
+        if (!email) return;
+
+        // Reset state
+        if (messageEl) {
+            messageEl.textContent = '';
+            messageEl.className = 'form-message';
+        }
+        if (submitBtn) submitBtn.disabled = true;
+        if (spinner) spinner.style.display = 'block';
+        if (btnText) btnText.textContent = 'Subscribing...';
+
+        try {
+            const response = await fetch('/api/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                if (messageEl) {
+                    messageEl.textContent = 'Successfully subscribed! Check your inbox.';
+                    messageEl.classList.add('success');
+                }
+                form.reset();
+            } else {
+                throw new Error(data.error || 'Something went wrong');
+            }
+        } catch (err) {
+            if (messageEl) {
+                messageEl.textContent = err instanceof Error ? err.message : 'Failed to subscribe. Please try again.';
+                messageEl.classList.add('error');
+            }
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
+            if (spinner) spinner.style.display = 'none';
+            if (btnText) btnText.textContent = 'Subscribe';
+        }
+    });
+</script>
