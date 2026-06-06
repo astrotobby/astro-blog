@@ -46,11 +46,7 @@ The advantages of CapCut templates extend beyond mere time savings:
 *   **Cost-Effectiveness:** Reduces the need for expensive software licenses or frequent outsourcing to professional video editors.
 *   **Staying Trendy:** Templates are often updated to reflect current social media trends, helping businesses remain relevant and engaging.
 
-## Need Expert AI-Generated Videos? I Can Help!
-
-While CapCut templates offer incredible efficiency, some businesses may require a more bespoke or advanced approach to AI-generated video content. If you're looking to elevate your video marketing with custom AI-generated visuals, engaging voiceovers, and professional editing tailored to your specific needs, I offer specialized services to bring your vision to life. Whether it's for social media, marketing, storytelling, or business growth, I can create eye-catching AI videos that stand out.
-
-**[Check out my Fiverr gig here to learn more and get started!](https://www.fiverr.com/s/xX1XlkX)**
+If in need of video editing services check out this "[VIDEO EDITOR](https://www.fiverr.com/s/xX1XlkX)"
 
 ## Conclusion
 
