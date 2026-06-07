@@ -3,5 +3,11 @@
   "name": "astro-blog",
   "observability": {
     "enabled": true
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "vars": {
+    "ENVIRONMENT": "production"
   }
 }
