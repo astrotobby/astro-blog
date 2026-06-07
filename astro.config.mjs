@@ -6,7 +6,7 @@ import cloudflare from '@astrojs/cloudflare';
 
 // https://astro.build/config
 export default defineConfig({
-  output: 'static',
+  output: 'hybrid',
   adapter: cloudflare(),
   site: 'https://astrotobby.site',
   integrations: [mdx(), sitemap({ entryLimit: 10000 })],
