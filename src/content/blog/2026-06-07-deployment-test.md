@@ -1,6 +1,6 @@
 ---
 title: 'Deployment Test'
-pubDate: '2026-06-07'
+pubDate: '2026-06-08'
 description: 'Testing Cloudflare Pages deployment.'
 image: '/blog-placeholder-1.jpg'
 ---
