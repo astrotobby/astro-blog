@@ -55,9 +55,10 @@ function fixFile(filePath) {
     const missingFields = requiredFields.filter(field => !fm[field]);
 
     if (missingFields.length > 0) {
-        console.log(`Warning: Missing required fields (${missingFields.join(', ')}) in ${fileName}. Deleting to prevent build failure.`);
-        fs.unlinkSync(filePath);
-        return;
+        console.log(`Warning: Missing required fields (${missingFields.join(', ')}) in ${fileName}. Attempting to fill with defaults.`);
+        if (!fm.title) fm.title = fileName.replace('.md', '');
+        if (!fm.description) fm.description = fm.title;
+        if (!fm.pubdate) fm.pubdate = new Date().toISOString().split('T')[0];
     }
 
     // Clean up body (remove AI-generated boilerplate)
