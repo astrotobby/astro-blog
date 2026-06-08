@@ -1,10 +1,10 @@
 ---
 title: "Mastering AI Automation: Why Your Make.com Pipeline Might Be Failing"
 date: "2026-06-08"
-pubDate: "2026-06-08"
+pubdate: "2026-06-08"
 description: "A deep dive into common pitfalls when automating blog posts with Make.com and GitHub, and how to fix them for a seamless publishing workflow."
 author: "Astro Tobby"
-tags: ["AI", "Automation", "Make.com", "GitHub", "Astro"]
+tags: "["AI", "Automation", "Make.com", "GitHub", "Astro"]"
 ---
 
 Automating your content workflow can be a game-changer, but it's not without its hurdles. If you've tried setting up a pipeline using **Make.com** to post directly to a GitHub-hosted blog like **Astro**, you might have encountered the frustrating "ghost post" — a commit that appears in GitHub but never shows up on your live site.
