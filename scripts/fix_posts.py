@@ -5,10 +5,10 @@ BLOG_DIR = "src/content/blog"
 
 def slugify(text):
     text = text.lower()
-    # Replace non-alphanumeric with hyphen
-    text = re.sub(r'[^a-z0-9]+', '-', text)
-    # Remove leading/trailing hyphens
-    return text.strip('-')
+    # Replace non-alphanumeric with underscore to match current site behavior
+    text = re.sub(r'[^a-z0-9]+', '_', text)
+    # Remove leading/trailing underscores
+    return text.strip('_')
 
 def fix_file(filepath):
     filename = os.path.basename(filepath)
@@ -30,7 +30,6 @@ def fix_file(filepath):
     # Extract frontmatter and body
     match = re.search(r'^---\s*\n(.*?)\n---\s*\n(.*)', content, re.DOTALL)
     if not match:
-        # If no frontmatter, try to wrap the whole thing or skip
         print(f"Warning: No frontmatter found in {filename}")
         return
 
@@ -47,15 +46,16 @@ def fix_file(filepath):
             val = parts[1].strip().strip('"').strip("'")
             new_fm[key] = val
 
-    # Use title from frontmatter for renaming if current filename is bad
+    # Use title from frontmatter for renaming
     title = new_fm.get('title', filename.replace('.md', ''))
     
-    # Clean up body (remove LLM conversational filler)
+    # Clean up body
     body = re.sub(r'^(Here is|Sure|I have generated|This is|Title:).*?\n', '', body, flags=re.IGNORECASE)
     body = body.strip()
     
     # Reconstruct content
     fm_str = "---\n"
+    # Preserve key order if possible, but at least ensure title is there
     for k, v in new_fm.items():
         if k == 'title':
             fm_str += f'title: "{v}"\n'
@@ -67,7 +67,6 @@ def fix_file(filepath):
     
     # Determine new filename
     slug = slugify(title)
-    # Avoid double date
     if slug.startswith(date_prefix.strip('-')):
         new_filename = f"{slug}.md"
     else:
@@ -75,11 +74,9 @@ def fix_file(filepath):
     
     new_path = os.path.join(BLOG_DIR, new_filename)
     
-    # Write fixed content
     with open(filepath, 'w', encoding='utf-8') as f:
         f.write(new_content)
     
-    # Rename if needed
     if filepath != new_path:
         if os.path.exists(new_path):
             print(f"Conflict: {new_path} already exists. Removing {filepath}")
@@ -92,6 +89,5 @@ if __name__ == "__main__":
     if not os.path.exists(BLOG_DIR):
         print(f"Directory {BLOG_DIR} not found.")
     else:
-        # Sort files to process them consistently
         for filename in sorted(os.listdir(BLOG_DIR)):
             fix_file(os.path.join(BLOG_DIR, filename))
