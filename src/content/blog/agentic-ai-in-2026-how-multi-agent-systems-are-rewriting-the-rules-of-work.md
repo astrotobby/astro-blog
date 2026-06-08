@@ -1,9 +1,9 @@
 ---
 title: "Agentic AI in 2026: How Multi-Agent Systems Are Rewriting the Rules of Work"
-description: 'AI agents have crossed from experiment to mainstream. This deep dive covers multi-agent systems, the top frameworks, what it means for creators and developers, and where the next 12 months are heading.'
-pubDate: '2026-05-19'
-image: '/agentic-ai-2026-new.png'
-tags: ['AI Agents', 'Multi-Agent Systems', 'AI Trends', 'Agentic AI', '2026']
+description: "AI agents have crossed from experiment to mainstream. This deep dive covers multi-agent systems, the top frameworks, what it means for creators and developers, and where the next 12 months are heading."
+pubdate: "2026-05-19"
+image: "/agentic-ai-2026-new.png"
+tags: "['AI Agents', 'Multi-Agent Systems', 'AI Trends', 'Agentic AI', '2026']"
 ---
 
 The world of AI crossed a critical threshold in 2025. Chatbots that answered questions gave way to **agents that take action**. In 2026, that shift has gone from experiment to mainstream deployment — and if you're not tracking agentic AI right now, you're already behind.

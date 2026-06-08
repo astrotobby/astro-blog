@@ -1,7 +1,7 @@
 ---
 image: "/multiagent-systems.jpg"
 title: "Top Multi-Agent AI Frameworks for Developers in 20"
-pubDate: "2026-05-07"
+pubdate: "2026-05-07"
 date: "2026-05-07"
 description: ""
 ---
@@ -169,4 +169,3 @@ Just a year ago, most AI projects involved a single large language model assista
 The choice between frameworks isn't philosophical. It's operational. If you need something working by next Friday, use CrewAI. If you need something that doesn't break in three months, use LangGraph. If you're on Azure and need agents that talk to each other, use AG2 — but budget for the token overhead.
 
 Pick the right tool for the stage you're in.
-

@@ -1,7 +1,7 @@
 ---
 image: "/claude-code-vs-codex-2026.svg"
 title: "Claude Code vs OpenAI Codex: Which AI Coding Agent Wins in 2026?"
-pubDate: "2026-05-27"
+pubdate: "2026-05-27"
 date: "2026-05-27"
 description: "A practical, SEO-friendly 2026 comparison of Claude Code vs OpenAI Codex, covering coding workflows, autonomy, safety, mobile access, and which AI coding agent fits your team."
 ---

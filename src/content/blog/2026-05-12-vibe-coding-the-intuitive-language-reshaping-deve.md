@@ -1,7 +1,7 @@
 ---
 image: "/vibe-coding-new.jpg"
 title: "Vibe Coding  The Intuitive Language Reshaping Deve"
-pubDate: "2026-05-12"
+pubdate: "2026-05-12"
 date: "2026-05-12"
 description: ""
 ---

@@ -1,7 +1,7 @@
 ---
 image: "/ai-coding-agents.jpg"
 title: "AI Coding Agents in 2026  The Quiet Revolution Mak"
-pubDate: "2026-05-08"
+pubdate: "2026-05-08"
 date: "2026-05-08"
 description: ""
 ---

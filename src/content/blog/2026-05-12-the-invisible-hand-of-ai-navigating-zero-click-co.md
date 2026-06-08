@@ -1,7 +1,7 @@
 ---
 image: "/ai-shift.jpg"
 title: "The Invisible Hand of AI  Navigating Zero-Click Co"
-pubDate: "2026-05-12"
+pubdate: "2026-05-12"
 date: "2026-05-12"
 description: ""
 ---

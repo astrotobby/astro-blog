@@ -1,7 +1,7 @@
 ---
 image: "/ai-video-tools.jpg"
 title: "The Post-Sora Gold Rush  5 High-Quality AI Video T"
-pubDate: "2026-05-11"
+pubdate: "2026-05-11"
 date: "2026-05-11"
 description: ""
 ---
