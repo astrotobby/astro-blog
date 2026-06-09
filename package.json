@@ -7,7 +7,6 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "prebuild": "node scripts/cleanup.js",
     "build": "astro build",
     "preview": "npm run build && wrangler dev",
     "astro": "astro",
