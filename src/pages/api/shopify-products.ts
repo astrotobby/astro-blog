@@ -16,7 +16,8 @@ const SHOPIFY_PRODUCTS = [
     createdAt: "2026-06-09T09:05:47Z",
     updatedAt: "2026-06-09T21:34:21Z",
     handle: "ai-video-freelancer-toolkit-2026",
-    price: "$49.99",
+    variantId: "53517875675415",
+    price: "$29.00",
     description: "Master AI video creation and land high-paying clients with this comprehensive toolkit."
   },
   {
@@ -29,8 +30,9 @@ const SHOPIFY_PRODUCTS = [
     totalInventory: 0,
     createdAt: "2026-06-09T10:22:51Z",
     updatedAt: "2026-06-10T03:58:42Z",
-    handle: "make-autoblogging-blueprint-2026",
-    price: "$39.99",
+    handle: "make-com-autoblogging-blueprint-2026-build-a-full-ai-content-pipeline",
+    variantId: "53518038434071",
+    price: "$27.00",
     description: "Build an automated content creation pipeline using Make.com and AI."
   },
   {
@@ -43,8 +45,9 @@ const SHOPIFY_PRODUCTS = [
     totalInventory: 0,
     createdAt: "2026-06-09T10:23:15Z",
     updatedAt: "2026-06-10T03:58:43Z",
-    handle: "ai-prompt-vault-2026",
-    price: "$29.99",
+    handle: "ai-prompt-vault-2026-500-categorized-prompts-for-video-content-code-automation",
+    variantId: "53518038892823",
+    price: "$17.00",
     description: "Access 500+ expertly crafted prompts for AI video, content creation, coding, and automation."
   },
   {
@@ -57,8 +60,9 @@ const SHOPIFY_PRODUCTS = [
     totalInventory: 0,
     createdAt: "2026-06-09T10:23:38Z",
     updatedAt: "2026-06-10T03:58:43Z",
-    handle: "aeo-masterguide-2026",
-    price: "$34.99",
+    handle: "aeo-masterguide-2026-rank-in-ai-search-chatgpt-perplexity-google-ai-overviews",
+    variantId: "53518039417111",
+    price: "$19.00",
     description: "Learn Answer Engine Optimization to rank your content in AI search engines."
   },
   {
@@ -71,8 +75,9 @@ const SHOPIFY_PRODUCTS = [
     totalInventory: 0,
     createdAt: "2026-06-09T10:23:59Z",
     updatedAt: "2026-06-10T03:58:43Z",
-    handle: "agentic-ai-workflow-pack-2026",
-    price: "$44.99",
+    handle: "agentic-ai-workflow-pack-2026-build-amp-deploy-multi-agent-systems-without-code",
+    variantId: "53518039908631",
+    price: "$37.00",
     description: "Build and deploy multi-agent AI systems without writing any code."
   }
 ];
