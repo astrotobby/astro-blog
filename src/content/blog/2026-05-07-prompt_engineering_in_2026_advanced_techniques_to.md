@@ -1,7 +1,7 @@
 ---
 image: "/prompt-engineering.jpg"
 title: "Prompt Engineering in 2026  Advanced Techniques to"
-pubdate: "2026-05-07"
+pubDate: "2026-05-07"
 date: "2026-05-07"
 description: ""
 ---

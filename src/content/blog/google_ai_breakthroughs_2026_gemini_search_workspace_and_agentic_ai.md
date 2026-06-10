@@ -1,7 +1,7 @@
 ---
 image: "/ai-shift.jpg"
 title: "Google AI Breakthroughs 2026: Gemini, Search, Workspace and Agentic AI"
-pubdate: "2026-05-20"
+pubDate: "2026-05-20"
 date: "2026-05-20"
 description: "A concise look at Google's 2026 AI breakthroughs across Gemini, Search, Workspace, creator tools, open models, and agentic AI workflows."
 ---

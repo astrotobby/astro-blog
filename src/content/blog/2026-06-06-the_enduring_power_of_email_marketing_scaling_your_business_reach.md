@@ -1,7 +1,7 @@
 ---
 image: "/manus-storage/email_marketing_hero_628a04a6.png"
 title: "The Enduring Power of Email Marketing: Scaling Your Business Reach"
-pubdate: "2026-06-06"
+pubDate: "2026-06-06"
 date: "2026-06-06"
 description: "Discover why email marketing is still the most powerful channel for scaling your business reach and building lasting customer relationships. Learn humanized strategies and best practices."
 ---

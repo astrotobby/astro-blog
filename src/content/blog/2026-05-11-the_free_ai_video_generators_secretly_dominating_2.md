@@ -1,7 +1,7 @@
 ---
 image: "/ai-video-tools.jpg"
 title: "The Free AI Video Generators Secretly Dominating 2"
-pubdate: "2026-05-11"
+pubDate: "2026-05-11"
 date: "2026-05-11"
 description: ""
 ---

@@ -1,7 +1,7 @@
 ---
 image: "/answer-engine-optimization.jpg"
 title: "Beyond SEO  Why Answer Engine Optimization (AEO) i"
-pubdate: "2026-05-12"
+pubDate: "2026-05-12"
 date: "2026-05-12"
 description: ""
 ---

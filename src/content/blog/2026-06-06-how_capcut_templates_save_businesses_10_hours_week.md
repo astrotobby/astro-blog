@@ -1,7 +1,7 @@
 ---
 image: "/capcut-templates-business.jpg"
 title: "How CapCut Templates Save Businesses 10 Hours/Week"
-pubdate: "2026-06-06"
+pubDate: "2026-06-06"
 date: "2026-06-06"
 description: "Discover how CapCut templates can drastically cut down video editing time for businesses, saving up to 10 hours per week and boosting content creation efficiency."
 ---

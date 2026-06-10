@@ -1,7 +1,7 @@
 ---
 image: "/apple-ai-wwdc-2026.png"
 title: "Apple's WWDC 2026: A New Era for Siri AI and Personal Computing"
-pubdate: "2026-06-09"
+pubDate: "2026-06-09"
 date: "2026-06-09"
 description: "Apple's WWDC 2026 keynote unveiled a transformative vision for AI, with a revamped Siri AI powered by Apple's foundation models and Google Gemini, alongside groundbreaking features in iOS 27, signaling a new chapter for personal AI and user interaction."
 ---

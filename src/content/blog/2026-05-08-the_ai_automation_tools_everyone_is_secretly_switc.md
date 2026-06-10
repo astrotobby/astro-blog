@@ -1,7 +1,7 @@
 ---
 image: "/ai-automation-tools.jpg"
 title: "The AI Automation Tools Everyone Is Secretly Switc"
-pubdate: "2026-05-08"
+pubDate: "2026-05-08"
 date: "2026-05-08"
 description: ""
 ---

@@ -1,7 +1,7 @@
 ---
 image: "/multiagent-systems.jpg"
 title: "Top Multi-Agent AI Frameworks for Developers in 20"
-pubdate: "2026-05-07"
+pubDate: "2026-05-07"
 date: "2026-05-07"
 description: ""
 ---

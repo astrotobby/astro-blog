@@ -1,7 +1,7 @@
 ---
 image: "/app-less-future.jpg"
 title: "The App-less Future  How AI Agents Are Replacing Y"
-pubdate: "2026-05-12"
+pubDate: "2026-05-12"
 date: "2026-05-12"
 description: ""
 ---

@@ -1,7 +1,7 @@
 ---
 image: "/agentic-ai-2026.png"
 title: "The Rise of Agentic AI: How Autonomous Systems are Reshaping 2026"
-pubdate: "2026-06-10"
+pubDate: "2026-06-10"
 date: "2026-06-10"
 description: "Explore the transformative impact of Agentic AI in 2026, where autonomous agents move beyond simple chat to executing complex workflows, revolutionizing industries and personal productivity."
 ---

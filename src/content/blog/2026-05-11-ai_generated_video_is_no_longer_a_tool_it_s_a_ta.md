@@ -1,7 +1,7 @@
 ---
 image: "/ai-video-tools.jpg"
 title: "AI-Generated Video Is No Longer a Tool — It's a Ta"
-pubdate: "2026-05-11"
+pubDate: "2026-05-11"
 date: "2026-05-11"
 description: ""
 ---

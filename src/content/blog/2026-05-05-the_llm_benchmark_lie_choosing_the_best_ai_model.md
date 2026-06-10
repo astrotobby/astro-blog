@@ -1,7 +1,7 @@
 ---
 image: "/llm-benchmarks.jpg"
 title: "The LLM Benchmark Lie  Choosing the Best AI Model"
-pubdate: "2026-05-05"
+pubDate: "2026-05-05"
 date: "2026-05-05"
 description: ""
 ---

@@ -1,7 +1,7 @@
 ---
 image: "/agentic-commerce-hero.png"
 title: "Agentic Commerce: When AI Agents Become the New Consumers"
-pubdate: "2026-06-01"
+pubDate: "2026-06-01"
 date: "2026-06-01"
 description: "Exploring the rise of Agentic Commerce, where AI agents act as autonomous economic participants, and the implications for consumers and businesses."
 ---

@@ -1,7 +1,7 @@
 ---
 image: "/ghost-in-machine.jpg"
 title: "The  Ghost in the Machine   Why 2026 is the Year A"
-pubdate: "2026-05-11"
+pubDate: "2026-05-11"
 date: "2026-05-11"
 description: ""
 ---

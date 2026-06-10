@@ -1,7 +1,7 @@
 ---
 title: "Best AI Video Generators in 2026: Veo 3.1 vs Kling 3.0 vs Runway Gen-4.5 (Honest Freelancer's Guide)"
 description: "A no-fluff breakdown of the best AI video generation tools in 2026 for freelancers and content creators — tested across real client workflows."
-pubdate: "2026-05-25"
+pubDate: "2026-05-25"
 updateddate: "2026-05-25"
 tags: ["AI Video Tools", "Freelancing", "AI Tools 2026", "Content Creation", "Runway ML", "Kling AI", "Google Veo", "HeyGen"]
 author: "Astro Tobby"
