@@ -1,5 +1,5 @@
 ---
-image: "/manus-storage/email_marketing_hero_628a04a6.png"
+image: "https://image.pollinations.ai/prompt/The%20Enduring%20Power%20of%20Email%20Marketing%3A%20Scaling%20Your%20Business%20Reach?width=1280&height=720&nologo=true"
 title: "The Enduring Power of Email Marketing: Scaling Your Business Reach"
 pubDate: "2026-06-06"
 date: "2026-06-06"
