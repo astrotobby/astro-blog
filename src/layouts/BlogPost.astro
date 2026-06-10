@@ -6,6 +6,7 @@ import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
 import AdBanner from '../components/AdBanner.astro';
 import Newsletter from '../components/Newsletter.astro';
+import ShopifyProducts from '../components/ShopifyProducts.astro';
 
 type Props = CollectionEntry<'blog'>['data'];
 const { title, description, pubDate, updatedDate, image } = Astro.props;
@@ -98,6 +99,10 @@ const { title, description, pubDate, updatedDate, image } = Astro.props;
 
         <!-- Position 3: Bottom of article -->
         <AdBanner minHeight="250px" margin="40px 0 0 0" />
+        
+        <!-- Shopify Products Section -->
+        <ShopifyProducts />
+        
         <Newsletter />
       </article>
     </main>
