@@ -10,6 +10,8 @@ import ShopifyProducts from '../components/ShopifyProducts.astro';
 
 type Props = CollectionEntry<'blog'>['data'];
 const { title, description, pubDate, updatedDate, image } = Astro.props;
+const fallbackImage = '/blog-placeholder-about.jpg';
+const displayImage = image || fallbackImage;
 ---
 <html lang="en">
   <head>
@@ -80,7 +82,7 @@ const { title, description, pubDate, updatedDate, image } = Astro.props;
         Back to archive
       </a>
       <article>
-        {image && <img src={image} alt="" class="hero-img" loading="eager" />}
+        <img src={displayImage} alt="" class="hero-img" loading="eager" onerror={`this.onerror=null;this.src='${fallbackImage}';`} />
         
         <!-- Position 1: Below hero image / above header -->
         <AdBanner minHeight="250px" margin="0 0 40px 0" />
