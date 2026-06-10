@@ -2,7 +2,7 @@
 title: "Meta Collaborates with Reliance on AI-Enabled Indian Data Center Project"
 description: "Meta has partnered with Reliance to create a cutting-edge AI-enabled data center in India, showcasing the company's continued commitment to innovation and digital development in the region."
 pubDate: "2026-06-10"
-heroImage: "https://image.pollinations.ai/prompt/Meta%20Collaborates%20with%20Reliance%20on%20AI-Enabled%20Indian%20Data%20Center%20Project"
+image: "https://image.pollinations.ai/prompt/Meta%20Collaborates%20with%20Reliance%20on%20AI-Enabled%20Indian%20Data%20Center%20Project"
 tags: ["Meta", "Reliance", "AI-Enabled Data Center", "Indian Data Center", "Data Center Partnership"]
 ---
 
