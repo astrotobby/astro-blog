@@ -2,7 +2,7 @@
 title: "Bitcoin Price Continues to Climb Despite Market Volatility Concerns"
 description: "Bitcoin prices surge amid market fluctuations, investors cautious about its future growth potential."
 pubDate: "2026-06-10"
-image: "https://image.pollinations.ai/prompt/Bitcoin%20Price%20Continues%20to%20Climb%20Despite%20Market%20Volatility%20Concerns"
+image: "https://fortune.com/img-assets/wp-content/uploads/2026/06/Price-of-Bitcoin-June-10.jpg?resize=1200,600"
 tags: ["bitcoin price", "market volatility", "cryptocurrency"]
 ---
 
