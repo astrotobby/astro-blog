@@ -113,9 +113,9 @@ const fallbackImage = '/blog-placeholder-about.jpg';
     <main>
       <div class="posts-grid">
         {posts.map((post) => (
-          <a href={`/blog/${post.id}/`} class="post-card">
-            <img src={post.data.image || fallbackImage} alt="" class="card-img" loading="lazy" onerror={`this.onerror=null;this.src='${fallbackImage}';`} />
-            <div class="card-body">
+	          <a href={`/blog/${post.id}/`} class="post-card">
+	            <img src={post.data.image || fallbackImage} alt="" class="card-img" loading="lazy" onerror={`this.onerror=null;this.src='${fallbackImage}';`} style="background: #f7f7f7; min-height: 200px; object-fit: cover;" />
+	            <div class="card-body">
               <p class="card-date"><FormattedDate date={post.data.pubDate} /></p>
               <h3 class="card-title">{post.data.title}</h3>
               <p class="card-desc">{post.data.description}</p>
