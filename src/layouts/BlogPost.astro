@@ -10,7 +10,7 @@ import ShopifyProducts from '../components/ShopifyProducts.astro';
 
 type Props = CollectionEntry<'blog'>['data'];
 const { title, description, pubDate, updatedDate, image } = Astro.props;
-const fallbackImage = '/blog-placeholder-about.jpg';
+const fallbackImage = `https://image.pollinations.ai/prompt/${encodeURIComponent(title)}?width=1280&height=720&nologo=true`;
 const displayImage = image || fallbackImage;
 ---
 <html lang="en">
