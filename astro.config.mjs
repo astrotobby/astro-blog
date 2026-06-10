@@ -1,11 +1,20 @@
 // @ts-check
+import cloudflare from '@astrojs/cloudflare';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import { defineConfig, fontProviders } from 'astro/config';
 
 // https://astro.build/config
 export default defineConfig({
-  output: "static",
+  output: "server",
+  adapter: cloudflare({
+    platformProxy: {
+      enabled: false,
+    },
+    imageService: 'compile',
+    prerenderEnvironment: 'node',
+    remoteBindings: false,
+  }),
   site: 'https://astrotobby.site',
   integrations: [mdx(), sitemap({ entryLimit: 10000 })],
 
