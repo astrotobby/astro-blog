@@ -2,7 +2,7 @@
 title: "Coinbase Card Enables Credit Insecure Customers to Collateralize Crypto for Loans"
 description: "Coinbase Card has introduced a feature that allows credit-insecure customers to use their cryptocurrency as collateral for loans."
 pubDate: 2026-06-10
-image: "https://image.pollinations.ai/prompt/Coinbase%20Card%20Enables%20Credit%20Insecure%20Customers%20to%20Collateralize%20Crypto%20for%20Loans"
+image: "https://www.pymnts.com/wp-content/uploads/2026/05/Coinbase-crypto-wallets1.jpg"
 tags: ["Coinbase Card", "cryptocurrency", "cryptocurrency loans", "credit-insecure customers"]
 ---
 

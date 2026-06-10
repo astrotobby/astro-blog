@@ -2,7 +2,7 @@
 title: "Ethereum Price Analysis June 9 2026 Up to Date Market Trends Insights"
 description: "Get the latest insights on Ethereum's price analysis and market trends, up to date as of June 9, 2026."
 pubDate: "2026-06-10"
-image: "https://image.pollinations.ai/prompt/Ethereum%20Price%20Analysis%20June%209%202026%20Up%20to%20Date%20Market%20Trends%20Insights"
+image: "https://fortune.com/img-assets/wp-content/uploads/2026/06/Price-of-Ethereum-June-10.jpg?resize=1200,600"
 tags: ["Ethereum", "cryptocurrency", "market trends", "price analysis"]
 ---
 
