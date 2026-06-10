@@ -37,7 +37,7 @@ const getShopifyProducts = async (): Promise<Product[]> => {
         updatedAt: "2026-06-09T21:34:21Z",
         handle: "ai-video-freelancer-toolkit-2026",
         variantId: "gid://shopify/ProductVariant/53517875675415",
-        price: "$29.00",
+        price: "$24.00",
         description: "Master AI video creation and land high-paying clients with this comprehensive toolkit."
       },
       {
@@ -52,7 +52,7 @@ const getShopifyProducts = async (): Promise<Product[]> => {
         updatedAt: "2026-06-10T03:58:42Z",
         handle: "make-com-autoblogging-blueprint-2026-build-a-full-ai-content-pipeline",
         variantId: "gid://shopify/ProductVariant/53518038434071",
-        price: "$27.00",
+        price: "$22.00",
         description: "Build an automated content creation pipeline using Make.com and AI."
       },
       {
@@ -67,7 +67,7 @@ const getShopifyProducts = async (): Promise<Product[]> => {
         updatedAt: "2026-06-10T03:58:43Z",
         handle: "ai-prompt-vault-2026-500-categorized-prompts-for-video-content-code-automation",
         variantId: "gid://shopify/ProductVariant/53518038892823",
-        price: "$17.00",
+        price: "$12.00",
         description: "Access 500+ expertly crafted prompts for AI video, content creation, coding, and automation."
       },
       {
@@ -82,7 +82,7 @@ const getShopifyProducts = async (): Promise<Product[]> => {
         updatedAt: "2026-06-10T03:58:43Z",
         handle: "aeo-masterguide-2026-rank-in-ai-search-chatgpt-perplexity-google-ai-overviews",
         variantId: "gid://shopify/ProductVariant/53518039417111",
-        price: "$19.00",
+        price: "$14.00",
         description: "Learn Answer Engine Optimization to rank your content in AI search engines."
       },
       {
@@ -97,7 +97,7 @@ const getShopifyProducts = async (): Promise<Product[]> => {
         updatedAt: "2026-06-10T03:58:43Z",
         handle: "agentic-ai-workflow-pack-2026-build-amp-deploy-multi-agent-systems-without-code",
         variantId: "gid://shopify/ProductVariant/53518039908631",
-        price: "$37.00",
+        price: "$32.00",
         description: "Build and deploy multi-agent AI systems without writing any code."
       }
     ];
@@ -150,10 +150,10 @@ const products = await getShopifyProducts();
 
 <style>
   .shopify-products-section {
-    background: linear-gradient(135deg, #f5f7fa 0%, #e9ecf1 100%);
-    padding: 3rem 2rem;
-    border-radius: 16px;
-    margin: 4rem 0;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    margin: 0;
   }
 
   .shopify-container {
@@ -161,8 +161,7 @@ const products = await getShopifyProducts();
   }
 
   .section-header {
-    text-align: center;
-    margin-bottom: 3rem;
+    display: none;
   }
 
   .section-header h2 {
@@ -179,24 +178,38 @@ const products = await getShopifyProducts();
 
   .products-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
   }
 
   .product-card {
     background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s ease;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: 1px solid rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .product-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
   }
 
   .product-card:hover {
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
-    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15);
+    transform: translateY(-8px);
   }
 
   .product-header {
@@ -207,12 +220,12 @@ const products = await getShopifyProducts();
   }
 
   .product-badge {
-    background: #4F46E5;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     font-size: 0.75rem;
     font-weight: 600;
-    padding: 0.375rem 0.75rem;
-    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
@@ -258,22 +271,23 @@ const products = await getShopifyProducts();
   }
 
   .product-btn {
-    background: #4F46E5;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 0.625rem 1.25rem;
-    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
     text-decoration: none;
-    font-weight: 600;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
+    font-weight: 700;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
   }
 
   .product-btn:hover {
-    background: #4338CA;
-    transform: translateX(2px);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(102, 126, 234, 0.4);
   }
 
   @media (max-width: 768px) {
