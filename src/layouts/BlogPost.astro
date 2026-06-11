@@ -10,16 +10,18 @@ import ShopifyProducts from '../components/ShopifyProducts.astro';
 
 type Props = CollectionEntry<'blog'>['data'];
 const { title, description, pubDate, updatedDate, image } = Astro.props;
-// pollinations.ai is now paywalled (returns HTTP 402), so we no longer use it.
-// Derive a single salient keyword from the title and pull a topical stock photo from LoremFlickr.
+// External image services proved unreliable: pollinations.ai -> HTTP 402 paywall; loremflickr -> 10-18s loads (grey box).
+// Strategy: honour an explicitly-set real image; otherwise render an INSTANT inline SVG "topic card" (a data URI,
+// zero network requests) so the hero can never fall back to the grey loading background.
 const STOPWORDS = new Set(['the','a','an','to','of','in','for','and','or','is','are','on','with','as','at','by','from','how','why','what','this','that','its','it','vs','new','up','out','over','under','your','our','we','will','can','do','does','no','not','but','if','into','after','before','amid','despite','more','than','get','gets','their','his','her','you','about']);
 const cleanTitle = (title || '').toLowerCase().replace(/['’]s\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
-const keyword = cleanTitle.split(' ').filter((w) => w && !STOPWORDS.has(w))[0] || 'technology';
-const lock = Math.abs(Array.from(title || 'x').reduce((acc, ch) => ((acc << 5) - acc + ch.charCodeAt(0)) | 0, 0));
-const topicalImage = `https://loremflickr.com/1280/720/${keyword}?lock=${lock}`;
-const localFallback = '/blog-placeholder-1.jpg';
-// Honour an explicitly-set real image; otherwise use the topical photo. Legacy pollinations URLs are ignored.
-const displayImage = image && !image.includes('pollinations.ai') ? image : topicalImage;
+const keyword = cleanTitle.split(' ').filter((w) => w && !STOPWORDS.has(w))[0] || 'news';
+const heroLabel = keyword.charAt(0).toUpperCase() + keyword.slice(1);
+const svgCard = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4F46E5"/><stop offset="0.55" stop-color="#3730A3"/><stop offset="1" stop-color="#111827"/></linearGradient></defs><rect width="1280" height="720" fill="url(#g)"/><text x="80" y="120" font-family="Arial, Helvetica, sans-serif" font-size="30" letter-spacing="2" fill="#C7D2FE">ASTRO TOBBY&#39;S BLUEPRINT</text><text x="80" y="440" font-family="Georgia, serif" font-size="96" font-weight="700" fill="#FFFFFF">${heroLabel}</text></svg>`;
+const svgFallback = `data:image/svg+xml,${encodeURIComponent(svgCard)}`;
+// Ignore the broken legacy pollinations / loremflickr URLs; treat anything else as a real, usable image.
+const realImage = image && !/(pollinations\.ai|loremflickr\.com)/.test(image) ? image : null;
+const displayImage = realImage || svgFallback;
 ---
 <html lang="en">
   <head>
@@ -93,7 +95,7 @@ const displayImage = image && !image.includes('pollinations.ai') ? image : topic
         Back to archive
       </a>
       <article>
-        <img src={displayImage} alt="" class="hero-img" loading="eager" onerror={`this.onerror=null;this.src='${localFallback}';`} />
+        <img src={displayImage} data-fb={svgFallback} alt="" class="hero-img" loading="eager" onerror="this.onerror=null;this.src=this.dataset.fb;" />
         
         <!-- Position 1: Below hero image / above header -->
         <AdBanner minHeight="250px" margin="0 0 40px 0" />
