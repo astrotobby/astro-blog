@@ -10,8 +10,16 @@ import ShopifyProducts from '../components/ShopifyProducts.astro';
 
 type Props = CollectionEntry<'blog'>['data'];
 const { title, description, pubDate, updatedDate, image } = Astro.props;
-const fallbackImage = `https://image.pollinations.ai/prompt/${encodeURIComponent(title)}?width=1280&height=720&nologo=true`;
-const displayImage = image || fallbackImage;
+// pollinations.ai is now paywalled (returns HTTP 402), so we no longer use it.
+// Derive a single salient keyword from the title and pull a topical stock photo from LoremFlickr.
+const STOPWORDS = new Set(['the','a','an','to','of','in','for','and','or','is','are','on','with','as','at','by','from','how','why','what','this','that','its','it','vs','new','up','out','over','under','your','our','we','will','can','do','does','no','not','but','if','into','after','before','amid','despite','more','than','get','gets','their','his','her','you','about']);
+const cleanTitle = (title || '').toLowerCase().replace(/['’]s\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+const keyword = cleanTitle.split(' ').filter((w) => w && !STOPWORDS.has(w))[0] || 'technology';
+const lock = Math.abs(Array.from(title || 'x').reduce((acc, ch) => ((acc << 5) - acc + ch.charCodeAt(0)) | 0, 0));
+const topicalImage = `https://loremflickr.com/1280/720/${keyword}?lock=${lock}`;
+const localFallback = '/blog-placeholder-1.jpg';
+// Honour an explicitly-set real image; otherwise use the topical photo. Legacy pollinations URLs are ignored.
+const displayImage = image && !image.includes('pollinations.ai') ? image : topicalImage;
 ---
 <html lang="en">
   <head>
@@ -85,7 +93,7 @@ const displayImage = image || fallbackImage;
         Back to archive
       </a>
       <article>
-        <img src={displayImage} alt="" class="hero-img" loading="eager" onerror={`this.onerror=null;this.src='${fallbackImage}';`} />
+        <img src={displayImage} alt="" class="hero-img" loading="eager" onerror={`this.onerror=null;this.src='${localFallback}';`} />
         
         <!-- Position 1: Below hero image / above header -->
         <AdBanner minHeight="250px" margin="0 0 40px 0" />
