@@ -6,12 +6,7 @@ import { SITE_TITLE } from '../consts';
   <nav>
     <div class="nav-inner">
       <a href="/" class="site-brand" aria-label={SITE_TITLE}>
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2 L20 7 V17 L12 22 L4 17 V7 Z"></path>
-            <path d="M12 2 V22 M4 7 L20 17 M20 7 L4 17"></path>
-          </svg>
-        </span>
+        <img class="brand-mark" src="/tobby-avatar.jpg" alt="Astro Tobby" width="40" height="40" decoding="async" />
         <span class="brand-text">{SITE_TITLE}</span>
       </a>
 
@@ -58,16 +53,19 @@ import { SITE_TITLE } from '../consts';
   .site-brand { display: flex; align-items: center; gap: 0.7rem; }
 
   .brand-mark {
-    display: grid;
-    place-items: center;
-    width: 38px; height: 38px;
+    width: 40px; height: 40px;
     border-radius: 11px;
-    color: #fff;
-    background: var(--brand-gradient);
-    box-shadow: 0 8px 18px -8px rgba(99, 102, 241, 0.8);
-    transition: transform var(--dur) var(--ease-spring);
+    object-fit: cover;
+    display: block;
+    background: var(--bg-secondary);
+    box-shadow: 0 8px 18px -8px rgba(99, 102, 241, 0.7);
+    border: 1.5px solid rgba(255, 255, 255, 0.75);
+    transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur) var(--ease-out);
   }
-  .site-brand:hover .brand-mark { transform: rotate(-8deg) scale(1.06); }
+  .site-brand:hover .brand-mark {
+    transform: scale(1.07);
+    box-shadow: var(--shadow-glow);
+  }
 
   .brand-text {
     font-size: 1.3rem;
