@@ -1,0 +1,108 @@
+name: blog-to-video
+
+# Fires when a new/edited post lands in the posts dir. Adjust paths to match
+# config.yaml -> posts_dir. Also runnable on-demand from the Actions tab.
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "src/content/blog/**"
+      - "posts/**"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "latest | dry"
+        default: "latest"
+
+permissions:
+  contents: read
+
+# 5 Make scenarios can commit near-simultaneously. Serialize runs so they don't
+# race on the cached dedup ledger + daily caps. Queue them; never cancel (we must
+# not drop a post). One run drains its whole queue of posts before the next starts.
+concurrency:
+  group: blog-to-video
+  cancel-in-progress: false
+
+jobs:
+  render-and-post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # need previous commit to diff changed files
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      # Persist dedup ledger + per-platform daily caps across runs.
+      # restore-keys pulls the most recent prior state; a unique key saves a new one.
+      - name: Restore pipeline state
+        uses: actions/cache@v4
+        with:
+          path: .pipeline/state
+          key: blog2video-state-${{ github.run_id }}
+          restore-keys: |
+            blog2video-state-
+
+      - name: Determine changed posts
+        id: diff
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            CHANGED=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} || true)
+          else
+            CHANGED=""
+          fi
+          echo "files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Run pipeline
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          TUMBLR_CONSUMER_KEY: ${{ secrets.TUMBLR_CONSUMER_KEY }}
+          TUMBLR_CONSUMER_SECRET: ${{ secrets.TUMBLR_CONSUMER_SECRET }}
+          TUMBLR_OAUTH_TOKEN: ${{ secrets.TUMBLR_OAUTH_TOKEN }}
+          TUMBLR_OAUTH_SECRET: ${{ secrets.TUMBLR_OAUTH_SECRET }}
+          TUMBLR_BLOG: ${{ secrets.TUMBLR_BLOG }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+          REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          SITE_BASE_URL: ${{ secrets.SITE_BASE_URL }}
+        run: |
+          if [ "${{ github.event.inputs.mode }}" = "dry" ]; then
+            python scripts/run_pipeline.py --latest --dry-run
+          elif [ -n "${{ steps.diff.outputs.files }}" ]; then
+            python scripts/run_pipeline.py --changed ${{ steps.diff.outputs.files }}
+          else
+            python scripts/run_pipeline.py --latest
+          fi
+
+      - name: Upload rendered videos as artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendered-videos
+          path: |
+            .pipeline/out/video_*.mp4
+            .pipeline/results.json
+          if-no-files-found: ignore
+          retention-days: 7

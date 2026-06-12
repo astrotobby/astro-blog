@@ -1,0 +1,84 @@
+# ---------------------------------------------------------------------------
+# blog-to-video configuration. Edit this; the code reads it.
+# ---------------------------------------------------------------------------
+
+# Wired for astrotobby/astro-blog (verified against the live repo's routing).
+posts_dir: "src/content/blog"
+post_extensions: [".md", ".mdx"]
+
+# Front-matter of your auto-generated posts: title/description/pubDate/image/tags.
+# There is NO slug field, so the URL slug is derived from the filename, slugified
+# the same way Astro's glob loader does (see fetch_post.astro_slug).
+frontmatter:
+  title: "title"
+  description: "description"   # falls back to first paragraph if missing
+  slug: "slug"                 # absent in your posts -> slugified filename is used
+  tags: "tags"
+
+site:
+  base_url: "https://astrotobby.site"
+  # Astro route is src/pages/blog/[...slug].astro with params.slug = post.id
+  post_url_pattern: "{base}/blog/{slug}"
+
+# ---- Narration / script ----
+script:
+  target_seconds: 45           # keep Shorts/Reels-friendly (<60s)
+  words_per_minute: 165
+  # Rotated per post. {topic} is auto-cleaned into a clause that reads naturally
+  # (interrogatives stripped, first letter lower-cased unless an acronym).
+  hook_styles:
+    - "Here's what nobody tells you about {topic}."
+    - "Stop scrolling — {topic} is bigger than you think."
+    - "{topic}, explained in 45 seconds."
+    - "Most people get {topic} completely wrong."
+    - "This changes everything about {topic}."
+  cta: "Want the full breakdown? Tap the link and read the post."
+
+# ---- Voice (edge-tts). Run `edge-tts --list-voices` to see all, free. ----
+voice:
+  name: "en-US-AriaNeural"     # warm female. Try en-US-GuyNeural / en-GB-RyanNeural
+  rate: "+6%"
+  pitch: "+0Hz"
+
+# ---- Visuals (Pollinations, free, no key) ----
+visuals:
+  scenes: 6                    # images, ~ target_seconds/scenes each
+  model: "flux"
+  style_suffix: "cinematic, high detail, vibrant, professional motion graphic, 9:16"
+  width: 1080
+  height: 1920
+
+video:
+  fps: 30
+  vertical: { w: 1080, h: 1920 }   # Reels/Shorts/TikTok
+  horizontal: { w: 1920, h: 1080 } # YouTube main
+  make_horizontal: true
+  captions: true                    # burn-in subtitles (huge for retention)
+  music: true
+  music_volume: 0.12
+
+# ---- Posting rules / anti-ban caps (see HONEST-LIMITS.md) ----
+platforms:
+  youtube:
+    enabled: true
+    also_short: false          # true only if <=3 posts/day
+    category_id: "22"          # People & Blogs; 27=Education, 28=Tech
+    privacy: "public"
+  # Direct official-API posters (no server). Only platforms WITHOUT an app-review
+  # gate are automated now. Add creds in .env / GitHub secrets to activate each.
+  #   tumblr -> no review | x -> capped below | reddit -> opt-in + capped (off by default)
+  # Instagram/Facebook/LinkedIn/Pinterest are deferred (need their own dev apps);
+  # the workflow saves the rendered Reels as artifacts for hand-upload meanwhile.
+  direct: [tumblr, x]      # add "reddit" only after reading HONEST-LIMITS.md
+
+tumblr:
+  blog: ""                 # your blog host, e.g. "astrotobby.tumblr.com" (TUMBLR_BLOG also works)
+limits:
+  x_per_day: 3
+  reddit_per_day: 1
+  reddit_enabled: false        # OFF by default — see HONEST-LIMITS.md
+  reddit_subreddits: []        # e.g. ["CryptoCurrency"] — only subs that allow self-promo
+
+hashtags:
+  base: ["#crypto", "#GameFi", "#web3", "#AInews"]
+  max: 8
