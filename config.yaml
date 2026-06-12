@@ -57,6 +57,20 @@ video:
   music: true
   music_volume: 0.12
 
+# ---- Talking avatar (free, GPU offloaded to a Hugging Face SadTalker Space) ----
+# Needs the HF_TOKEN secret + an avatar image at the path below. If a Space can't
+# be reached, the render falls back to the motion-graphics montage automatically.
+avatar:
+  enabled: true
+  image: "assets/avatar.png"
+  spaces:                          # tried in order; first that answers wins
+    - "kevinwang676/SadTalker"
+    - "John6666/SadTalker"
+    - "arkoda/sadtalker-zerogpu"
+  preprocess: "crop"               # crop | resize | full
+  still: true                      # calmer, less head jitter (warm presenter look)
+  enhancer: true                   # GFPGAN face enhancement (sharper face)
+
 # ---- Posting rules / anti-ban caps (see HONEST-LIMITS.md) ----
 platforms:
   youtube:
