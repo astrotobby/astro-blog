@@ -37,10 +37,25 @@ async def _tts(text, voice, rate, pitch, out_path):
     await comm.save(str(out_path))
 
 
+def _gtts_fallback(text, out_path):
+    """Robust fallback: gTTS (Google) works from datacenter IPs where Microsoft's
+    edge endpoint sometimes 403s. Lower quality, but the pipeline never dies here."""
+    from gtts import gTTS
+    gTTS(text).save(str(out_path))
+
+
 def make_voice(script, cfg):
     v = cfg["voice"]
     out = OUT / "voiceover.mp3"
-    asyncio.run(_tts(script["narration"], v["name"], v["rate"], v["pitch"], out))
+    if out.exists():
+        out.unlink()
+    try:
+        asyncio.run(_tts(script["narration"], v["name"], v["rate"], v["pitch"], out))
+        if not out.exists() or out.stat().st_size == 0:
+            raise RuntimeError("edge-tts produced no audio")
+    except Exception as e:  # noqa
+        log(f"edge-tts failed ({e}); falling back to gTTS")
+        _gtts_fallback(script["narration"], out)
     dur = ffprobe_duration(out)
     log(f"voiceover {dur:.1f}s -> {out.name}")
     return out, dur
