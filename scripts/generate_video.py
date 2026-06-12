@@ -62,23 +62,58 @@ def make_voice(script, cfg):
 
 
 # ---------- 2. images ----------
+def _valid_image(path):
+    """A real, decodable image of non-trivial size (catches error pages / empties)."""
+    try:
+        from PIL import Image
+        if path.stat().st_size < 2048:
+            return False
+        with Image.open(path) as im:
+            im.verify()
+        return True
+    except Exception:  # noqa
+        return False
+
+
+def _fallback_image(path, w, h, i):
+    """Generated gradient so a failed Pollinations fetch still yields a usable scene
+    and ffmpeg always has valid input (this is what was killing the render)."""
+    from PIL import Image
+    base = [(20, 24, 48), (40, 20, 60), (10, 40, 50),
+            (50, 30, 20), (25, 25, 25), (15, 35, 35)][i % 6]
+    strip = Image.new("RGB", (1, 256))
+    for y in range(256):
+        t = y / 255
+        strip.putpixel((0, y), tuple(int(base[c] * (1 - t) + min(255, base[c] + 70) * t)
+                                     for c in range(3)))
+    strip.resize((w, h)).save(path, "JPEG", quality=85)
+
+
 def fetch_images(script, cfg):
     vz = cfg["visuals"]
+    w, h = vz["width"], vz["height"]
+    headers = {"User-Agent": "Mozilla/5.0 (blog-to-video)"}
     paths = []
     for i, prompt in enumerate(script["scene_prompts"]):
         enc = urllib.parse.quote(prompt, safe="")
         url = (f"https://image.pollinations.ai/prompt/{enc}"
-               f"?width={vz['width']}&height={vz['height']}"
-               f"&model={vz['model']}&seed={1000 + i}&nologo=true")
+               f"?width={w}&height={h}&model={vz['model']}&seed={1000 + i}&nologo=true")
         dst = OUT / f"scene_{i:02d}.jpg"
+        ok = False
         for attempt in range(3):
             try:
-                r = requests.get(url, timeout=120)
+                r = requests.get(url, headers=headers, timeout=120)
                 r.raise_for_status()
                 dst.write_bytes(r.content)
-                break
+                if _valid_image(dst):
+                    ok = True
+                    break
+                log(f"image {i}: got invalid/empty content, retrying")
             except Exception as e:  # noqa
-                log(f"image {i} retry {attempt+1}: {e}")
+                log(f"image {i} retry {attempt + 1}: {e}")
+        if not ok:
+            log(f"image {i}: pollinations unavailable -> generated fallback")
+            _fallback_image(dst, w, h, i)
         paths.append(dst)
         log(f"scene {i} -> {dst.name}")
     return paths
@@ -153,13 +188,14 @@ def build_clip(images, total_dur, size, fps, out_path):
     seg_files = []
     for i, img in enumerate(images):
         seg = OUT / f"_seg_{w}x{h}_{i:02d}.mp4"
-        # cover-scale then slow ken-burns zoom
-        vf = (f"scale={w*2}:{h*2}:force_original_aspect_ratio=increase,"
-              f"crop={w*2}:{h*2},"
-              f"zoompan=z='min(zoom+0.0012,1.18)':d={frames}:s={w}x{h}:fps={fps},"
+        # cover-scale to target size (light, no 4K upscale) then slow ken-burns zoom
+        vf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+              f"crop={w}:{h},setsar=1,"
+              f"zoompan=z='min(zoom+0.0010,1.15)':d={frames}:s={w}x{h}:fps={fps},"
               f"format=yuv420p")
-        run(["ffmpeg", "-y", "-loop", "1", "-i", str(img), "-t", f"{per:.3f}",
-             "-vf", vf, "-r", str(fps), str(seg)])
+        run(["ffmpeg", "-y", "-loop", "1", "-framerate", str(fps), "-i", str(img),
+             "-t", f"{per:.3f}", "-vf", vf, "-r", str(fps), "-pix_fmt", "yuv420p",
+             str(seg)])
         seg_files.append(seg)
     # concat
     listf = OUT / f"_list_{w}x{h}.txt"
