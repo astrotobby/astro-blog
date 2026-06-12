@@ -1,5 +1,6 @@
 # --- core pipeline (all free, no paid SDKs) ---
-edge-tts==6.1.12          # Microsoft Edge neural voices, free, no API key
+edge-tts>=7.0.0           # Microsoft Edge neural voices (>=7 fixes the 403/Sec-MS-GEC auth)
+gTTS>=2.5.0               # fallback voice if edge endpoint blocks the runner IP
 faster-whisper==1.0.3     # local caption timing (CPU ok)
 requests==2.32.3
 PyYAML==6.0.2
