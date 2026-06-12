@@ -2,7 +2,7 @@
 title: "Square and SoFi's Crypto Push Raises Concerns for Community Financial Institutions"
 description: "Square and SoFi's cryptocurrency push may have far-reaching implications for community financial institutions."
 pubDate: "2026-06-10"
-image: "https://image.pollinations.ai/prompt/Square%20and%20SoFi's%20Crypto%20Push%20Raises%20Concerns%20for%20Community%20Financial%20Institutions"
+image: "https://cdn.sanity.io/images/s3y3vcno/production/6729e1c305b50c141cc3d56e8ad78bb80d24b6e7-1500x968.jpg?auto=format&w=960&h=540&crop=focalpoint&fit=clip&q=75&fm=jpg"
 tags: ["Square", "SoFi", "Crypto", "Cryptocurrency", "Community Financial Institutions", "Digital Banking"]
 ---
 

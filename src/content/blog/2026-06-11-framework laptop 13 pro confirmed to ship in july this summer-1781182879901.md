@@ -2,7 +2,7 @@
 title: "Framework Laptop 13 Pro Confirmed to Ship in July This Summer"
 description: "The highly anticipated Framework Laptop 13 Pro is set to ship in July, offering users a chance to upgrade and customize their computing experience."
 pubDate: "2026-06-11"
-image: "https://image.pollinations.ai/prompt/Framework%20Laptop%2013%20Pro%20Confirmed%20to%20Ship%20in%20July%20This%20Summer"
+image: "https://www.phoronix.net/image.php?id=2026&image=framework_13_pro_1"
 tags: ["Framework Laptop 13 Pro", "Customizable Laptop", "July Ship Date", "Upcoming Tech Releases", "PC Hardware"]
 ---
 

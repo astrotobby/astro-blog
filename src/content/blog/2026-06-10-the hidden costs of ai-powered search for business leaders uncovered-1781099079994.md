@@ -2,7 +2,7 @@
 title: "The Hidden Costs of AI-Powered Search for Business Leaders Uncovered"
 description: "Business leaders often underestimate the hidden costs of AI-powered search, but the true costs can be staggering, leading to a significant impact on their organization's bottom line."
 pubDate: "2026-06-10"
-image: "https://image.pollinations.ai/prompt/The%20Hidden%20Costs%20of%20AI-Powered%20Search%20for%20Business%20Leaders%20Uncovered"
+image: "/answer-engine-optimization.jpg"
 tags: ["AI", "AI-Powered Search", "Business Leaders", "Cost Optimization", "Digital Transformation"]
 ---
 

@@ -2,7 +2,7 @@
 title: "The Unseen Consequences of Using Artificial Intelligence in Search Systems"
 description: "Understanding the hidden costs and consequences of AI-based search systems in business"
 pubDate: "2026-06-10"
-image: "https://image.pollinations.ai/prompt/The%20Unseen%20Consequences%20of%20Using%20Artificial%20Intelligence%20in%20Search%20Systems?width=1200&height=630&nologo=true"
+image: "/ai-shift.jpg"
 tags: ["AI search systems", "Artificial intelligence", "Business leadership", "Search engine optimization", "Technology innovation"]
 ---
 

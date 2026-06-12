@@ -2,7 +2,7 @@
 title: "French Quarter Construction Zone Businesses Fear Disappearing Like Café Sbisa"
 description: "Business owners in the French Quarter construction zone fear that their establishments will disappear due to the ongoing construction."
 pubDate: "2026-06-10"
-image: "https://image.pollinations.ai/prompt/French%20Quarter%20Construction%20Zone%20Businesses%20Fear%20Disappearing%20Like%20Caf%C3%A9%20Sbisa"
+image: "https://bloximages.newyork1.vip.townnews.com/nola.com/content/tncms/assets/v3/editorial/d/4c/d4c63a7f-6e6e-584e-ab09-60e73b0b5194/6a0ccf601891c.image.jpg?crop=1842%2C968%2C0%2C78&resize=1200%2C631&order=crop%2Cresize"
 tags: ["French Quarter", "New Orleans", "Construction Zone", "Business Owners", "Economic Impact"]
 ---
 

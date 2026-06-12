@@ -2,7 +2,7 @@
 title: "Solis Mammography Expands in Florida with Two New Medical Centers"
 description: "Solis Mammography announces the grand opening of two new medical centers in Florida, strengthening their dedication to providing high-quality breast imaging services."
 pubDate: "2026-06-10"
-image: "https://image.pollinations.ai/prompt/Solis%20Mammography%20Expands%20in%20Florida%20with%20Two%20New%20Medical%20Centers."
+image: "https://mma.prnewswire.com/media/2783028/Solis_Mammography__Logo.jpg?p=facebook"
 tags: ["solis mammography", "new medical centers", "florida", "breast imaging"]
 ---
 

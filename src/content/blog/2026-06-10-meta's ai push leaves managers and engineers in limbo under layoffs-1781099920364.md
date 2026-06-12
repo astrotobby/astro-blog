@@ -2,7 +2,7 @@
 title: "Meta's AI Push Leaves Managers and Engineers in Limbo Under Layoffs"
 description: "Meta's recent layoffs have raised questions about the company's AI push and its impact on employees."
 pubDate: 2026-06-10
-image: "https://image.pollinations.ai/prompt/Meta's%20AI%20Push%20Leaves%20Managers%20and%20Engineers%20in%20Limbo%20Under%20Layoffs"
+image: "https://image.cnbcfm.com/api/v1/image/108039322-17273001022024-09-25t204232z_1101917728_rc2u7aaqtwho_rtrmadp_0_meta-platforms-virtual-reality-zuckerberg.jpeg?v=1727300136&w=1920&h=1080"
 tags: ["Meta", "AI", "layoffs", "software engineers", "managers"]
 ---
 

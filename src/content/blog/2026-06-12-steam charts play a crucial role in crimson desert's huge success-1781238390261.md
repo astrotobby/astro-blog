@@ -2,7 +2,7 @@
 title: "Steam Charts Play a Crucial Role in Crimson Desert's Huge Success"
 description: "Crimson Desert, a popular new game, achieves 6 million sales thanks in part to Steam charts."
 pubDate: 2026-06-12
-image: "https://image.pollinations.ai/prompt/Steam%20Charts%20Play%20a%20Crucial%20Role%20in%20Crimson%20Desert's%20Huge%20Success"
+image: "https://www.vgchartz.com/articles_media/images/crimson-desert-sales-top-6-million-units-762858_condensed.jpg"
 tags: ["Steam Charts", "Crimson Desert", "Game Sales", "PC Gaming"]
 ---
 

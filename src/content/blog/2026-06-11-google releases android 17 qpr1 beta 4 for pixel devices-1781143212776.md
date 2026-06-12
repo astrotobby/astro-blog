@@ -2,7 +2,7 @@
 title: "Google Releases Android 17 QPR1 Beta 4 For Pixel Devices"
 description: "Google has released the fourth beta of Android 17 QPR1 for eligible Pixel devices, with a focus on bug fixes and performance improvements."
 pubDate: "2026-06-11"
-image: "https://image.pollinations.ai/prompt/Google%20Releases%20Android%2017%20QPR1%20Beta%204%20For%20Pixel%20Devices"
+image: "https://i0.wp.com/9to5google.com/wp-content/uploads/sites/4/2026/02/Android-17-3.jpg?resize=1200%2C628&quality=82&strip=all&ssl=1"
 tags: ["android", "google", "pixel", "android 17"]
 ---
 

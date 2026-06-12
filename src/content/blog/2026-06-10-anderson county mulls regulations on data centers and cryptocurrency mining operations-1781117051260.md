@@ -2,7 +2,7 @@
 title: "Anderson County Mulls Regulations on Data Centers and Cryptocurrency Mining Operations"
 description: "Anderson County in South Carolina considers implementing regulations on data centers and cryptocurrency mining operations to mitigate potential environmental impacts."
 pubDate: 2026-06-10
-image: "https://image.pollinations.ai/prompt/Anderson%20County%20Mulls%20Regulations%20on%20Data%20Centers%20and%20Cryptocurrency%20Mining%20Operations"
+image: "https://gray-wvlt-prod.gtv-cdn.com/resizer/v2/QYL5ZZPKIRF4VLIWAK3Q7SEB5Y.png?auth=ba453ae7320533298bcd5234989db1f5a59ef4e2fe8db2c5b5ccd09a66b17dfc&width=1200&height=600&smart=true"
 tags: ["Anderson County", "data centers", "cryptocurrency mining", "regulations", "environmental impact"]
 ---
 

@@ -2,7 +2,7 @@
 title: "Do I Keep Ownership of My Business Name After Sale?"
 description: "Understanding your rights as a business seller and protecting your brand identity."
 pubDate: 2026-06-10
-image: "https://image.pollinations.ai/prompt/Do%20I%20Keep%20Ownership%20of%20My%20Business%20Name%20After%20Sale%3F"
+image: "https://rcdn.upcounsel.com/assets/shareImg-6b655918.png"
 tags: ["business ownership", "brand identity", "business sale", "intellectual property"]
 ---
 

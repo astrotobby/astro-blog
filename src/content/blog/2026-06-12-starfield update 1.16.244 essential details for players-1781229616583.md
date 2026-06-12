@@ -2,7 +2,7 @@
 title: "Starfield Update 1.16.244: Essential Details for Players"
 description: "Find out the key details and changes in the latest Starfield update 1.16.244."
 pubDate: 2026-06-12
-image: "https://image.pollinations.ai/prompt/Starfield%20Update%201.16.244%3A%20Essential%20Details%20for%20Players"
+image: "https://clan.fastly.steamstatic.com/images/41623050/a67d47af5125fe7a25bd305a65c0366b11bcebae.png"
 tags: ["Starfield Update 1.16.244", "Starfield Game", "Bethesda Games"]
 ---
 

@@ -2,7 +2,7 @@
 title: "Optro Announces Business Continuity Management with GRC Intelligence Enhancements"
 description: "Optro announces its innovative Business Continuity Management solution to ensure seamless operations with the help of GRC Intelligence, promoting operational resilience."
 pubDate: 2026-06-10
-image: "https://image.pollinations.ai/prompt/Optro%20Announces%20Business%20Continuity%20Management%20with%20GRC%20Intelligence%20Enhancements"
+image: "https://mmx.prnewswire.com/media/MS1803665/Optro_Logo.jpg?id=OA2694940&p=facebook"
 tags: ["Business Continuity Management", "GRC Intelligence", "Optro", "Operational Resilience", "Risk Management"]
 ---
 

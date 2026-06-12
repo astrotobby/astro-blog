@@ -1,5 +1,5 @@
 ---
-image: "https://image.pollinations.ai/prompt/Apple%27s%20WWDC%202026%3A%20A%20New%20Era%20for%20Siri%20AI%20and%20Personal%20Computing?width=1280&height=720&nologo=true"
+image: "https://www.apple.com/newsroom/images/2026/06/apple-unveils-next-generation-of-apple-intelligence-siri-ai-and-more/tile/Apple-OS-27-updates-260608-lp.jpg.og.jpg?202606110246"
 title: "Apple's WWDC 2026: A New Era for Siri AI and Personal Computing"
 pubDate: "2026-06-09"
 date: "2026-06-09"

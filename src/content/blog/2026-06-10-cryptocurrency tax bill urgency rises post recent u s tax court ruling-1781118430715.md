@@ -2,7 +2,7 @@
 title: "Cryptocurrency Tax Bill Urgency Rises Post Recent U S Tax Court Ruling"
 description: "A recent U.S. tax court ruling has sparked renewed urgency around the cryptocurrency tax bill, with investors and lawmakers alike scrambling to understand the implications and potential consequences."
 pubDate: "2026-06-10"
-image: "https://image.pollinations.ai/prompt/Cryptocurrency%20Tax%20Bill%20Urgency%20Rises%20Post%20Recent%20U%20S%20Tax%20Court%20Ruling?width=1280&height=720&nologo=true&seed=1781118429040"
+image: "https://cdn.sanity.io/images/s3y3vcno/production/3d14ee5efae01770bbbc627c6ecb94cb0e826a8d-4027x2265.jpg?auto=format&w=960&h=540&crop=focalpoint&fit=clip&q=75&fm=jpg"
 tags: ["crypto tax", "cryptocurrency tax bill", "tax law", "tax court"]
 ---
 

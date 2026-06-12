@@ -2,7 +2,7 @@
 title: "Samsung Galaxy Z Fold 8 and Galaxy Watch Ultra 2 Receive New Certifications"
 description: "Samsung's latest flagship devices, Galaxy Z Fold 8 and Galaxy Watch Ultra 2, have recently received new certifications, hinting at their upcoming launch."
 pubDate: 2026-06-11
-image: "https://image.pollinations.ai/prompt/Samsung%20Galaxy%20Z%20Fold%208%20and%20Galaxy%20Watch%20Ultra%202%20Receive%20New%20Certifications"
+image: "https://fdn.gsmarena.com/imgroot/news/26/06/samsung-galaxy-z-fold8-wide-galaxy-watch-ultra-2-bis/-952x498w6/gsmarena_000.jpg"
 tags: ["Samsung", "Galaxy Z Fold 8", "Galaxy Watch Ultra 2", "new certifications", "upcoming launch", "latest flagship devices"]
 ---
 

@@ -2,7 +2,7 @@
 title: "Trump Family Sees $500M From Crypto Venture But Investors Suffer Steep Losses"
 description: "The Trump family sees a $500 million payoff from their crypto venture, but investors face significant financial losses."
 pubDate: "2026-06-10"
-image: "https://image.pollinations.ai/prompt/Trump%20Family%20Sees%20%24500M%20From%20Crypto%20Venture%20But%20Investors%20Suffer%20Steep%20Losses?width=1280&height=720&nologo=true&seed=1781118048951"
+image: "https://image.cnbcfm.com/api/v1/image/108185416-17550992982025-08-13t145425z_1639339270_rc2e6gasqyy5_rtrmadp_0_alt5-sigma-markets.jpeg?v=1780851629&w=1920&h=1080"
 tags: ["Trump Family", "Crypto Venture", "Financial Losses", "Investment"]
 ---
 
