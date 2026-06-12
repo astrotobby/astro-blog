@@ -7,100 +7,96 @@ import Header from '../components/Header.astro';
 import AdBanner from '../components/AdBanner.astro';
 import Newsletter from '../components/Newsletter.astro';
 import ShopifyProducts from '../components/ShopifyProducts.astro';
+import { displayImage, svgFallback } from '../lib/postImage';
 
 type Props = CollectionEntry<'blog'>['data'];
 const { title, description, pubDate, updatedDate, image } = Astro.props;
-// External image services proved unreliable: pollinations.ai -> HTTP 402 paywall; loremflickr -> 10-18s loads (grey box).
-// Strategy: honour an explicitly-set real image; otherwise render an INSTANT inline SVG "topic card" (a data URI,
-// zero network requests) so the hero can never fall back to the grey loading background.
-const STOPWORDS = new Set(['the','a','an','to','of','in','for','and','or','is','are','on','with','as','at','by','from','how','why','what','this','that','its','it','vs','new','up','out','over','under','your','our','we','will','can','do','does','no','not','but','if','into','after','before','amid','despite','more','than','get','gets','their','his','her','you','about']);
-const cleanTitle = (title || '').toLowerCase().replace(/['’]s\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
-const keyword = cleanTitle.split(' ').filter((w) => w && !STOPWORDS.has(w))[0] || 'news';
-const heroLabel = keyword.charAt(0).toUpperCase() + keyword.slice(1);
-const svgCard = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4F46E5"/><stop offset="0.55" stop-color="#3730A3"/><stop offset="1" stop-color="#111827"/></linearGradient></defs><rect width="1280" height="720" fill="url(#g)"/><text x="80" y="120" font-family="Arial, Helvetica, sans-serif" font-size="30" letter-spacing="2" fill="#C7D2FE">ASTRO TOBBY&#39;S BLUEPRINT</text><text x="80" y="440" font-family="Georgia, serif" font-size="96" font-weight="700" fill="#FFFFFF">${heroLabel}</text></svg>`;
-const svgFallback = `data:image/svg+xml,${encodeURIComponent(svgCard)}`;
-// Ignore the broken legacy pollinations / loremflickr URLs; treat anything else as a real, usable image.
-const realImage = image && !/(pollinations\.ai|loremflickr\.com)/.test(image) ? image : null;
-const displayImage = realImage || svgFallback;
+const heroImage = displayImage(title, image);
+const heroFallback = svgFallback(title);
 ---
 <html lang="en">
   <head>
     <BaseHead title={title} description={description} />
     <style>
-      main {
-        max-width: 720px;
-        width: calc(100% - 3rem);
-        margin: 0 auto;
-        padding: 6rem 0;
+      /* Reading progress */
+      .read-progress {
+        position: fixed;
+        top: 0; left: 0;
+        height: 3px;
+        width: 0%;
+        z-index: 200;
+        background: var(--brand-gradient);
+        box-shadow: 0 0 12px rgba(99, 102, 241, 0.6);
+        transition: width 80ms linear;
       }
+      main { max-width: 760px; width: calc(100% - 3rem); margin: 0 auto; padding: 3.5rem 0 5rem; }
+
       .back-link {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        color: #4F46E5;
+        color: var(--text-body);
         font-weight: 600;
-        text-decoration: none;
-        margin-bottom: 3rem;
-        transition: all 0.2s ease;
-        font-size: 0.95rem;
+        margin-bottom: 2.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 999px;
+        background: var(--glass-bg-strong);
+        -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+        border: 1px solid var(--glass-border);
+        transition: transform var(--dur) var(--ease-out), color var(--dur-fast) var(--ease-out);
+        font-size: 0.9rem;
       }
-      .back-link:hover {
-        color: #4338CA;
-        transform: translateX(-4px);
-      }
-	      .hero-img {
-	        width: 100%;
-	        border-radius: 16px;
-	        margin-bottom: 4rem;
-	        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-	        border: 1px solid rgba(0, 0, 0, 0.04);
-	        background: #f7f7f7;
-	        min-height: 200px;
-	        object-fit: cover;
-	      }
-      .article-header {
-        margin-bottom: 4rem;
-        text-align: left;
-      }
-      .article-date {
-        color: #4F46E5;
-        font-weight: 600;
-        margin-bottom: 1rem;
-        font-size: 1rem;
-      }
+      .back-link:hover { color: var(--accent); transform: translateX(-4px); }
+
+      .article-header { margin-bottom: 2.5rem; }
+      .article-date { color: var(--accent); font-weight: 600; margin-bottom: 1rem; font-size: 0.95rem; }
       .article-title {
-        font-size: 3rem;
+        font-size: clamp(2rem, 5vw, 3rem);
         font-weight: 800;
-        color: #1A1A1A;
-        line-height: 1.15;
+        color: var(--text-heading);
+        line-height: 1.12;
         letter-spacing: -0.03em;
+        margin: 0;
       }
-      .prose {
-        font-size: 1.125rem;
-        color: #2D3748;
-        line-height: 1.8;
+
+      .hero-figure { position: relative; margin: 0 0 3rem; }
+      .hero-img {
+        width: 100%;
+        border-radius: var(--radius-lg);
+        display: block;
+        box-shadow: var(--shadow-lift);
+        border: 1px solid var(--glass-border);
+        background: #eef0f7;
+        aspect-ratio: 16 / 9;
+        object-fit: cover;
       }
+      .hero-figure::after {
+        content: '';
+        position: absolute;
+        inset: auto 8% -14px 8%;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(99, 102, 241, 0.35);
+        filter: blur(28px);
+        z-index: -1;
+      }
+
       @media (max-width: 720px) {
-        .article-title { font-size: 2.25rem; }
-        main { padding: 4rem 0; }
-        .hero-img { margin-bottom: 2.5rem; }
+        main { padding: 2.5rem 0 3.5rem; }
+        .hero-figure { margin-bottom: 2rem; }
       }
     </style>
   </head>
   <body>
+    <div class="read-progress" id="read-progress" aria-hidden="true"></div>
     <Header />
     <main>
       <a href="/blog" class="back-link">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
         Back to archive
       </a>
       <article>
-        <img src={displayImage} data-fb={svgFallback} alt="" class="hero-img" loading="eager" fetchpriority="high" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
-        
-        <!-- Position 1: Below hero image / above header -->
-        <AdBanner minHeight="250px" margin="0 0 40px 0" />
-
-        <header class="article-header">
+        <header class="article-header" data-reveal>
           <div class="article-date">
             <FormattedDate date={pubDate} />
             {updatedDate && <span> (Updated: <FormattedDate date={updatedDate} />)</span>}
@@ -108,31 +104,54 @@ const displayImage = realImage || svgFallback;
           <h1 class="article-title">{title}</h1>
         </header>
 
+        <figure class="hero-figure" data-reveal>
+          <img src={heroImage} data-fb={heroFallback} alt={title} class="hero-img" loading="eager" fetchpriority="high" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
+        </figure>
+
+        <!-- Position 1: Below hero image / above content -->
+        <AdBanner minHeight="250px" margin="0 0 40px 0" />
+
         <div class="prose" id="article-content">
           <slot />
         </div>
 
         <!-- Position 3: Bottom of article -->
         <AdBanner minHeight="250px" margin="40px 0 0 0" />
-        
+
         <!-- Shopify Products Section -->
         <ShopifyProducts />
-        
+
         <Newsletter />
       </article>
     </main>
 
-    <!-- Mid-article dynamic injection script -->
+    <!-- Reading progress + mid-article ad injection -->
     <script is:inline>
       document.addEventListener('DOMContentLoaded', () => {
+        // Reading progress bar
+        const bar = document.getElementById('read-progress');
+        const article = document.getElementById('article-content');
+        if (bar && article) {
+          const update = () => {
+            const start = article.offsetTop;
+            const total = article.offsetHeight - window.innerHeight + 400;
+            const scrolled = window.scrollY - start + 200;
+            const pct = Math.max(0, Math.min(1, scrolled / Math.max(total, 1)));
+            bar.style.width = (pct * 100) + '%';
+          };
+          update();
+          window.addEventListener('scroll', update, { passive: true });
+          window.addEventListener('resize', update, { passive: true });
+        }
+
+        // Mid-article ad injection (unchanged behaviour)
         const prose = document.getElementById('article-content');
         if (!prose) return;
-        
         const paragraphs = prose.querySelectorAll('p');
         if (paragraphs.length >= 4) {
           const midIndex = Math.floor(paragraphs.length / 2);
           const target = paragraphs[midIndex];
-          
+
           const adContainer = document.createElement('div');
           adContainer.className = 'ad-container';
           adContainer.style.minHeight = '250px';
@@ -145,18 +164,17 @@ const displayImage = realImage || svgFallback;
           adContainer.style.borderRadius = '8px';
           adContainer.style.overflow = 'hidden';
 
-          // Inject Adsterra Native Banner code
           const script = document.createElement('script');
           script.async = true;
           script.dataset.cfasync = "false";
           script.src = "https://pl29385882.effectivecpmnetwork.com/9443ced55ad6dc338cd7a9fec5677f94/invoke.js";
-          
+
           const div = document.createElement('div');
           div.id = 'container-9443ced55ad6dc338cd7a9fec5677f94';
-          
+
           adContainer.appendChild(script);
           adContainer.appendChild(div);
-          
+
           target.parentNode.insertBefore(adContainer, target);
         }
       });

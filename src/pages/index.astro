@@ -8,6 +8,7 @@ import { getCollection } from 'astro:content';
 import FormattedDate from '../components/FormattedDate.astro';
 import AdBanner from '../components/AdBanner.astro';
 import Newsletter from '../components/Newsletter.astro';
+import { displayImage, svgFallback } from '../lib/postImage';
 
 const orderKey = (p) => {
   const id = p.id || '';
@@ -21,7 +22,7 @@ const posts = (await getCollection('blog')).sort((a, b) => orderKey(b) - orderKe
 
 const featuredPost = posts[0];
 const recentPosts = posts.slice(1, 4);
-const fallbackImage = '/blog-placeholder-about.jpg'; // Legacy fallback
+const totalPosts = posts.length;
 ---
 
 <!doctype html>
@@ -29,227 +30,241 @@ const fallbackImage = '/blog-placeholder-about.jpg'; // Legacy fallback
 	<head>
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
 		<style>
+			/* ── Hero ── */
 			.hero {
-				padding: 8rem 1.5rem;
+				position: relative;
+				max-width: var(--maxw);
+				margin: 3.5rem auto 0;
+				padding: 5.5rem 2.5rem;
 				text-align: center;
-				background: #FFFFFF;
-				border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+				border-radius: var(--radius-xl);
+				overflow: hidden;
 			}
+			.hero-inner { position: relative; z-index: 1; }
+			.hero .badge { margin-bottom: 1.5rem; }
 			.hero h1 {
-				font-size: 3.5rem;
-				margin-bottom: 1.5rem;
-				color: #1A1A1A;
-				letter-spacing: -0.03em;
+				font-size: clamp(2.6rem, 6vw, 4.25rem);
+				line-height: 1.05;
+				margin: 0 auto 1.5rem;
+				max-width: 16ch;
+				letter-spacing: -0.035em;
 			}
 			.hero p {
-				font-size: 1.25rem;
-				color: #4A5568;
-				max-width: 640px;
-				margin: 0 auto 3rem;
-				line-height: 1.6;
+				font-size: 1.2rem;
+				color: var(--text-body);
+				max-width: 56ch;
+				margin: 0 auto 2.5rem;
+				line-height: 1.7;
 			}
-			.hero-actions {
-				display: flex;
-				gap: 1.25rem;
-				justify-content: center;
-			}
-			.btn {
-				padding: 0.875rem 2.25rem;
-				border-radius: 8px;
-				font-weight: 600;
-				transition: all 0.2s ease;
-				font-size: 1rem;
-			}
-			.btn-primary {
-				background: #4F46E5;
-				color: white;
-			}
-			.btn-primary:hover {
-				background: #4338CA;
-				transform: translateY(-2px);
-				box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.2);
-			}
-			.btn-secondary {
-				background: #F1F5F9;
-				color: #1A1A1A;
-			}
-			.btn-secondary:hover {
-				background: #E2E8F0;
-			}
+			.hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
 
-			.section {
-				max-width: 1000px;
-				margin: 8rem auto;
-				padding: 0 1.5rem;
+			/* Floating glass orbs inside hero */
+			.hero-orb {
+				position: absolute;
+				border-radius: 50%;
+				filter: blur(8px);
+				opacity: 0.5;
+				z-index: 0;
 			}
+			.hero-orb.one { width: 120px; height: 120px; top: 12%; left: 8%; background: radial-gradient(circle at 30% 30%, var(--grad-1), transparent 70%); animation: float-y 9s var(--ease-out) infinite alternate; }
+			.hero-orb.two { width: 90px; height: 90px; bottom: 16%; right: 12%; background: radial-gradient(circle at 30% 30%, var(--grad-3), transparent 70%); animation: float-y 11s var(--ease-out) infinite alternate-reverse; }
+			@keyframes float-y { to { transform: translateY(-22px); } }
+
+			/* ── Stats strip ── */
+			.stats {
+				display: flex;
+				justify-content: center;
+				gap: 2.5rem;
+				flex-wrap: wrap;
+				margin: 2.75rem auto 0;
+			}
+			.stat { text-align: center; }
+			.stat .num { font-size: 1.9rem; font-weight: 800; line-height: 1; }
+			.stat .label { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.35rem; letter-spacing: 0.03em; }
+
+			/* ── Sections ── */
+			.section { max-width: var(--maxw); margin: 7rem auto; padding: 0 1.5rem; }
 			.section-title {
-				font-size: 1.5rem;
-				margin-bottom: 3rem;
 				display: flex;
 				justify-content: space-between;
+				align-items: baseline;
+				gap: 1rem;
+				margin-bottom: 2.5rem;
+			}
+			.section-title h2 {
+				font-size: 1.7rem;
+				margin: 0;
+				display: inline-flex;
 				align-items: center;
-				color: #1A1A1A;
+				gap: 0.7rem;
 			}
-			.section-title a {
-				font-size: 0.95rem;
-				color: #4F46E5;
-				font-weight: 600;
+			.section-title .eyebrow {
+				display: block;
+				font-size: 0.8rem;
+				font-weight: 700;
+				letter-spacing: 0.12em;
+				text-transform: uppercase;
+				color: var(--accent);
+				margin-bottom: 0.4rem;
 			}
+			.section-title a { font-size: 0.95rem; font-weight: 600; white-space: nowrap; }
 
+			/* ── Featured ── */
 			.featured-card {
 				display: grid;
-				grid-template-columns: 1.2fr 1fr;
-				gap: 4rem;
-				background: #FFFFFF;
-				border-radius: 16px;
-				padding: 3rem;
-				box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-				border: 1px solid rgba(0, 0, 0, 0.04);
-				text-decoration: none;
-				transition: transform 0.3s ease, box-shadow 0.3s ease;
-			}
-			.featured-card:hover {
-				transform: translateY(-4px);
-				box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08);
-			}
-			.featured-content {
-				display: flex;
-				flex-direction: column;
-				justify-content: center;
-			}
-			.featured-image {
-				width: 100%;
-				height: 400px;
-				object-fit: cover;
-				border-radius: 12px;
-			}
-
-			.posts-grid {
-				display: grid;
-				grid-template-columns: repeat(3, 1fr);
-				gap: 2.5rem;
-			}
-			.post-card {
-				background: #FFFFFF;
-				border-radius: 12px;
+				grid-template-columns: 1.1fr 0.9fr;
+				gap: 0;
 				overflow: hidden;
-				box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-				border: 1px solid rgba(0, 0, 0, 0.04);
 				text-decoration: none;
-				transition: all 0.3s ease;
 			}
-			.post-card:hover {
-				transform: translateY(-5px);
-				box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08);
+			.featured-media { position: relative; min-height: 380px; overflow: hidden; }
+			.featured-media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--dur-slow) var(--ease-out); }
+			.featured-card:hover .featured-media img { transform: scale(1.05); }
+			.featured-media .tag {
+				position: absolute; top: 1.25rem; left: 1.25rem;
+				padding: 0.4rem 0.9rem; border-radius: 999px;
+				font-size: 0.78rem; font-weight: 700; color: #fff;
+				background: rgba(15, 18, 34, 0.55);
+				-webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+				border: 1px solid rgba(255,255,255,0.25);
 			}
-			.post-image {
-				width: 100%;
-				height: 220px;
-				object-fit: cover;
-			}
-			.post-content {
-				padding: 2rem;
-			}
-			.post-date {
-				font-size: 0.875rem;
-				color: #4F46E5;
-				font-weight: 600;
-				margin-bottom: 0.75rem;
-			}
-			.post-title {
-				font-size: 1.35rem;
-				margin-bottom: 1rem;
-				color: #1A1A1A;
-				line-height: 1.3;
-			}
+			.featured-content { padding: 3rem; display: flex; flex-direction: column; justify-content: center; }
+			.featured-content .post-date { font-size: 0.875rem; color: var(--accent); font-weight: 600; margin-bottom: 0.85rem; }
+			.featured-content h3 { font-size: clamp(1.6rem, 3vw, 2.25rem); margin: 0 0 1rem; color: var(--text-heading); line-height: 1.18; }
+			.featured-content p { color: var(--text-body); margin: 0 0 1.75rem; }
+			.read-more { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--accent); }
+			.featured-card:hover .read-more svg { transform: translateX(4px); }
+			.read-more svg { transition: transform var(--dur) var(--ease-out); }
+
+			/* ── Post grid ── */
+			.posts-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+			.post-card { overflow: hidden; text-decoration: none; display: flex; flex-direction: column; }
+			.post-media { position: relative; height: 200px; overflow: hidden; }
+			.post-media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--dur-slow) var(--ease-out); }
+			.post-card:hover .post-media img { transform: scale(1.06); }
+			.post-content { padding: 1.6rem; display: flex; flex-direction: column; flex: 1; }
+			.post-date { font-size: 0.82rem; color: var(--accent); font-weight: 600; margin-bottom: 0.6rem; }
+			.post-title { font-size: 1.2rem; margin: 0 0 0.7rem; color: var(--text-heading); line-height: 1.3; font-weight: 700; }
 			.post-desc {
-				font-size: 1rem;
-				color: #4A5568;
-				line-height: 1.6;
+				font-size: 0.96rem; color: var(--text-body); line-height: 1.6; margin: 0;
+				display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 			}
 
+			/* ── CTA banner ── */
 			.cta-banner {
-				background: #1A1A1A;
-				border-radius: 24px;
-				padding: 6rem 2rem;
+				position: relative;
+				max-width: var(--maxw);
+				margin: 0 auto 7rem;
+				padding: 5rem 2rem;
 				text-align: center;
-				color: white;
-				margin-bottom: 8rem;
+				border-radius: var(--radius-xl);
+				color: #fff;
+				overflow: hidden;
+				background: linear-gradient(135deg, #1b1d3a 0%, #312e81 55%, #4f46e5 100%);
 			}
-			.cta-banner h2 { color: white; font-size: 2.5rem; margin-bottom: 1rem; letter-spacing: -0.02em; }
-			.cta-banner p { color: #A0AEC0; margin-bottom: 3rem; font-size: 1.15rem; }
-			.cta-socials {
-				display: flex;
-				gap: 1.5rem;
-				justify-content: center;
+			.cta-banner::after {
+				content: ''; position: absolute; inset: 0;
+				background: radial-gradient(40% 60% at 80% 10%, rgba(236,72,153,0.5), transparent 60%),
+				            radial-gradient(45% 55% at 10% 90%, rgba(6,182,212,0.4), transparent 60%);
 			}
+			.cta-banner > * { position: relative; z-index: 1; }
+			.cta-banner h2 { color: #fff; font-size: clamp(1.8rem, 4vw, 2.6rem); margin: 0 0 0.8rem; }
+			.cta-banner p { color: rgba(255,255,255,0.82); margin: 0 auto 2.5rem; font-size: 1.1rem; max-width: 46ch; }
+			.cta-socials { display: flex; gap: 0.9rem; justify-content: center; flex-wrap: wrap; }
 			.cta-social-btn {
-				background: #4F46E5;
-				color: white;
-				padding: 0.875rem 1.75rem;
-				border-radius: 8px;
-				font-weight: 600;
-				display: flex;
-				align-items: center;
-				gap: 0.75rem;
-				transition: all 0.2s ease;
+				display: inline-flex; align-items: center; gap: 0.6rem;
+				padding: 0.8rem 1.5rem; border-radius: var(--radius-sm);
+				font-weight: 600; color: #fff;
+				background: rgba(255,255,255,0.12);
+				border: 1px solid rgba(255,255,255,0.25);
+				-webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+				transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 			}
-			.cta-social-btn:hover {
-				background: #4338CA;
-				transform: translateY(-2px);
-			}
+			.cta-social-btn:hover { color: #fff; transform: translateY(-3px); background: rgba(255,255,255,0.22); }
 
 			@media (max-width: 900px) {
-				.featured-card { grid-template-columns: 1fr; gap: 2rem; padding: 2rem; }
+				.hero { padding: 4rem 1.5rem; margin-top: 2rem; }
+				.featured-card { grid-template-columns: 1fr; }
+				.featured-media { min-height: 240px; }
+				.featured-content { padding: 2rem; }
 				.posts-grid { grid-template-columns: repeat(2, 1fr); }
-				.hero h1 { font-size: 2.75rem; }
-				.section { margin: 5rem auto; }
+				.section { margin: 4.5rem auto; }
 			}
 			@media (max-width: 600px) {
 				.posts-grid { grid-template-columns: 1fr; }
-				.cta-socials { flex-direction: column; }
-				.hero { padding: 5rem 1.5rem; }
+				.stats { gap: 1.75rem; }
+				.section-title { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
 			}
 		</style>
 	</head>
 	<body>
 		<Header />
 		<main>
-				<AdBanner minHeight="90px" margin="0 auto 20px" />
-			<section class="hero">
-				<h1>The Signal <span style="color: #4F46E5;">Through the Noise</span></h1>
-				<p>Deep-dive analysis on AI agents, multi-agent systems, and the technologies reshaping our future.</p>
-				<div class="hero-actions">
-					<a href="/blog" class="btn btn-primary">Read Articles</a>
-					<a href="/about" class="btn btn-secondary">Learn More</a>
+			<AdBanner minHeight="90px" margin="0 auto 24px" />
+
+			<section class="hero glass" data-reveal>
+				<span class="hero-orb one" aria-hidden="true"></span>
+				<span class="hero-orb two" aria-hidden="true"></span>
+				<div class="hero-inner">
+					<span class="badge"><span class="dot"></span> Decoding AI, agents &amp; the future</span>
+					<h1>The Signal <span class="gradient-text-animated">Through the Noise</span></h1>
+					<p>Deep-dive analysis on AI agents, multi-agent systems, vibe coding, and the technologies reshaping how we build.</p>
+					<div class="hero-actions">
+						<a href="/blog" class="btn btn-primary">
+							Read Articles
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+						</a>
+						<a href="/about" class="btn btn-secondary">Learn More</a>
+					</div>
+					<div class="stats">
+						<div class="stat"><div class="num gradient-text">{totalPosts}+</div><div class="label">Articles published</div></div>
+						<div class="stat"><div class="num gradient-text">AI</div><div class="label">Agents &amp; automation</div></div>
+						<div class="stat"><div class="num gradient-text">Weekly</div><div class="label">Fresh insights</div></div>
+					</div>
 				</div>
 			</section>
 
-			<section class="section">
-				<div class="section-title">
-					<h2>Featured Insight</h2>
-				</div>
-				{featuredPost && (
-					<a href={`/blog/${featuredPost.id}/`} class="featured-card">
-							<img src={featuredPost.data.image || `https://image.pollinations.ai/prompt/${encodeURIComponent(featuredPost.data.title)}?width=1280&height=720&nologo=true`} alt="" class="featured-image" loading="lazy" decoding="async" onerror={`this.onerror=null;this.src='${fallbackImage}';`} style="background: #f7f7f7; min-height: 200px; object-fit: cover;" />
+			{featuredPost && (
+				<section class="section" data-reveal>
+					<div class="section-title">
+						<div>
+							<span class="eyebrow">Editor&#39;s pick</span>
+							<h2>Featured Insight</h2>
+						</div>
+					</div>
+					<a href={`/blog/${featuredPost.id}/`} class="featured-card card-glass">
+						<div class="featured-media">
+							<span class="tag">Featured</span>
+							<img src={displayImage(featuredPost.data.title, featuredPost.data.image)} data-fb={svgFallback(featuredPost.data.title)} alt={featuredPost.data.title} loading="lazy" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
+						</div>
 						<div class="featured-content">
 							<p class="post-date"><FormattedDate date={featuredPost.data.pubDate} /></p>
-							<h3 class="post-title" style="font-size: 2.25rem;">{featuredPost.data.title}</h3>
-							<p class="post-desc">{featuredPost.data.description}</p>
+							<h3>{featuredPost.data.title}</h3>
+							<p>{featuredPost.data.description}</p>
+							<span class="read-more">Read article
+								<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+							</span>
 						</div>
 					</a>
-				)}
-			</section>
+				</section>
+			)}
 
 			<section class="section">
-				<div class="section-title">
-					<h2>Latest Updates</h2>
-					<a href="/blog">View All Articles &rarr;</a>
+				<div class="section-title" data-reveal>
+					<div>
+						<span class="eyebrow">Latest</span>
+						<h2>Fresh from the lab</h2>
+					</div>
+					<a href="/blog" class="read-more">View all articles
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+					</a>
 				</div>
 				<div class="posts-grid">
-					{recentPosts.map((post) => (
-						<a href={`/blog/${post.id}/`} class="post-card">
-								<img src={post.data.image || `https://image.pollinations.ai/prompt/${encodeURIComponent(post.data.title)}?width=1280&height=720&nologo=true`} alt="" class="post-image" loading="lazy" decoding="async" onerror={`this.onerror=null;this.src='${fallbackImage}';`} style="background: #f7f7f7; min-height: 150px; object-fit: cover;" />
+					{recentPosts.map((post, i) => (
+						<a href={`/blog/${post.id}/`} class="post-card card-glass" data-reveal style={`--reveal-delay:${i * 90}ms`}>
+							<div class="post-media">
+								<img src={displayImage(post.data.title, post.data.image)} data-fb={svgFallback(post.data.title)} alt={post.data.title} loading="lazy" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
+							</div>
 							<div class="post-content">
 								<p class="post-date"><FormattedDate date={post.data.pubDate} /></p>
 								<h3 class="post-title">{post.data.title}</h3>
@@ -259,7 +274,27 @@ const fallbackImage = '/blog-placeholder-about.jpg'; // Legacy fallback
 					))}
 				</div>
 			</section>
-<Newsletter />
+
+			<section class="cta-banner" data-reveal>
+				<h2>Never miss a signal</h2>
+				<p>Follow along across platforms for breakdowns on AI tooling, agentic workflows, and what actually ships.</p>
+				<div class="cta-socials">
+					<a class="cta-social-btn" href="https://x.com/AstroboyTobby1" target="_blank" rel="noopener">
+						<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+						Follow on X
+					</a>
+					<a class="cta-social-btn" href="https://www.youtube.com/@aienthusiast001" target="_blank" rel="noopener">
+						<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+						YouTube
+					</a>
+					<a class="cta-social-btn" href="https://www.instagram.com/astro_tobby/" target="_blank" rel="noopener">
+						<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+						Instagram
+					</a>
+				</div>
+			</section>
+
+			<Newsletter />
 		</main>
 		<Footer />
 	</body>

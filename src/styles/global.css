@@ -1,36 +1,68 @@
 /*
-  AstroSignal — "Nordic Clean" High-Retention Theme
-  Designed for anti-eye-strain, long-form reading, and WCAG 2.1 AA accessibility.
-  Strict 60-30-10 Rule implementation.
+  Astro Tobby's Blueprint — "Liquid Glass / Aurora" Theme
+  ----------------------------------------------------------
+  Premium editorial reading experience: an animated aurora gradient canvas
+  with frosted-glass UI chrome layered on top, while the article reading
+  surface stays high-contrast for long-form retention.
+  WCAG 2.1 AA target. Honours prefers-reduced-motion.
 */
 
-/* ─── Google Fonts ─────────────────────────────────────────────────────────── */
-
-/* ─── CSS Custom Properties ─────────────────────────────────────────────────── */
+/* ─── Design Tokens ──────────────────────────────────────────────────────── */
 :root {
-  /* 60% - Dominant Background (Anti-Glare) */
-  --bg-primary:       #F8F9FA;
-  --bg-secondary:     #FFFFFF; /* Used for cards/sidebar */
-  
-  /* 30% - Secondary Text/Structure (Deep Charcoal) */
-  --text-heading:     #1A1A1A;
-  --text-body:        #2D3748; /* Softer gray for paragraph endurance */
-  --text-muted:       #718096;
-  
-  /* 10% - Accent/CTA (Indigo/Electric Blue) */
+  /* Surfaces (60%) */
+  --bg-primary:       #F6F7FB;
+  --bg-secondary:     #FFFFFF;
+  --bg-elevated:      #FFFFFF;
+
+  /* Text (30%) */
+  --text-heading:     #0F1222;
+  --text-body:        #2D3748;
+  --text-muted:       #6B7280;
+
+  /* Brand accent (10%) — indigo identity preserved */
   --accent:           #4F46E5;
   --accent-hover:     #4338CA;
   --accent-soft:      rgba(79, 70, 229, 0.08);
 
-  /* Shadows & Borders */
-  --box-shadow:       0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --border-light:     rgba(0, 0, 0, 0.06);
+  /* Brand gradient stops (indigo → violet → fuchsia / cyan) */
+  --grad-1:           #6366F1;
+  --grad-2:           #8B5CF6;
+  --grad-3:           #EC4899;
+  --grad-4:           #06B6D4;
+  --brand-gradient:   linear-gradient(135deg, var(--grad-1) 0%, var(--grad-2) 50%, var(--grad-3) 100%);
+  --brand-gradient-cool: linear-gradient(135deg, var(--grad-1) 0%, var(--grad-4) 100%);
+
+  /* Glass system */
+  --glass-bg:         rgba(255, 255, 255, 0.55);
+  --glass-bg-strong:  rgba(255, 255, 255, 0.72);
+  --glass-border:     rgba(255, 255, 255, 0.65);
+  --glass-blur:       18px;
+
+  /* Borders & shadows */
+  --border-light:     rgba(15, 18, 34, 0.07);
+  --box-shadow:       0 4px 6px -1px rgba(15, 18, 34, 0.05), 0 2px 4px -2px rgba(15, 18, 34, 0.05);
+  --shadow-glass:     0 8px 32px -8px rgba(31, 38, 90, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --shadow-lift:      0 24px 48px -12px rgba(31, 38, 90, 0.22);
+  --shadow-glow:      0 0 0 1px rgba(99, 102, 241, 0.25), 0 16px 40px -12px rgba(99, 102, 241, 0.45);
+
+  /* Radii */
+  --radius-sm: 10px;
+  --radius:    16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+
+  /* Motion */
+  --ease-out:   cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring:cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast:   180ms;
+  --dur:        320ms;
+  --dur-slow:   520ms;
+
+  --maxw: 1120px;
 }
 
-/* ─── Reset & Base ───────────────────────────────────────────────────────────── */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
+/* ─── Reset & Base ───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
 
 html {
   scroll-behavior: smooth;
@@ -41,7 +73,7 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   margin: 0;
   padding: 0;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, #F0F4F8 100%);
+  background: var(--bg-primary);
   color: var(--text-body);
   font-size: 18px;
   line-height: 1.8;
@@ -49,159 +81,338 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
 }
 
-/* ─── Typography ─────────────────────────────────────────────────────────────── */
+/* ─── Aurora Canvas ──────────────────────────────────────────────────────────
+   Fixed, soft, drifting colour fields that the frosted glass refracts.        */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  z-index: -2;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+  pointer-events: none;
+  will-change: transform;
+}
+body::before {
+  width: 60vw; height: 60vw;
+  top: -22vw; left: -14vw;
+  background: radial-gradient(circle at 30% 30%, var(--grad-1), transparent 62%);
+  animation: aurora-a 22s ease-in-out infinite alternate;
+}
+body::after {
+  width: 55vw; height: 55vw;
+  top: 8vh; right: -18vw; left: auto;
+  background: radial-gradient(circle at 70% 30%, var(--grad-3), transparent 60%);
+  animation: aurora-b 26s ease-in-out infinite alternate;
+}
+/* A third tinted field + faint grid lives on a fixed backdrop element */
+.aurora-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  pointer-events: none;
+  background:
+    radial-gradient(40vw 40vw at 50% 110%, rgba(6, 182, 212, 0.18), transparent 60%),
+    radial-gradient(46vw 46vw at 85% 80%, rgba(139, 92, 246, 0.16), transparent 60%);
+}
+.aurora-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(15, 18, 34, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 18, 34, 0.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(circle at 50% 0%, #000 0%, transparent 70%);
+  mask-image: radial-gradient(circle at 50% 0%, #000 0%, transparent 70%);
+}
+
+@keyframes aurora-a {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(6vw, 5vh, 0) scale(1.15); }
+}
+@keyframes aurora-b {
+  0%   { transform: translate3d(0, 0, 0) scale(1.05); }
+  100% { transform: translate3d(-5vw, 4vh, 0) scale(0.92); }
+}
+
+/* ─── Typography ─────────────────────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
   color: var(--text-heading);
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.2;
   margin: 2.5rem 0 1.25rem;
   letter-spacing: -0.02em;
 }
-
-h1 { 
-  font-size: 2.5rem; 
+h1 {
+  font-size: 2.5rem;
   margin-top: 0;
-  background: linear-gradient(135deg, var(--text-heading) 0%, var(--accent) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  letter-spacing: -0.03em;
 }
-h2 { 
-  font-size: 2rem; 
-  border-bottom: 2px solid rgba(79, 70, 229, 0.1);
-  padding-bottom: 0.75rem;
-}
+h2 { font-size: 2rem; }
 h3 { font-size: 1.5rem; }
 
-p {
-  margin-bottom: 1.75rem;
-  max-width: 70ch; /* Optimized line length for reading comfort */
+p { margin-bottom: 1.5rem; }
+
+strong, b { font-weight: 700; }
+
+/* Gradient text helper */
+.gradient-text {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+/* Animated gradient text (used sparingly on hero) */
+.gradient-text-animated {
+  background: linear-gradient(120deg, var(--grad-1), var(--grad-2), var(--grad-3), var(--grad-4), var(--grad-1));
+  background-size: 280% 280%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: gradient-pan 9s ease infinite;
+}
+@keyframes gradient-pan {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-/* Links (Strict 10% Accent) */
+/* Links */
 a {
   color: var(--accent);
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: color var(--dur-fast) var(--ease-out);
   font-weight: 500;
 }
+a:hover { color: var(--accent-hover); }
 
-a:hover {
-  color: var(--accent-hover);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
-/* ─── Layout & Containers ────────────────────────────────────────────────────── */
+/* ─── Layout ─────────────────────────────────────────────────────────────── */
 main {
   width: 100%;
-  max-width: 800px;
+  max-width: var(--maxw);
   margin: 0 auto;
-  padding: 4rem 1.5rem;
+  padding: 3rem 1.5rem;
 }
 
-/* Ambient Cards */
-.card {
-  background: var(--bg-secondary);
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: var(--box-shadow);
-  border: 1px solid var(--border-light);
-  margin-bottom: 2rem;
-  transition: all 0.3s ease;
+/* ─── Glass primitives ───────────────────────────────────────────────────── */
+.glass {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-glass);
+  border-radius: var(--radius-lg);
 }
+.glass-strong { background: var(--glass-bg-strong); }
 
-.card:hover {
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08);
+/* Gradient hairline border on hover (used by cards) */
+.card-glass {
+  position: relative;
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-glass);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+.card-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--brand-gradient);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease-out);
+  pointer-events: none;
+}
+.card-glass:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lift);
+}
+.card-glass:hover::before { opacity: 1; }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.9rem 1.8rem;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  touch-action: manipulation;
+}
+.btn-primary {
+  color: #fff;
+  background: var(--brand-gradient);
+  background-size: 160% 160%;
+  box-shadow: 0 10px 24px -10px rgba(99, 102, 241, 0.7);
+}
+.btn-primary:hover {
+  color: #fff;
   transform: translateY(-2px);
+  background-position: 100% 50%;
+  box-shadow: var(--shadow-glow);
+}
+.btn-secondary {
+  color: var(--text-heading);
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-color: var(--glass-border);
+}
+.btn-secondary:hover {
+  color: var(--accent);
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+.btn:focus-visible,
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid rgba(99, 102, 241, 0.55);
+  outline-offset: 2px;
 }
 
-/* ─── Prose Styling ──────────────────────────────────────────────────────────── */
+/* Pill badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+.badge .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--grad-3);
+  box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.18);
+}
+
+/* ─── Scroll reveal ──────────────────────────────────────────────────────── */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* ─── Prose (article reading surface — kept high contrast) ───────────────── */
 .prose {
-  font-size: 1.125rem;
+  font-size: 1.15rem;
   color: var(--text-body);
+  line-height: 1.85;
 }
-
+.prose p { max-width: 70ch; margin-bottom: 1.6rem; }
+.prose h2 {
+  font-size: 1.85rem;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 0.6rem;
+}
+.prose a { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .prose blockquote {
-  border-left: 4px solid var(--accent);
+  border-left: 4px solid transparent;
+  border-image: var(--brand-gradient) 1;
   padding: 1rem 1.5rem;
   margin: 2.5rem 0;
   background: var(--accent-soft);
   font-style: italic;
-  border-radius: 0 8px 8px 0;
-  transition: all 0.3s ease;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
-
-.prose blockquote:hover {
-  background: rgba(79, 70, 229, 0.04);
-  border-left-width: 6px;
-}
-
 .prose img {
-  border-radius: 12px;
+  border-radius: var(--radius);
   box-shadow: var(--box-shadow);
   margin: 2rem 0;
-  transition: all 0.3s ease;
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
 }
-
-.prose img:hover {
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08);
-  transform: scale(1.02);
-}
-
+.prose img:hover { transform: scale(1.01); box-shadow: var(--shadow-lift); }
 .prose code {
-  background: #F9FAFB;
-  padding: 0.2em 0.4em;
-  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.08);
+  padding: 0.2em 0.45em;
+  border-radius: 6px;
   font-size: 0.9em;
   border: 1px solid var(--border-light);
-  color: var(--accent);
+  color: var(--accent-hover);
   font-weight: 500;
 }
+.prose pre {
+  padding: 1.5em;
+  border-radius: var(--radius);
+  overflow-x: auto;
+  box-shadow: var(--box-shadow);
+}
+.prose pre > code { all: unset; }
+img { max-width: 100%; height: auto; }
+hr { border: none; border-top: 1px solid var(--border-light); margin: 3rem 0; }
+table { width: 100%; }
+textarea, input { font-size: 16px; }
 
-/* ─── Scrollbar ──────────────────────────────────────────────────────────────── */
-::-webkit-scrollbar { 
-  width: 12px; 
-}
-::-webkit-scrollbar-track { 
-  background: var(--bg-primary);
-}
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 12px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-hover) 100%);
+  background: var(--brand-gradient);
   border: 3px solid var(--bg-primary);
   border-radius: 10px;
 }
-::-webkit-scrollbar-thumb:hover { 
-  background: var(--accent-hover);
-}
 
-/* ─── Accessibility ──────────────────────────────────────────────────────────── */
+/* ─── Accessibility / reduced-motion ─────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  [data-reveal] { opacity: 1 !important; transform: none !important; }
+  body::before, body::after { animation: none !important; }
 }
 
+.sr-only {
+  border: 0; padding: 0; margin: 0;
+  position: absolute !important;
+  height: 1px; width: 1px; overflow: hidden;
+  clip: rect(1px, 1px, 1px, 1px);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   body { font-size: 16px; }
   main { padding: 2rem 1rem; }
   h1 { font-size: 2rem; }
   h2 { font-size: 1.5rem; }
-  
-  /* Faster tap response */
-  a, button {
-    touch-action: manipulation;
-  }
+  .prose { font-size: 1.05rem; }
+  body::before, body::after { filter: blur(60px); opacity: 0.4; }
 }
-
-/* Desktop optimization for larger screens */
 @media (min-width: 1200px) {
-  main {
-    max-width: 900px;
-  }
+  main { max-width: var(--maxw); }
 }
