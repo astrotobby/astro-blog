@@ -231,7 +231,7 @@ const fallbackImage = '/blog-placeholder-about.jpg'; // Legacy fallback
 				</div>
 				{featuredPost && (
 					<a href={`/blog/${featuredPost.id}/`} class="featured-card">
-							<img src={featuredPost.data.image || `https://image.pollinations.ai/prompt/${encodeURIComponent(featuredPost.data.title)}?width=1280&height=720&nologo=true`} alt="" class="featured-image" loading="lazy" onerror={`this.onerror=null;this.src='${fallbackImage}';`} style="background: #f7f7f7; min-height: 200px; object-fit: cover;" />
+							<img src={featuredPost.data.image || `https://image.pollinations.ai/prompt/${encodeURIComponent(featuredPost.data.title)}?width=1280&height=720&nologo=true`} alt="" class="featured-image" loading="lazy" decoding="async" onerror={`this.onerror=null;this.src='${fallbackImage}';`} style="background: #f7f7f7; min-height: 200px; object-fit: cover;" />
 						<div class="featured-content">
 							<p class="post-date"><FormattedDate date={featuredPost.data.pubDate} /></p>
 							<h3 class="post-title" style="font-size: 2.25rem;">{featuredPost.data.title}</h3>
@@ -249,7 +249,7 @@ const fallbackImage = '/blog-placeholder-about.jpg'; // Legacy fallback
 				<div class="posts-grid">
 					{recentPosts.map((post) => (
 						<a href={`/blog/${post.id}/`} class="post-card">
-								<img src={post.data.image || `https://image.pollinations.ai/prompt/${encodeURIComponent(post.data.title)}?width=1280&height=720&nologo=true`} alt="" class="post-image" loading="lazy" onerror={`this.onerror=null;this.src='${fallbackImage}';`} style="background: #f7f7f7; min-height: 150px; object-fit: cover;" />
+								<img src={post.data.image || `https://image.pollinations.ai/prompt/${encodeURIComponent(post.data.title)}?width=1280&height=720&nologo=true`} alt="" class="post-image" loading="lazy" decoding="async" onerror={`this.onerror=null;this.src='${fallbackImage}';`} style="background: #f7f7f7; min-height: 150px; object-fit: cover;" />
 							<div class="post-content">
 								<p class="post-date"><FormattedDate date={post.data.pubDate} /></p>
 								<h3 class="post-title">{post.data.title}</h3>

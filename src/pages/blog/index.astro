@@ -121,7 +121,7 @@ const fallbackImage = '/blog-placeholder-about.jpg'; // Legacy fallback
       <div class="posts-grid">
         {posts.map((post) => (
 	          <a href={`/blog/${post.id}/`} class="post-card">
-	            <img src={post.data.image || `https://image.pollinations.ai/prompt/${encodeURIComponent(post.data.title)}?width=1280&height=720&nologo=true`} alt="" class="card-img" loading="lazy" onerror={`this.onerror=null;this.src='${fallbackImage}';`} style="background: #f7f7f7; min-height: 200px; object-fit: cover;" />
+	            <img src={post.data.image || `https://image.pollinations.ai/prompt/${encodeURIComponent(post.data.title)}?width=1280&height=720&nologo=true`} alt="" class="card-img" loading="lazy" decoding="async" onerror={`this.onerror=null;this.src='${fallbackImage}';`} style="background: #f7f7f7; min-height: 200px; object-fit: cover;" />
 	            <div class="card-body">
               <p class="card-date"><FormattedDate date={post.data.pubDate} /></p>
               <h3 class="card-title">{post.data.title}</h3>

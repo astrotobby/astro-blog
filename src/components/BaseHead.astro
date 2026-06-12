@@ -31,6 +31,8 @@ const { title, description, image = FallbackImage } = Astro.props;
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Charter&display=swap" media="print" onload="this.media='all'" />
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Charter&display=swap" /></noscript>
 
 <!-- Canonical URL -->
 <link rel="canonical" href={canonicalURL} />
@@ -55,7 +57,7 @@ const { title, description, image = FallbackImage } = Astro.props;
 <meta property="twitter:image" content={new URL(image.src, Astro.url)} />
 
 <!-- Adsterra Social Bar -->
-<script src="https://pl29385883.effectivecpmnetwork.com/11/db/e0/11dbe0be7216618b728113b9bf654a59.js"></script>
+<script async src="https://pl29385883.effectivecpmnetwork.com/11/db/e0/11dbe0be7216618b728113b9bf654a59.js"></script>
 
 <!-- Monetag Push Notification -->
 <script src="https://5gvci.com/act/files/tag.min.js?z=10979623" data-cfasync="false" async></script>

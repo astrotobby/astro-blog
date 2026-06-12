@@ -95,7 +95,7 @@ const displayImage = realImage || svgFallback;
         Back to archive
       </a>
       <article>
-        <img src={displayImage} data-fb={svgFallback} alt="" class="hero-img" loading="eager" onerror="this.onerror=null;this.src=this.dataset.fb;" />
+        <img src={displayImage} data-fb={svgFallback} alt="" class="hero-img" loading="eager" fetchpriority="high" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
         
         <!-- Position 1: Below hero image / above header -->
         <AdBanner minHeight="250px" margin="0 0 40px 0" />
