@@ -205,6 +205,17 @@ def build_clip(images, total_dur, size, fps, out_path):
     return out_path
 
 
+def build_avatar_clip(src, size, out_path):
+    """Frame the SadTalker talking-head to the target size. Audio is stripped here;
+    the (identical) voiceover is re-added in finalize, so the lips stay in sync."""
+    w, h = size["w"], size["h"]
+    vf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+          f"crop={w}:{h},setsar=1,format=yuv420p")
+    run(["ffmpeg", "-y", "-i", str(src), "-vf", vf, "-an", "-r", "30",
+         str(out_path.name)], cwd=OUT)
+    return out_path
+
+
 def finalize(silent_video, voice_path, captions, music, size, out_path, cfg):
     # inputs: 0=silent video, 1=voiceover, (2=music if present)
     inputs = ["-i", silent_video.name, "-i", str(voice_path.name)]
@@ -259,26 +270,45 @@ def main():
     script = read_json(args.script_json)
 
     voice, dur = make_voice(script, cfg)
-    images = fetch_images(script, cfg)
     captions = make_captions(voice) if cfg["video"].get("captions") else None
     music = pick_music(cfg)
     if music:
         log(f"music bed: {music.name}")
 
     fps = cfg["video"]["fps"]
-    results = {}
 
-    # vertical (Reels/Shorts/TikTok)
+    # ---- talking avatar (optional) -> motion-graphics if unavailable ----
+    talking = None
+    av = cfg.get("avatar", {})
+    if av.get("enabled"):
+        avatar_img = ROOT / av.get("image", "assets/avatar.png")
+        if avatar_img.exists():
+            try:
+                from avatar_lipsync import generate_talking_head
+                talking = generate_talking_head(avatar_img, voice, cfg)
+            except Exception as e:  # noqa
+                log(f"avatar generation errored, using motion graphics: {e}")
+        else:
+            log(f"avatar enabled but {avatar_img} missing -> motion graphics")
+
+    images = None if talking is not None else fetch_images(script, cfg)
+
+    def silent_for(size, tag):
+        out = OUT / f"silent_{tag}.mp4"
+        if talking is not None:
+            return build_avatar_clip(talking, size, out)
+        return build_clip(images, dur, size, fps, out)
+
+    results = {}
     vsize = cfg["video"]["vertical"]
-    vsilent = build_clip(images, dur, vsize, fps, OUT / "silent_9x16.mp4")
-    vout = finalize(vsilent, voice, captions, music, vsize, OUT / "video_9x16.mp4", cfg)
+    vout = finalize(silent_for(vsize, "9x16"), voice, captions, music, vsize,
+                    OUT / "video_9x16.mp4", cfg)
     results["vertical"] = str(vout)
 
-    # horizontal (YouTube main)
     if cfg["video"].get("make_horizontal"):
         hsize = cfg["video"]["horizontal"]
-        hsilent = build_clip(images, dur, hsize, fps, OUT / "silent_16x9.mp4")
-        hout = finalize(hsilent, voice, captions, music, hsize, OUT / "video_16x9.mp4", cfg)
+        hout = finalize(silent_for(hsize, "16x9"), voice, captions, music, hsize,
+                        OUT / "video_16x9.mp4", cfg)
         results["horizontal"] = str(hout)
 
     out = {
@@ -286,8 +316,9 @@ def main():
         "platform": script["platform"],
         "duration": dur,
         "videos": results,
+        "avatar": talking is not None,
     }
-    log(f"rendered: {list(results.keys())}")
+    log(f"rendered: {list(results.keys())} (avatar={talking is not None})")
     write_json("render.json", out)
 
 
