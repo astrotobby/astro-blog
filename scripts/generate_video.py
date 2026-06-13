@@ -295,6 +295,23 @@ def finalize(silent_video, voice_path, captions, music, size, out_path, cfg):
     return out_path
 
 
+def build_intro_plus_broll(talking, images, total_dur, size, fps, out_path):
+    """Avatar talking-head intro, then scene-image b-roll for the remainder — so the
+    avatar AND the visuals both appear, over one continuous voiceover."""
+    w, h = size["w"], size["h"]
+    av_clip = build_avatar_clip(talking, size, OUT / f"_avseg_{w}x{h}.mp4")
+    av_dur = ffprobe_duration(av_clip)
+    rest = max(2.0, total_dur - av_dur)
+    broll = build_clip(images, rest, size, fps, OUT / f"_broll_{w}x{h}.mp4")
+    listf = OUT / f"_cat_{w}x{h}.txt"
+    listf.write_text(f"file '{av_clip.name}'\nfile '{broll.name}'\n", encoding="utf-8")
+    run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listf.name,
+         "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+         "-pix_fmt", "yuv420p", "-r", str(fps), str(out_path.name)], cwd=OUT)
+    log(f"avatar intro {av_dur:.1f}s + b-roll {rest:.1f}s -> {out_path.name}")
+    return out_path
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("script_json")
@@ -310,26 +327,34 @@ def main():
 
     fps = cfg["video"]["fps"]
 
-    # ---- talking avatar (optional) -> motion-graphics if unavailable ----
+    # Images are always fetched now — used as the full montage, or as b-roll after
+    # the avatar intro, so BOTH the avatar and the visuals appear in the video.
+    images = fetch_images(script, cfg)
+
+    # ---- talking-avatar intro (optional) ----
+    # SadTalker on the free GPU times out on long clips, so we only run the avatar
+    # over the first `clip_seconds` of audio (the hook); the rest is scene b-roll.
     talking = None
     av = cfg.get("avatar", {})
     if av.get("enabled"):
         avatar_img = ROOT / av.get("image", "assets/avatar.png")
         if avatar_img.exists():
             try:
+                seg = float(av.get("clip_seconds", 15))
+                intro = OUT / "intro_voice.mp3"
+                run(["ffmpeg", "-y", "-i", voice.name, "-t", f"{seg:.2f}",
+                     intro.name], cwd=OUT)
                 from avatar_lipsync import generate_talking_head
-                talking = generate_talking_head(avatar_img, voice, cfg)
+                talking = generate_talking_head(avatar_img, intro, cfg)
             except Exception as e:  # noqa
                 log(f"avatar generation errored, using motion graphics: {e}")
         else:
             log(f"avatar enabled but {avatar_img} missing -> motion graphics")
 
-    images = None if talking is not None else fetch_images(script, cfg)
-
     def silent_for(size, tag):
         out = OUT / f"silent_{tag}.mp4"
         if talking is not None:
-            return build_avatar_clip(talking, size, out)
+            return build_intro_plus_broll(talking, images, dur, size, fps, out)
         return build_clip(images, dur, size, fps, out)
 
     results = {}

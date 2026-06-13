@@ -65,6 +65,8 @@ video:
 avatar:
   enabled: true
   image: "assets/avatar.png"
+  clip_seconds: 15                 # avatar voices only the first N s (then b-roll),
+                                   # so SadTalker finishes within the free GPU limit
   spaces:                          # tried in order; first that answers wins
     - "kevinwang676/SadTalker"     # API order verified against this Space
     - "John6666/SadTalker"
