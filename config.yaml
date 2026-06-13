@@ -59,23 +59,14 @@ video:
   music: true
   music_volume: 0.12
 
-# ---- Talking avatar (free, GPU offloaded to a Hugging Face SadTalker Space) ----
-# Needs the HF_TOKEN secret + an avatar image at the path below. If a Space can't
-# be reached, the render falls back to the motion-graphics montage automatically.
+# ---- Talking avatar (Wav2Lip, runs inside the GitHub runner — no external Space) ----
+# Needs the HF_TOKEN secret (to download weights) + an avatar image at the path below.
+# If Wav2Lip setup/inference fails, the render falls back to the image montage.
 avatar:
   enabled: true
   image: "assets/avatar.png"
-  clip_seconds: 15                 # avatar voices only the first N s (then b-roll),
-                                   # so SadTalker finishes within the free GPU limit
-  spaces:                          # tried in order; first that answers wins
-    - "kevinwang676/SadTalker"     # API order verified against this Space
-    - "John6666/SadTalker"
-  preprocess: "crop"               # crop | resize | full | extcrop | extfull
-  still: true                      # calmer, less head jitter (warm presenter look)
-  enhancer: false                  # GFPGAN off = much faster + more likely to finish
-  resolution: 256                  # 256 fast | 512 sharper (slower, may time out free GPU)
-  pose_style: 0                    # 0-46 head-pose style
-  batch_size: 2
+  clip_seconds: 15                 # avatar lip-syncs the first N s (then scene b-roll)
+  timeout: 900                     # max seconds for Wav2Lip CPU inference
 
 # ---- Posting rules / anti-ban caps (see HONEST-LIMITS.md) ----
 platforms:
