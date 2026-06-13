@@ -74,7 +74,17 @@ def generate_talking_head(avatar_path, audio_path, cfg):
     for space in spaces:
         try:
             log(f"avatar: connecting to SadTalker space '{space}'")
-            client = Client(space, hf_token=token, verbose=False)
+            # gradio_client renamed/removed the token kwarg across versions; try the
+            # variants this installed version accepts (it also reads HF_TOKEN from env).
+            client = None
+            for kw in ({"hf_token": token}, {"token": token}, {}):
+                try:
+                    client = Client(space, verbose=False, **kw)
+                    break
+                except TypeError:
+                    continue
+            if client is None:
+                client = Client(space)  # last resort: relies on HF_TOKEN in env
             try:  # surface the real API in the log for debugging
                 log(f"avatar: {space} API ->\n{str(client.view_api(return_format='str'))[:600]}")
             except Exception:  # noqa
