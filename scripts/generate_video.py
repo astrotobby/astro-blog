@@ -153,36 +153,55 @@ def fetch_images(script, cfg):
 
 
 # ---------- 3. captions ----------
-def make_captions(voice_path):
+def _text_captions(script, dur):
+    """Build an SRT from the narration text spread across the audio duration — no
+    whisper needed, so on-screen captions ALWAYS appear (timing is approximate)."""
+    words = (script.get("narration") or "").split()
+    if not words or dur <= 0:
+        return None
+    srt = OUT / "captions.srt"
+    groups = [words[i:i + 5] for i in range(0, len(words), 5)]   # ~5 words/caption
+    per = dur / max(1, len(groups))
+    with open(srt, "w", encoding="utf-8") as f:
+        for i, g in enumerate(groups):
+            _write_srt(f, i + 1, i * per, min(dur, (i + 1) * per), " ".join(g))
+    log(f"captions (text-timed) -> {srt.name}")
+    return srt
+
+
+def make_captions(voice_path, script, dur):
+    """Word-accurate captions via whisper if available; otherwise text-timed
+    captions from the narration. Always returns an SRT (captions never vanish)."""
     try:
         from faster_whisper import WhisperModel
-    except Exception as e:  # noqa
-        log(f"whisper unavailable, skipping captions: {e}")
-        return None
-    model = WhisperModel("base", device="cpu", compute_type="int8")
-    segments, _ = model.transcribe(str(voice_path), word_timestamps=True)
-    srt = OUT / "captions.srt"
-    idx = 1
-    with open(srt, "w", encoding="utf-8") as f:
-        for seg in segments:
-            # break long segments into ~5-word caption chunks for Reels readability
-            words = list(seg.words or [])
-            if not words:
-                continue
-            chunk = []
-            for w in words:
-                chunk.append(w)
-                if len(chunk) >= 5:
+        model = WhisperModel("base", device="cpu", compute_type="int8")
+        segments, _ = model.transcribe(str(voice_path), word_timestamps=True)
+        srt = OUT / "captions.srt"
+        idx = 1
+        with open(srt, "w", encoding="utf-8") as f:
+            for seg in segments:
+                words = list(seg.words or [])
+                if not words:
+                    continue
+                chunk = []
+                for w in words:
+                    chunk.append(w)
+                    if len(chunk) >= 5:
+                        _write_srt(f, idx, chunk[0].start, chunk[-1].end,
+                                   " ".join(c.word.strip() for c in chunk))
+                        idx += 1
+                        chunk = []
+                if chunk:
                     _write_srt(f, idx, chunk[0].start, chunk[-1].end,
                                " ".join(c.word.strip() for c in chunk))
                     idx += 1
-                    chunk = []
-            if chunk:
-                _write_srt(f, idx, chunk[0].start, chunk[-1].end,
-                           " ".join(c.word.strip() for c in chunk))
-                idx += 1
-    log(f"captions -> {srt.name}")
-    return srt
+        if idx > 1:
+            log(f"captions (whisper) -> {srt.name}")
+            return srt
+        log("whisper produced no captions -> text fallback")
+    except Exception as e:  # noqa
+        log(f"whisper unavailable ({e}) -> text fallback")
+    return _text_captions(script, dur)
 
 
 def _ts(t):
@@ -280,8 +299,8 @@ def finalize(silent_video, voice_path, captions, music, size, out_path, cfg):
     vlabel = "0:v"
     if captions and cfg["video"].get("captions"):
         mv = cfg["video"].get("caption_margin_v", 470)  # sit above the corner bubble
-        style = (f"FontName=Arial,FontSize=15,Bold=1,PrimaryColour=&H00FFFFFF,"
-                 f"OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=0,"
+        style = (f"FontName=DejaVu Sans,FontSize=15,Bold=1,PrimaryColour=&H00FFFFFF,"
+                 f"OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=1,"
                  f"Alignment=2,MarginV={mv}")
         filters.append(f"[0:v]subtitles={captions.name}:force_style='{style}'[v]")
         vlabel = "v"
@@ -361,7 +380,7 @@ def main():
     script = read_json(args.script_json)
 
     voice, dur = make_voice(script, cfg)
-    captions = make_captions(voice) if cfg["video"].get("captions") else None
+    captions = make_captions(voice, script, dur) if cfg["video"].get("captions") else None
     music = pick_music(cfg)
     if music:
         log(f"music bed: {music.name}")
