@@ -52,17 +52,18 @@ def generate_talking_head(avatar_path, audio_path, cfg):
         log(f"avatar: gradio_client unavailable: {e}")
         return None
 
-    # SadTalker's canonical gradio signature (OpenTalker app): image, audio,
-    # preprocess, still_mode, enhancer, batch_size, image_size, pose_style.
+    # SadTalker (OpenTalker) gradio signature — VERIFIED order against the live
+    # Space config: image, audio, pose_style, resolution, preprocess, still,
+    # batch_size, enhancer.
     args = [
         handle_file(str(avatar_path)),
         handle_file(str(audio_path)),
+        int(av.get("pose_style", 0)),
+        int(av.get("resolution", 256)),     # 256 fast | 512 sharper but slower
         av.get("preprocess", "crop"),
         bool(av.get("still", True)),
-        bool(av.get("enhancer", True)),
-        2,    # batch size
-        256,  # image size
-        0,    # pose style
+        int(av.get("batch_size", 2)),
+        bool(av.get("enhancer", False)),     # GFPGAN; off = much faster
     ]
 
     for space in spaces:
@@ -74,10 +75,12 @@ def generate_talking_head(avatar_path, audio_path, cfg):
             except Exception:  # noqa
                 pass
             res = None
-            for kw in ({"api_name": "/test"}, {"api_name": "/predict"}, {"fn_index": 0}):
+            for kw in ({"api_name": "/predict"}, {"fn_index": 0},
+                       {"api_name": "/test"}, {"fn_index": 1}):
                 try:
                     res = client.predict(*args, **kw)
-                    break
+                    if res:
+                        break
                 except Exception as e:  # noqa
                     log(f"avatar: predict {kw} failed on {space}: {str(e)[:160]}")
             video = _video_from_result(res)

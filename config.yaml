@@ -35,9 +35,11 @@ script:
   cta: "Want the full breakdown? Tap the link and read the post."
 
 # ---- Voice (edge-tts). Run `edge-tts --list-voices` to see all, free. ----
+# Warm, calm MALE voice to match the male avatar. Alternatives:
+#   en-US-GuyNeural (mature/pro), en-US-AndrewNeural (warm), en-GB-RyanNeural (British)
 voice:
-  name: "en-US-AriaNeural"     # warm female. Try en-US-GuyNeural / en-GB-RyanNeural
-  rate: "+6%"
+  name: "en-US-BrianNeural"    # warm, relaxed male
+  rate: "+0%"                  # natural pace (was +6%) for a calmer delivery
   pitch: "+0Hz"
 
 # ---- Visuals (Pollinations, free, no key) ----
@@ -64,12 +66,14 @@ avatar:
   enabled: true
   image: "assets/avatar.png"
   spaces:                          # tried in order; first that answers wins
-    - "kevinwang676/SadTalker"
+    - "kevinwang676/SadTalker"     # API order verified against this Space
     - "John6666/SadTalker"
-    - "arkoda/sadtalker-zerogpu"
-  preprocess: "crop"               # crop | resize | full
+  preprocess: "crop"               # crop | resize | full | extcrop | extfull
   still: true                      # calmer, less head jitter (warm presenter look)
-  enhancer: true                   # GFPGAN face enhancement (sharper face)
+  enhancer: false                  # GFPGAN off = much faster + more likely to finish
+  resolution: 256                  # 256 fast | 512 sharper (slower, may time out free GPU)
+  pose_style: 0                    # 0-46 head-pose style
+  batch_size: 2
 
 # ---- Posting rules / anti-ban caps (see HONEST-LIMITS.md) ----
 platforms:
