@@ -56,7 +56,8 @@ video:
   horizontal: { w: 1920, h: 1080 } # YouTube main
   make_horizontal: true
   captions: true                    # burn-in subtitles (huge for retention)
-  caption_margin_v: 470             # px from bottom — sits above the avatar bubble
+  caption_margin_v: 90              # margin from the TOP (captions are top-aligned,
+                                    # clear of the bottom-right avatar bubble)
   music: true
   music_volume: 0.12
 
@@ -68,7 +69,7 @@ avatar:
   image: "assets/avatar.png"
   timeout: 900                     # max seconds for Wav2Lip CPU inference (full voiceover)
   # ---- bottom-right talking bubble (over the full image montage) ----
-  bubble_frac: 0.20                # circle diameter as a fraction of video height
+  bubble_frac: 0.30                # circle diameter as a fraction of video height (bigger)
   bubble_margin: 0.03              # gap from the edges (fraction of height)
   ring_color: [255, 255, 255, 235] # RGBA of the ring around the bubble
   # face close-up crop inside the bubble (tweak if the face isn't centered):

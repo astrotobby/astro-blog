@@ -298,10 +298,11 @@ def finalize(silent_video, voice_path, captions, music, size, out_path, cfg):
     # --- video: subtitles burn-in (run from OUT so no drive-colon path issues) ---
     vlabel = "0:v"
     if captions and cfg["video"].get("captions"):
-        mv = cfg["video"].get("caption_margin_v", 470)  # sit above the corner bubble
-        style = (f"FontName=DejaVu Sans,FontSize=15,Bold=1,PrimaryColour=&H00FFFFFF,"
+        mv = cfg["video"].get("caption_margin_v", 90)   # margin from the top
+        # Alignment=8 = top-center: always on-screen and clear of the bottom-right bubble.
+        style = (f"FontName=DejaVu Sans,FontSize=16,Bold=1,PrimaryColour=&H00FFFFFF,"
                  f"OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=1,"
-                 f"Alignment=2,MarginV={mv}")
+                 f"Alignment=8,MarginV={mv}")
         filters.append(f"[0:v]subtitles={captions.name}:force_style='{style}'[v]")
         vlabel = "v"
 
