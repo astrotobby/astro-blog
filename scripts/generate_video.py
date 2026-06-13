@@ -160,12 +160,11 @@ def _text_captions(script, dur):
     if not words or dur <= 0:
         return None
     srt = OUT / "captions.srt"
-    groups = [words[i:i + 5] for i in range(0, len(words), 5)]   # ~5 words/caption
-    per = dur / max(1, len(groups))
+    per = dur / max(1, len(words))                 # one word at a time, evenly spread
     with open(srt, "w", encoding="utf-8") as f:
-        for i, g in enumerate(groups):
-            _write_srt(f, i + 1, i * per, min(dur, (i + 1) * per), " ".join(g))
-    log(f"captions (text-timed) -> {srt.name}")
+        for i, word in enumerate(words):
+            _write_srt(f, i + 1, i * per, min(dur, (i + 1) * per), word)
+    log(f"captions (text-timed, word-by-word) -> {srt.name}")
     return srt
 
 
@@ -180,23 +179,13 @@ def make_captions(voice_path, script, dur):
         idx = 1
         with open(srt, "w", encoding="utf-8") as f:
             for seg in segments:
-                words = list(seg.words or [])
-                if not words:
-                    continue
-                chunk = []
-                for w in words:
-                    chunk.append(w)
-                    if len(chunk) >= 5:
-                        _write_srt(f, idx, chunk[0].start, chunk[-1].end,
-                                   " ".join(c.word.strip() for c in chunk))
+                for w in (seg.words or []):          # one word per caption, real timing
+                    txt = w.word.strip()
+                    if txt:
+                        _write_srt(f, idx, w.start, w.end, txt)
                         idx += 1
-                        chunk = []
-                if chunk:
-                    _write_srt(f, idx, chunk[0].start, chunk[-1].end,
-                               " ".join(c.word.strip() for c in chunk))
-                    idx += 1
         if idx > 1:
-            log(f"captions (whisper) -> {srt.name}")
+            log(f"captions (whisper, word-by-word) -> {srt.name}")
             return srt
         log("whisper produced no captions -> text fallback")
     except Exception as e:  # noqa
