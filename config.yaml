@@ -89,7 +89,7 @@ platforms:
   #   tumblr -> no review | x -> capped below | reddit -> opt-in + capped (off by default)
   # Instagram/Facebook/LinkedIn/Pinterest are deferred (need their own dev apps);
   # the workflow saves the rendered Reels as artifacts for hand-upload meanwhile.
-  direct: [tumblr, x]      # add "reddit" only after reading HONEST-LIMITS.md
+  direct: [tumblr, x, facebook]   # add "reddit" only after reading HONEST-LIMITS.md
 
 tumblr:
   blog: ""                 # your blog host, e.g. "astrotobby.tumblr.com" (TUMBLR_BLOG also works)

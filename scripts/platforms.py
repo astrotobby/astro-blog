@@ -107,6 +107,36 @@ def post_tumblr(render, cfg, dry):
 
 
 # --------------------------------------------------------------------------
+# Facebook Page — Graph API. Posts a video to a Page you admin using a
+# long-lived Page access token (works in dev mode for your own page; no review).
+# --------------------------------------------------------------------------
+def post_facebook(render, cfg, dry):
+    if not _has("FACEBOOK_PAGE_ID", "FACEBOOK_PAGE_TOKEN"):
+        return {"ok": False, "skipped": "no creds"}
+    if dry:
+        return {"ok": True, "dry": True}
+    try:
+        import requests
+        page_id = env("FACEBOOK_PAGE_ID")
+        token = env("FACEBOOK_PAGE_TOKEN")
+        p = render["platform"]
+        video = render["videos"].get("vertical") or render["videos"]["horizontal"]
+        url = f"https://graph.facebook.com/v21.0/{page_id}/videos"
+        with open(video, "rb") as fh:
+            r = requests.post(url,
+                              data={"description": p["caption"], "access_token": token},
+                              files={"source": ("video.mp4", fh, "video/mp4")},
+                              timeout=600)
+        j = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+        vid = j.get("id")
+        if r.status_code < 300 and vid:
+            return {"ok": True, "url": f"https://www.facebook.com/{vid}"}
+        return {"ok": False, "error": str(j or r.text)[:300]}
+    except Exception as e:  # noqa
+        return {"ok": False, "error": str(e)}
+
+
+# --------------------------------------------------------------------------
 # Reddit — PRAW (script app, no review). Posts ONE video to ONE subreddit.
 # --------------------------------------------------------------------------
 def post_reddit(render, cfg, dry):
