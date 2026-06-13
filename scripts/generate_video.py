@@ -354,7 +354,10 @@ def main():
     def silent_for(size, tag):
         out = OUT / f"silent_{tag}.mp4"
         if talking is not None:
-            return build_intro_plus_broll(talking, images, dur, size, fps, out)
+            try:
+                return build_intro_plus_broll(talking, images, dur, size, fps, out)
+            except Exception as e:  # noqa  avatar must never break the render
+                log(f"avatar composition failed -> image montage: {e}")
         return build_clip(images, dur, size, fps, out)
 
     results = {}

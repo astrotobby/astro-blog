@@ -61,15 +61,23 @@ def generate_talking_head(avatar_path, audio_path, cfg):
     res = av.get("resolution", 256)
     pose = int(av.get("pose_style", 0))
 
-    # SadTalker forks expose conflicting argument orders (the Space's /info and
-    # /config disagree), so try each known ordering until one returns a video.
-    # A wrong order fails fast on a type/count error before any GPU work.
+    # The Space's /info shows ONE unnamed endpoint (fn_index 0), order:
+    # image, audio, preprocess, still, enhancer, batch, resolution, pose.
     arg_orders = [
-        [img, aud, pre, still, enh, batch, str(res), pose],   # /info: preprocess-first
-        [img, aud, pre, still, enh, batch, int(res), pose],   # same, resolution as int
-        [img, aud, pose, int(res), pre, still, batch, enh],   # /config: pose-first
+        [img, aud, pre, still, enh, batch, str(res), pose],   # resolution as string
+        [img, aud, pre, still, enh, batch, int(res), pose],   # resolution as int
     ]
-    endpoints = ({"fn_index": 0}, {"api_name": "/predict"}, {"api_name": "/test"})
+    timeout = int(av.get("timeout", 240))
+
+    def _predict(client, a):
+        # Bound each call: a stuck/slow Space must never hang the 45-min job.
+        # shutdown(wait=False) so a timed-out call doesn't block on exit.
+        import concurrent.futures
+        ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        try:
+            return ex.submit(lambda: client.predict(*a, fn_index=0)).result(timeout=timeout)
+        finally:
+            ex.shutdown(wait=False)
 
     for space in spaces:
         try:
@@ -85,22 +93,17 @@ def generate_talking_head(avatar_path, audio_path, cfg):
                     continue
             if client is None:
                 client = Client(space)  # last resort: relies on HF_TOKEN in env
-            try:  # surface the real API in the log for debugging
-                log(f"avatar: {space} API ->\n{str(client.view_api(return_format='str'))[:600]}")
-            except Exception:  # noqa
-                pass
-            for ep in endpoints:
-                for idx, a in enumerate(arg_orders):
-                    try:
-                        out = client.predict(*a, **ep)
-                        v = _video_from_result(out)
-                        if v and os.path.exists(v):
-                            dst = OUT / "talking_head.mp4"
-                            shutil.copy(v, dst)
-                            log(f"avatar: SUCCESS from '{space}' {ep} order-{idx} -> {dst.name}")
-                            return dst
-                    except Exception as e:  # noqa
-                        log(f"avatar: {space} {ep} order-{idx} failed: {str(e)[:140]}")
+            for idx, a in enumerate(arg_orders):
+                try:
+                    out = _predict(client, a)
+                    v = _video_from_result(out)
+                    if v and os.path.exists(v):
+                        dst = OUT / "talking_head.mp4"
+                        shutil.copy(v, dst)
+                        log(f"avatar: SUCCESS from '{space}' order-{idx} -> {dst.name}")
+                        return dst
+                except Exception as e:  # noqa
+                    log(f"avatar: {space} order-{idx} failed: {str(e)[:160]}")
         except Exception as e:  # noqa
             log(f"avatar: space '{space}' unavailable: {str(e)[:160]}")
 
