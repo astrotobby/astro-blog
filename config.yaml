@@ -69,7 +69,7 @@ avatar:
   image: "assets/avatar.png"
   timeout: 900                     # max seconds for Wav2Lip CPU inference (full voiceover)
   # ---- bottom-right talking bubble (over the full image montage) ----
-  bubble_frac: 0.30                # circle diameter as a fraction of video height (bigger)
+  bubble_frac: 0.45                # circle diameter as a fraction of video height (bigger)
   bubble_margin: 0.03              # gap from the edges (fraction of height)
   ring_color: [255, 255, 255, 235] # RGBA of the ring around the bubble
   # face close-up crop inside the bubble (tweak if the face isn't centered):
