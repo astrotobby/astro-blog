@@ -52,43 +52,45 @@ def generate_talking_head(avatar_path, audio_path, cfg):
         log(f"avatar: gradio_client unavailable: {e}")
         return None
 
-    # SadTalker (OpenTalker) gradio signature — VERIFIED order against the live
-    # Space config: image, audio, pose_style, resolution, preprocess, still,
-    # batch_size, enhancer.
-    args = [
-        handle_file(str(avatar_path)),
-        handle_file(str(audio_path)),
-        int(av.get("pose_style", 0)),
-        int(av.get("resolution", 256)),     # 256 fast | 512 sharper but slower
-        av.get("preprocess", "crop"),
-        bool(av.get("still", True)),
-        int(av.get("batch_size", 2)),
-        bool(av.get("enhancer", False)),     # GFPGAN; off = much faster
+    img = handle_file(str(avatar_path))
+    aud = handle_file(str(audio_path))
+    pre = av.get("preprocess", "crop")
+    still = bool(av.get("still", True))
+    enh = bool(av.get("enhancer", False))
+    batch = int(av.get("batch_size", 2))
+    res = av.get("resolution", 256)
+    pose = int(av.get("pose_style", 0))
+
+    # SadTalker forks expose conflicting argument orders (the Space's /info and
+    # /config disagree), so try each known ordering until one returns a video.
+    # A wrong order fails fast on a type/count error before any GPU work.
+    arg_orders = [
+        [img, aud, pre, still, enh, batch, str(res), pose],   # /info: preprocess-first
+        [img, aud, pre, still, enh, batch, int(res), pose],   # same, resolution as int
+        [img, aud, pose, int(res), pre, still, batch, enh],   # /config: pose-first
     ]
+    endpoints = ({"fn_index": 0}, {"api_name": "/predict"}, {"api_name": "/test"})
 
     for space in spaces:
         try:
             log(f"avatar: connecting to SadTalker space '{space}'")
             client = Client(space, hf_token=token, verbose=False)
-            try:  # log the real API so we can lock the signature after the first run
-                log(f"avatar: {space} API ->\n{str(client.view_api(return_format='str'))[:700]}")
+            try:  # surface the real API in the log for debugging
+                log(f"avatar: {space} API ->\n{str(client.view_api(return_format='str'))[:600]}")
             except Exception:  # noqa
                 pass
-            res = None
-            for kw in ({"api_name": "/predict"}, {"fn_index": 0},
-                       {"api_name": "/test"}, {"fn_index": 1}):
-                try:
-                    res = client.predict(*args, **kw)
-                    if res:
-                        break
-                except Exception as e:  # noqa
-                    log(f"avatar: predict {kw} failed on {space}: {str(e)[:160]}")
-            video = _video_from_result(res)
-            if video and os.path.exists(video):
-                dst = OUT / "talking_head.mp4"
-                shutil.copy(video, dst)
-                log(f"avatar: got talking head from '{space}' -> {dst.name}")
-                return dst
+            for ep in endpoints:
+                for idx, a in enumerate(arg_orders):
+                    try:
+                        out = client.predict(*a, **ep)
+                        v = _video_from_result(out)
+                        if v and os.path.exists(v):
+                            dst = OUT / "talking_head.mp4"
+                            shutil.copy(v, dst)
+                            log(f"avatar: SUCCESS from '{space}' {ep} order-{idx} -> {dst.name}")
+                            return dst
+                    except Exception as e:  # noqa
+                        log(f"avatar: {space} {ep} order-{idx} failed: {str(e)[:140]}")
         except Exception as e:  # noqa
             log(f"avatar: space '{space}' unavailable: {str(e)[:160]}")
 
