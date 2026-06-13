@@ -14,7 +14,7 @@ import urllib.parse
 
 import requests
 
-from common import OUT, ROOT, load_config, log, read_json, write_json
+from common import OUT, ROOT, env, load_config, log, read_json, write_json
 
 
 def run(cmd, **kw):
@@ -89,33 +89,66 @@ def _fallback_image(path, w, h, i):
     strip.resize((w, h)).save(path, "JPEG", quality=85)
 
 
+def _hf_image(prompt, token):
+    """Topical AI image via the free Hugging Face Inference API (reuses HF_TOKEN).
+    Returns raw image bytes or None."""
+    if not token:
+        return None
+    import time
+    models = ["black-forest-labs/FLUX.1-schnell", "stabilityai/sdxl-turbo"]
+    headers = {"Authorization": f"Bearer {token}"}
+    # portrait dims (multiples of 16); build_clip re-frames to the exact size anyway
+    payload = {"inputs": prompt, "parameters": {"width": 768, "height": 1344}}
+    for model in models:
+        url = f"https://api-inference.huggingface.co/models/{model}"
+        for _ in range(3):
+            try:
+                r = requests.post(url, headers=headers, json=payload, timeout=120)
+                if r.status_code == 200 and r.content[:2] in (b"\xff\xd8", b"\x89P"):
+                    return r.content
+                if r.status_code == 503:          # model warming up -> wait & retry
+                    time.sleep(10)
+                    continue
+                break                              # 404/other -> try next model
+            except Exception:  # noqa
+                break
+    return None
+
+
+def _picsum_image(seed, w, h):
+    """Reliable real photo (no key, no payment) when AI generation is unavailable."""
+    try:
+        r = requests.get(f"https://picsum.photos/seed/{seed}/{w}/{h}", timeout=60)
+        if r.status_code == 200 and len(r.content) > 2048:
+            return r.content
+    except Exception:  # noqa
+        pass
+    return None
+
+
 def fetch_images(script, cfg):
+    """Tiered, all-free image source (Pollinations dropped — it now returns 402):
+      1) Hugging Face Inference API  -> topical AI image (uses HF_TOKEN)
+      2) Lorem Picsum                -> reliable real photo, no key
+      3) generated gradient          -> last resort so ffmpeg always has input
+    """
     vz = cfg["visuals"]
     w, h = vz["width"], vz["height"]
-    headers = {"User-Agent": "Mozilla/5.0 (blog-to-video)"}
+    token = env("HF_TOKEN") or None
+    slug = script["post"]["slug"]
     paths = []
     for i, prompt in enumerate(script["scene_prompts"]):
-        enc = urllib.parse.quote(prompt, safe="")
-        url = (f"https://image.pollinations.ai/prompt/{enc}"
-               f"?width={w}&height={h}&model={vz['model']}&seed={1000 + i}&nologo=true")
         dst = OUT / f"scene_{i:02d}.jpg"
-        ok = False
-        for attempt in range(3):
-            try:
-                r = requests.get(url, headers=headers, timeout=120)
-                r.raise_for_status()
-                dst.write_bytes(r.content)
-                if _valid_image(dst):
-                    ok = True
-                    break
-                log(f"image {i}: got invalid/empty content, retrying")
-            except Exception as e:  # noqa
-                log(f"image {i} retry {attempt + 1}: {e}")
-        if not ok:
-            log(f"image {i}: pollinations unavailable -> generated fallback")
+        content, src = _hf_image(prompt, token), "HF-AI"
+        if not content:
+            content, src = _picsum_image(f"{slug}-{i}", w, h), "picsum"
+        if content:
+            dst.write_bytes(content)
+        if not _valid_image(dst):
             _fallback_image(dst, w, h, i)
+            src = "gradient"
+        log(f"scene {i} -> {dst.name} ({src})")
         paths.append(dst)
-        log(f"scene {i} -> {dst.name}")
     return paths
 
 
