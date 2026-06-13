@@ -75,6 +75,10 @@ def main():
     if "tumblr" in enabled:
         results["tumblr"] = platforms.post_tumblr(render, cfg, args.dry_run)
 
+    # ----- Facebook Page (no cap) -----
+    if "facebook" in enabled:
+        results["facebook"] = platforms.post_facebook(render, cfg, args.dry_run)
+
     # ----- X / Twitter (daily cap) -----
     if "x" in enabled:
         if _under_cap(state, "x", cfg["limits"]["x_per_day"]):
