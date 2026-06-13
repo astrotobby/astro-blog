@@ -238,15 +238,29 @@ def build_clip(images, total_dur, size, fps, out_path):
     return out_path
 
 
-def build_avatar_clip(src, size, out_path):
-    """Frame the SadTalker talking-head to the target size. Audio is stripped here;
-    the (identical) voiceover is re-added in finalize, so the lips stay in sync."""
-    w, h = size["w"], size["h"]
-    vf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
-          f"crop={w}:{h},setsar=1,format=yuv420p")
-    run(["ffmpeg", "-y", "-i", str(src), "-vf", vf, "-an", "-r", "30",
-         str(out_path.name)], cwd=OUT)
-    return out_path
+def _video_dims(path):
+    out = subprocess.check_output(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", str(path)])
+    w, h = out.decode().strip().split("x")[:2]
+    return int(w), int(h)
+
+
+def _circle_assets(diameter, ring_color):
+    """A circular alpha mask + a thin ring, for the corner avatar bubble."""
+    from PIL import Image, ImageDraw
+    d = diameter
+    mask = Image.new("L", (d, d), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, d - 1, d - 1), fill=255)
+    mpath = OUT / "_circle_mask.png"
+    mask.save(mpath)
+    ring = Image.new("RGBA", (d, d), (0, 0, 0, 0))
+    bw = max(4, d // 40)
+    ImageDraw.Draw(ring).ellipse((bw // 2, bw // 2, d - 1 - bw // 2, d - 1 - bw // 2),
+                                 outline=tuple(ring_color), width=bw)
+    rpath = OUT / "_circle_ring.png"
+    ring.save(rpath)
+    return mpath, rpath
 
 
 def finalize(silent_video, voice_path, captions, music, size, out_path, cfg):
@@ -265,9 +279,10 @@ def finalize(silent_video, voice_path, captions, music, size, out_path, cfg):
     # --- video: subtitles burn-in (run from OUT so no drive-colon path issues) ---
     vlabel = "0:v"
     if captions and cfg["video"].get("captions"):
-        style = ("FontName=Arial,FontSize=14,Bold=1,PrimaryColour=&H00FFFFFF,"
-                 "OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=0,"
-                 "Alignment=2,MarginV=120")
+        mv = cfg["video"].get("caption_margin_v", 470)  # sit above the corner bubble
+        style = (f"FontName=Arial,FontSize=15,Bold=1,PrimaryColour=&H00FFFFFF,"
+                 f"OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=0,"
+                 f"Alignment=2,MarginV={mv}")
         filters.append(f"[0:v]subtitles={captions.name}:force_style='{style}'[v]")
         vlabel = "v"
 
@@ -295,20 +310,46 @@ def finalize(silent_video, voice_path, captions, music, size, out_path, cfg):
     return out_path
 
 
-def build_intro_plus_broll(talking, images, total_dur, size, fps, out_path):
-    """Avatar talking-head intro, then scene-image b-roll for the remainder — so the
-    avatar AND the visuals both appear, over one continuous voiceover."""
+def build_with_avatar_overlay(talking, images, total_dur, size, fps, out_path, cfg):
+    """Full-duration ken-burns image background + a circular talking-avatar bubble in
+    the bottom-right that lip-syncs the whole voiceover. Captions are added in finalize.
+    So the avatar, the moving images, and (later) the captions all coexist throughout."""
     w, h = size["w"], size["h"]
-    av_clip = build_avatar_clip(talking, size, OUT / f"_avseg_{w}x{h}.mp4")
-    av_dur = ffprobe_duration(av_clip)
-    rest = max(2.0, total_dur - av_dur)
-    broll = build_clip(images, rest, size, fps, OUT / f"_broll_{w}x{h}.mp4")
-    listf = OUT / f"_cat_{w}x{h}.txt"
-    listf.write_text(f"file '{av_clip.name}'\nfile '{broll.name}'\n", encoding="utf-8")
-    run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listf.name,
+    avc = cfg.get("avatar", {})
+
+    # 1) background: ken-burns image montage for the WHOLE duration
+    bg = build_clip(images, total_dur, size, fps, OUT / f"_bg_{w}x{h}.mp4")
+
+    # 2) face close-up crop (the source frame is wider than the face) from real dims
+    tw, th = _video_dims(talking)
+    fz = float(avc.get("face_zoom", 0.62))
+    fcx, fcy = float(avc.get("face_cx", 0.5)), float(avc.get("face_cy", 0.40))
+    side = max(64, int(min(tw, th) * fz))
+    cx = max(0, min(int(tw * fcx) - side // 2, tw - side))
+    cy = max(0, min(int(th * fcy) - side // 2, th - side))
+
+    # 3) circle bubble size (fraction of height) + bottom-right position
+    d = int(h * float(avc.get("bubble_frac", 0.20)))
+    d -= d % 2
+    margin = int(h * float(avc.get("bubble_margin", 0.03)))
+    ox, oy = w - d - margin, h - d - margin
+    mask, ring = _circle_assets(d, avc.get("ring_color", [255, 255, 255, 235]))
+
+    fc = (
+        f"[1:v]crop={side}:{side}:{cx}:{cy},scale={d}:{d},setsar=1,format=rgba[face];"
+        f"[2:v]scale={d}:{d},format=gray[m];"
+        f"[face][m]alphamerge[circ];"
+        f"[0:v][circ]overlay={ox}:{oy}:shortest=1[t];"
+        f"[t][3:v]overlay={ox}:{oy},format=yuv420p[out]"
+    )
+    run(["ffmpeg", "-y",
+         "-i", bg.name, "-i", str(talking),
+         "-loop", "1", "-i", mask.name, "-loop", "1", "-i", ring.name,
+         "-filter_complex", fc, "-map", "[out]", "-an",
+         "-r", str(fps), "-t", f"{total_dur:.3f}",
          "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-         "-pix_fmt", "yuv420p", "-r", str(fps), str(out_path.name)], cwd=OUT)
-    log(f"avatar intro {av_dur:.1f}s + b-roll {rest:.1f}s -> {out_path.name}")
+         "-pix_fmt", "yuv420p", out_path.name], cwd=OUT)
+    log(f"avatar bubble {d}px bottom-right over full montage -> {out_path.name}")
     return out_path
 
 
@@ -331,21 +372,16 @@ def main():
     # the avatar intro, so BOTH the avatar and the visuals appear in the video.
     images = fetch_images(script, cfg)
 
-    # ---- talking-avatar intro (optional) ----
-    # SadTalker on the free GPU times out on long clips, so we only run the avatar
-    # over the first `clip_seconds` of audio (the hook); the rest is scene b-roll.
+    # ---- talking avatar over the FULL voiceover (Wav2Lip, in-runner) ----
+    # The avatar bubble lip-syncs the whole video, so we feed the complete voice.
     talking = None
     av = cfg.get("avatar", {})
     if av.get("enabled"):
         avatar_img = ROOT / av.get("image", "assets/avatar.png")
         if avatar_img.exists():
             try:
-                seg = float(av.get("clip_seconds", 15))
-                intro = OUT / "intro_voice.mp3"
-                run(["ffmpeg", "-y", "-i", voice.name, "-t", f"{seg:.2f}",
-                     intro.name], cwd=OUT)
                 from avatar_lipsync import generate_talking_head
-                talking = generate_talking_head(avatar_img, intro, cfg)
+                talking = generate_talking_head(avatar_img, voice, cfg)
             except Exception as e:  # noqa
                 log(f"avatar generation errored, using motion graphics: {e}")
         else:
@@ -355,9 +391,9 @@ def main():
         out = OUT / f"silent_{tag}.mp4"
         if talking is not None:
             try:
-                return build_intro_plus_broll(talking, images, dur, size, fps, out)
+                return build_with_avatar_overlay(talking, images, dur, size, fps, out, cfg)
             except Exception as e:  # noqa  avatar must never break the render
-                log(f"avatar composition failed -> image montage: {e}")
+                log(f"avatar overlay failed -> image montage: {e}")
         return build_clip(images, dur, size, fps, out)
 
     results = {}

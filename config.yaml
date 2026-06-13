@@ -32,7 +32,7 @@ script:
     - "{topic}, explained in 45 seconds."
     - "Most people get {topic} completely wrong."
     - "This changes everything about {topic}."
-  cta: "Want the full breakdown? Tap the link and read the post."
+  cta: "Follow the link to see the full breakdown."
 
 # ---- Voice (edge-tts). Run `edge-tts --list-voices` to see all, free. ----
 # Warm, calm MALE voice to match the male avatar. Alternatives:
@@ -56,6 +56,7 @@ video:
   horizontal: { w: 1920, h: 1080 } # YouTube main
   make_horizontal: true
   captions: true                    # burn-in subtitles (huge for retention)
+  caption_margin_v: 470             # px from bottom — sits above the avatar bubble
   music: true
   music_volume: 0.12
 
@@ -65,8 +66,15 @@ video:
 avatar:
   enabled: true
   image: "assets/avatar.png"
-  clip_seconds: 15                 # avatar lip-syncs the first N s (then scene b-roll)
-  timeout: 900                     # max seconds for Wav2Lip CPU inference
+  timeout: 900                     # max seconds for Wav2Lip CPU inference (full voiceover)
+  # ---- bottom-right talking bubble (over the full image montage) ----
+  bubble_frac: 0.20                # circle diameter as a fraction of video height
+  bubble_margin: 0.03              # gap from the edges (fraction of height)
+  ring_color: [255, 255, 255, 235] # RGBA of the ring around the bubble
+  # face close-up crop inside the bubble (tweak if the face isn't centered):
+  face_zoom: 0.62                  # crop side as fraction of the shorter dimension
+  face_cx: 0.5                     # face centre X (0=left, 1=right)
+  face_cy: 0.40                    # face centre Y (0=top, 1=bottom)
 
 # ---- Posting rules / anti-ban caps (see HONEST-LIMITS.md) ----
 platforms:
