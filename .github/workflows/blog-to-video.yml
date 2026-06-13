@@ -43,6 +43,14 @@ jobs:
       - name: Install Python deps
         run:  pip install -r requirements-blog2video.txt
 
+      # Talking-avatar (Wav2Lip) — non-fatal: if it fails, the pipeline still
+      # renders the image montage (the avatar code sees no checkpoint and falls back).
+      - name: Set up Wav2Lip avatar
+        continue-on-error: true
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: bash scripts/setup_wav2lip.sh
+
       # Persist dedup ledger + per-platform daily caps across runs.
       # restore-keys pulls the most recent prior state; a unique key saves a new one.
       - name: Restore pipeline state
