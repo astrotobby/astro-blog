@@ -10,10 +10,11 @@ Usage:
   python scripts/run_pipeline.py --latest --dry-run
 """
 import argparse
+import re
 import subprocess
 import sys
 
-from common import PIPE, ROOT, log
+from common import PIPE, ROOT, load_config, load_ledger, log
 
 PY = sys.executable
 S = ROOT / "scripts"
@@ -31,6 +32,28 @@ def list_posts(changed):
     out = subprocess.run(cmd, check=True, cwd=str(ROOT),
                          capture_output=True, text=True).stdout
     return [ln.strip() for ln in out.splitlines() if ln.strip()]
+
+
+def _astro_slug(stem: str) -> str:
+    """Same slugify as fetch_post.astro_slug — used to match against the ledger."""
+    s = re.sub(r"[^\w\s-]", "", stem.lower())
+    s = re.sub(r"[\s_]+", "-", s)
+    return re.sub(r"-{2,}", "-", s).strip("-")
+
+
+def sweep_posts():
+    """Every post on the site (= in the repo) that isn't in the dedup ledger yet.
+    Catches anything that goes live by ANY route (any Make scenario, manual commit,
+    backfill, or a push that didn't fire the trigger) — not just the latest push."""
+    cmd = [PY, str(S / "fetch_post.py"), "--list", "--all"]
+    out = subprocess.run(cmd, check=True, cwd=str(ROOT),
+                         capture_output=True, text=True).stdout
+    allp = [ln.strip() for ln in out.splitlines() if ln.strip()]
+    led = load_ledger()
+    import pathlib
+    new = [p for p in allp if _astro_slug(pathlib.Path(p).stem) not in led]
+    log(f"sweep: {len(allp)} live posts, {len(new)} not yet posted")
+    return new
 
 
 def process_one(post_file, dry, force=False):
@@ -56,9 +79,14 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--force", action="store_true",
                     help="ignore the dedup ledger and repost (for testing)")
+    ap.add_argument("--sweep", action="store_true",
+                    help="process every live post not yet in the ledger (scheduled safety net)")
     args = ap.parse_args()
 
-    posts = list_posts(args.changed if args.changed else None)
+    if args.sweep:
+        posts = sweep_posts()
+    else:
+        posts = list_posts(args.changed if args.changed else None)
     if not posts:
         log("no new posts to process — exiting cleanly")
         return
