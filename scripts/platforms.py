@@ -137,6 +137,79 @@ def post_facebook(render, cfg, dry):
 
 
 # --------------------------------------------------------------------------
+# Public-URL hosting (for APIs that require a video_url, not a file upload):
+# upload the rendered mp4 to a GitHub Release on the public repo -> public link.
+# --------------------------------------------------------------------------
+def _host_public_url(video_path, slug):
+    import os
+    import re
+    import subprocess
+    repo = env("GITHUB_REPOSITORY")
+    if not (repo and (env("GH_TOKEN") or env("GITHUB_TOKEN"))):
+        log("host: no GITHUB_REPOSITORY/token -> cannot create a public URL")
+        return None
+    tag = "vid-" + re.sub(r"[^a-z0-9]+", "-", slug.lower()).strip("-")[:60]
+    fn = os.path.basename(str(video_path))
+    try:
+        subprocess.run(["gh", "release", "create", tag, str(video_path), "--repo", repo,
+                        "--title", tag, "--notes", "auto-generated video"],
+                       check=True, capture_output=True, text=True)
+    except Exception:  # noqa  release likely exists -> just (re)upload the asset
+        subprocess.run(["gh", "release", "upload", tag, str(video_path), "--repo", repo,
+                        "--clobber"], check=True, capture_output=True, text=True)
+    return f"https://github.com/{repo}/releases/download/{tag}/{fn}"
+
+
+# --------------------------------------------------------------------------
+# Threads — Graph API (graph.threads.net). Needs a Threads user id + access
+# token. Video must be a PUBLIC url (hosted above). 3-step: container -> wait -> publish.
+# --------------------------------------------------------------------------
+def post_threads(render, cfg, dry):
+    if not _has("THREADS_USER_ID", "THREADS_ACCESS_TOKEN"):
+        return {"ok": False, "skipped": "no creds"}
+    if dry:
+        return {"ok": True, "dry": True}
+    try:
+        import time
+
+        import requests
+        uid = env("THREADS_USER_ID")
+        token = env("THREADS_ACCESS_TOKEN")
+        p = render["platform"]
+        video = render["videos"].get("vertical") or render["videos"]["horizontal"]
+        video_url = _host_public_url(video, render["post"]["slug"])
+        if not video_url:
+            return {"ok": False, "error": "could not host a public video URL"}
+        base = "https://graph.threads.net/v1.0"
+        # 1) create media container
+        r = requests.post(f"{base}/{uid}/threads",
+                          data={"media_type": "VIDEO", "video_url": video_url,
+                                "text": p["caption"], "access_token": token}, timeout=120)
+        cid = (r.json() or {}).get("id")
+        if not cid:
+            return {"ok": False, "error": str(r.json())[:300]}
+        # 2) wait for Threads to fetch + process the video
+        for _ in range(25):
+            time.sleep(6)
+            st = requests.get(f"{base}/{cid}",
+                              params={"fields": "status", "access_token": token},
+                              timeout=60).json().get("status")
+            if st == "FINISHED":
+                break
+            if st == "ERROR":
+                return {"ok": False, "error": "Threads media processing failed"}
+        # 3) publish
+        pub = requests.post(f"{base}/{uid}/threads_publish",
+                            data={"creation_id": cid, "access_token": token}, timeout=120)
+        pid = (pub.json() or {}).get("id")
+        if pid:
+            return {"ok": True, "url": f"https://www.threads.net/t/{pid}"}
+        return {"ok": False, "error": str(pub.json())[:300]}
+    except Exception as e:  # noqa
+        return {"ok": False, "error": str(e)}
+
+
+# --------------------------------------------------------------------------
 # Reddit — PRAW (script app, no review). Posts ONE video to ONE subreddit.
 # --------------------------------------------------------------------------
 def post_reddit(render, cfg, dry):
