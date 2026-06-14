@@ -296,6 +296,15 @@ def post_twitter(render, cfg, dry):
         return {"ok": False, "skipped": "no creds"}
     if dry:
         return {"ok": True, "dry": True}
+    def _twerr(e):
+        detail = str(e)
+        resp = getattr(e, "response", None)
+        if resp is not None:
+            try:
+                detail += " | " + resp.text[:400]
+            except Exception:  # noqa
+                pass
+        return detail
     try:
         import time
 
@@ -304,8 +313,11 @@ def post_twitter(render, cfg, dry):
             env("X_API_KEY"), env("X_API_SECRET"),
             env("X_ACCESS_TOKEN"), env("X_ACCESS_SECRET"))
         api_v1 = tweepy.API(auth)
-        media = api_v1.media_upload(
-            render["videos"]["vertical"], media_category="tweet_video", chunked=True)
+        try:
+            media = api_v1.media_upload(
+                render["videos"]["vertical"], media_category="tweet_video", chunked=True)
+        except Exception as e:  # noqa
+            return {"ok": False, "error": "media_upload: " + _twerr(e)}
         # wait out async video processing
         info = getattr(media, "processing_info", None)
         waited = 0
@@ -321,11 +333,14 @@ def post_twitter(render, cfg, dry):
         client = tweepy.Client(
             consumer_key=env("X_API_KEY"), consumer_secret=env("X_API_SECRET"),
             access_token=env("X_ACCESS_TOKEN"), access_token_secret=env("X_ACCESS_SECRET"))
-        resp = client.create_tweet(text=text[:280], media_ids=[media.media_id])
+        try:
+            resp = client.create_tweet(text=text[:280], media_ids=[media.media_id])
+        except Exception as e:  # noqa
+            return {"ok": False, "error": "create_tweet: " + _twerr(e)}
         tid = resp.data["id"]
         return {"ok": True, "url": f"https://x.com/i/web/status/{tid}"}
     except Exception as e:  # noqa
-        return {"ok": False, "error": str(e)}
+        return {"ok": False, "error": _twerr(e)}
 
 
 # registry used by crosspost.py
