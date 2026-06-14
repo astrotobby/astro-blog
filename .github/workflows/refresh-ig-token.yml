@@ -1,0 +1,27 @@
+name: refresh-ig-token
+
+# The Instagram long-lived token lasts ~60 days. Refresh it monthly so it never
+# lapses (each refresh resets the clock to ~60 days). Also runnable on demand.
+on:
+  schedule:
+    - cron: "0 4 1 * *"   # 04:00 UTC on the 1st of every month
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install pynacl
+      - name: Refresh Instagram token
+        env:
+          INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: python scripts/refresh_ig_token.py
