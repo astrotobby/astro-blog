@@ -33,13 +33,15 @@ def list_posts(changed):
     return [ln.strip() for ln in out.splitlines() if ln.strip()]
 
 
-def process_one(post_file, dry):
+def process_one(post_file, dry, force=False):
     step([S / "fetch_post.py", "--file", post_file])
     step([S / "build_script.py", PIPE / "post.json"])
     step([S / "generate_video.py", PIPE / "script.json"])
     cross = [S / "crosspost.py", PIPE / "render.json"]
     if dry:
         cross += ["--dry-run"]
+    if force:
+        cross += ["--force"]
     step(cross)
     try:
         step([S / "notify.py", PIPE / "results.json"])
@@ -52,6 +54,8 @@ def main():
     ap.add_argument("--latest", action="store_true")
     ap.add_argument("--changed", nargs="*")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="ignore the dedup ledger and repost (for testing)")
     args = ap.parse_args()
 
     posts = list_posts(args.changed if args.changed else None)
@@ -64,7 +68,7 @@ def main():
     for i, pf in enumerate(posts, 1):
         log(f"=== post {i}/{len(posts)}: {pf} ===")
         try:
-            process_one(pf, args.dry_run)
+            process_one(pf, args.dry_run, args.force)
         except Exception as e:  # noqa
             failures += 1
             log(f"post failed (continuing with the rest): {e}")
