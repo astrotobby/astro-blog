@@ -8,6 +8,10 @@ on:
     paths:
       - "src/content/blog/**"
       - "posts/**"
+  # Safety-net sweep: catch anything that went live by ANY route (not just a push
+  # from a Make scenario) and never got a video. Dedup ledger keeps it from reposting.
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours
   workflow_dispatch:
     inputs:
       mode:
@@ -111,7 +115,9 @@ jobs:
         run: |
           FORCE=""
           if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE="--force"; fi
-          if [ "${{ github.event.inputs.mode }}" = "dry" ]; then
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            python scripts/run_pipeline.py --sweep
+          elif [ "${{ github.event.inputs.mode }}" = "dry" ]; then
             python scripts/run_pipeline.py --latest --dry-run $FORCE
           elif [ -n "${{ steps.diff.outputs.files }}" ]; then
             python scripts/run_pipeline.py --changed ${{ steps.diff.outputs.files }} $FORCE
