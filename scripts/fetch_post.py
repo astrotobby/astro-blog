@@ -90,12 +90,19 @@ def main():
     ap.add_argument("--changed", nargs="*")
     ap.add_argument("--list", action="store_true",
                     help="print matching post paths (one/line) instead of parsing")
+    ap.add_argument("--all", action="store_true",
+                    help="with --list: every post on the site (oldest->newest), for the sweep")
     args = ap.parse_args()
     cfg = load_config()
 
     # --list: enumerate the posts to process; the orchestrator loops over these.
     if args.list:
-        if args.changed:
+        if args.all:
+            exts = set(cfg["post_extensions"])
+            pd = ROOT / cfg["posts_dir"]
+            files = sorted([p for p in pd.rglob("*") if p.suffix in exts],
+                           key=lambda p: p.stat().st_mtime)
+        elif args.changed:
             files = changed_posts(cfg, args.changed)
         else:
             files = [pick_latest(cfg)]
