@@ -60,6 +60,33 @@ def load_dotenv() -> None:
         os.environ.setdefault(k.strip(), v.strip())
 
 
+def shorten_url(url: str) -> str:
+    """Shorten a URL with a free, no-key service: TinyURL, then is.gd, then v.gd.
+    A real User-Agent is required or is.gd's Cloudflare returns 403. Returns the
+    original URL on any failure so a post never breaks over a shortener hiccup."""
+    import urllib.parse
+    import urllib.request
+    if not url:
+        return url
+    enc = urllib.parse.quote(url, safe="")
+    apis = [
+        f"https://tinyurl.com/api-create.php?url={enc}",
+        f"https://is.gd/create.php?format=simple&url={enc}",
+        f"https://v.gd/create.php?format=simple&url={enc}",
+    ]
+    headers = {"User-Agent": "Mozilla/5.0 (blog-to-video link shortener)"}
+    for api in apis:
+        try:
+            req = urllib.request.Request(api, headers=headers)
+            with urllib.request.urlopen(req, timeout=20) as r:
+                short = r.read().decode().strip()
+            if short.startswith("http") and " " not in short:
+                return short
+        except Exception:  # noqa
+            continue
+    return url
+
+
 def read_json(path) -> dict:
     return json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
 
