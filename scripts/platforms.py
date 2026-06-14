@@ -313,19 +313,24 @@ def post_twitter(render, cfg, dry):
             env("X_API_KEY"), env("X_API_SECRET"),
             env("X_ACCESS_TOKEN"), env("X_ACCESS_SECRET"))
         api_v1 = tweepy.API(auth)
+        # Video upload uses the v1.1 endpoint, which is blocked/flaky on X's free
+        # tier (400). Don't let that kill the post — fall back to a text+link tweet,
+        # which posts reliably and still drives traffic to the site.
+        media_ids = None
         try:
             media = api_v1.media_upload(
                 render["videos"]["vertical"], media_category="tweet_video", chunked=True)
+            # wait out async video processing
+            info = getattr(media, "processing_info", None)
+            waited = 0
+            while info and info.get("state") in ("pending", "in_progress") and waited < 120:
+                time.sleep(info.get("check_after_secs", 5))
+                waited += info.get("check_after_secs", 5)
+                status = api_v1.get_media_upload_status(media.media_id)
+                info = getattr(status, "processing_info", None)
+            media_ids = [media.media_id]
         except Exception as e:  # noqa
-            return {"ok": False, "error": "media_upload: " + _twerr(e)}
-        # wait out async video processing
-        info = getattr(media, "processing_info", None)
-        waited = 0
-        while info and info.get("state") in ("pending", "in_progress") and waited < 120:
-            time.sleep(info.get("check_after_secs", 5))
-            waited += info.get("check_after_secs", 5)
-            status = api_v1.get_media_upload_status(media.media_id)
-            info = getattr(status, "processing_info", None)
+            log("x: video upload failed (%s); posting text+link only" % _twerr(e)[:120])
         p = render["platform"]
         # X caps text at 280; build a tight one
         text = f"{render['post']['title'][:120]}\n{render['post']['url']}\n" \
@@ -333,12 +338,16 @@ def post_twitter(render, cfg, dry):
         client = tweepy.Client(
             consumer_key=env("X_API_KEY"), consumer_secret=env("X_API_SECRET"),
             access_token=env("X_ACCESS_TOKEN"), access_token_secret=env("X_ACCESS_SECRET"))
+        kwargs = {"text": text[:280]}
+        if media_ids:
+            kwargs["media_ids"] = media_ids
         try:
-            resp = client.create_tweet(text=text[:280], media_ids=[media.media_id])
+            resp = client.create_tweet(**kwargs)
         except Exception as e:  # noqa
             return {"ok": False, "error": "create_tweet: " + _twerr(e)}
         tid = resp.data["id"]
-        return {"ok": True, "url": f"https://x.com/i/web/status/{tid}"}
+        return {"ok": True, "url": f"https://x.com/i/web/status/{tid}",
+                "note": "text+link (no video)" if not media_ids else "with video"}
     except Exception as e:  # noqa
         return {"ok": False, "error": _twerr(e)}
 
