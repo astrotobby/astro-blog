@@ -15,7 +15,7 @@ on:
         default: "latest"
 
 permissions:
-  contents: read
+  contents: write   # needed to publish the video as a Release asset (public URL for Threads)
 
 # 5 Make scenarios can commit near-simultaneously. Serialize runs so they don't
 # race on the cached dedup ledger + daily caps. Queue them; never cancel (we must
@@ -94,6 +94,9 @@ jobs:
           X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET || secrets.XSECRET_KEY }}
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}   # lets gh publish the Release (public video URL)
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
