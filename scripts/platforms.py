@@ -210,12 +210,12 @@ def post_threads(render, cfg, dry):
 
 
 # --------------------------------------------------------------------------
-# Instagram — same Graph API as Facebook. Reuses your FB Page token (with IG
-# scopes) + the IG Business account id. Reels need a public url (hosted above).
+# Instagram — "Instagram API with Instagram Login" (graph.instagram.com). Uses a
+# dedicated Instagram token + IG user id. Reels need a public url (hosted above).
 # --------------------------------------------------------------------------
 def post_instagram(render, cfg, dry):
     ig_id = env("INSTAGRAM_USER_ID")
-    token = env("INSTAGRAM_TOKEN") or env("FACEBOOK_PAGE_TOKEN")  # one token for FB+IG
+    token = env("INSTAGRAM_TOKEN")   # Instagram-Login API token (graph.instagram.com)
     if not (ig_id and token):
         return {"ok": False, "skipped": "no creds"}
     if dry:
@@ -229,7 +229,7 @@ def post_instagram(render, cfg, dry):
         video_url = _host_public_url(video, render["post"]["slug"])
         if not video_url:
             return {"ok": False, "error": "could not host a public video URL"}
-        base = "https://graph.facebook.com/v21.0"
+        base = "https://graph.instagram.com/v21.0"   # Instagram-Login API
         # 1) create a Reels container
         r = requests.post(f"{base}/{ig_id}/media",
                           data={"media_type": "REELS", "video_url": video_url,
