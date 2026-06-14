@@ -210,6 +210,55 @@ def post_threads(render, cfg, dry):
 
 
 # --------------------------------------------------------------------------
+# Instagram — same Graph API as Facebook. Reuses your FB Page token (with IG
+# scopes) + the IG Business account id. Reels need a public url (hosted above).
+# --------------------------------------------------------------------------
+def post_instagram(render, cfg, dry):
+    ig_id = env("INSTAGRAM_USER_ID")
+    token = env("INSTAGRAM_TOKEN") or env("FACEBOOK_PAGE_TOKEN")  # one token for FB+IG
+    if not (ig_id and token):
+        return {"ok": False, "skipped": "no creds"}
+    if dry:
+        return {"ok": True, "dry": True}
+    try:
+        import time
+
+        import requests
+        p = render["platform"]
+        video = render["videos"].get("vertical") or render["videos"]["horizontal"]
+        video_url = _host_public_url(video, render["post"]["slug"])
+        if not video_url:
+            return {"ok": False, "error": "could not host a public video URL"}
+        base = "https://graph.facebook.com/v21.0"
+        # 1) create a Reels container
+        r = requests.post(f"{base}/{ig_id}/media",
+                          data={"media_type": "REELS", "video_url": video_url,
+                                "caption": p["caption"], "access_token": token}, timeout=120)
+        cid = (r.json() or {}).get("id")
+        if not cid:
+            return {"ok": False, "error": str(r.json())[:300]}
+        # 2) wait for Instagram to fetch + process
+        for _ in range(25):
+            time.sleep(6)
+            st = requests.get(f"{base}/{cid}",
+                              params={"fields": "status_code", "access_token": token},
+                              timeout=60).json().get("status_code")
+            if st == "FINISHED":
+                break
+            if st == "ERROR":
+                return {"ok": False, "error": "Instagram media processing failed"}
+        # 3) publish
+        pub = requests.post(f"{base}/{ig_id}/media_publish",
+                            data={"creation_id": cid, "access_token": token}, timeout=120)
+        mid = (pub.json() or {}).get("id")
+        if mid:
+            return {"ok": True, "url": f"https://www.instagram.com/reel/{mid}/"}
+        return {"ok": False, "error": str(pub.json())[:300]}
+    except Exception as e:  # noqa
+        return {"ok": False, "error": str(e)}
+
+
+# --------------------------------------------------------------------------
 # Reddit — PRAW (script app, no review). Posts ONE video to ONE subreddit.
 # --------------------------------------------------------------------------
 def post_reddit(render, cfg, dry):
