@@ -332,8 +332,9 @@ def post_twitter(render, cfg, dry):
         except Exception as e:  # noqa
             log("x: video upload failed (%s); posting text+link only" % _twerr(e)[:120])
         p = render["platform"]
-        # X caps text at 280; build a tight one
-        text = f"{render['post']['title'][:120]}\n{render['post']['url']}\n" \
+        # X caps text at 280; build a tight one (short link drives traffic + saves chars)
+        link = p.get("short_url") or render["post"]["url"]
+        text = f"{render['post']['title'][:120]}\n{link}\n" \
                + " ".join(p["hashtags"][:3])
         client = tweepy.Client(
             consumer_key=env("X_API_KEY"), consumer_secret=env("X_API_SECRET"),
