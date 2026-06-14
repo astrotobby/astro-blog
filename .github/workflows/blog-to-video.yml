@@ -13,6 +13,9 @@ on:
       mode:
         description: "latest | dry"
         default: "latest"
+      force:
+        description: "repost even if already posted (true | false)"
+        default: "false"
 
 permissions:
   contents: write   # needed to publish the video as a Release asset (public URL for Threads)
@@ -106,12 +109,14 @@ jobs:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           SITE_BASE_URL: ${{ secrets.SITE_BASE_URL }}
         run: |
+          FORCE=""
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE="--force"; fi
           if [ "${{ github.event.inputs.mode }}" = "dry" ]; then
-            python scripts/run_pipeline.py --latest --dry-run
+            python scripts/run_pipeline.py --latest --dry-run $FORCE
           elif [ -n "${{ steps.diff.outputs.files }}" ]; then
-            python scripts/run_pipeline.py --changed ${{ steps.diff.outputs.files }}
+            python scripts/run_pipeline.py --changed ${{ steps.diff.outputs.files }} $FORCE
           else
-            python scripts/run_pipeline.py --latest
+            python scripts/run_pipeline.py --latest $FORCE
           fi
 
       - name: Upload rendered videos as artifacts
