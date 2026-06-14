@@ -222,28 +222,68 @@ def pick_music(cfg):
 
 
 # ---------- 5. assemble ----------
+# Varied Ken Burns motion per scene (uses 'on' = output frame index, {F} = total
+# frames). Rotating the move keeps a multi-scene montage from feeling static.
+_KENBURNS = [
+    "z='min(1.0+0.0009*on,1.15)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",  # zoom in
+    "z='max(1.15-0.0009*on,1.0)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",   # zoom out
+    "z='1.12':x='(iw-iw/zoom)*on/{F}':y='ih/2-(ih/zoom/2)'",                     # pan right
+    "z='1.12':x='(iw-iw/zoom)*(1-on/{F})':y='ih/2-(ih/zoom/2)'",                 # pan left
+    "z='min(1.0+0.0008*on,1.12)':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*on/{F}'",  # zoom + tilt down
+]
+# Cinematic colour grade: gentle contrast/saturation lift, soft vignette, light
+# sharpening. Applied per scene so both the montage and the avatar background match.
+_GRADE = ("eq=contrast=1.08:saturation=1.18:brightness=0.02:gamma=0.98,"
+          "vignette=PI/5,unsharp=5:5:0.4:5:5:0.0")
+_TRANSITIONS = ["fade", "dissolve", "wipeleft", "slideup", "fadeblack", "circleopen"]
+
+
 def build_clip(images, total_dur, size, fps, out_path):
     w, h = size["w"], size["h"]
-    per = max(2.0, total_dur / len(images))
-    frames = int(per * fps)
+    n = len(images)
+    per = max(2.0, total_dur / n)
+    xdur = 0.6 if n > 1 else 0.0           # crossfade length between scenes
+    seg_len = per + xdur                    # build a little long so overlaps net to ~total
+    frames = max(1, int(seg_len * fps))
     seg_files = []
     for i, img in enumerate(images):
         seg = OUT / f"_seg_{w}x{h}_{i:02d}.mp4"
-        # cover-scale to target size (light, no 4K upscale) then slow ken-burns zoom
-        vf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
-              f"crop={w}:{h},setsar=1,"
-              f"zoompan=z='min(zoom+0.0010,1.15)':d={frames}:s={w}x{h}:fps={fps},"
-              f"format=yuv420p")
+        kb = _KENBURNS[i % len(_KENBURNS)].replace("{F}", str(frames))
+        vf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,"
+              f"zoompan={kb}:d={frames}:s={w}x{h}:fps={fps},{_GRADE},format=yuv420p")
         run(["ffmpeg", "-y", "-loop", "1", "-framerate", str(fps), "-i", str(img),
-             "-t", f"{per:.3f}", "-vf", vf, "-r", str(fps), "-pix_fmt", "yuv420p",
+             "-t", f"{seg_len:.3f}", "-vf", vf, "-r", str(fps), "-pix_fmt", "yuv420p",
              str(seg)])
         seg_files.append(seg)
-    # concat
-    listf = OUT / f"_list_{w}x{h}.txt"
-    listf.write_text("".join(f"file '{s.name}'\n" for s in seg_files), encoding="utf-8")
-    run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listf.name,
-         "-c", "copy", str(out_path.name)], cwd=OUT)
-    return out_path
+
+    if n == 1:
+        run(["ffmpeg", "-y", "-i", seg_files[0].name, "-t", f"{total_dur:.3f}",
+             "-c", "copy", str(out_path.name)], cwd=OUT)
+        return out_path
+
+    # Smooth crossfade transitions via a chained xfade graph (offset_k = k*per).
+    try:
+        inputs = []
+        for s in seg_files:
+            inputs += ["-i", s.name]
+        fc, prev = [], "0:v"
+        for k in range(1, n):
+            lbl = f"x{k}" if k < n - 1 else "vout"
+            tr = _TRANSITIONS[(k - 1) % len(_TRANSITIONS)]
+            fc.append(f"[{prev}][{k}:v]xfade=transition={tr}:duration={xdur}:"
+                      f"offset={k * per:.3f}[{lbl}]")
+            prev = lbl
+        run(["ffmpeg", "-y", *inputs, "-filter_complex", ";".join(fc), "-map", "[vout]",
+             "-r", str(fps), "-pix_fmt", "yuv420p", "-c:v", "libx264",
+             "-preset", "veryfast", "-crf", "23", str(out_path.name)], cwd=OUT)
+        return out_path
+    except Exception as e:  # noqa  transitions must never break the render
+        log(f"xfade transitions failed ({e}); falling back to plain concat")
+        listf = OUT / f"_list_{w}x{h}.txt"
+        listf.write_text("".join(f"file '{s.name}'\n" for s in seg_files), encoding="utf-8")
+        run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listf.name,
+             "-c", "copy", str(out_path.name)], cwd=OUT)
+        return out_path
 
 
 def _video_dims(path):
