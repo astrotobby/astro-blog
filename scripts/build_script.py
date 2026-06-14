@@ -8,7 +8,100 @@ Usage: python scripts/build_script.py .pipeline/post.json
 import argparse
 import re
 
-from common import load_config, log, read_json, write_json
+from common import load_config, log, read_json, shorten_url, write_json
+
+# Niche -> (signal words that detect it in the post, curated relevant hashtags).
+# Hashtags are chosen to MATCH the content niche instead of dumping a fixed set.
+NICHE_TAGS = {
+    "ai": (["ai", "a.i", "llm", "gpt", "model", "agent", "machine learning", "neural",
+            "prompt", "openai", "anthropic", "claude", "gemini", "chatbot", "inference",
+            "multiagent", "multi-agent"],
+           ["#AI", "#ArtificialIntelligence", "#MachineLearning", "#LLM", "#AIagents",
+            "#GenAI", "#AItools", "#FutureOfAI"]),
+    "crypto": (["crypto", "web3", "blockchain", "defi", "gamefi", "nft", "token",
+                "ethereum", "bitcoin", "wallet", "dao", "staking", "altcoin"],
+               ["#crypto", "#web3", "#blockchain", "#DeFi", "#GameFi", "#NFT",
+                "#cryptocurrency", "#CryptoNews"]),
+    "dev": (["code", "coding", "developer", "programming", "software", "github",
+             "copilot", "framework", "api", "open-source", "open source", "python",
+             "javascript", "devtools"],
+            ["#coding", "#developer", "#programming", "#softwaredevelopment",
+             "#opensource", "#devtools"]),
+    "video": (["video", "sora", "reels", "footage", "render", "animation",
+               "filmmaking", "veo", "runway", "midjourney"],
+              ["#AIvideo", "#contentcreation", "#videomarketing", "#creators"]),
+    "automation": (["automation", "automate", "workflow", "no-code", "nocode",
+                    "zapier", "make.com", "productivity"],
+                   ["#automation", "#nocode", "#productivity", "#AIautomation"]),
+    "business": (["startup", "founder", "saas", "marketing", "growth", "revenue",
+                  "business", "entrepreneur"],
+                 ["#startup", "#SaaS", "#marketing", "#growth", "#entrepreneur"]),
+}
+
+_TERM_STOP = set(
+    "the a an and or of to in for with on is are be this that it as at by from your "
+    "you why what how when where who which 2026 2025 year new best top guide ways "
+    "things into about will can your most free secret secretly system real big huge "
+    "quietly dominating shifts everything nobody secretly using becoming".split()
+)
+
+
+def _brandify(term: str) -> str:
+    """Turn a word into a hashtag, preserving brand casing (NFT, GameFi, DeFi)."""
+    core = re.sub(r"[^A-Za-z0-9]", "", term)
+    if not core:
+        return ""
+    if core.isupper() or any(c.isupper() for c in core[1:]):  # NFT / GameFi / dApp
+        return "#" + core
+    return "#" + core[0].upper() + core[1:]
+
+
+def _title_terms(title: str, n: int = 2):
+    """A couple of meaningful, specific terms from the headline (casing preserved)."""
+    out, seen = [], set()
+    for w in re.findall(r"[A-Za-z][A-Za-z0-9]{2,}", title):
+        lw = w.lower()
+        if lw in _TERM_STOP or lw in seen:
+            continue
+        seen.add(lw)
+        out.append(w)
+        if len(out) >= n:
+            break
+    return out
+
+
+def relevant_hashtags(post, cfg):
+    """Content-matched hashtags: the post's own tags + a couple of specific title
+    terms + curated tags for the 1-2 niches the text actually scores on. Falls back
+    to config 'base' only if nothing matches."""
+    text = (post.get("title", "") + " " + post.get("description", "") + " "
+            + (post.get("body", "") or "")[:2000]).lower()
+    scored = []
+    for niche, (signals, tags) in NICHE_TAGS.items():
+        score = sum(text.count(s) for s in signals)
+        if score:
+            scored.append((score, niche, tags))
+    scored.sort(reverse=True)
+
+    out, seen = [], set()
+
+    def add(h):
+        h = (h or "").strip()
+        if len(h) > 1 and h.lower() not in seen:
+            seen.add(h.lower())
+            out.append(h)
+
+    for t in (post.get("tags") or []):          # 1) the post's own tags (most relevant)
+        add(_brandify(t))
+    for kw in _title_terms(post.get("title", "")):  # 2) specific terms from the headline
+        add(_brandify(kw))
+    for _, _, tags in scored[:2]:               # 3) curated tags for top matched niches
+        for h in tags:
+            add(h)
+    if not out:                                  # 4) nothing matched -> config base
+        for h in cfg["hashtags"]["base"]:
+            add(h)
+    return out[: cfg["hashtags"]["max"]]
 
 
 def sentences(text: str):
@@ -98,18 +191,14 @@ def make_scenes(post, cfg):
 
 
 def platform_text(post, cfg):
-    tags = post.get("tags", []) or []
-    htags = cfg["hashtags"]["base"] + [f"#{re.sub(r'[^A-Za-z0-9]', '', t)}" for t in tags]
-    seen, out = set(), []
-    for h in htags:
-        if h.lower() not in seen and len(h) > 1:
-            seen.add(h.lower())
-            out.append(h)
-    out = out[: cfg["hashtags"]["max"]]
-    caption = f"{post['title']}\n\n{post['description'][:200]}\n\nFull post: {post['url']}\n\n" + " ".join(out)
+    out = relevant_hashtags(post, cfg)
+    short = shorten_url(post["url"])             # free is.gd/v.gd short link to the post
+    log(f"{len(out)} matched hashtags; short url {short}")
+    caption = f"{post['title']}\n\n{post['description'][:200]}\n\nFull post: {short}\n\n" + " ".join(out)
     yt_title = post["title"][:95]
-    yt_desc = f"{post['description']}\n\nRead more: {post['url']}\n\n{' '.join(out)}"
-    return {"caption": caption, "hashtags": out, "yt_title": yt_title, "yt_desc": yt_desc}
+    yt_desc = f"{post['description']}\n\nRead more: {short}\n\n{' '.join(out)}"
+    return {"caption": caption, "hashtags": out, "short_url": short,
+            "yt_title": yt_title, "yt_desc": yt_desc}
 
 
 def main():
