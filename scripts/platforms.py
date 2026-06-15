@@ -235,9 +235,10 @@ def post_instagram(render, cfg, dry):
             return {"ok": False, "error": "could not host a public video URL"}
         base = "https://graph.instagram.com/v21.0"   # Instagram-Login API
         # 1) create a Reels container
+        caption = p.get("ig_caption") or p["caption"]   # IG: "link in bio" (links aren't clickable)
         r = requests.post(f"{base}/{ig_id}/media",
                           data={"media_type": "REELS", "video_url": video_url,
-                                "caption": p["caption"], "access_token": token}, timeout=120)
+                                "caption": caption, "access_token": token}, timeout=120)
         cid = (r.json() or {}).get("id")
         if not cid:
             return {"ok": False, "error": str(r.json())[:300]}
