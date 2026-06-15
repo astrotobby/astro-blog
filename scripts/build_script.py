@@ -8,7 +8,7 @@ Usage: python scripts/build_script.py .pipeline/post.json
 import argparse
 import re
 
-from common import load_config, log, read_json, shorten_url, write_json
+from common import load_config, log, read_json, write_json
 
 # Niche -> (signal words that detect it in the post, curated relevant hashtags).
 # Hashtags are chosen to MATCH the content niche instead of dumping a fixed set.
@@ -192,12 +192,15 @@ def make_scenes(post, cfg):
 
 def platform_text(post, cfg):
     out = relevant_hashtags(post, cfg)
-    short = shorten_url(post["url"])             # free is.gd/v.gd short link to the post
-    log(f"{len(out)} matched hashtags; short url {short}")
-    caption = f"{post['title']}\n\n{post['description'][:200]}\n\nFull post: {short}\n\n" + " ".join(out)
+    # Use the FULL post URL (not a shortener). URL shorteners (TinyURL/is.gd) showed
+    # an interstitial/preview page for script-created links, confusing visitors; the
+    # real domain is trustworthy, clean, and resolves straight to the post.
+    link = post["url"]
+    log(f"{len(out)} matched hashtags; link {link}")
+    caption = f"{post['title']}\n\n{post['description'][:200]}\n\nFull post: {link}\n\n" + " ".join(out)
     yt_title = post["title"][:95]
-    yt_desc = f"{post['description']}\n\nRead more: {short}\n\n{' '.join(out)}"
-    return {"caption": caption, "hashtags": out, "short_url": short,
+    yt_desc = f"{post['description']}\n\nRead more: {link}\n\n{' '.join(out)}"
+    return {"caption": caption, "hashtags": out, "short_url": link,
             "yt_title": yt_title, "yt_desc": yt_desc}
 
 
