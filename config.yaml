@@ -80,7 +80,7 @@ avatar:
 # ---- Posting rules / anti-ban caps (see HONEST-LIMITS.md) ----
 platforms:
   youtube:
-    enabled: false             # TEMP: Instagram-only recovery run; restore to true
+    enabled: true
     also_short: false          # true only if <=3 posts/day
     category_id: "22"          # People & Blogs; 27=Education, 28=Tech
     privacy: "public"
@@ -92,7 +92,7 @@ platforms:
   # X stays configured (keys in GitHub secrets, code ready). It currently soft-fails
   # with 402 "no credits" because X's API requires a paid tier — it will START
   # POSTING automatically once you subscribe to a paid X plan. No code change needed.
-  direct: [instagram]   # TEMP: Instagram-only recovery run; restore full list after
+  direct: [tumblr, x, facebook, instagram, threads]   # add "reddit" per HONEST-LIMITS.md
 
 tumblr:
   blog: ""                 # your blog host, e.g. "astrotobby.tumblr.com" (TUMBLR_BLOG also works)
