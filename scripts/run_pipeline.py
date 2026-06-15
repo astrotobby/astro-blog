@@ -34,6 +34,35 @@ def list_posts(changed):
     return [ln.strip() for ln in out.splitlines() if ln.strip()]
 
 
+def prime_ledger():
+    """Baseline: mark EVERY post currently on the site as already-posted, WITHOUT
+    rendering or posting anything. Run once so the backlog never gets auto-published —
+    only posts that go live AFTER this will be processed."""
+    import datetime as dt
+    import pathlib
+    from fetch_post import parse
+    from common import content_hash, load_ledger, save_ledger
+    cfg = load_config()
+    out = subprocess.run([PY, str(S / "fetch_post.py"), "--list", "--all"],
+                         check=True, cwd=str(ROOT), capture_output=True, text=True).stdout
+    files = [ln.strip() for ln in out.splitlines() if ln.strip()]
+    led = load_ledger()
+    n = 0
+    for fp in files:
+        try:
+            post = parse(pathlib.Path(fp), cfg)
+        except Exception as e:  # noqa
+            log(f"prime: skip {fp} ({e})")
+            continue
+        led[post["slug"]] = {
+            "hash": content_hash(post["slug"], post["title"], post["description"]),
+            "ts": dt.datetime.utcnow().isoformat(), "primed": True,
+        }
+        n += 1
+    save_ledger(led)
+    log(f"primed ledger with {n} existing posts — none of these will be (re)posted")
+
+
 def _astro_slug(stem: str) -> str:
     """Same slugify as fetch_post.astro_slug — used to match against the ledger."""
     s = re.sub(r"[^\w\s-]", "", stem.lower())
@@ -80,8 +109,14 @@ def main():
     ap.add_argument("--force", action="store_true",
                     help="ignore the dedup ledger and repost (for testing)")
     ap.add_argument("--sweep", action="store_true",
-                    help="process every live post not yet in the ledger (scheduled safety net)")
+                    help="process every live post not yet in the ledger (manual safety net)")
+    ap.add_argument("--prime", action="store_true",
+                    help="baseline: mark all current posts as done WITHOUT posting (run once)")
     args = ap.parse_args()
+
+    if args.prime:
+        prime_ledger()
+        return
 
     if args.sweep:
         posts = sweep_posts()
