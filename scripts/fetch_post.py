@@ -18,12 +18,13 @@ md = MarkdownIt()
 
 
 def astro_slug(stem: str) -> str:
-    """Match Astro 5 glob-loader default id generation (github-slugger style):
-    lowercase, strip punctuation, spaces -> hyphens, collapse repeats.
-    Your autoblogger writes filenames WITH spaces, so the live URL is this form."""
+    """Match Astro 5 glob-loader id generation: lowercase, strip punctuation,
+    spaces -> hyphens. IMPORTANT: Astro KEEPS underscores (the live URLs are e.g.
+    '...top_multi_agent_ai...'), so we must NOT convert '_' to '-' — doing so 404s
+    the link. Hyphens and underscores are both preserved as-is."""
     s = stem.lower()
-    s = re.sub(r"[^\w\s-]", "", s)      # drop apostrophes, colons, commas, etc.
-    s = re.sub(r"[\s_]+", "-", s)        # whitespace/underscores -> hyphen
+    s = re.sub(r"[^\w\s-]", "", s)      # drop apostrophes, colons, parens, em-dashes, etc.
+    s = re.sub(r"\s+", "-", s)           # spaces -> hyphen (underscores left intact)
     s = re.sub(r"-{2,}", "-", s)         # collapse repeated hyphens
     return s.strip("-")
 
