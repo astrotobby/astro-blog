@@ -24,13 +24,16 @@ def _yt_client():
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
+    # No scopes= here on purpose: the refresh token may have been granted
+    # youtube.upload OR youtube.force-ssl. Passing a scope that wasn't granted makes
+    # Google reject the refresh ("invalid_scope"). Omitting it uses the granted scopes
+    # (force-ssl covers uploads), so it works regardless of how the token was minted.
     creds = Credentials(
         None,
         refresh_token=env("YOUTUBE_REFRESH_TOKEN"),
         token_uri="https://oauth2.googleapis.com/token",
         client_id=env("YOUTUBE_CLIENT_ID"),
         client_secret=env("YOUTUBE_CLIENT_SECRET"),
-        scopes=["https://www.googleapis.com/auth/youtube.upload"],
     )
     creds.refresh(Request())
     return build("youtube", "v3", credentials=creds)
