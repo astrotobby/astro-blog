@@ -1,11 +1,16 @@
 ---
-title: "Steam Charts Contribute to Crimson Desert Reaching 6 Million Sales Milestone"
-description: "Crimson Desert's developers attribute their 6 million sales milestone to Steam charts, highlighting the platform's impact on game visibility and success."
-pubDate: 2026-06-12
-image: "https://imageio.forbes.com/specials-images/imageserve/6a03394cfdc772f9931f637e/0x0.jpg?format=jpg&height=600&width=1200&fit=bounds"
-tags: ["crimson desert", "steam charts", "game sales", "microsoft", "mmorpg"]
+description: Crimson Desert's developers attribute their 6 million sales milestone
+  to Steam charts, highlighting the platform's impact on game visibility and success.
+image: https://imageio.forbes.com/specials-images/imageserve/6a03394cfdc772f9931f637e/0x0.jpg?format=jpg&height=600&width=1200&fit=bounds
+pubDate: 2026-05-27
+tags:
+- crimson desert
+- steam charts
+- game sales
+- microsoft
+- mmorpg
+title: Steam Charts Contribute to Crimson Desert Reaching 6 Million Sales...
 ---
-
 Crimson Desert, the highly anticipated massively multiplayer online role-playing game (MMORPG) from Pearl Abyss and Amazon Game Studios, has reached an impressive milestone: 6 million copies sold. While this achievement can be attributed to various factors such as engaging gameplay, solid marketing, and a receptive audience, the developers have specifically highlighted the role of Steam charts in contributing to this success.
 
 In a recent statement, the team behind Crimson Desert acknowledged the significance of Steam charts in promoting their game. Steam charts, a feature that allows users to track game performance on Steam, provide valuable insights into player behavior, helping developers refine their strategies and optimize their marketing efforts. The charts also facilitate discovery for lesser-known titles, making it simpler for potential players to find their next favorite game.

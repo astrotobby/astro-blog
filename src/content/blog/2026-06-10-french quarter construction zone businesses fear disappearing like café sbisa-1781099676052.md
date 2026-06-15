@@ -1,11 +1,16 @@
 ---
-title: "French Quarter Construction Zone Businesses Fear Disappearing Like Café Sbisa"
-description: "Business owners in the French Quarter construction zone fear that their establishments will disappear due to the ongoing construction."
-pubDate: "2026-06-10"
-image: "https://bloximages.newyork1.vip.townnews.com/nola.com/content/tncms/assets/v3/editorial/d/4c/d4c63a7f-6e6e-584e-ab09-60e73b0b5194/6a0ccf601891c.image.jpg?crop=1842%2C968%2C0%2C78&resize=1200%2C631&order=crop%2Cresize"
-tags: ["French Quarter", "New Orleans", "Construction Zone", "Business Owners", "Economic Impact"]
+description: Business owners in the French Quarter construction zone fear that their
+  establishments will disappear due to the ongoing construction.
+image: https://bloximages.newyork1.vip.townnews.com/nola.com/content/tncms/assets/v3/editorial/d/4c/d4c63a7f-6e6e-584e-ab09-60e73b0b5194/6a0ccf601891c.image.jpg?crop=1842%2C968%2C0%2C78&resize=1200%2C631&order=crop%2Cresize
+pubDate: 2026-05-09
+tags:
+- French Quarter
+- New Orleans
+- Construction Zone
+- Business Owners
+- Economic Impact
+title: French Quarter Construction Zone Businesses Fear Disappearing Like...
 ---
-
 The sounds of jackhammers and revving engines have become the norm in the French Quarter, where a multi-year construction project is transforming the historic streets and buildings. However, behind the scenes of the renovation efforts, business owners are worried that their establishments will disappear like Café Sbisa, a beloved French Quarter landmark that closed its doors permanently in 2021.
 
 While some might view the construction as an opportunity for growth and improvement, others are concerned about the economic impact on the area's businesses. The construction zone has already claimed several local favorites, including Café Sbisa, a 25-year-old institution that served as a hub for locals and tourists alike. As one business owner noted, "Café Sbisa was a beloved institution in this neighborhood, and it's heartbreaking to see another small business disappear."

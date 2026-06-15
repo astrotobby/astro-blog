@@ -1,11 +1,15 @@
 ---
-title: "Google Releases Android 17 QPR1 Beta 4 For Pixel Devices"
-description: "Google has released the fourth beta of Android 17 QPR1 for eligible Pixel devices, with a focus on bug fixes and performance improvements."
-pubDate: "2026-06-11"
-image: "https://i0.wp.com/9to5google.com/wp-content/uploads/sites/4/2026/02/Android-17-3.jpg?resize=1200%2C628&quality=82&strip=all&ssl=1"
-tags: ["android", "google", "pixel", "android 17"]
+description: Google has released the fourth beta of Android 17 QPR1 for eligible Pixel
+  devices, with a focus on bug fixes and performance improvements.
+image: https://i0.wp.com/9to5google.com/wp-content/uploads/sites/4/2026/02/Android-17-3.jpg?resize=1200%2C628&quality=82&strip=all&ssl=1
+pubDate: 2026-05-17
+tags:
+- android
+- google
+- pixel
+- android 17
+title: Google Releases Android 17 QPR1 Beta 4 For Pixel Devices
 ---
-
 Google has been rolling out the beta builds for Android 17 QPR1, with a focus on stability and performance enhancements over the previous versions. The latest, the fourth beta, has just been released for eligible Pixel devices, offering users an early look into some of the features and changes that can be expected in the final version of the operating system.
 
 Android 17 QPR1 is not a major update, but rather a minor one that brings some important security patches and bug fixes. With the release of the fourth beta, Google is allowing developers and users to get their hands on the latest code and report any issues they encounter. This is an essential step in ensuring that the final version of the update is stable and free from any bugs that could negatively impact the user experience.

@@ -1,11 +1,14 @@
 ---
-title: "Gemini Gets Google TV Integration but Only Works on Select Models"
-description: "Google TV integration is now available for the Gemini smart display, but only on select models for now."
-pubDate: "2026-06-12"
-image: "https://i0.wp.com/9to5google.com/wp-content/uploads/sites/4/2026/06/google-tv-gemini-controls-1.jpg?resize=1200,628&quality=82&strip=all&ssl=1"
-tags: ["Google TV", "Gemini smart display", "Smart home"]
+description: Google TV integration is now available for the Gemini smart display,
+  but only on select models for now.
+image: https://i0.wp.com/9to5google.com/wp-content/uploads/sites/4/2026/06/google-tv-gemini-controls-1.jpg?resize=1200,628&quality=82&strip=all&ssl=1
+pubDate: 2026-05-22
+tags:
+- Google TV
+- Gemini smart display
+- Smart home
+title: Gemini Gets Google TV Integration but Only Works on Select Models
 ---
-
 Google introduced its Gemini smart displays a few years ago as a more budget-friendly alternative to its larger Nest Hub Max. Since then, the device has garnered significant popularity due to its portability and sleek design. It offers users a wide range of features, including smart home controls and personalized assistance through Google Assistant.
 
 Recent updates suggest that Gemini has gained a new feature that enhances its capabilities. In a move that's expected to excite some users, Google has brought Google TV integration to the Gemini smart display. However, it's essential to note that this feature isn't available for all Gemini models yet.

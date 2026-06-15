@@ -1,11 +1,13 @@
 ---
-title: "Starfield Update 1.16.244: Essential Details for Players"
-description: "Find out the key details and changes in the latest Starfield update 1.16.244."
-pubDate: 2026-06-12
-image: "https://clan.fastly.steamstatic.com/images/41623050/a67d47af5125fe7a25bd305a65c0366b11bcebae.png"
-tags: ["Starfield Update 1.16.244", "Starfield Game", "Bethesda Games"]
+description: Find out the key details and changes in the latest Starfield update 1.16.244.
+image: https://clan.fastly.steamstatic.com/images/41623050/a67d47af5125fe7a25bd305a65c0366b11bcebae.png
+pubDate: 2026-05-27
+tags:
+- Starfield Update 1.16.244
+- Starfield Game
+- Bethesda Games
+title: 'Starfield Update 1.16.244: Essential Details for Players'
 ---
-
 Starfield, the highly anticipated sci-fi role-playing game developed by Bethesda Game Studios, has been continuously receiving updates since its release. The latest update, version 1.16.244, was released in June 2026, and it brings significant changes to the gameplay experience. In this article, we will delve into the essential details of the update, covering its key features, fixes, and improvements.
 
 **New Features and Content**

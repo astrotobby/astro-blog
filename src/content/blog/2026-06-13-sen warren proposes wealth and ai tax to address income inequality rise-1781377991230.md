@@ -1,11 +1,16 @@
 ---
-title: "Sen Warren proposes wealth and AI tax to address income inequality rise"
-description: "Senator Elizabeth Warren proposes a wealth tax and an AI tax to address the growing income inequality in the United States."
-pubDate: "2026-06-13"
-image: "https://static.seekingalpha.com/cdn/s3/uploads/getty_images/2272398272/image_2272398272.jpg?io=getty-c-w630"
-tags: ["wealth tax", "AI tax", "income inequality", "Elizabeth Warren", "Musk"]
+description: Senator Elizabeth Warren proposes a wealth tax and an AI tax to address
+  the growing income inequality in the United States.
+image: https://static.seekingalpha.com/cdn/s3/uploads/getty_images/2272398272/image_2272398272.jpg?io=getty-c-w630
+pubDate: 2026-06-05
+tags:
+- wealth tax
+- AI tax
+- income inequality
+- Elizabeth Warren
+- Musk
+title: Sen Warren proposes wealth and AI tax to address income inequality...
 ---
-
 In a recent statement, Senator Elizabeth Warren has called for the implementation of a wealth tax and an AI tax to tackle the rising issue of income inequality in the United States. As the world witnesses the growing wealth gap, Warren's proposal has sparked discussions about the feasibility and potential impact of such policies.
 
 The increasing income disparity has become a pressing issue in the US, with the top 1% of earners holding a substantial amount of the country's wealth. Warren's proposal is aimed at redistributing wealth and ensuring that the wealthy and tech companies contribute their fair share to the economy. With the rise of trillionaires, particularly Elon Musk, becoming the world's first trillionaire, the need for such policies has become more pressing.

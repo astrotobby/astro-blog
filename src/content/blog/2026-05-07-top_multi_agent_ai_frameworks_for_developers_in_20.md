@@ -1,11 +1,10 @@
 ---
-image: "/multiagent-systems.jpg"
-title: "Top Multi-Agent AI Frameworks for Developers in 20"
-pubDate: "2026-05-07"
-date: "2026-05-07"
-description: ""
+date: 2026-04-24
+description: ''
+image: /multiagent-systems.jpg
+pubDate: 2026-04-24
+title: Top Multi-Agent AI Frameworks for Developers in 2026
 ---
-
 The way AI systems are built has changed fundamentally. A year ago, most production AI projects involved a single LLM responding to queries. In 2026, the standard has shifted to multi-agent architectures — systems where specialized AI agents collaborate, delegate tasks, and execute long-running workflows with minimal human intervention.
 
 The problem: three dominant frameworks all claim to solve the same problem, but picking the wrong one costs you weeks of rework. This guide cuts through the noise.

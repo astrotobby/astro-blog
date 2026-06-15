@@ -1,11 +1,14 @@
 ---
-title: "Gemini Brings Voice Control to Google TV But Limited Models Only"
-description: "Google is bringing voice control to its Google TV platform, starting with the Gemini remote."
-pubDate: "2026-06-12"
-image: "https://i0.wp.com/9to5google.com/wp-content/uploads/sites/4/2026/06/google-tv-gemini-controls-1.jpg?resize=1200,628&quality=82&strip=all&ssl=1"
-tags: ["google tv", "voice control", "gemini remote"]
+description: Google is bringing voice control to its Google TV platform, starting
+  with the Gemini remote.
+image: https://i0.wp.com/9to5google.com/wp-content/uploads/sites/4/2026/06/google-tv-gemini-controls-1.jpg?resize=1200,628&quality=82&strip=all&ssl=1
+pubDate: 2026-05-21
+tags:
+- google tv
+- voice control
+- gemini remote
+title: Gemini Brings Voice Control to Google TV But Limited Models Only
 ---
-
 Google's ongoing efforts to improve its Google TV platform seem to be paying off. As the company continues to innovate and release new features, one exciting addition that has caught users' attention is the integration of voice control, courtesy of the Gemini remote. This new interface promises to make navigating through your favorite streaming services easier than ever. However, in a bit of a twist, it appears that not all models will be supported by this new voice-controlled Gemini remote.
 
 According to recent reports, Google's latest update aims to equip the Gemini remote with an impressive voice control system, allowing users to search for content, select shows and movies, and even control the volume of their TV. This move aims to bridge the gap between traditional TV viewing and the more modern, interactive experience that users have come to expect from their streaming services. The Gemini remote is set to become the central hub for users to explore a vast array of entertainment options, making it easier than ever to find what you want to watch.

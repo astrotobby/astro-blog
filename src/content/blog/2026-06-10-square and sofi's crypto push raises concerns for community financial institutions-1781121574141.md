@@ -1,11 +1,17 @@
 ---
-title: "Square and SoFi's Crypto Push Raises Concerns for Community Financial Institutions"
-description: "Square and SoFi's cryptocurrency push may have far-reaching implications for community financial institutions."
-pubDate: "2026-06-10"
-image: "https://cdn.sanity.io/images/s3y3vcno/production/6729e1c305b50c141cc3d56e8ad78bb80d24b6e7-1500x968.jpg?auto=format&w=960&h=540&crop=focalpoint&fit=clip&q=75&fm=jpg"
-tags: ["Square", "SoFi", "Crypto", "Cryptocurrency", "Community Financial Institutions", "Digital Banking"]
+description: Square and SoFi's cryptocurrency push may have far-reaching implications
+  for community financial institutions.
+image: https://cdn.sanity.io/images/s3y3vcno/production/6729e1c305b50c141cc3d56e8ad78bb80d24b6e7-1500x968.jpg?auto=format&w=960&h=540&crop=focalpoint&fit=clip&q=75&fm=jpg
+pubDate: 2026-05-13
+tags:
+- Square
+- SoFi
+- Crypto
+- Cryptocurrency
+- Community Financial Institutions
+- Digital Banking
+title: Square and SoFi's Crypto Push Raises Concerns for Community...
 ---
-
 Square and SoFi's decision to venture into the world of cryptocurrency has sparked a heated debate about the potential impact on community financial institutions (FIs). While these tech giants may view cryptocurrency as the future of financial transactions, community FIs are left wondering if they'll be able to keep up.
 
 Square, a leading mobile payment company, has been at the forefront of the cryptocurrency revolution. The company has been working tirelessly to develop its own cryptocurrency platform, which includes a Bitcoin-based payment processor. This move is significant, as Square is one of the largest and most well-established companies in the financial sector. Its foray into cryptocurrency has sent shockwaves throughout the industry, leaving many community FIs concerned about their ability to compete.

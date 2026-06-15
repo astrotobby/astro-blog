@@ -1,11 +1,15 @@
 ---
-title: "Do I Keep Ownership of My Business Name After Sale?"
-description: "Understanding your rights as a business seller and protecting your brand identity."
-pubDate: 2026-06-10
-image: "https://rcdn.upcounsel.com/assets/shareImg-6b655918.png"
-tags: ["business ownership", "brand identity", "business sale", "intellectual property"]
+description: Understanding your rights as a business seller and protecting your brand
+  identity.
+image: https://rcdn.upcounsel.com/assets/shareImg-6b655918.png
+pubDate: 2026-05-08
+tags:
+- business ownership
+- brand identity
+- business sale
+- intellectual property
+title: Do I Keep Ownership of My Business Name After Sale?
 ---
-
 When you decide to sell your business, you're likely aware of the financial and operational implications of such a transaction. However, it's equally as important to consider the intellectual property component of your business, particularly your business name. Do you still maintain ownership of your business name after the sale? The answer to this question lies in understanding the nuances of business ownership and the rights associated with your brand identity.
 
 The FT recently published an article titled "Business owners struggle to keep control of their brand names as companies are bought and sold". According to this report, an increasing number of business sellers are finding themselves in disputes with their new owners over the rights to their business names. This situation has led to questions about the nature of business ownership and what happens to your intellectual property when you sell your company.
@@ -47,3 +51,7 @@ Ultimately, protecting your brand identity requires ongoing vigilance. Be proact
 ---
 
 [Reference: https://www.ft.com/content/6eb00c5a-abdf-466d-a293-1a62907da12d
+
+---
+
+*This post may contain affiliate links. We may earn a commission at no extra cost to you.*

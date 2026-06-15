@@ -1,11 +1,17 @@
 ---
-title: "Samsung Galaxy Z Fold 8 and Galaxy Watch Ultra 2 Receive New Certifications"
-description: "Samsung's latest flagship devices, Galaxy Z Fold 8 and Galaxy Watch Ultra 2, have recently received new certifications, hinting at their upcoming launch."
-pubDate: 2026-06-11
-image: "https://fdn.gsmarena.com/imgroot/news/26/06/samsung-galaxy-z-fold8-wide-galaxy-watch-ultra-2-bis/-952x498w6/gsmarena_000.jpg"
-tags: ["Samsung", "Galaxy Z Fold 8", "Galaxy Watch Ultra 2", "new certifications", "upcoming launch", "latest flagship devices"]
+description: Samsung's latest flagship devices, Galaxy Z Fold 8 and Galaxy Watch Ultra
+  2, have recently received new certifications, hinting at their upcoming launch.
+image: https://fdn.gsmarena.com/imgroot/news/26/06/samsung-galaxy-z-fold8-wide-galaxy-watch-ultra-2-bis/-952x498w6/gsmarena_000.jpg
+pubDate: 2026-05-18
+tags:
+- Samsung
+- Galaxy Z Fold 8
+- Galaxy Watch Ultra 2
+- new certifications
+- upcoming launch
+- latest flagship devices
+title: Samsung Galaxy Z Fold 8 and Galaxy Watch Ultra 2 Receive New...
 ---
-
 Samsung, one of the leading technology companies in the world, has been making tremendous strides in the smartphone and smartwatch industry. The South Korean tech giant has been consistently pushing the boundaries of innovation with its latest flagship devices. Recently, two of its most anticipated devices, the Samsung Galaxy Z Fold 8 and the Galaxy Watch Ultra 2, have received new certifications, sparking excitement among tech enthusiasts and enthusiasts alike. In this article, we'll delve into the details of these new certifications and what they might mean for the upcoming launch of these devices.
 
 The first indication of the new certifications came from the Wi-Fi Alliance, an organization that oversees global Wi-Fi standards and certification. The Wi-Fi Alliance certified both the Galaxy Z Fold 8 and the Galaxy Watch Ultra 2 with Wi-Fi 6E, a feature that enables seamless and efficient Wi-Fi connectivity. This certification is significant, as it suggests that these devices will offer fast and reliable connectivity, making them ideal for users who rely heavily on their devices for streaming, gaming, and other data-intensive activities.

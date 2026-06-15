@@ -1,11 +1,15 @@
 ---
-title: "Japan Races to Develop AI Tools to Assist its Surgeons"
-description: "Japan is pushing the boundaries of technology by investing in AI tools to enhance surgical precision and patient care."
-pubDate: "2026-06-12"
-image: "https://www.japantimes.co.jp/japantimes/uploads/images/2026/06/10/545419.jpg?v=3.1"
-tags: ["AI in healthcare", "Japan technology", "Surgical innovation", "Robotics in surgery"]
+description: Japan is pushing the boundaries of technology by investing in AI tools
+  to enhance surgical precision and patient care.
+image: https://www.japantimes.co.jp/japantimes/uploads/images/2026/06/10/545419.jpg?v=3.1
+pubDate: 2026-05-24
+tags:
+- AI in healthcare
+- Japan technology
+- Surgical innovation
+- Robotics in surgery
+title: Japan Races to Develop AI Tools to Assist its Surgeons
 ---
-
 Japan is one of the most technologically advanced countries in the world, and its focus on cutting-edge innovations does not stop at smartphones and home appliances. The nation has set its sights on developing AI tools that can assist surgeons in operating theaters across the country. This bold initiative aims to increase the accuracy and precision of surgical procedures while reducing the time required for complex operations. Japan's AI tool development project for surgeons promises to revolutionize the field of healthcare and propel Japan to the forefront of medical innovation.
 
 According to recent reports, scientists and engineers at Japanese research institutions and tech companies are working in collaboration to integrate AI technology into medical equipment and software. This partnership is expected to produce AI-powered surgical tools capable of assisting surgeons in identifying and treating medical conditions more effectively.

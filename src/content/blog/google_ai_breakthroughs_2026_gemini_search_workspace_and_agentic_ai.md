@@ -1,11 +1,11 @@
 ---
-image: "/ai-shift.jpg"
-title: "Google AI Breakthroughs 2026: Gemini, Search, Workspace and Agentic AI"
-pubDate: "2026-05-20"
-date: "2026-05-20"
-description: "A concise look at Google's 2026 AI breakthroughs across Gemini, Search, Workspace, creator tools, open models, and agentic AI workflows."
+date: 2026-06-14
+description: A concise look at Google's 2026 AI breakthroughs across Gemini, Search,
+  Workspace, creator tools, open models, and agentic AI workflows.
+image: /ai-shift.jpg
+pubDate: 2026-06-14
+title: 'Google AI Breakthroughs 2026: Gemini, Search, Workspace and Agentic AI'
 ---
-
 Google dominated the tech headlines in April and May 2026 with major AI releases centered around Google I/O 2026 (May 19-20) and earlier open model drops. These updates emphasize agentic AI (AI that proactively handles complex, multi-step tasks), multimodal capabilities, faster models, and deeper integration across Search, Workspace, and developer tools.
 This article covers the most significant launches, their features, availability, and practical impact for users, developers, and businesses. Optimized for those tracking Google AI trends, Gemini updates, and productivity tools in 2026.
 1. Gemini 3.5 Series: Faster, Smarter Agentic AI (May 19 Launch)

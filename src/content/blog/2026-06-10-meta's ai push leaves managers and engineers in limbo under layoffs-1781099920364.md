@@ -1,11 +1,16 @@
 ---
-title: "Meta's AI Push Leaves Managers and Engineers in Limbo Under Layoffs"
-description: "Meta's recent layoffs have raised questions about the company's AI push and its impact on employees."
-pubDate: 2026-06-10
-image: "https://image.cnbcfm.com/api/v1/image/108039322-17273001022024-09-25t204232z_1101917728_rc2u7aaqtwho_rtrmadp_0_meta-platforms-virtual-reality-zuckerberg.jpeg?v=1727300136&w=1920&h=1080"
-tags: ["Meta", "AI", "layoffs", "software engineers", "managers"]
+description: Meta's recent layoffs have raised questions about the company's AI push
+  and its impact on employees.
+image: https://image.cnbcfm.com/api/v1/image/108039322-17273001022024-09-25t204232z_1101917728_rc2u7aaqtwho_rtrmadp_0_meta-platforms-virtual-reality-zuckerberg.jpeg?v=1727300136&w=1920&h=1080
+pubDate: 2026-05-09
+tags:
+- Meta
+- AI
+- layoffs
+- software engineers
+- managers
+title: Meta's AI Push Leaves Managers and Engineers in Limbo Under Layoffs
 ---
-
 Meta, the parent company of Facebook and Instagram, has recently faced a significant round of layoffs. The cuts have left many employees, particularly those in leadership and AI development roles, in a state of uncertainty. The AI push, a key aspect of Meta's strategy, seems to be a double-edged sword. On one hand, it has the potential to drive innovation and growth. On the other, it has created a sense of limbo among employees, making them wonder about their future within the company.
 
 According to recent reports, Meta's layoffs have primarily affected software engineers and AI researchers. The company has made significant investments in its AI capabilities in recent years, with a focus on developing more personalized and interactive experiences for users. However, the move to cut staff has raised questions about the viability of this approach.

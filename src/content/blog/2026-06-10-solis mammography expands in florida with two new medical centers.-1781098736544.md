@@ -1,11 +1,16 @@
 ---
-title: "Solis Mammography Expands in Florida with Two New Medical Centers"
-description: "Solis Mammography announces the grand opening of two new medical centers in Florida, strengthening their dedication to providing high-quality breast imaging services."
-pubDate: "2026-06-10"
-image: "https://mma.prnewswire.com/media/2783028/Solis_Mammography__Logo.jpg?p=facebook"
-tags: ["solis mammography", "new medical centers", "florida", "breast imaging"]
+description: Solis Mammography announces the grand opening of two new medical centers
+  in Florida, strengthening their dedication to providing high-quality breast imaging
+  services.
+image: https://mma.prnewswire.com/media/2783028/Solis_Mammography__Logo.jpg?p=facebook
+pubDate: 2026-05-11
+tags:
+- solis mammography
+- new medical centers
+- florida
+- breast imaging
+title: Solis Mammography Expands in Florida with Two New Medical Centers
 ---
-
 Solis Mammography, a leading provider of breast imaging services, has made a significant expansion in the state of Florida with the opening of two new medical centers in different locations. This notable move further underscores the company's unwavering commitment to enhancing breast cancer detection and treatment options for women in the region. The strategic locations chosen for the new medical centers are expected to cater to the growing demand for high-quality, accessible breast imaging services in these areas.
 
 According to a recent article published in Radiology Business, Solis Mammography's expansion in Florida is a testament to the company's relentless pursuit of innovation and growth in the healthcare sector. By opening these two new medical centers, Solis Mammography is poised to bring their advanced diagnostic capabilities and compassionate patient care to an even broader audience.

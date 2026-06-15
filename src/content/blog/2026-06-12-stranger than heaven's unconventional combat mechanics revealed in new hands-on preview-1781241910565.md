@@ -1,11 +1,16 @@
 ---
-title: "Stranger Than Heaven's Unconventional Combat Mechanics Revealed in New Hands-On Preview"
-description: "A new hands-on preview for Stranger Than Heaven has provided insight into the game's unconventional combat mechanics, leaving players both intrigued and confused."
-pubDate: 2026-06-12
-image: "https://kotaku.com/app/uploads/2026/06/strangers-1200x675.jpg"
-tags: ["Stranger Than Heaven", "unconventional combat mechanics", "hands-on preview", "video games"]
+description: A new hands-on preview for Stranger Than Heaven has provided insight
+  into the game's unconventional combat mechanics, leaving players both intrigued
+  and confused.
+image: https://kotaku.com/app/uploads/2026/06/strangers-1200x675.jpg
+pubDate: 2026-06-01
+tags:
+- Stranger Than Heaven
+- unconventional combat mechanics
+- hands-on preview
+- video games
+title: Stranger Than Heaven's Unconventional Combat Mechanics Revealed in...
 ---
-
 A recent hands-on preview of Stranger Than Heaven has shed light on the game's combat mechanics, which appear to be unlike anything we've seen before in the genre. While it's still unclear what exactly the combat is fighting for, the game's unique approach has left many in the gaming community both intrigued and perplexed.
 
 Stranger Than Heaven has long been touted as a game that defies conventional gameplay expectations. With a non-linear narrative that shifts and changes based on the player's actions, the game's storytelling approach has already garnered significant attention. However, it's the game's combat mechanics that have truly set tongues wagging.

@@ -1,11 +1,15 @@
 ---
-title: "Google Cuts AI Plus Plan Cost Amid Improved Storage Offerings"
-description: "Google recently updated its AI Plus plan to offer more storage at a lower cost"
-pubDate: "2026-06-12"
-image: "https://i.pcmag.com/imagery/articles/03zgGvdGCquNyjapafufJsg-1.fit_lim.size_1200x630.v1781010414.png"
-tags: ["Google", "AI Plus", "Google Cloud", "Storage"]
+description: Google recently updated its AI Plus plan to offer more storage at a lower
+  cost
+image: https://i.pcmag.com/imagery/articles/03zgGvdGCquNyjapafufJsg-1.fit_lim.size_1200x630.v1781010414.png
+pubDate: 2026-05-23
+tags:
+- Google
+- AI Plus
+- Google Cloud
+- Storage
+title: Google Cuts AI Plus Plan Cost Amid Improved Storage Offerings
 ---
-
 Google's recent adjustments to its AI Plus plan have brought the costs down while increasing storage capacity, which is great news for users who make the most out of AI-driven tools and services. The company has been aggressively pushing into the AI and machine learning space of late and with this cost-cutting measure, it's clear the firm wants to make these advanced services accessible to users at various budget levels.
 
 **What is Google AI Plus?**

@@ -1,11 +1,16 @@
 ---
-title: "Anthropic Unveils Fully Funded Economics and Policy Fellows Program for 2026"
-description: "Anthropic recently announced a fully funded economics and policy fellows program for 2026, providing a unique opportunity for selected candidates."
-pubDate: 2026-06-12
-image: "https://i0.wp.com/www.globalsouthopportunities.com/wp-content/uploads/2026/06/Antropic-1.jpg"
-tags: ["anthropic", "fellowship program", "economics", "policy", "2026"]
+description: Anthropic recently announced a fully funded economics and policy fellows
+  program for 2026, providing a unique opportunity for selected candidates.
+image: https://i0.wp.com/www.globalsouthopportunities.com/wp-content/uploads/2026/06/Antropic-1.jpg
+pubDate: 2026-05-19
+tags:
+- anthropic
+- fellowship program
+- economics
+- policy
+- '2026'
+title: Anthropic Unveils Fully Funded Economics and Policy Fellows...
 ---
-
 Anthropic's latest move in the realm of artificial intelligence and human-centered innovation has left many in the tech and social entrepreneurship spaces buzzing. The company recently unveiled a fully funded economics and policy fellows program for 2026, aiming to empower selected candidates to contribute meaningfully to the development of more informed decision-making processes.
 
 This year's program represents another significant step by the leading research organization in its pursuit of understanding the intersections between artificial intelligence, economics, and human development. By investing in the potential of exceptional young minds from diverse backgrounds, Anthropic is fostering a new generation of influential thinkers who will continue pushing the boundaries of innovation.

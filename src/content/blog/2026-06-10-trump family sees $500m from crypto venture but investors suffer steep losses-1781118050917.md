@@ -1,11 +1,15 @@
 ---
-title: "Trump Family Sees $500M From Crypto Venture But Investors Suffer Steep Losses"
-description: "The Trump family sees a $500 million payoff from their crypto venture, but investors face significant financial losses."
-pubDate: "2026-06-10"
-image: "https://image.cnbcfm.com/api/v1/image/108185416-17550992982025-08-13t145425z_1639339270_rc2e6gasqyy5_rtrmadp_0_alt5-sigma-markets.jpeg?v=1780851629&w=1920&h=1080"
-tags: ["Trump Family", "Crypto Venture", "Financial Losses", "Investment"]
+description: The Trump family sees a $500 million payoff from their crypto venture,
+  but investors face significant financial losses.
+image: https://image.cnbcfm.com/api/v1/image/108185416-17550992982025-08-13t145425z_1639339270_rc2e6gasqyy5_rtrmadp_0_alt5-sigma-markets.jpeg?v=1780851629&w=1920&h=1080
+pubDate: 2026-05-16
+tags:
+- Trump Family
+- Crypto Venture
+- Financial Losses
+- Investment
+title: Trump Family Sees $500M From Crypto Venture But Investors Suffer...
 ---
-
 The Trump family's fortunes continue to soar with their involvement in the crypto market. According to recent reports, their company, Trump World Liberty Financial, has seen a substantial $500 million payoff from a crypto venture with the digital assets platform Alt5 Sigma. However, beneath the surface of this impressive windfall, lies a more complex narrative - thousands of investors are left grappling with severe financial losses, and the long-term implications of this deal are shrouded in uncertainty.
 
 **Alt5 Sigma's High-Risk, High-Reward Model**

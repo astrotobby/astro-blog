@@ -1,11 +1,15 @@
 ---
-title: "Steam Charts Play a Crucial Role in Crimson Desert's Huge Success"
-description: "Crimson Desert, a popular new game, achieves 6 million sales thanks in part to Steam charts."
-pubDate: 2026-06-12
-image: "https://www.vgchartz.com/articles_media/images/crimson-desert-sales-top-6-million-units-762858_condensed.jpg"
-tags: ["Steam Charts", "Crimson Desert", "Game Sales", "PC Gaming"]
+description: Crimson Desert, a popular new game, achieves 6 million sales thanks in
+  part to Steam charts.
+image: https://www.vgchartz.com/articles_media/images/crimson-desert-sales-top-6-million-units-762858_condensed.jpg
+pubDate: 2026-05-28
+tags:
+- Steam Charts
+- Crimson Desert
+- Game Sales
+- PC Gaming
+title: Steam Charts Play a Crucial Role in Crimson Desert's Huge Success
 ---
-
 Steam charts are an essential tool for any game, providing crucial insights into player engagement and game performance. Crimson Desert, a massively multiplayer online role-playing game (MMORPG) developed by Pearl Abyss, has been making waves in the gaming world since its release. Recent numbers reveal that the game has sold an impressive 6 million copies, and a significant factor in this success can be attributed to Steam charts.
 
 According to reports from Pearl Abyss, Steam charts played a pivotal role in the game's success. By analyzing data from the Steam charts, the developers were able to identify areas where the game was performing well and areas that needed improvement. This data-driven approach allowed Pearl Abyss to make informed decisions about future updates and expansions, ultimately contributing to the game's massive sales figures.

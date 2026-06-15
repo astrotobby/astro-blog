@@ -1,11 +1,16 @@
 ---
-title: "UK Adults Embracing AI Tools for Labour-Saving Tasks and Productivity Gains"
-description: "One third of UK adults have started using AI tools to save time and boost productivity, according to a recent report from Ofcom"
-pubDate: 2026-06-12
-image: "https://ik.imagekit.io/tp/tr:n-ik_ml_thumbnail/20220318-ofcom-logo.png"
-tags: ["Artificial Intelligence", "Productivity", "Labour-Saving Tasks", "UK Adults", "Ofcom"]
+description: One third of UK adults have started using AI tools to save time and boost
+  productivity, according to a recent report from Ofcom
+image: https://ik.imagekit.io/tp/tr:n-ik_ml_thumbnail/20220318-ofcom-logo.png
+pubDate: 2026-06-02
+tags:
+- Artificial Intelligence
+- Productivity
+- Labour-Saving Tasks
+- UK Adults
+- Ofcom
+title: UK Adults Embracing AI Tools for Labour-Saving Tasks and...
 ---
-
 The increasing adoption of Artificial Intelligence (AI) in the United Kingdom has led to a significant shift in the way people approach work and productivity. According to a recent report released by Ofcom, a third of UK adults have started using AI tools, with a primary focus on labour-saving tasks and time management.
 
 The report highlights a growing trend among UK adults to leverage AI for enhanced productivity and convenience. This shift is reflective of the changing lifestyle and expectations of the modern workforce, who seek to optimize their time and energy for more meaningful pursuits.

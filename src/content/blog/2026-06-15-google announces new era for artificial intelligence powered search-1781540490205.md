@@ -1,11 +1,16 @@
 ---
-title: "Google Announces New Era for Artificial Intelligence Powered Search"
-description: "Google announces a new era for artificial intelligence powered search, revolutionizing the way we find information online."
-pubDate: "2026-06-15"
-image: "https://example.com/article-image.jpg"
-tags: ["Google", "Artificial Intelligence", "Search", "AI", "Machine Learning"]
+description: Google announces a new era for artificial intelligence powered search,
+  revolutionizing the way we find information online.
+image: https://example.com/article-image.jpg
+pubDate: 2026-06-07
+tags:
+- Google
+- Artificial Intelligence
+- Search
+- AI
+- Machine Learning
+title: Google Announces New Era for Artificial Intelligence Powered Search
 ---
-
 Google has been at the forefront of revolutionizing the way we find information online, and the company has just announced a new era for artificial intelligence (AI) powered search. This development is set to change the face of search algorithms and how we interact with online information.
 
 According to Google's latest announcement, the new AI-powered search engine is designed to be more intelligent, intuitive, and user-friendly. The new algorithm uses a combination of natural language processing (NLP) and machine learning (ML) to better understand the context and intent behind user queries.

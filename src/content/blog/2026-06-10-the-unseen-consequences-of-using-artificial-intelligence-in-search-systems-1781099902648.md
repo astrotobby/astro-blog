@@ -1,11 +1,16 @@
 ---
-title: "The Unseen Consequences of Using Artificial Intelligence in Search Systems"
-description: "Understanding the hidden costs and consequences of AI-based search systems in business"
-pubDate: "2026-06-10"
-image: "/ai-shift.jpg"
-tags: ["AI search systems", "Artificial intelligence", "Business leadership", "Search engine optimization", "Technology innovation"]
+description: Understanding the hidden costs and consequences of AI-based search systems
+  in business
+image: /ai-shift.jpg
+pubDate: 2026-05-15
+tags:
+- AI search systems
+- Artificial intelligence
+- Business leadership
+- Search engine optimization
+- Technology innovation
+title: The Unseen Consequences of Using Artificial Intelligence in Search...
 ---
-
 The Unseen Consequences of Using Artificial Intelligence in Search Systems
 ==================================================================
 

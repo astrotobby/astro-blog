@@ -46,6 +46,28 @@ import Layout from '../layouts/BlogPost.astro';
     </div>
   </div>
 
+  <form name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" class="contact-form card-glass">
+    <input type="hidden" name="form-name" value="contact" />
+    <p class="hidden">
+      <label>Don’t fill this out if you’re human: <input name="bot-field" /></label>
+    </p>
+    <p>
+      <label for="name">Name:</label>
+      <input type="text" id="name" name="name" required />
+    </p>
+    <p>
+      <label for="email">Email:</label>
+      <input type="email" id="email" name="email" required />
+    </p>
+    <p>
+      <label for="message">Message:</label>
+      <textarea id="message" name="message" required></textarea>
+    </p>
+    <p>
+      <button type="submit" class="btn btn-primary">Send Message</button>
+    </p>
+  </form>
+
   <p class="contact-foot">I typically respond within 48 hours.</p>
 </Layout>
 
@@ -79,5 +101,46 @@ import Layout from '../layouts/BlogPost.astro';
   }
   .social-list a:hover { color: var(--accent); background: var(--accent-soft); transform: translateX(4px); }
   .contact-foot { text-align: center; font-size: 0.9rem; color: var(--text-muted); margin-top: 2.5rem; }
+  .contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 2rem;
+    margin-top: 2rem;
+  }
+  .contact-form label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+  .contact-form input[type="text"],
+  .contact-form input[type="email"],
+  .contact-form textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background-color: var(--card-bg);
+    color: var(--text-body);
+  }
+  .contact-form textarea {
+    min-height: 120px;
+    resize: vertical;
+  }
+  .contact-form button {
+    align-self: flex-start;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    border: none;
+    background-color: var(--accent);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+  }
+  .contact-form button:hover {
+    background-color: var(--accent-dark);
+  }
+  .hidden { display: none; }
   @media (max-width: 640px) { .contact-grid { grid-template-columns: 1fr; } }
 </style>

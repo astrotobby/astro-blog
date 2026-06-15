@@ -1,11 +1,15 @@
 ---
-title: "Reducing Fatigue in Gravel Bikes with Rimpact's Tuned Mass Damper Solution"
-description: "Discover the revolutionary Tuned Mass Damper technology from Rimpact that promises to reduce fatigue in gravel bikes."
-pubDate: "2026-06-12"
-image: "https://velo-cdn.outsideonline.com/wp-content/uploads/2026/06/rimpact-tmd-for-gravel.jpg"
-tags: ["Gravel Bikes", "Rimpact", "Tuned Mass Damper", "Bike Fatigue"]
+description: Discover the revolutionary Tuned Mass Damper technology from Rimpact
+  that promises to reduce fatigue in gravel bikes.
+image: https://velo-cdn.outsideonline.com/wp-content/uploads/2026/06/rimpact-tmd-for-gravel.jpg
+pubDate: 2026-05-27
+tags:
+- Gravel Bikes
+- Rimpact
+- Tuned Mass Damper
+- Bike Fatigue
+title: Reducing Fatigue in Gravel Bikes with Rimpact's Tuned Mass Damper...
 ---
-
 Gravel bikes have become increasingly popular among cyclists seeking the ultimate adventure ride. With the ability to take on a variety of terrain, from smooth pavement to rugged singletrack, these bikes have opened up a world of possibilities for riders. However, the harsh reality of gravel biking is that it can be extremely demanding on the body. Prolonged exposure to rough terrain, coupled with the constant jolts and vibrations, can lead to fatigue, soreness, and even injury.
 
 For riders who are passionate about gravel biking but want to extend their riding distance without sacrificing comfort, a game-changing solution has emerged: Rimpact's Tuned Mass Damper (TMD) technology. This innovative system promises to reduce fatigue in gravel bikes by mitigating the harsh impacts and vibrations that occur during riding.

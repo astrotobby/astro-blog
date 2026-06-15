@@ -1,11 +1,15 @@
 ---
-title: "Unlock the Power of Heart Traces for Advanced Cardiac Diagnostics"
-description: "Discover how Cardiovolt.AI transforms heart traces into powerful diagnostic tools for improved cardiac health."
-pubDate: "2026-06-12"
-image: "https://www.imperial.ac.uk/news/media/news-images/3000x2000-main-article-images/2026-06-05-Cardiovolt.AI-team.jpg"
-tags: ["Cardiovascular Health", "Advanced Diagnostics", "Artificial Intelligence in Healthcare", "Cardiovolt.AI"]
+description: Discover how Cardiovolt.AI transforms heart traces into powerful diagnostic
+  tools for improved cardiac health.
+image: https://www.imperial.ac.uk/news/media/news-images/3000x2000-main-article-images/2026-06-05-Cardiovolt.AI-team.jpg
+pubDate: 2026-06-02
+tags:
+- Cardiovascular Health
+- Advanced Diagnostics
+- Artificial Intelligence in Healthcare
+- Cardiovolt.AI
+title: Unlock the Power of Heart Traces for Advanced Cardiac Diagnostics
 ---
-
 Cardiovascular disease (CVD) remains one of the leading causes of death globally, with millions of people affected each year. The diagnosis and treatment of CVD are complex and multifaceted, often involving various medical tests, imaging procedures, and expert analysis. Recent advancements in artificial intelligence (AI) and machine learning (ML) have given rise to innovative solutions aimed at improving cardiac health. One such breakthrough is Cardiovolt.AI, a pioneering technology that unlocks the power of heart traces for advanced cardiac diagnostics.
 
 Cardiovolt.AI's proprietary algorithms focus on harnessing the insights hidden within electrocardiogram (ECG) heart traces. These seemingly simple recordings can reveal a wealth of information about an individual's cardiac health. Traditional methods often struggle to interpret these data points, making it challenging for clinicians to diagnose CVD accurately. Cardiovolt.AI's AI-driven platform, however, can rapidly analyze ECG heart traces, identifying subtle patterns and irregularities that may indicate underlying cardiovascular issues.

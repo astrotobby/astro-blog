@@ -1,11 +1,15 @@
 ---
-title: "Reddit Launches Video Commenting Feature for Enhanced User Engagement"
-description: "Reddit has introduced a video commenting feature to enhance user engagement and create a more immersive experience on its platform."
-pubDate: "2026-06-12"
-image: "https://helios-i.mashable.com/imagery/articles/07jXbZ2xaiNb62wVO7QzYCk/hero-image.fill.size_1200x675.v1781195205.jpg"
-tags: ["Reddit", "video commenting", "user engagement", "social media"]
+description: Reddit has introduced a video commenting feature to enhance user engagement
+  and create a more immersive experience on its platform.
+image: https://helios-i.mashable.com/imagery/articles/07jXbZ2xaiNb62wVO7QzYCk/hero-image.fill.size_1200x675.v1781195205.jpg
+pubDate: 2026-05-25
+tags:
+- Reddit
+- video commenting
+- user engagement
+- social media
+title: Reddit Launches Video Commenting Feature for Enhanced User Engagement
 ---
-
 Reddit, a popular social news and discussion website, has taken a significant step in further enhancing the user experience by introducing a video commenting feature. This new addition allows users to embed videos directly into comments, creating a more immersive and engaging experience for the online community.
 
 The introduction of video commenting on Reddit is expected to have numerous benefits for users, including increased participation and a more dynamic discussion environment. With this feature, users can now share videos that provide valuable insights, showcase their creativity, or simply entertain others. This can lead to a more in-depth and engaging conversation, as users can better express themselves through a combination of text and video.
