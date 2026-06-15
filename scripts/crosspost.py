@@ -87,6 +87,10 @@ def main():
     if "threads" in enabled:
         results["threads"] = platforms.post_threads(render, cfg, args.dry_run)
 
+    # ----- TikTok (draft/inbox mode; no cap) -----
+    if "tiktok" in enabled:
+        results["tiktok"] = platforms.post_tiktok(render, cfg, args.dry_run)
+
     # ----- X / Twitter (daily cap) -----
     if "x" in enabled:
         if _under_cap(state, "x", cfg["limits"]["x_per_day"]):
