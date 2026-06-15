@@ -148,20 +148,34 @@ def _host_public_url(video_path, slug):
     import os
     import re
     import subprocess
+    import time
     repo = env("GITHUB_REPOSITORY")
     if not (repo and (env("GH_TOKEN") or env("GITHUB_TOKEN"))):
         log("host: no GITHUB_REPOSITORY/token -> cannot create a public URL")
         return None
-    tag = "vid-" + re.sub(r"[^a-z0-9]+", "-", slug.lower()).strip("-")[:60]
+    # Slice THEN strip so the tag never ends in a hyphen (a trailing '-' broke
+    # `gh release create`). Fall back to "video" if the slug slugifies to nothing.
+    tag = "vid-" + (re.sub(r"[^a-z0-9]+", "-", slug.lower())[:60].strip("-") or "video")
     fn = os.path.basename(str(video_path))
-    try:
-        subprocess.run(["gh", "release", "create", tag, str(video_path), "--repo", repo,
-                        "--title", tag, "--notes", "auto-generated video"],
-                       check=True, capture_output=True, text=True)
-    except Exception:  # noqa  release likely exists -> just (re)upload the asset
-        subprocess.run(["gh", "release", "upload", tag, str(video_path), "--repo", repo,
-                        "--clobber"], check=True, capture_output=True, text=True)
-    return f"https://github.com/{repo}/releases/download/{tag}/{fn}"
+
+    def _gh(args):
+        return subprocess.run(["gh", *args], capture_output=True, text=True)
+
+    last = ""
+    for _ in range(3):                       # retry: tolerate transient gh/API hiccups
+        cr = _gh(["release", "create", tag, "--repo", repo, "--title", tag,
+                  "--notes", "auto-generated video"])
+        if cr.returncode != 0 and "exists" not in (cr.stderr or "").lower():
+            last = "create: " + (cr.stderr or "").strip()[:200]
+            time.sleep(3)
+            continue
+        up = _gh(["release", "upload", tag, str(video_path), "--repo", repo, "--clobber"])
+        if up.returncode == 0:
+            return f"https://github.com/{repo}/releases/download/{tag}/{fn}"
+        last = "upload: " + (up.stderr or "").strip()[:200]
+        time.sleep(3)
+    log(f"host: could not host video after retries ({last})")
+    return None
 
 
 # --------------------------------------------------------------------------
