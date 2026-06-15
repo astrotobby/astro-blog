@@ -1,14 +1,21 @@
 name: refresh-ig-token
 
-# The Instagram long-lived token lasts ~60 days. Refresh it monthly so it never
-# lapses (each refresh resets the clock to ~60 days). Also runnable on demand.
+# Self-renewing Instagram token: refresh daily and keep the new token in the shared
+# pipeline state cache. No PAT, no secret writes, no manual upkeep. The daily run also
+# keeps the cache warm (GitHub evicts caches unused for 7 days), so the chain is forever.
 on:
   schedule:
-    - cron: "0 4 1 * *"   # 04:00 UTC on the 1st of every month
+    - cron: "0 4 * * *"   # every day at 04:00 UTC
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# Share the pipeline's lock + state cache so the refresh and the posting runs never
+# race on the cached token/ledger.
+concurrency:
+  group: blog-to-video
+  cancel-in-progress: false
 
 jobs:
   refresh:
@@ -18,10 +25,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install deps
-        run: pip install pynacl
+      - name: Restore pipeline state
+        uses: actions/cache@v4
+        with:
+          path: .pipeline/state
+          key: blog2video-state-${{ github.run_id }}
+          restore-keys: |
+            blog2video-state-
       - name: Refresh Instagram token
         env:
-          INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
-          GH_PAT: ${{ secrets.GH_PAT }}
+          INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}   # seed / first-run fallback only
         run: python scripts/refresh_ig_token.py
