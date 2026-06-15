@@ -50,6 +50,24 @@ def ig_token() -> str:
     return env("INSTAGRAM_TOKEN")
 
 
+def tiktok_refresh_token() -> str:
+    """Current TikTok refresh token: the rotated one in the state cache
+    (STATE/tt_refresh.txt) if present, else the TIKTOK_REFRESH_TOKEN secret seed."""
+    p = STATE / "tt_refresh.txt"
+    if p.exists():
+        t = p.read_text(encoding="utf-8").strip()
+        if t:
+            return t
+    return env("TIKTOK_REFRESH_TOKEN")
+
+
+def save_tiktok_refresh(tok: str) -> None:
+    """TikTok rotates the refresh token on each use — persist the newest so the
+    chain survives forever (cache is restored every run)."""
+    if tok:
+        (STATE / "tt_refresh.txt").write_text(tok.strip() + "\n", encoding="utf-8")
+
+
 def load_config() -> dict:
     with open(ROOT / "config.yaml", "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
