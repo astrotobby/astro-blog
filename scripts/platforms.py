@@ -9,7 +9,7 @@ DEFERRED (need platform app review): Instagram, Facebook, LinkedIn, Pinterest
 — see HONEST-LIMITS.md. The workflow saves the rendered Reels as artifacts so
 you can hand-upload those until their apps are approved.
 """
-from common import env, log
+from common import env, ig_token, log
 
 
 def _has(*keys) -> bool:
@@ -215,7 +215,7 @@ def post_threads(render, cfg, dry):
 # --------------------------------------------------------------------------
 def post_instagram(render, cfg, dry):
     ig_id = env("INSTAGRAM_USER_ID")
-    token = env("INSTAGRAM_TOKEN")   # Instagram-Login API token (graph.instagram.com)
+    token = ig_token()   # auto-refreshed token from state cache, else INSTAGRAM_TOKEN seed
     if not (ig_id and token):
         return {"ok": False, "skipped": "no creds"}
     if dry:
