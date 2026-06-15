@@ -38,6 +38,18 @@ def save_ledger(led: dict) -> None:
     )
 
 
+def ig_token() -> str:
+    """The current Instagram token: the auto-refreshed one kept in the state cache
+    (STATE/ig_token.txt) if present, else the INSTAGRAM_TOKEN secret (the seed).
+    The daily refresh job rolls ig_token.txt so the token never expires."""
+    p = STATE / "ig_token.txt"
+    if p.exists():
+        t = p.read_text(encoding="utf-8").strip()
+        if t:
+            return t
+    return env("INSTAGRAM_TOKEN")
+
+
 def load_config() -> dict:
     with open(ROOT / "config.yaml", "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
