@@ -38,19 +38,29 @@ for p in ("averaged_perceptron_tagger_eng", "averaged_perceptron_tagger", "cmudi
         print("nltk dl", p, "failed:", e)
 PY
 
-# OpenVoice v2 checkpoints (converter + base-speaker SEs)
+# OpenVoice v2 checkpoints (converter + base-speaker SEs). Primary: canonical S3 zip
+# (reliable). Fallback: HF mirror (flaky). Verify converter/config.json lands.
 echo "[openvoice-setup] downloading checkpoints_v2..."
-python - <<'PY' || true
+if [ ! -f checkpoints_v2/converter/config.json ]; then
+  curl -fL --retry 3 -o cp_v2.zip \
+    "https://myshell-public-repo-host.s3.amazonaws.com/openvoice/checkpoints_v2_0417.zip" || true
+  unzip -o -q cp_v2.zip || true
+fi
+if [ ! -f checkpoints_v2/converter/config.json ]; then
+  python - <<'PY' || true
 import os
 from huggingface_hub import snapshot_download
-tok = os.environ.get("HF_TOKEN") or None
 try:
     snapshot_download("myshell-ai/OpenVoiceV2", local_dir="checkpoints_v2",
-                      token=tok, local_dir_use_symlinks=False)
-    print("checkpoints_v2 downloaded")
+                      token=os.environ.get("HF_TOKEN") or None)
+    print("HF checkpoints downloaded")
 except Exception as e:
-    print("checkpoint download failed:", e)
+    print("HF checkpoint download failed:", e)
 PY
+fi
+test -f checkpoints_v2/converter/config.json \
+  && echo "[openvoice-setup] checkpoints OK" \
+  || echo "[openvoice-setup] WARNING: checkpoints missing"
 
 echo "[openvoice-setup] done (errors above are non-fatal; edge-tts remains the fallback)"
 ls -R checkpoints_v2 2>/dev/null | head -40 || true
