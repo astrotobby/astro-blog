@@ -198,9 +198,13 @@ def platform_text(post, cfg):
     link = post["url"]
     log(f"{len(out)} matched hashtags; link {link}")
     caption = f"{post['title']}\n\n{post['description'][:200]}\n\nFull post: {link}\n\n" + " ".join(out)
+    # Instagram strips links in captions (only the bio link is clickable), so a raw URL
+    # is dead text — use a "link in bio" CTA there instead.
+    ig_caption = (f"{post['title']}\n\n{post['description'][:200]}\n\n"
+                  f"🔗 Full breakdown — link in bio\n\n" + " ".join(out))
     yt_title = post["title"][:95]
     yt_desc = f"{post['description']}\n\nRead more: {link}\n\n{' '.join(out)}"
-    return {"caption": caption, "hashtags": out, "short_url": link,
+    return {"caption": caption, "ig_caption": ig_caption, "hashtags": out, "short_url": link,
             "yt_title": yt_title, "yt_desc": yt_desc}
 
 
