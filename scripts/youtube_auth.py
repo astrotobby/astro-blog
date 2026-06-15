@@ -7,7 +7,9 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 
 from common import env, log
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+# force-ssl = upload + manage/edit your own videos (needed to fix descriptions).
+# It is a superset of youtube.upload, so the normal pipeline upload still works.
+SCOPES = ["https://www.googleapis.com/auth/youtube.force-ssl"]
 
 
 def main():
