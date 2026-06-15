@@ -16,11 +16,15 @@ sudo apt-get install -y -qq pkg-config libavformat-dev libavcodec-dev libavdevic
   libavutil-dev libavfilter-dev libswscale-dev libswresample-dev || true
 pip install --quiet av || true
 
-# OpenVoice (tone-color converter)
+# OpenVoice (tone-color converter). Install with --no-deps: its requirements pin an
+# ancient faster-whisper/av that won't build on py3.11 + FFmpeg 6. We install the few
+# runtime deps it actually needs as modern (wheel-backed) versions instead.
 if [ ! -d OpenVoice ]; then
   git clone --depth 1 https://github.com/myshell-ai/OpenVoice.git || true
 fi
-pip install --quiet -e ./OpenVoice || true
+pip install --quiet -e ./OpenVoice --no-deps || true
+pip install --quiet pydub wavmark whisper-timestamped inflect unidecode eng_to_ipa \
+  pypinyin cn2an jieba langid faster-whisper || true
 
 # MeloTTS (base TTS the converter recolors) + its data
 pip install --quiet git+https://github.com/myshell-ai/MeloTTS.git || true
