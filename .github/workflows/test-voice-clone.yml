@@ -1,0 +1,42 @@
+name: test-voice-clone
+
+# Isolated experiment: build the OpenVoice v2 clone and produce a SAMPLE wav you can
+# listen to (downloaded as an artifact). Does NOT touch the live pipeline.
+on:
+  workflow_dispatch:
+    inputs:
+      text:
+        description: "sample sentence to speak in the cloned voice"
+        default: "Here's what nobody tells you about AI agents in 2026. This is my cloned voice, generated for free."
+
+permissions:
+  contents: read
+
+jobs:
+  clone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install torch (CPU)
+        run: pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+      - name: Set up OpenVoice
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: bash scripts/setup_openvoice.sh
+      - name: Generate cloned sample
+        run: python scripts/voice_clone.py "${{ github.event.inputs.text }}" cloned_sample.wav || true
+      - name: Upload cloned sample
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloned-voice-sample
+          path: |
+            cloned_sample.wav
+            .pipeline/state/voice_ref.wav
+          if-no-files-found: warn
