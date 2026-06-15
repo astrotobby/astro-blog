@@ -3,14 +3,17 @@ name: blog-to-video
 # Fires when a new/edited post lands in the posts dir. Adjust paths to match
 # config.yaml -> posts_dir. Also runnable on-demand from the Actions tab.
 on:
-  # Only NEW posts trigger automatically: a push that adds/edits a post in the posts
-  # dir (works for any Make scenario or manual commit alike). No scheduled sweep — it
-  # was flooding the back-catalogue. Sweep is now opt-in via workflow_dispatch below.
+  # New posts trigger on push. A twice-daily SWEEP is the safety net: it posts any
+  # live post not yet in the ledger, so nothing is missed even if a push diff is off
+  # (e.g. multi-commit pushes). Safe because the ledger is primed — the back-catalogue
+  # is already marked done, so the sweep only ever posts genuinely-new posts.
   push:
     branches: [main, master]
     paths:
       - "src/content/blog/**"
       - "posts/**"
+  schedule:
+    - cron: "0 6,18 * * *"   # 06:00 & 18:00 UTC safety-net sweep
   workflow_dispatch:
     inputs:
       mode:
@@ -43,7 +46,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2   # need previous commit to diff changed files
+          fetch-depth: 0   # full history so before..after always resolves
+                           # (shallow depth=2 broke multi-commit pushes -> missed posts)
 
       - uses: actions/setup-python@v5
         with:
@@ -76,11 +80,18 @@ jobs:
       - name: Determine changed posts
         id: diff
         run: |
+          CHANGED=""
           if [ "${{ github.event_name }}" = "push" ]; then
-            CHANGED=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} || true)
-          else
-            CHANGED=""
+            BEFORE="${{ github.event.before }}"
+            # If before is missing/zeroes/unreachable (first push, force-push, or a
+            # multi-commit push past a shallow clone), fall back to the last commit.
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+              CHANGED=$(git diff --name-only HEAD~1 HEAD || true)
+            else
+              CHANGED=$(git diff --name-only "$BEFORE" "${{ github.sha }}" || true)
+            fi
           fi
+          echo "changed files:"; echo "$CHANGED"
           echo "files<<EOF" >> "$GITHUB_OUTPUT"
           echo "$CHANGED" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
@@ -123,7 +134,9 @@ jobs:
         run: |
           FORCE=""
           if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE="--force"; fi
-          if [ "${{ github.event.inputs.prime }}" = "true" ]; then
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            python scripts/run_pipeline.py --sweep
+          elif [ "${{ github.event.inputs.prime }}" = "true" ]; then
             python scripts/run_pipeline.py --prime
           elif [ "${{ github.event.inputs.sweep }}" = "true" ]; then
             python scripts/run_pipeline.py --sweep $FORCE
