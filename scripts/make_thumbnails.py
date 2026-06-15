@@ -219,16 +219,21 @@ def main():
         pl = yt.playlistItems().list(part="contentDetails,snippet", playlistId=pl_id,
                                      maxResults=50, pageToken=page).execute()
         for it in pl["items"]:
-            vids.append((it["contentDetails"]["videoId"], it["snippet"]["title"]))
+            sn = it["snippet"]
+            vids.append((it["contentDetails"]["videoId"], sn["title"], sn.get("description", "")))
         page = pl.get("nextPageToken")
         if not page:
             break
     if only:
         vids = [v for v in vids if v[0] == only]
+    elif "--all" not in sys.argv:
+        # ONLY the blog-pipeline videos (their description links to the site) — never
+        # touch the user's personal uploads. Pass --all to override.
+        vids = [v for v in vids if "astrotobby.site" in (v[2] or "").lower()]
     print(f"{len(vids)} video(s) to thumbnail")
     os.makedirs(".pipeline/thumbs", exist_ok=True)
     done = blocked = 0
-    for i, (vid, title) in enumerate(vids):
+    for i, (vid, title, _desc) in enumerate(vids):
         path = f".pipeline/thumbs/{vid}.jpg"
         try:
             make_thumb(title, token, i, path, avatar="assets/avatar.png")
