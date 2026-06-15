@@ -7,6 +7,15 @@ echo "[openvoice-setup] installing deps..."
 
 pip install --quiet gdown soundfile librosa "numpy<2" || true
 
+# PyAV (av) is an OpenVoice dep that builds from source on py3.11 unless it has a
+# wheel + FFmpeg dev headers. Install the headers and a prebuilt wheel first so the
+# OpenVoice install doesn't choke on building 'av'.
+echo "[openvoice-setup] FFmpeg dev headers for PyAV..."
+sudo apt-get update -qq || true
+sudo apt-get install -y -qq pkg-config libavformat-dev libavcodec-dev libavdevice-dev \
+  libavutil-dev libavfilter-dev libswscale-dev libswresample-dev || true
+pip install --quiet av || true
+
 # OpenVoice (tone-color converter)
 if [ ! -d OpenVoice ]; then
   git clone --depth 1 https://github.com/myshell-ai/OpenVoice.git || true
