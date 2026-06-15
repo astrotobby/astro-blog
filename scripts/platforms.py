@@ -9,7 +9,8 @@ DEFERRED (need platform app review): Instagram, Facebook, LinkedIn, Pinterest
 — see HONEST-LIMITS.md. The workflow saves the rendered Reels as artifacts so
 you can hand-upload those until their apps are approved.
 """
-from common import env, ig_token, log
+from common import (env, ig_token, log, save_tiktok_refresh,
+                    tiktok_refresh_token)
 
 
 def _has(*keys) -> bool:
@@ -351,6 +352,66 @@ def post_twitter(render, cfg, dry):
                 "note": "text+link (no video)" if not media_ids else "with video"}
     except Exception as e:  # noqa
         return {"ok": False, "error": _twerr(e)}
+
+
+# --------------------------------------------------------------------------
+# TikTok — Content Posting API, DRAFT/INBOX mode (no app review needed). The
+# rendered video is pushed to the user's TikTok inbox; they tap "Post" in the app
+# (caption is added there). Tokens auto-refresh (rotating) via the state cache.
+# --------------------------------------------------------------------------
+def post_tiktok(render, cfg, dry):
+    ck, cs = env("TIKTOK_CLIENT_KEY"), env("TIKTOK_CLIENT_SECRET")
+    refresh = tiktok_refresh_token()
+    if not (ck and cs and refresh):
+        return {"ok": False, "skipped": "no creds"}
+    if dry:
+        return {"ok": True, "dry": True}
+    try:
+        import os
+
+        import requests
+        # 1) refresh -> short-lived access token (TikTok rotates the refresh token)
+        tr = requests.post(
+            "https://open.tiktokapis.com/v2/oauth/token/",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            data={"client_key": ck, "client_secret": cs,
+                  "grant_type": "refresh_token", "refresh_token": refresh},
+            timeout=60).json()
+        access = tr.get("access_token")
+        if not access:
+            return {"ok": False, "error": "tiktok token refresh: " + str(tr)[:200]}
+        if tr.get("refresh_token"):
+            save_tiktok_refresh(tr["refresh_token"])    # persist the rotated token
+
+        # 2) init an inbox (draft) upload via direct FILE_UPLOAD (no domain verify)
+        video = render["videos"].get("vertical") or render["videos"]["horizontal"]
+        size = os.path.getsize(video)
+        init = requests.post(
+            "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/",
+            headers={"Authorization": f"Bearer {access}",
+                     "Content-Type": "application/json"},
+            json={"source_info": {"source": "FILE_UPLOAD", "video_size": size,
+                                  "chunk_size": size, "total_chunk_count": 1}},
+            timeout=60).json()
+        data = init.get("data") or {}
+        upload_url = data.get("upload_url")
+        if not upload_url:
+            return {"ok": False, "error": "tiktok init: " + str(init)[:200]}
+
+        # 3) upload the bytes (single chunk; our videos are well under 64MB)
+        with open(video, "rb") as f:
+            blob = f.read()
+        put = requests.put(upload_url, data=blob, timeout=300, headers={
+            "Content-Type": "video/mp4",
+            "Content-Length": str(size),
+            "Content-Range": f"bytes 0-{size - 1}/{size}"})
+        if put.status_code not in (200, 201, 206):
+            return {"ok": False, "error": f"tiktok upload HTTP {put.status_code}: {put.text[:160]}"}
+        return {"ok": True, "url": "https://www.tiktok.com/",
+                "note": "sent to TikTok inbox/drafts — tap Post in the app",
+                "publish_id": data.get("publish_id")}
+    except Exception as e:  # noqa
+        return {"ok": False, "error": str(e)}
 
 
 # registry used by crosspost.py
