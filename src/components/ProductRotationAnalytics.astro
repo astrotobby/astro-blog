@@ -1,0 +1,182 @@
+
+---
+import { useState, useEffect } from 'react';
+
+interface AnalyticsData {
+  [key: string]: {
+    click_count: number;
+    last_updated: string;
+  };
+}
+
+interface ProductAnalytics {
+  productId: string;
+  clickCount: number;
+  lastUpdated: string;
+}
+
+const ProductRotationAnalytics = () => {
+  const [analytics, setAnalytics] = useState<ProductAnalytics[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchAnalytics = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/analytics');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data: AnalyticsData = await response.json();
+      const processedAnalytics: ProductAnalytics[] = Object.entries(data).map(([key, value]) => {
+        const parts = key.split(':');
+        const productId = parts[2]; // analytics:{date}:{product_id}
+        return {
+          productId,
+          clickCount: value.click_count,
+          lastUpdated: value.last_updated,
+        };
+      });
+      setAnalytics(processedAnalytics);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, []);
+
+  const totalClicks = analytics.reduce((sum, item) => sum + item.clickCount, 0);
+  const topProduct = analytics.reduce((prev, current) => (prev.clickCount > current.clickCount ? prev : current), { productId: 'N/A', clickCount: 0, lastUpdated: '' });
+
+  return (
+    <section class="product-analytics-section">
+      <h2>Product Rotation Analytics</h2>
+      <button onClick={fetchAnalytics} disabled={loading}>Refresh Data</button>
+      {loading && <p>Loading analytics...</p>}
+      {error && <p className="error-message">Error: {error}</p>}
+      {!loading && !error && (
+        <div class="analytics-summary">
+          <p>Total Clicks: <strong>{totalClicks}</strong></p>
+          <p>Top Clicked Product: <strong>{topProduct.productId}</strong> ({topProduct.clickCount} clicks)</p>
+        </div>
+      )}
+      {!loading && !error && analytics.length > 0 && (
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Product ID</th>
+                <th>Click Count</th>
+                <th>Last Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {analytics.map((item, index) => (
+                <tr key={index}>
+                  <td>{item.productId}</td>
+                  <td>{item.clickCount}</td>
+                  <td>{new Date(item.lastUpdated).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {!loading && !error && analytics.length === 0 && <p>No analytics data available yet.</p>}
+
+      <style>
+        .product-analytics-section {
+          background: #f9f9f9;
+          padding: 2rem;
+          border-radius: 8px;
+          margin-top: 2rem;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .product-analytics-section h2 {
+          font-size: 1.8rem;
+          color: #333;
+          margin-bottom: 1rem;
+        }
+        .product-analytics-section button {
+          background-color: #007bff;
+          color: white;
+          border: none;
+          padding: 0.75rem 1.25rem;
+          border-radius: 5px;
+          cursor: pointer;
+          font-size: 1rem;
+          margin-bottom: 1.5rem;
+          transition: background-color 0.3s ease;
+        }
+        .product-analytics-section button:hover {
+          background-color: #0056b3;
+        }
+        .product-analytics-section button:disabled {
+          background-color: #cccccc;
+          cursor: not-allowed;
+        }
+        .analytics-summary p {
+          font-size: 1.1rem;
+          margin-bottom: 0.5rem;
+          color: #555;
+        }
+        .analytics-summary strong {
+          color: #000;
+        }
+        .table-container {
+          overflow-x: auto;
+          margin-top: 1.5rem;
+        }
+        .product-analytics-section table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 1rem;
+          background-color: white;
+          border-radius: 8px;
+          overflow: hidden;
+        }
+        .product-analytics-section th,
+        .product-analytics-section td {
+          border: 1px solid #ddd;
+          padding: 12px 15px;
+          text-align: left;
+        }
+        .product-analytics-section th {
+          background-color: #eef;
+          font-weight: 600;
+          color: #333;
+        }
+        .product-analytics-section tr:nth-child(even) {
+          background-color: #f6f6f6;
+        }
+        .product-analytics-section tr:hover {
+          background-color: #f0f0f0;
+        }
+        .error-message {
+          color: red;
+          font-weight: bold;
+        }
+        @media (max-width: 768px) {
+          .product-analytics-section {
+            padding: 1rem;
+          }
+          .product-analytics-section h2 {
+            font-size: 1.5rem;
+          }
+          .product-analytics-section th,
+          .product-analytics-section td {
+            padding: 8px 10px;
+            font-size: 0.9rem;
+          }
+        }
+      </style>
+    </section>
+  );
+};
+
+export default ProductRotationAnalytics;

@@ -1,0 +1,16 @@
+
+name = "shopify-product-rotation-worker"
+main = "src/worker.ts"
+compatibility_date = "2026-01-01"
+
+routes = [
+  { pattern = "astrotobby.site/*", zone_name = "astrotobby.site" }
+]
+
+[[kv_namespaces]]
+binding = "SHOPIFY_KV"
+id = "YOUR_KV_NAMESPACE_ID" # IMPORTANT: Replace with your actual KV Namespace ID after creation
+
+[vars]
+PRODUCT_IDS = "product-ke-001,product-int-001,product-int-002,product-int-003"
+DEFAULT_PRODUCT_ID = "product-ke-001"
