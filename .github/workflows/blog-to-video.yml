@@ -3,15 +3,14 @@ name: blog-to-video
 # Fires when a new/edited post lands in the posts dir. Adjust paths to match
 # config.yaml -> posts_dir. Also runnable on-demand from the Actions tab.
 on:
+  # Only NEW posts trigger automatically: a push that adds/edits a post in the posts
+  # dir (works for any Make scenario or manual commit alike). No scheduled sweep — it
+  # was flooding the back-catalogue. Sweep is now opt-in via workflow_dispatch below.
   push:
     branches: [main, master]
     paths:
       - "src/content/blog/**"
       - "posts/**"
-  # Safety-net sweep: catch anything that went live by ANY route (not just a push
-  # from a Make scenario) and never got a video. Dedup ledger keeps it from reposting.
-  schedule:
-    - cron: "0 */6 * * *"   # every 6 hours
   workflow_dispatch:
     inputs:
       mode:
@@ -19,6 +18,12 @@ on:
         default: "latest"
       force:
         description: "repost even if already posted (true | false)"
+        default: "false"
+      sweep:
+        description: "process EVERY live post not in the ledger (manual; prime first!)"
+        default: "false"
+      prime:
+        description: "baseline ledger: mark all current posts done WITHOUT posting"
         default: "false"
 
 permissions:
@@ -115,8 +120,10 @@ jobs:
         run: |
           FORCE=""
           if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE="--force"; fi
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            python scripts/run_pipeline.py --sweep
+          if [ "${{ github.event.inputs.prime }}" = "true" ]; then
+            python scripts/run_pipeline.py --prime
+          elif [ "${{ github.event.inputs.sweep }}" = "true" ]; then
+            python scripts/run_pipeline.py --sweep $FORCE
           elif [ "${{ github.event.inputs.mode }}" = "dry" ]; then
             python scripts/run_pipeline.py --latest --dry-run $FORCE
           elif [ -n "${{ steps.diff.outputs.files }}" ]; then
