@@ -62,5 +62,11 @@ test -f checkpoints_v2/converter/config.json \
   && echo "[openvoice-setup] checkpoints OK" \
   || echo "[openvoice-setup] WARNING: checkpoints missing"
 
+# MeloTTS can pull a GPU torch/torchaudio that crashes on the CPU runner
+# (libcudart.so.* missing). Re-assert CPU builds as the FINAL word.
+echo "[openvoice-setup] pinning CPU torch + torchaudio..."
+pip install --quiet --force-reinstall torch==2.2.2 torchaudio==2.2.2 \
+  --index-url https://download.pytorch.org/whl/cpu || true
+
 echo "[openvoice-setup] done (errors above are non-fatal; edge-tts remains the fallback)"
 ls -R checkpoints_v2 2>/dev/null | head -40 || true
