@@ -46,6 +46,21 @@ def _gtts_fallback(text, out_path):
 
 def make_voice(script, cfg):
     v = cfg["voice"]
+    # Cloned voice (free OpenVoice) when enabled; edge-tts is the automatic fallback
+    # so the render never breaks if cloning is unavailable.
+    if v.get("clone"):
+        try:
+            from voice_clone import synthesize
+            cw = OUT / "voiceover_clone.wav"
+            if cw.exists():
+                cw.unlink()
+            if synthesize(script["narration"], str(cw), cfg):
+                dur = ffprobe_duration(cw)
+                log(f"voiceover (CLONED) {dur:.1f}s -> {cw.name}")
+                return cw, dur
+            log("voice clone unavailable -> edge-tts")
+        except Exception as e:  # noqa
+            log(f"voice clone errored ({e}) -> edge-tts")
     out = OUT / "voiceover.mp3"
     if out.exists():
         out.unlink()
