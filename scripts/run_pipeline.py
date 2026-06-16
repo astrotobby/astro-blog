@@ -64,10 +64,11 @@ def prime_ledger():
 
 
 def _astro_slug(stem: str) -> str:
-    """Same slugify as fetch_post.astro_slug — used to match against the ledger."""
-    s = re.sub(r"[^\w\s-]", "", stem.lower())
-    s = re.sub(r"[\s_]+", "-", s)
-    return re.sub(r"-{2,}", "-", s).strip("-")
+    """Delegate to fetch_post.astro_slug so the sweep's slug ALWAYS matches the ledger
+    key. (A local copy drifted — it hyphenated underscores while the ledger keeps them —
+    causing the sweep to re-select underscore-filename posts forever -> repeat Telegrams.)"""
+    from fetch_post import astro_slug
+    return astro_slug(stem)
 
 
 def sweep_posts():
