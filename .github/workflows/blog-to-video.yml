@@ -3,17 +3,10 @@ name: blog-to-video
 # Fires when a new/edited post lands in the posts dir. Adjust paths to match
 # config.yaml -> posts_dir. Also runnable on-demand from the Actions tab.
 on:
-  # New posts trigger on push. A twice-daily SWEEP is the safety net: it posts any
-  # live post not yet in the ledger, so nothing is missed even if a push diff is off
-  # (e.g. multi-commit pushes). Safe because the ledger is primed — the back-catalogue
-  # is already marked done, so the sweep only ever posts genuinely-new posts.
-  push:
-    branches: [main, master]
-    paths:
-      - "src/content/blog/**"
-      - "posts/**"
-  schedule:
-    - cron: "0 6,18 * * *"   # 06:00 & 18:00 UTC safety-net sweep
+  # MANUAL-ONLY by default — you control what goes live (run from the Actions tab:
+  # "Run workflow" -> mode=latest to post the newest post, or sweep=true for all
+  # unposted). No scheduled sweep and no push auto-posting, so nothing publishes on
+  # its own. (Re-enable push/schedule below if you want auto-posting back.)
   workflow_dispatch:
     inputs:
       mode:
