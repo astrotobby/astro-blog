@@ -2,7 +2,7 @@
 description: Google I/O 2026 dropped some of the biggest AI announcements in the company's
   history. From Gemini Omni and Gemini 3.5 to Antigravity 2.0, Universal Cart, and
   intelligent eyewear — here's every major announcement broken down.
-image: /blog-placeholder-3.jpg
+image: /google-io-2026-search.png
 pubDate: 2026-06-15
 tags:
 - Google

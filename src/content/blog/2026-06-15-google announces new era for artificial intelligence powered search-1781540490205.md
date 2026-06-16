@@ -1,7 +1,7 @@
 ---
 description: Google announces a new era for artificial intelligence powered search,
   revolutionizing the way we find information online.
-image: https://example.com/article-image.jpg
+image: /ai-search-engine-era.jpg
 pubDate: 2026-06-07
 tags:
 - Google
