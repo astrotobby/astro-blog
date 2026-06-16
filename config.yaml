@@ -38,9 +38,12 @@ script:
 # Warm, calm MALE voice to match the male avatar. Alternatives:
 #   en-US-GuyNeural (mature/pro), en-US-AndrewNeural (warm), en-GB-RyanNeural (British)
 voice:
-  name: "en-US-BrianNeural"    # warm, relaxed male
+  name: "en-US-BrianNeural"    # edge-tts fallback voice (used if cloning is off/unavailable)
   rate: "+0%"                  # natural pace (was +6%) for a calmer delivery
   pitch: "+0Hz"
+  # ---- Cloned voice (free OpenVoice v2, MIT) from the Drive samples ----
+  clone: true                  # use the cloned voice; edge-tts auto-fallback if it fails
+  clone_speed: 1.12            # >1 = faster/more active delivery (less sluggish)
 
 # ---- Visuals (Pollinations, free, no key) ----
 visuals:
