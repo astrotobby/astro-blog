@@ -135,7 +135,11 @@ jobs:
         run: |
           FORCE=""
           if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE="--force"; fi
-          if [ "${{ github.event_name }}" = "schedule" ]; then
+          # push & schedule both use --sweep: it processes any live post not yet in the
+          # ledger, so it's immune to the changed-files diff breaking on filenames with
+          # spaces (the autoblogger writes those) and to multi-commit pushes. Dedup +
+          # primed ledger mean only genuinely-new posts get posted.
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "push" ]; then
             python scripts/run_pipeline.py --sweep
           elif [ "${{ github.event.inputs.prime }}" = "true" ]; then
             python scripts/run_pipeline.py --prime
@@ -143,8 +147,6 @@ jobs:
             python scripts/run_pipeline.py --sweep $FORCE
           elif [ "${{ github.event.inputs.mode }}" = "dry" ]; then
             python scripts/run_pipeline.py --latest --dry-run $FORCE
-          elif [ -n "${{ steps.diff.outputs.files }}" ]; then
-            python scripts/run_pipeline.py --changed ${{ steps.diff.outputs.files }} $FORCE
           else
             python scripts/run_pipeline.py --latest $FORCE
           fi
