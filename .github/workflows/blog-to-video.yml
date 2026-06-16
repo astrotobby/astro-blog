@@ -67,13 +67,6 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: bash scripts/setup_wav2lip.sh
 
-      # Free voice cloning (OpenVoice v2) — non-fatal: if it fails, make_voice falls
-      # back to edge-tts. Builds the voice fingerprint from the Drive samples (cached).
-      - name: Set up OpenVoice voice clone
-        continue-on-error: true
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: bash scripts/setup_openvoice.sh
 
       # Persist dedup ledger + per-platform daily caps across runs.
       # restore-keys pulls the most recent prior state; a unique key saves a new one.
