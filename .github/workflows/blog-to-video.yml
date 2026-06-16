@@ -3,10 +3,16 @@ name: blog-to-video
 # Fires when a new/edited post lands in the posts dir. Adjust paths to match
 # config.yaml -> posts_dir. Also runnable on-demand from the Actions tab.
 on:
-  # MANUAL-ONLY by default — you control what goes live (run from the Actions tab:
-  # "Run workflow" -> mode=latest to post the newest post, or sweep=true for all
-  # unposted). No scheduled sweep and no push auto-posting, so nothing publishes on
-  # its own. (Re-enable push/schedule below if you want auto-posting back.)
+  # Publish ONLY what actually goes live on the blog: a push that adds/changes a post in
+  # the content dir (your Make.com scenario OR a manual commit) triggers the pipeline.
+  # It processes only GENUINELY-NEW posts (slug not in the dedup ledger), exactly once —
+  # no repeats, no duplicates. There is NO scheduled/timed trigger, so nothing ever
+  # publishes on its own clock. This is the strict "watch the blog, post new posts" mode.
+  push:
+    branches: [main, master]
+    paths:
+      - "src/content/blog/**"
+      - "posts/**"
   workflow_dispatch:
     inputs:
       mode:
