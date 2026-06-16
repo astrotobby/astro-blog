@@ -271,7 +271,16 @@ def post_instagram(render, cfg, dry):
                             data={"creation_id": cid, "access_token": token}, timeout=120)
         mid = (pub.json() or {}).get("id")
         if mid:
-            return {"ok": True, "url": f"https://www.instagram.com/reel/{mid}/"}
+            # media_publish returns a NUMERIC media id, not the /reel/<shortcode> URL.
+            # Fetch the real permalink so the reported link actually opens the reel
+            # (using /reel/<numeric id> gives "post no longer available").
+            try:
+                perm = requests.get(f"{base}/{mid}",
+                                    params={"fields": "permalink", "access_token": token},
+                                    timeout=60).json().get("permalink")
+            except Exception:  # noqa
+                perm = None
+            return {"ok": True, "url": perm or f"https://www.instagram.com/p/{mid}/"}
         return {"ok": False, "error": str(pub.json())[:300]}
     except Exception as e:  # noqa
         return {"ok": False, "error": str(e)}
