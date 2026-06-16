@@ -169,20 +169,19 @@ strong, b { font-weight: 700; }
   -webkit-text-fill-color: transparent;
   color: transparent;
 }
-/* Animated gradient text (used sparingly on hero) */
+/* Animated gradient text (used sparingly on hero) — composited filter animation */
 .gradient-text-animated {
-  background: linear-gradient(120deg, var(--grad-1), var(--grad-2), var(--grad-3), var(--grad-4), var(--grad-1));
-  background-size: 280% 280%;
+  background: linear-gradient(120deg, var(--grad-1), var(--grad-2), var(--grad-3), var(--grad-4));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: gradient-pan 9s ease infinite;
+  will-change: filter;
+  animation: gradient-hue 9s ease infinite;
 }
-@keyframes gradient-pan {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+@keyframes gradient-hue {
+  0%, 100% { filter: hue-rotate(0deg); }
+  50%       { filter: hue-rotate(35deg); }
 }
 
 /* Links */
