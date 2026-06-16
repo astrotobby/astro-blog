@@ -41,9 +41,11 @@ voice:
   name: "en-US-BrianNeural"    # edge-tts fallback voice (used if cloning is off/unavailable)
   rate: "+0%"                  # natural pace (was +6%) for a calmer delivery
   pitch: "+0Hz"
-  # ---- Cloned voice (free OpenVoice v2, MIT) from the Drive samples ----
-  clone: true                  # use the cloned voice; edge-tts auto-fallback if it fails
-  clone_speed: 1.12            # >1 = faster/more active delivery (less sluggish)
+  # ---- Cloned voice (free OpenVoice v2) — DISABLED: clone quality from the low-fi
+  # phone samples wasn't good enough; reverted to the edge-tts voice above. Flip to
+  # true (with cleaner reference recordings) to re-enable. ----
+  clone: false
+  clone_speed: 1.12
 
 # ---- Visuals (Pollinations, free, no key) ----
 visuals:
