@@ -3,7 +3,7 @@ date: 2026-05-15
 description: Explore the transformative impact of Agentic AI in 2026, where autonomous
   agents move beyond simple chat to executing complex workflows, revolutionizing industries
   and personal productivity.
-image: /agentic-ai-2026.png
+image: /agentic-ai-2026.jpg
 pubDate: 2026-05-15
 title: 'The Rise of Agentic AI: How Autonomous Systems are Reshaping 2026'
 ---

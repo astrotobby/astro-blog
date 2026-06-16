@@ -3,7 +3,7 @@ date: 2026-06-09
 description: Discover the most effective strategies for making money using the latest
   agentic AI tools. From autonomous coding with Claude-Code to scaling your output
   with Claude-Cowork, learn how the AI economy is evolving.
-image: /claude-monetization-hero.png
+image: /claude-monetization-hero.jpg
 pubDate: 2026-06-09
 title: 'The New Gold Rush: How to Monetize Claude-Code, Claude-Cowork, and...'
 ---
@@ -13,7 +13,7 @@ As we move further into 2026, the landscape of work has undergone a seismic shif
 
 In this article, we explore how savvy professionals are turning these tools into revenue-generating engines, moving beyond simple productivity into full-scale monetization.
 
-![Cloud Monetization Hero](/claude-monetization-hero.png)
+![Cloud Monetization Hero](/claude-monetization-hero.jpg)
 
 ## 1. Claude-Code: Building Software at the Speed of Thought
 

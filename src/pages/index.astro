@@ -235,7 +235,7 @@ const totalPosts = posts.length;
 					<a href={`/blog/${featuredPost.id}/`} class="featured-card card-glass">
 						<div class="featured-media">
 							<span class="tag">Featured</span>
-							<img src={displayImage(featuredPost.data.title, featuredPost.data.image)} data-fb={svgFallback(featuredPost.data.title)} alt={featuredPost.data.title} loading="lazy" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
+							<img src={displayImage(featuredPost.data.title, featuredPost.data.image)} data-fb={svgFallback(featuredPost.data.title)} alt={featuredPost.data.title} width="1200" height="627" loading="eager" fetchpriority="high" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
 						</div>
 						<div class="featured-content">
 							<p class="post-date"><FormattedDate date={featuredPost.data.pubDate} /></p>
@@ -263,7 +263,7 @@ const totalPosts = posts.length;
 					{recentPosts.map((post, i) => (
 						<a href={`/blog/${post.id}/`} class="post-card card-glass" data-reveal style={`--reveal-delay:${i * 90}ms`}>
 							<div class="post-media">
-								<img src={displayImage(post.data.title, post.data.image)} data-fb={svgFallback(post.data.title)} alt={post.data.title} loading="lazy" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
+								<img src={displayImage(post.data.title, post.data.image)} data-fb={svgFallback(post.data.title)} alt={post.data.title} width="1200" height="627" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
 							</div>
 							<div class="post-content">
 								<p class="post-date"><FormattedDate date={post.data.pubDate} /></p>

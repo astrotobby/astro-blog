@@ -2,7 +2,7 @@
 description: AI agents have crossed from experiment to mainstream. This deep dive
   covers multi-agent systems, the top frameworks, what it means for creators and developers,
   and where the next 12 months are heading.
-image: /agentic-ai-2026-new.png
+image: /agentic-ai-2026-new.jpg
 pubDate: 2026-06-13
 tags:
 - AI Agents

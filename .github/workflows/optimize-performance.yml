@@ -1,0 +1,79 @@
+name: Optimize Performance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.12.0"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Image size budget check
+        # Fails the build if any image committed to public/ exceeds 500KB, so a future
+        # unoptimized hero image can't silently regress mobile PageSpeed again the way
+        # the 1.7-7MB PNGs that caused this did.
+        run: |
+          node -e "
+          import('fs/promises').then(async ({ readdir, stat }) => {
+            const dir = 'public';
+            const files = await readdir(dir);
+            const BUDGET = 500 * 1024;
+            let failed = false;
+            for (const f of files) {
+              if (!/\.(png|jpe?g)$/i.test(f)) continue;
+              const s = await stat(dir + '/' + f);
+              if (s.size > BUDGET) {
+                console.error(\`OVER BUDGET: \${f} is \${(s.size/1024).toFixed(0)}KB (limit 500KB)\`);
+                failed = true;
+              }
+            }
+            if (failed) process.exit(1);
+            console.log('All public/ images within the 500KB budget.');
+          });
+          "
+
+  # Run manually (workflow_dispatch) when you want to re-optimize everything in public/.
+  # Not run automatically on push: extension changes (png -> jpg) need a human/agent to
+  # update frontmatter references afterwards (see scripts/optimize-images.js header comment).
+  optimize-images:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.12.0"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Optimize images
+        run: npm run optimize-images
+
+      - name: Commit optimized images
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/*.jpg public/*.png
+          git diff --cached --quiet || git commit -m "Optimize images (automated)"
+          git push

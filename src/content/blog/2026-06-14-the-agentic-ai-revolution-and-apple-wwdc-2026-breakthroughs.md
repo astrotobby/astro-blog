@@ -3,7 +3,7 @@ date: 2026-06-06
 description: Discover the latest AI trends shaping 2026, from the rise of Agentic
   AI transforming the workplace to Apple's groundbreaking WWDC announcements featuring
   a Gemini-powered Siri and Claude integration.
-image: /ai-agents-collaboration-2026.png
+image: /ai-agents-collaboration-2026.jpg
 pubDate: 2026-06-06
 title: The Agentic AI Revolution and Apple's WWDC 2026 Breakthroughs:...
 ---

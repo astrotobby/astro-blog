@@ -3,7 +3,7 @@ title: 'The AI Arena: Claude Code, Fable 5 Mythos, and GPT 5.5 Battle for Suprem
 description: A comprehensive comparison of Claude Code, Claude Fable 5, Claude Mythos 5, and GPT 5.5. Discover which AI model dominates in coding, reasoning, speed, and cybersecurity.
 pubDate: 2026-06-16
 date: 2026-06-16
-image: /ai_titans_clash.png
+image: /ai_titans_clash.jpg
 ---
 
 ## Introduction: A New Era of AI Innovation
@@ -37,7 +37,7 @@ The competition between these models is intense, with each offering distinct adv
 | **Cost (per 1M tokens)** | (Integrated with Fable 5) | ~$15 Input / ~$75 Output [3] | ~$15 Input / ~$75 Output [3] | ~$10 Input / ~$40 Output [3] |
 | **Key Differentiator** | Developer-centric tool | Reliable for complex, multi-step tasks | Unrestricted power, cybersecurity focus | Faster, more economical for defined tasks |
 
-![AI Titans Clash](/ai_titans_clash.png)
+![AI Titans Clash](/ai_titans_clash.jpg)
 
 *Figure 1: A visual representation of the intense competition between leading AI models.*
 

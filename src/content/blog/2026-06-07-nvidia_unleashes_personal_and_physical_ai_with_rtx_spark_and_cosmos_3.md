@@ -3,7 +3,7 @@ date: 2026-05-04
 description: NVIDIA's latest innovations, RTX Spark and Cosmos 3, are set to revolutionize
   personal computing with on-device AI agents and advance physical AI, transforming
   how we interact with technology and the physical world.
-image: /nvidia-rtx-spark-agentic-pc.png
+image: /nvidia-rtx-spark-agentic-pc.jpg
 pubDate: 2026-05-04
 title: NVIDIA Unleashes Personal and Physical AI with RTX Spark and Cosmos 3
 ---
