@@ -59,6 +59,21 @@ def _reference_wavs(sample_dir):
     return wavs
 
 
+def _enhance(src, dst):
+    """Make the clone sharp, loud and active: high-pass the rumble, punchy
+    compression, a presence/treble lift, then EBU loudness normalisation so it's
+    consistently loud. Falls back to a plain copy if ffmpeg errors."""
+    chain = ("highpass=f=85,"
+             "acompressor=threshold=-20dB:ratio=4:attack=5:release=120,"
+             "treble=g=4:f=3000,"
+             "loudnorm=I=-13:TP=-1.0:LRA=11")
+    r = subprocess.run(["ffmpeg", "-y", "-i", src, "-af", chain, "-ar", "44100", dst],
+                       capture_output=True, text=True)
+    if r.returncode != 0 or not os.path.exists(dst):
+        import shutil
+        shutil.copy(src, dst)
+
+
 def _get_converter(device):
     from openvoice.api import ToneColorConverter
     conv = ToneColorConverter(f"{CKPT}/converter/config.json", device=device)
@@ -110,8 +125,12 @@ def synthesize(text, out_path, cfg=None):
         tts.tts_to_file(text, spk_id, base_wav, speed=speed)
         # recolour to the target voice
         src_se = torch.load(f"{CKPT}/base_speakers/ses/en-us.pth", map_location=device)
+        raw = os.path.join(_state_dir(), "_clone_raw.wav")
         converter.convert(audio_src_path=base_wav, src_se=src_se, tgt_se=tgt_se,
-                          output_path=out_path, message="@AstroTobby")
+                          output_path=raw, message="@AstroTobby")
+        if not (os.path.exists(raw) and os.path.getsize(raw) > 1024):
+            return None
+        _enhance(raw, out_path)   # sharp, loud, active
         if os.path.exists(out_path) and os.path.getsize(out_path) > 1024:
             _log(f"cloned voice -> {out_path}")
             return out_path
