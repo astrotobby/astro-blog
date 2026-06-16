@@ -7,10 +7,11 @@ import Header from '../components/Header.astro';
 import AdBanner from '../components/AdBanner.astro';
 import Newsletter from '../components/Newsletter.astro';
 import ShopifyProducts from '../components/ShopifyProducts.astro';
+import RelatedPosts from '../components/RelatedPosts.astro';
 import { displayImage, svgFallback } from '../lib/postImage';
 
-type Props = CollectionEntry<'blog'>['data'];
-const { title, description, pubDate, updatedDate, image } = Astro.props;
+type Props = CollectionEntry<'blog'>['data'] & { slug?: string };
+const { title, description, pubDate, updatedDate, image, tags = [], slug = '' } = Astro.props;
 const heroImage = displayImage(title, image);
 const heroFallback = svgFallback(title);
 ---
@@ -118,11 +119,13 @@ const heroFallback = svgFallback(title);
         <!-- Position 3: Bottom of article -->
         <AdBanner minHeight="250px" margin="40px 0 0 0" />
 
-        <!-- Shopify Products Section -->
-        <ShopifyProducts />
+        <!-- Related posts — tag-matched internal links -->
+        {slug && <RelatedPosts currentSlug={slug} tags={tags} />}
+
+        <!-- Shopify Products Section — tag-prioritized -->
+        <ShopifyProducts tags={tags} />
 
         <Newsletter />
-
       </article>
     </main>
 

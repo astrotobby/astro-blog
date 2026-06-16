@@ -1,0 +1,118 @@
+---
+import { getCollection } from 'astro:content';
+
+interface Props {
+  currentSlug: string;
+  tags: string[];
+}
+
+const { currentSlug, tags } = Astro.props;
+
+const allPosts = await getCollection('blog');
+
+// Score posts by number of matching tags
+const related = allPosts
+  .filter((p) => p.id !== currentSlug)
+  .map((p) => {
+    const postTags: string[] = (p.data.tags as string[]) ?? [];
+    const score = tags.filter((t) => postTags.includes(t)).length;
+    return { post: p, score };
+  })
+  .filter(({ score }) => score > 0)
+  .sort((a, b) => b.score - a.score)
+  .slice(0, 3)
+  .map(({ post }) => post);
+
+if (!related.length) return;
+---
+
+<aside class="rp-aside" data-reveal>
+  <h3 class="rp-heading">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    Recommended Reading
+  </h3>
+  <ul class="rp-list">
+    {related.map((post) => (
+      <li class="rp-item">
+        <a href={`/blog/${post.id}/`} class="rp-link">
+          <span class="rp-title">{post.data.title}</span>
+          {post.data.description && (
+            <span class="rp-desc">{post.data.description}</span>
+          )}
+        </a>
+      </li>
+    ))}
+  </ul>
+</aside>
+
+<style>
+  .rp-aside {
+    margin: 3rem 0;
+    padding: 1.75rem;
+    border-radius: var(--radius-lg, 20px);
+    background: var(--glass-bg, rgba(255,255,255,0.55));
+    border: 1px solid var(--glass-border, rgba(99,102,241,0.15));
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
+  .rp-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent, #4f46e5);
+    margin: 0 0 1.25rem;
+  }
+
+  .rp-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .rp-item {
+    border-radius: var(--radius-sm, 8px);
+    overflow: hidden;
+  }
+
+  .rp-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.75rem 1rem;
+    background: rgba(79, 70, 229, 0.04);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm, 8px);
+    text-decoration: none;
+    transition: background 0.18s, border-color 0.18s;
+  }
+  .rp-link:hover {
+    background: rgba(79, 70, 229, 0.08);
+    border-color: rgba(79, 70, 229, 0.2);
+  }
+
+  .rp-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-heading, #1a1a2e);
+    line-height: 1.35;
+  }
+  .rp-link:hover .rp-title { color: var(--accent, #4f46e5); }
+
+  .rp-desc {
+    font-size: 0.8rem;
+    color: var(--text-body, #666);
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>

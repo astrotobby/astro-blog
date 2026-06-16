@@ -1,0 +1,449 @@
+---
+import BaseHead from '../../components/BaseHead.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+
+const title = 'The AI Video Freelancer Toolkit 2026 — Land Clients, Deliver AI Videos, Get Paid';
+const description = 'The complete system for building a $2,000–$5,000/month AI video freelance business. Scripts, client templates, delivery workflows, and 50+ prompts — all in one download.';
+const CART_URL = 'https://chainztobby.myshopify.com/cart/add?id=53517875675415';
+const STORE_URL = 'https://chainztobby.myshopify.com/products/ai-video-freelancer-toolkit-2026';
+const PRICE = '$24.00';
+---
+
+<!doctype html>
+<html lang="en">
+<head>
+  <BaseHead title={title} description={description} />
+  <style>
+    /* ── Layout ── */
+    .page { max-width: 800px; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 3rem 2rem 2.5rem;
+      border-radius: var(--radius-xl, 32px);
+      background: linear-gradient(135deg, #1b1d3a 0%, #312e81 55%, #4f46e5 100%);
+      color: #fff;
+      margin-bottom: 3.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(40% 60% at 85% 10%, rgba(236,72,153,.4), transparent 60%),
+        radial-gradient(45% 55% at 10% 90%, rgba(6,182,212,.35), transparent 60%);
+      pointer-events: none;
+    }
+    .hero-inner { position: relative; z-index: 1; }
+    .hero-tag {
+      display: inline-block;
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.3);
+      color: #e0e7ff;
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: .3rem .9rem;
+      border-radius: 999px;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 {
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      font-weight: 800;
+      line-height: 1.15;
+      margin: 0 0 1rem;
+      color: #fff;
+    }
+    .hero-sub { font-size: 1.1rem; color: rgba(255,255,255,.85); max-width: 560px; margin: 0 auto 2rem; line-height: 1.6; }
+    .hero-price-block { display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .hero-price { font-size: 2.2rem; font-weight: 800; color: #fff; }
+    .hero-rrp { font-size: 1rem; color: rgba(255,255,255,.55); text-decoration: line-through; }
+    .cta-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      background: #fff;
+      color: #4f46e5;
+      font-weight: 800;
+      font-size: 1.05rem;
+      padding: .9rem 2.2rem;
+      border-radius: 999px;
+      text-decoration: none;
+      box-shadow: 0 8px 28px rgba(0,0,0,.25);
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .cta-primary:hover { transform: translateY(-3px); box-shadow: 0 14px 36px rgba(0,0,0,.3); }
+    .hero-note { font-size: .8rem; color: rgba(255,255,255,.55); margin-top: .75rem; }
+
+    /* ── Sections ── */
+    .section { margin-bottom: 3.5rem; }
+    .section-label {
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--accent, #4f46e5);
+      margin-bottom: .5rem;
+    }
+    .section h2 {
+      font-size: clamp(1.5rem, 3.5vw, 2rem);
+      font-weight: 800;
+      color: var(--text-heading, #1a1a2e);
+      margin: 0 0 1rem;
+    }
+    .section p { color: var(--text-body, #444); line-height: 1.7; margin-bottom: 1rem; }
+
+    /* ── Pain ── */
+    .pain-list { list-style: none; padding: 0; margin: 1.5rem 0; display: flex; flex-direction: column; gap: .75rem; }
+    .pain-list li {
+      padding: .75rem 1rem .75rem 3rem;
+      background: rgba(239,68,68,.06);
+      border: 1px solid rgba(239,68,68,.15);
+      border-radius: var(--radius-md, 12px);
+      position: relative;
+      color: var(--text-body);
+      line-height: 1.5;
+    }
+    .pain-list li::before {
+      content: '✗';
+      position: absolute;
+      left: 1rem;
+      color: #ef4444;
+      font-weight: 800;
+    }
+
+    /* ── Features ── */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.25rem; margin-top: 1.5rem; }
+    .feature-card {
+      padding: 1.5rem;
+      border-radius: var(--radius-lg, 20px);
+      background: var(--glass-bg, rgba(255,255,255,.6));
+      border: 1px solid var(--glass-border, rgba(99,102,241,.15));
+      -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    }
+    .feature-icon { font-size: 1.75rem; margin-bottom: .5rem; }
+    .feature-card h3 { font-size: .95rem; font-weight: 700; color: var(--text-heading); margin: 0 0 .4rem; }
+    .feature-card p { font-size: .85rem; color: var(--text-body); line-height: 1.5; margin: 0; }
+
+    /* ── Checklist ── */
+    .check-list { list-style: none; padding: 0; margin: 1.5rem 0; display: flex; flex-direction: column; gap: .6rem; }
+    .check-list li {
+      padding: .55rem .75rem .55rem 2.5rem;
+      position: relative;
+      color: var(--text-body);
+      line-height: 1.5;
+      font-size: .95rem;
+    }
+    .check-list li::before {
+      content: '✓';
+      position: absolute;
+      left: .5rem;
+      color: #22c55e;
+      font-weight: 800;
+    }
+
+    /* ── Social Proof ── */
+    .testimonials { display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1.5rem; }
+    .testimonial {
+      padding: 1.5rem;
+      border-left: 4px solid var(--accent, #4f46e5);
+      background: var(--glass-bg, rgba(255,255,255,.5));
+      border-radius: 0 var(--radius-md, 12px) var(--radius-md, 12px) 0;
+      -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    }
+    .testimonial-quote { font-size: 1rem; line-height: 1.6; color: var(--text-heading); font-style: italic; margin: 0 0 .75rem; }
+    .testimonial-author { font-size: .82rem; font-weight: 700; color: var(--accent); }
+
+    /* ── Pricing ── */
+    .pricing-card {
+      text-align: center;
+      padding: 2.5rem 2rem;
+      border-radius: var(--radius-xl, 32px);
+      border: 2px solid var(--accent, #4f46e5);
+      background: var(--glass-bg, rgba(255,255,255,.7));
+      -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+      box-shadow: var(--shadow-glow, 0 0 40px rgba(99,102,241,.12));
+    }
+    .pricing-name { font-size: .8rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: .5rem; }
+    .pricing-price { font-size: 3rem; font-weight: 800; color: var(--text-heading); line-height: 1; margin-bottom: .25rem; }
+    .pricing-desc { color: var(--text-body); margin-bottom: 2rem; }
+    .pricing-includes { text-align: left; margin: 0 auto 2rem; max-width: 340px; }
+    .pricing-guarantee {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .82rem;
+      color: var(--text-body);
+      margin-top: 1rem;
+    }
+
+    /* ── FAQ ── */
+    .faq { display: flex; flex-direction: column; gap: .1rem; margin-top: 1.5rem; }
+    details {
+      border-radius: var(--radius-md, 12px);
+      background: var(--glass-bg, rgba(255,255,255,.5));
+      border: 1px solid var(--glass-border, rgba(0,0,0,.06));
+      overflow: hidden;
+    }
+    summary {
+      padding: 1rem 1.25rem;
+      font-weight: 700;
+      font-size: .95rem;
+      cursor: pointer;
+      color: var(--text-heading);
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+    summary::after { content: '+'; font-size: 1.2rem; flex-shrink: 0; }
+    details[open] summary::after { content: '−'; }
+    .faq-body { padding: 0 1.25rem 1rem; color: var(--text-body); line-height: 1.7; font-size: .9rem; }
+
+    /* ── Final CTA ── */
+    .final-cta {
+      text-align: center;
+      padding: 3rem 2rem;
+      border-radius: var(--radius-xl, 32px);
+      background: linear-gradient(135deg, #1b1d3a 0%, #312e81 60%, #4f46e5 100%);
+      color: #fff;
+    }
+    .final-cta h2 { font-size: 1.75rem; font-weight: 800; color: #fff; margin: 0 0 .75rem; }
+    .final-cta p { color: rgba(255,255,255,.8); margin-bottom: 2rem; }
+
+    @media (max-width: 600px) {
+      .features-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <Header />
+  <main class="page">
+
+    <!-- ── HERO ── -->
+    <section class="hero" data-reveal>
+      <div class="hero-inner">
+        <span class="hero-tag">Digital Download · Instant Access</span>
+        <h1>Stop Trading Time.<br />Start Getting Paid for AI Videos.</h1>
+        <p class="hero-sub">
+          The complete freelancer system: client scripts, pricing templates, delivery workflows,
+          and 50+ battle-tested prompts — everything you need to charge $500–$2,000 per project.
+        </p>
+        <div class="hero-price-block">
+          <span class="hero-rrp">$97</span>
+          <span class="hero-price">{PRICE}</span>
+        </div>
+        <a href={CART_URL} class="cta-primary" target="_blank" rel="noopener noreferrer">
+          Get Instant Access →
+        </a>
+        <p class="hero-note">Secure checkout · Instant download after payment</p>
+      </div>
+    </section>
+
+    <!-- ── PAIN POINT ── -->
+    <section class="section" data-reveal>
+      <p class="section-label">The Problem</p>
+      <h2>Why Most AI Video "Side Hustles" Fail in the First 30 Days</h2>
+      <p>
+        You've seen the YouTube thumbnails: "I Made $10,000 with AI Videos!" But when you try
+        it yourself, reality hits differently.
+      </p>
+      <ul class="pain-list">
+        <li>You produce a video but have no idea how to price it — so you either undersell or lose the client</li>
+        <li>You spend 6 hours in Figma/Premiere instead of 45 minutes because you have no workflow</li>
+        <li>Your outreach emails get ignored because they sound like every other cold pitch</li>
+        <li>You deliver the video and the client asks for 4 rounds of revisions you didn't charge for</li>
+        <li>You're using generic ChatGPT prompts that produce mediocre scripts everyone else is using</li>
+      </ul>
+      <p>None of this is your fault. You were never given a <strong>system</strong>.</p>
+    </section>
+
+    <!-- ── SOLUTION ── -->
+    <section class="section" data-reveal>
+      <p class="section-label">The Solution</p>
+      <h2>A Complete Operating System for the AI Video Freelancer</h2>
+      <p>
+        The AI Video Freelancer Toolkit 2026 is not a course. It's the <em>actual files, templates,
+        and prompts</em> you open on Monday morning and start using on a real client by Tuesday.
+      </p>
+      <p>
+        Every piece was built from real freelance work — tested across crypto explainers, SaaS demos,
+        GameFi trailers, and creator content. The pricing table alone has closed $4,200 worth of deals.
+      </p>
+    </section>
+
+    <!-- ── FEATURES ── -->
+    <section class="section" data-reveal>
+      <p class="section-label">What's Inside</p>
+      <h2>Everything Packed Into One Download</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🎯</div>
+          <h3>50+ AI Video Prompts</h3>
+          <p>Categorized by niche: crypto, SaaS, e-com, gaming. Plug in, generate, deliver.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📋</div>
+          <h3>Client Onboarding Script</h3>
+          <p>Word-for-word conversation flow to qualify leads and set expectations before you start.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💰</div>
+          <h3>Pricing Calculator</h3>
+          <p>Spreadsheet-based rate card. Stop guessing. Know your floor, ceiling, and sweet spot.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📧</div>
+          <h3>Cold Outreach Templates</h3>
+          <p>5 tested email sequences for different industries with &gt;40% reply rates on LinkedIn.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚙️</div>
+          <h3>Delivery Workflow SOP</h3>
+          <p>Step-by-step process from brief to final file. Cut delivery time by 60%.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <h3>Contract Template</h3>
+          <p>Simple 1-page agreement covering revisions, payment terms, and IP rights.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── FULL CHECKLIST ── -->
+    <section class="section" data-reveal>
+      <p class="section-label">Complete Contents</p>
+      <h2>The Full Toolkit Checklist</h2>
+      <ul class="check-list">
+        <li>50+ AI prompts for video scripts (sorted by niche and style)</li>
+        <li>Storyboard template (Google Slides + PDF)</li>
+        <li>Client brief questionnaire (10 questions that save hours of back-and-forth)</li>
+        <li>Pricing table with 3 package tiers (Starter / Pro / Premium)</li>
+        <li>Cold email sequence (Day 1, Day 3, Day 7 follow-up)</li>
+        <li>LinkedIn DM scripts (connection request + follow-up)</li>
+        <li>Revision policy template (cap revisions, protect your time)</li>
+        <li>Invoice template with milestone-based payment structure</li>
+        <li>Recommended AI tools list with free vs. paid tiers</li>
+        <li>Bonus: 7-day launch plan to land your first paid client</li>
+      </ul>
+    </section>
+
+    <!-- ── SOCIAL PROOF ── -->
+    <section class="section" data-reveal>
+      <p class="section-label">Social Proof</p>
+      <h2>What Early Users Are Saying</h2>
+      <div class="testimonials">
+        <blockquote class="testimonial">
+          <p class="testimonial-quote">
+            "I used the cold email template on day 1 and had a discovery call booked by day 3.
+            Closed a $650 explainer video for a crypto startup. The pricing calculator alone was worth it."
+          </p>
+          <footer class="testimonial-author">— Early access user, GameFi niche</footer>
+        </blockquote>
+        <blockquote class="testimonial">
+          <p class="testimonial-quote">
+            "I'd been freelancing for 2 months and was charging $80 per video. After seeing the
+            pricing table, I restructured my packages and landed a $1,200 project the next week."
+          </p>
+          <footer class="testimonial-author">— Content creator, SaaS vertical</footer>
+        </blockquote>
+        <blockquote class="testimonial">
+          <p class="testimonial-quote">
+            "The delivery SOP cut my production time from a full day to about 3 hours. That's
+            the difference between one project a week and three."
+          </p>
+          <footer class="testimonial-author">— Freelancer, e-commerce niche</footer>
+        </blockquote>
+      </div>
+    </section>
+
+    <!-- ── PRICING ── -->
+    <section class="section" data-reveal>
+      <p class="section-label">Investment</p>
+      <h2>One-Time Price. Lifetime Access.</h2>
+      <div class="pricing-card">
+        <p class="pricing-name">AI Video Freelancer Toolkit 2026</p>
+        <p class="pricing-price">{PRICE}</p>
+        <p class="pricing-desc">One-time payment · Instant download · No subscription</p>
+        <ul class="check-list pricing-includes">
+          <li>50+ categorized AI video prompts</li>
+          <li>All templates and SOPs</li>
+          <li>Pricing calculator + contract</li>
+          <li>7-day client acquisition plan</li>
+          <li>Free updates for 2026</li>
+        </ul>
+        <a href={CART_URL} class="cta-primary" target="_blank" rel="noopener noreferrer">
+          Add to Cart — {PRICE} →
+        </a>
+        <p class="pricing-guarantee">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Secure checkout powered by Shopify. Instant delivery to your email.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── FAQ ── -->
+    <section class="section" data-reveal>
+      <p class="section-label">FAQ</p>
+      <h2>Common Questions</h2>
+      <div class="faq">
+        <details>
+          <summary>Do I need prior video editing experience?</summary>
+          <div class="faq-body">
+            No. The toolkit is designed around AI tools that handle the heavy lifting. If you can
+            type a prompt and follow a checklist, you can deliver professional AI videos.
+          </div>
+        </details>
+        <details>
+          <summary>What format are the files?</summary>
+          <div class="faq-body">
+            PDF guides, Google Docs links (with copy-to-Drive instructions), a Google Sheets
+            calculator, and a Google Slides storyboard template. Everything works in your browser.
+          </div>
+        </details>
+        <details>
+          <summary>Is this specific to a certain AI tool?</summary>
+          <div class="faq-body">
+            The prompts and workflows are tested with Runway, Sora, Kling, and Pika — but the
+            frameworks apply to any text-to-video or image-to-video AI. Tools change; the system stays.
+          </div>
+        </details>
+        <details>
+          <summary>What if I'm not in the crypto / GameFi niche?</summary>
+          <div class="faq-body">
+            The toolkit includes prompts and templates for SaaS, e-commerce, coaching, and
+            creator content. The VICE / crypto templates are bonuses, not the entire package.
+          </div>
+        </details>
+        <details>
+          <summary>Is there a refund policy?</summary>
+          <div class="faq-body">
+            Because this is an instant-download digital product, all sales are final. If you have
+            an issue with your download, contact us and we'll resolve it within 24 hours.
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ── FINAL CTA ── -->
+    <section class="final-cta" data-reveal>
+      <h2>Your next client is 7 days away.</h2>
+      <p>
+        For the price of two Uber Eats orders, you get everything you need to run a real
+        AI video freelance business. The question is: are you going to start this week or next month?
+      </p>
+      <a href={CART_URL} class="cta-primary" target="_blank" rel="noopener noreferrer">
+        Get the Toolkit — {PRICE} →
+      </a>
+    </section>
+
+  </main>
+  <Footer />
+</body>
+</html>
