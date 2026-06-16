@@ -3,7 +3,7 @@ date: 2026-06-11
 description: The era of meticulous prompt engineering is over. Discover how agentic
   AI, with its autonomous decision-making and workflow integration, is reshaping the
   AI landscape and why you can't afford to be left behind.
-image: /agentic-ai-revolution-hero.png
+image: /death-of-prompting-featured.png
 pubDate: 2026-06-11
 title: 'The Death of Prompting: Why Agentic AI is Leaving Traditional...'
 ---

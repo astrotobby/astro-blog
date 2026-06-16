@@ -2,7 +2,7 @@
 author: Astro Tobby
 description: A no-fluff breakdown of the best AI video generation tools in 2026 for
   freelancers and content creators — tested across real client workflows.
-image: /ai-video-tools.jpg
+image: /best-ai-video-generators-2026-featured.png
 pubDate: 2026-06-13
 tags:
 - AI Video Tools

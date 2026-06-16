@@ -3,7 +3,7 @@ date: 2026-06-07
 description: Explore the groundbreaking capabilities of Anthropic's Fable 5 AI, the
   controversy surrounding its government-mandated shutdown, and the implications for
   the future of AI governance and development.
-image: /fable-5-shutdown.jpg
+image: /rise-and-fall-of-fable-5-featured.png
 pubDate: 2026-06-07
 title: 'The Rise and Fall of Fable 5: AI Storytelling, Unprecedented...'
 ---
