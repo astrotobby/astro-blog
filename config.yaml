@@ -97,7 +97,7 @@ platforms:
   # X stays configured (keys in GitHub secrets, code ready). It currently soft-fails
   # with 402 "no credits" because X's API requires a paid tier — it will START
   # POSTING automatically once you subscribe to a paid X plan. No code change needed.
-  direct: [tumblr, x, facebook, instagram, threads]   # add "reddit" per HONEST-LIMITS.md
+  direct: [x, facebook, instagram, threads]   # tumblr removed; add "reddit" per HONEST-LIMITS.md
 
 tumblr:
   blog: ""                 # your blog host, e.g. "astrotobby.tumblr.com" (TUMBLR_BLOG also works)
