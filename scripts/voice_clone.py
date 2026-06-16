@@ -104,8 +104,8 @@ def synthesize(text, out_path, cfg=None):
         from melo.api import TTS
         speed = float(((cfg or {}).get("voice", {}) or {}).get("clone_speed", 1.0))
         tts = TTS(language="EN", device=device)
-        spk = tts.hps.data.spk2id
-        spk_id = spk.get("EN-US") or list(spk.values())[0]
+        spk2id = tts.hps.data.spk2id   # HParams: supports [] and 'in', not .get()
+        spk_id = spk2id["EN-US"] if "EN-US" in spk2id else list(spk2id.values())[0]
         base_wav = os.path.join(_state_dir(), "_base.wav")
         tts.tts_to_file(text, spk_id, base_wav, speed=speed)
         # recolour to the target voice
