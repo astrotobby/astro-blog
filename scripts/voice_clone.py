@@ -45,29 +45,18 @@ def _download_samples(dest):
     return dest
 
 
-def _build_reference(sample_dir, out_wav):
-    """Concatenate the clips into one clean 16k mono wav for embedding."""
+def _reference_wavs(sample_dir):
+    """Transcode each Drive clip (3gp/AMR) to a clean mono wav; return the list."""
     clips = sorted(glob.glob(os.path.join(sample_dir, "*")))
-    clips = [c for c in clips if os.path.isfile(c)]
-    if not clips:
-        return None
-    listf = os.path.join(sample_dir, "_list.txt")
-    # transcode each to wav first (3gp/AMR -> wav), then concat
+    clips = [c for c in clips if os.path.isfile(c) and not c.lower().endswith(".wav")]
     wavs = []
     for i, c in enumerate(clips):
         w = os.path.join(sample_dir, f"_c{i}.wav")
-        r = subprocess.run(["ffmpeg", "-y", "-i", c, "-ar", "16000", "-ac", "1", w],
+        r = subprocess.run(["ffmpeg", "-y", "-i", c, "-ar", "22050", "-ac", "1", w],
                            capture_output=True, text=True)
-        if r.returncode == 0 and os.path.exists(w):
+        if r.returncode == 0 and os.path.exists(w) and os.path.getsize(w) > 2048:
             wavs.append(w)
-    if not wavs:
-        return None
-    with open(listf, "w") as f:
-        for w in wavs:
-            f.write(f"file '{os.path.abspath(w)}'\n")
-    r = subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listf,
-                        "-ar", "16000", "-ac", "1", out_wav], capture_output=True, text=True)
-    return out_wav if (r.returncode == 0 and os.path.exists(out_wav)) else None
+    return wavs
 
 
 def _get_converter(device):
@@ -78,7 +67,9 @@ def _get_converter(device):
 
 
 def _target_se(device, converter):
-    """Load cached target speaker embedding, or build it from the Drive samples."""
+    """Load cached target speaker embedding, or build it from the Drive samples.
+    Uses converter.extract_se directly (no Silero/whisper VAD — that dependency is
+    broken in OpenVoice's se_extractor)."""
     import torch
     se_path = os.path.join(_state_dir(), "voice_se.pth")
     if os.path.exists(se_path):
@@ -86,12 +77,13 @@ def _target_se(device, converter):
             return torch.load(se_path, map_location=device)
         except Exception:  # noqa
             pass
-    from openvoice import se_extractor
     samples = _download_samples(os.path.join(_state_dir(), "voice_samples"))
-    ref = _build_reference(samples, os.path.join(_state_dir(), "voice_ref.wav"))
-    if not ref:
+    wavs = _reference_wavs(samples)
+    if not wavs:
+        _log("no usable reference clips")
         return None
-    se, _ = se_extractor.get_se(ref, converter, vad=True)
+    _log(f"extracting voice embedding from {len(wavs)} clip(s)")
+    se = converter.extract_se(wavs, se_save_path=None)
     try:
         torch.save(se, se_path)
     except Exception:  # noqa
