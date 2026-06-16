@@ -24,7 +24,7 @@ jobs:
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Install torch (CPU)
-        run: pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+        run: pip install torch==2.2.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cpu
       - name: Set up OpenVoice
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
