@@ -134,11 +134,22 @@ jobs:
         run: |
           FORCE=""
           if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE="--force"; fi
-          # push & schedule both use --sweep: it processes any live post not yet in the
-          # ledger, so it's immune to the changed-files diff breaking on filenames with
-          # spaces (the autoblogger writes those) and to multi-commit pushes. Dedup +
-          # primed ledger mean only genuinely-new posts get posted.
-          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ github.event_name }}" = "push" ]; then
+            # Only act when a post is genuinely ADDED. Bulk EDITS (image optimization,
+            # SEO tweaks, etc.) modify post files but must NOT trigger posting. We just
+            # COUNT added post files (no filename passing, so spaces are fine); if none
+            # were added, skip entirely. If a new post was added, --sweep posts only the
+            # new slug(s) (dedup + primed ledger prevent any re-posting of existing ones).
+            BEFORE="${{ github.event.before }}"
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+              BEFORE="${{ github.sha }}^"
+            fi
+            ADDED=$(git diff --name-only --diff-filter=A "$BEFORE" "${{ github.sha }}" -- src/content/blog posts | head -1)
+            if [ -z "$ADDED" ]; then
+              echo "No NEW post added in this push (edits only) -> skipping; nothing will be posted."
+              exit 0
+            fi
+            echo "New post(s) detected -> sweeping for genuinely-new posts."
             python scripts/run_pipeline.py --sweep
           elif [ "${{ github.event.inputs.prime }}" = "true" ]; then
             python scripts/run_pipeline.py --prime
