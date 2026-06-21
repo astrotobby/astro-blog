@@ -12,56 +12,181 @@ export interface ShopifyProduct {
   variantId: string;
   price: string;
   description: string;
+  image?: string;
 }
 
-// Maps post tag keywords → product handles to surface first
 const TAG_PRIORITY: Record<string, string> = {
-  video:      'ai-video-freelancer-toolkit-2026',
-  freelance:  'ai-video-freelancer-toolkit-2026',
+  video: 'ai-video-freelancer-toolkit-2026',
+  freelance: 'ai-video-freelancer-toolkit-2026',
+  runway: 'ai-video-freelancer-toolkit-2026',
+  kling: 'ai-video-freelancer-toolkit-2026',
   automation: 'make-com-autoblogging-blueprint-2026-build-a-full-ai-content-pipeline',
-  autoblog:   'make-com-autoblogging-blueprint-2026-build-a-full-ai-content-pipeline',
-  make:       'make-com-autoblogging-blueprint-2026-build-a-full-ai-content-pipeline',
-  seo:        'aeo-masterguide-2026-rank-in-ai-search-chatgpt-perplexity-google-ai-overviews',
-  aeo:        'aeo-masterguide-2026-rank-in-ai-search-chatgpt-perplexity-google-ai-overviews',
-  search:     'aeo-masterguide-2026-rank-in-ai-search-chatgpt-perplexity-google-ai-overviews',
-  agent:      'agentic-ai-workflow-pack-2026-build-amp-deploy-multi-agent-systems-without-code',
-  prompt:     'ai-prompt-vault-2026-500-categorized-prompts-for-video-content-code-automation',
-  llm:        'ai-prompt-vault-2026-500-categorized-prompts-for-video-content-code-automation',
+  autoblog: 'make-com-autoblogging-blueprint-2026-build-a-full-ai-content-pipeline',
+  make: 'make-com-autoblogging-blueprint-2026-build-a-full-ai-content-pipeline',
+  pipeline: 'make-com-autoblogging-blueprint-2026-build-a-full-ai-content-pipeline',
+  seo: 'aeo-masterguide-2026-rank-in-ai-search-chatgpt-perplexity-google-ai-overviews',
+  aeo: 'aeo-masterguide-2026-rank-in-ai-search-chatgpt-perplexity-google-ai-overviews',
+  search: 'aeo-masterguide-2026-rank-in-ai-search-chatgpt-perplexity-google-ai-overviews',
+  perplexity: 'aeo-masterguide-2026-rank-in-ai-search-chatgpt-perplexity-google-ai-overviews',
+  chatgpt: 'aeo-masterguide-2026-rank-in-ai-search-chatgpt-perplexity-google-ai-overviews',
+  agent: 'agentic-ai-workflow-pack-2026-build-amp-deploy-multi-agent-systems-without-code',
+  agentic: 'agentic-ai-workflow-pack-2026-build-amp-deploy-multi-agent-systems-without-code',
+  prompt: 'ai-prompt-vault-2026-500-categorized-prompts-for-video-content-code-automation',
+  prompts: 'ai-prompt-vault-2026-500-categorized-prompts-for-video-content-code-automation',
+  llm: 'ai-prompt-vault-2026-500-categorized-prompts-for-video-content-code-automation',
 };
+
+export const FALLBACK_PRODUCTS: ShopifyProduct[] = [
+  {
+    id: 'gid://shopify/Product/10365512286487',
+    title: 'The AI Video Freelancer Toolkit 2026 — Land Clients, Deliver AI Videos, Get Paid',
+    status: 'ACTIVE',
+    vendor: 'Astro Tobby',
+    productType: 'Digital Download',
+    totalVariants: 1,
+    totalInventory: 0,
+    createdAt: '2026-06-09T09:05:47Z',
+    updatedAt: '2026-06-11T15:42:51Z',
+    handle: 'ai-video-freelancer-toolkit-2026',
+    variantId: 'gid://shopify/ProductVariant/53517875675415',
+    price: '$24.00',
+    description: 'Everything you need to land AI video clients, deliver professional results with Runway ML and Kling AI, and get paid — in one toolkit.',
+    image: 'https://cdn.shopify.com/s/files/1/1009/9716/9431/files/product_cover.jpg',
+  },
+  {
+    id: 'gid://shopify/Product/10365578838295',
+    title: 'Make.com Autoblogging Blueprint 2026 — Build a Full AI Content Pipeline',
+    status: 'ACTIVE',
+    vendor: 'Astro Tobby',
+    productType: 'Digital Download',
+    totalVariants: 1,
+    totalInventory: 0,
+    createdAt: '2026-06-09T10:22:51Z',
+    updatedAt: '2026-06-19T04:13:49Z',
+    handle: 'make-com-autoblogging-blueprint-2026-build-a-full-ai-content-pipeline',
+    variantId: 'gid://shopify/ProductVariant/53518038434071',
+    price: '$22.00',
+    description: 'Build a fully automated blog content pipeline that writes, publishes, and distributes posts while you sleep — no coding required.',
+    image: 'https://cdn.shopify.com/s/files/1/1009/9716/9431/files/cover_product2.jpg',
+  },
+  {
+    id: 'gid://shopify/Product/10365579297047',
+    title: 'AI Prompt Vault 2026 — 500+ Categorized Prompts for Video, Content, Code & Automation',
+    status: 'ACTIVE',
+    vendor: 'Astro Tobby',
+    productType: 'Digital Download',
+    totalVariants: 1,
+    totalInventory: 0,
+    createdAt: '2026-06-09T10:23:15Z',
+    updatedAt: '2026-06-19T04:19:31Z',
+    handle: 'ai-prompt-vault-2026-500-categorized-prompts-for-video-content-code-automation',
+    variantId: 'gid://shopify/ProductVariant/53518038892823',
+    price: '$12.00',
+    description: '500+ battle-tested AI prompts across 10 categories — video, content, code, automation and more. Copy, paste, and produce.',
+    image: 'https://cdn.shopify.com/s/files/1/1009/9716/9431/files/cover_product3.jpg',
+  },
+  {
+    id: 'gid://shopify/Product/10365579821335',
+    title: 'AEO Masterguide 2026 — Rank in AI Search (ChatGPT, Perplexity, Google AI Overviews)',
+    status: 'ACTIVE',
+    vendor: 'Astro Tobby',
+    productType: 'Digital Download',
+    totalVariants: 1,
+    totalInventory: 0,
+    createdAt: '2026-06-09T10:23:38Z',
+    updatedAt: '2026-06-10T19:43:36Z',
+    handle: 'aeo-masterguide-2026-rank-in-ai-search-chatgpt-perplexity-google-ai-overviews',
+    variantId: 'gid://shopify/ProductVariant/53518039417111',
+    price: '$14.00',
+    description: 'SEO is dead for AI search. This guide shows you exactly how to get featured in ChatGPT, Perplexity, and Google AI Overviews.',
+    image: 'https://cdn.shopify.com/s/files/1/1009/9716/9431/files/cover_product4.jpg',
+  },
+  {
+    id: 'gid://shopify/Product/10365580312855',
+    title: 'Agentic AI Workflow Pack 2026 — Build & Deploy Multi-Agent Systems Without Code',
+    status: 'ACTIVE',
+    vendor: 'Astro Tobby',
+    productType: 'Digital Download',
+    totalVariants: 1,
+    totalInventory: 0,
+    createdAt: '2026-06-09T10:23:59Z',
+    updatedAt: '2026-06-10T19:43:39Z',
+    handle: 'agentic-ai-workflow-pack-2026-build-amp-deploy-multi-agent-systems-without-code',
+    variantId: 'gid://shopify/ProductVariant/53518039908631',
+    price: '$32.00',
+    description: 'Multi-agent AI systems are rewriting how work gets done. This pack gives non-coders a plug-and-play toolkit to build and deploy them.',
+    image: 'https://cdn.shopify.com/s/files/1/1009/9716/9431/files/cover_product5.jpg',
+  },
+];
 
 export async function fetchShopifyProducts(): Promise<ShopifyProduct[]> {
   const domain = import.meta.env.SHOPIFY_STORE_DOMAIN ?? 'chainztobby.myshopify.com';
-  const token = import.meta.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN as string | undefined;
+  const token = import.meta.env.SHOPIFY_STOREFRONT_API_TOKEN as string | undefined;
 
-  if (!token) throw new Error('Missing SHOPIFY_ADMIN_API_ACCESS_TOKEN');
+  if (!token) throw new Error('Missing SHOPIFY_STOREFRONT_API_TOKEN');
 
-  const res = await fetch(
-    `https://${domain}/admin/api/2024-01/products.json?status=active&limit=10`,
-    { headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' } }
-  );
+  const query = `{
+    products(first: 10, query: "available_for_sale:true") {
+      edges {
+        node {
+          id
+          title
+          handle
+          vendor
+          productType
+          createdAt
+          updatedAt
+          description
+          featuredImage {
+            url
+          }
+          priceRange {
+            minVariantPrice {
+              amount
+              currencyCode
+            }
+          }
+          variants(first: 1) {
+            edges {
+              node {
+                id
+              }
+            }
+          }
+        }
+      }
+    }
+  }`;
 
-  if (!res.ok) throw new Error(`Shopify API responded with ${res.status}`);
+  const res = await fetch(`https://${domain}/api/2024-01/graphql.json`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Storefront-Access-Token': token,
+    },
+    body: JSON.stringify({ query }),
+  });
 
-  const { products } = (await res.json()) as { products: any[] };
+  if (!res.ok) throw new Error(`Shopify Storefront API ${res.status}`);
 
-  return products.map((p) => ({
-    id: `gid://shopify/Product/${p.id}`,
+  const json = (await res.json()) as { data: { products: { edges: any[] } } };
+  const edges = json.data?.products?.edges ?? [];
+
+  return edges.map(({ node: p }: { node: any }) => ({
+    id: p.id as string,
     title: p.title as string,
-    status: (p.status as string).toUpperCase(),
+    status: 'ACTIVE',
     vendor: p.vendor as string,
-    productType: (p.product_type as string) || 'Digital Download',
-    totalVariants: (p.variants as any[]).length,
+    productType: (p.productType as string) || 'Digital Download',
+    totalVariants: 1,
     totalInventory: 0,
-    createdAt: p.created_at as string,
-    updatedAt: p.updated_at as string,
+    createdAt: p.createdAt as string,
+    updatedAt: p.updatedAt as string,
     handle: p.handle as string,
-    variantId: `gid://shopify/ProductVariant/${(p.variants as any[])[0]?.id}`,
-    price: `$${parseFloat((p.variants as any[])[0]?.price ?? '0').toFixed(2)}`,
-    description: ((p.body_html as string) ?? '')
-      .replace(/<[^>]+>/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 140) || (p.title as string),
+    variantId: p.variants.edges[0]?.node.id as string,
+    price: `$${parseFloat(p.priceRange.minVariantPrice.amount).toFixed(2)}`,
+    description: (p.description as string).slice(0, 160) || (p.title as string),
+    image: p.featuredImage?.url as string | undefined,
   }));
 }
 
@@ -72,10 +197,11 @@ export function prioritizeProducts(
   if (!tags.length) return products;
 
   const lowerTags = tags.map((t) => t.toLowerCase());
+
   const priorityHandle = lowerTags.reduce<string | undefined>((found, tag) => {
     if (found) return found;
     for (const [key, handle] of Object.entries(TAG_PRIORITY)) {
-      if (tag.includes(key)) return handle;
+      if (tag.includes(key) || key.includes(tag)) return handle;
     }
     return undefined;
   }, undefined);
