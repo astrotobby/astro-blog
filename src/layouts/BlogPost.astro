@@ -11,179 +11,64 @@ import RelatedPosts from '../components/RelatedPosts.astro';
 import { displayImage, svgFallback } from '../lib/postImage';
 
 type Props = CollectionEntry<'blog'>['data'] & { slug?: string };
-const { title, description, pubDate, updatedDate, image, tags = [], slug = '' } = Astro.props;
+
+const {
+  title,
+  description,
+  pubDate,
+  updatedDate,
+  image,
+  tags = [],
+  slug = '',
+} = Astro.props;
+
 const heroImage = displayImage(title, image);
 const heroFallback = svgFallback(title);
 ---
+
 <html lang="en">
   <head>
     <BaseHead title={title} description={description} />
-    <style>
-      /* Reading progress */
-      .read-progress {
-        position: fixed;
-        top: 0; left: 0;
-        height: 3px;
-        width: 0%;
-        z-index: 200;
-        background: var(--brand-gradient);
-        box-shadow: 0 0 12px rgba(99, 102, 241, 0.6);
-        transition: width 80ms linear;
-      }
-      main { max-width: 760px; width: calc(100% - 3rem); margin: 0 auto; padding: 3.5rem 0 5rem; }
-
-      .back-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: var(--text-body);
-        font-weight: 600;
-        margin-bottom: 2.5rem;
-        padding: 0.5rem 1rem;
-        border-radius: 999px;
-        background: var(--glass-bg-strong);
-        -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-        border: 1px solid var(--glass-border);
-        transition: transform var(--dur) var(--ease-out), color var(--dur-fast) var(--ease-out);
-        font-size: 0.9rem;
-      }
-      .back-link:hover { color: var(--accent); transform: translateX(-4px); }
-
-      .article-header { margin-bottom: 2.5rem; }
-      .article-date { color: var(--accent); font-weight: 600; margin-bottom: 1rem; font-size: 0.95rem; }
-      .article-title {
-        font-size: clamp(2rem, 5vw, 3rem);
-        font-weight: 800;
-        color: var(--text-heading);
-        line-height: 1.12;
-        letter-spacing: -0.03em;
-        margin: 0;
-      }
-
-      .hero-figure { position: relative; margin: 0 0 3rem; }
-      .hero-img {
-        width: 100%;
-        border-radius: var(--radius-lg);
-        display: block;
-        box-shadow: var(--shadow-lift);
-        border: 1px solid var(--glass-border);
-        background: #eef0f7;
-        aspect-ratio: 16 / 9;
-        object-fit: cover;
-      }
-      .hero-figure::after {
-        content: '';
-        position: absolute;
-        inset: auto 8% -14px 8%;
-        height: 40px;
-        border-radius: 50%;
-        background: rgba(99, 102, 241, 0.35);
-        filter: blur(28px);
-        z-index: -1;
-      }
-
-      @media (max-width: 720px) {
-        main { padding: 2.5rem 0 3.5rem; }
-        .hero-figure { margin-bottom: 2rem; }
-      }
-    </style>
   </head>
   <body>
-    <div class="read-progress" id="read-progress" aria-hidden="true"></div>
     <Header />
     <main>
-      <a href="/blog" class="back-link">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-        Back to archive
-      </a>
       <article>
-        <header class="article-header" data-reveal>
-          <div class="article-date">
-            <FormattedDate date={pubDate} />
-            {updatedDate && <span> (Updated: <FormattedDate date={updatedDate} />)</span>}
-          </div>
-          <h1 class="article-title">{title}</h1>
-        </header>
-
-        <figure class="hero-figure" data-reveal>
-          <img src={heroImage} data-fb={heroFallback} alt={title} class="hero-img" width="1200" height="675" loading="eager" fetchpriority="high" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
-        </figure>
-
-        <!-- Position 1: Below hero image / above content -->
-        <AdBanner minHeight="250px" margin="0 0 40px 0" />
-
-        <div class="prose" id="article-content">
-          <slot />
+        <div class="hero-image">
+          <a href="/blog">&larr; Back to archive</a>
+          {heroImage && (
+            <img
+              src={heroImage}
+              alt={title}
+              onerror={`this.onerror=null;this.src='${heroFallback}'`}
+            />
+          )}
         </div>
-
-        <!-- Position 3: Bottom of article -->
-        <AdBanner minHeight="250px" margin="40px 0 0 0" />
-
-        <!-- Related posts — tag-matched internal links -->
-        {slug && <RelatedPosts currentSlug={slug} tags={tags} />}
-
-        <!-- Shopify Products Section — tag-prioritized -->
-        <ShopifyProducts tags={tags} />
-
-        <Newsletter />
+        <div class="prose">
+          <div class="title">
+            <div class="date">
+              <FormattedDate date={pubDate} />
+              {updatedDate && (
+                <div class="last-updated-on">
+                  (Updated: <FormattedDate date={updatedDate} />)
+                </div>
+              )}
+            </div>
+            <h1>{title}</h1>
+            <hr />
+          </div>
+          {slug && <AdBanner slot="top" />}
+          <slot />
+          {slug && <AdBanner slot="bottom" />}
+        </div>
       </article>
+
+      <ShopifyProducts tags={tags} />
+
+      {slug && <RelatedPosts currentSlug={slug} currentTags={tags} />}
+
+      <Newsletter />
     </main>
-
-    <!-- Reading progress + mid-article ad injection -->
-    <script is:inline>
-      document.addEventListener('DOMContentLoaded', () => {
-        // Reading progress bar
-        const bar = document.getElementById('read-progress');
-        const article = document.getElementById('article-content');
-        if (bar && article) {
-          const update = () => {
-            const start = article.offsetTop;
-            const total = article.offsetHeight - window.innerHeight + 400;
-            const scrolled = window.scrollY - start + 200;
-            const pct = Math.max(0, Math.min(1, scrolled / Math.max(total, 1)));
-            bar.style.width = (pct * 100) + '%';
-          };
-          update();
-          window.addEventListener('scroll', update, { passive: true });
-          window.addEventListener('resize', update, { passive: true });
-        }
-
-        // Mid-article ad injection (unchanged behaviour)
-        const prose = document.getElementById('article-content');
-        if (!prose) return;
-        const paragraphs = prose.querySelectorAll('p');
-        if (paragraphs.length >= 4) {
-          const midIndex = Math.floor(paragraphs.length / 2);
-          const target = paragraphs[midIndex];
-
-          const adContainer = document.createElement('div');
-          adContainer.className = 'ad-container';
-          adContainer.style.minHeight = '250px';
-          adContainer.style.margin = '40px auto';
-          adContainer.style.display = 'flex';
-          adContainer.style.justifyContent = 'center';
-          adContainer.style.alignItems = 'center';
-          adContainer.style.width = '100%';
-          adContainer.style.background = 'rgba(0, 0, 0, 0.02)';
-          adContainer.style.borderRadius = '8px';
-          adContainer.style.overflow = 'hidden';
-
-          const script = document.createElement('script');
-          script.async = true;
-          script.dataset.cfasync = "false";
-          script.src = "https://pl29385882.effectivecpmnetwork.com/9443ced55ad6dc338cd7a9fec5677f94/invoke.js";
-
-          const div = document.createElement('div');
-          div.id = 'container-9443ced55ad6dc338cd7a9fec5677f94';
-
-          adContainer.appendChild(script);
-          adContainer.appendChild(div);
-
-          target.parentNode.insertBefore(adContainer, target);
-        }
-      });
-    </script>
-
     <Footer />
   </body>
 </html>
