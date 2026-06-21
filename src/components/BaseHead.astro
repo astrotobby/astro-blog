@@ -4,7 +4,7 @@
 import '../styles/global.css';
 import type { ImageMetadata } from 'astro';
 import FallbackImage from '../assets/blog-placeholder-1.jpg';
-import { SITE_TITLE } from '../consts';
+import { SITEE_TITLE } from '../consts';
 
 interface Props {
 	title: string;
@@ -15,6 +15,9 @@ interface Props {
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const { title, description, image = FallbackImage } = Astro.props;
 ---
+
+<!-- Google Search Console Verification -->
+<meta name="google-site-verification" content="Rpsqu84IgHbSt-v-gps5GTbXHoIl390qlBB3u6E1sxQ" />
 
 <!-- Pinterest Verification -->
 <meta name="p:domain_verify" content="8b0c9c2a29f01585465bf32f6ccd11b4" />
@@ -60,6 +63,7 @@ const { title, description, image = FallbackImage } = Astro.props;
 <meta property="twitter:title" content={title} />
 <meta property="twitter:description" content={description} />
 <meta property="twitter:image" content={new URL(image.src, Astro.url)} />
+
 
 
 
