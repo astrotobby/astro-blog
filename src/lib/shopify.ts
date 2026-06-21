@@ -120,8 +120,11 @@ export const FALLBACK_PRODUCTS: ShopifyProduct[] = [
 ];
 
 export async function fetchShopifyProducts(): Promise<ShopifyProduct[]> {
-  const domain = import.meta.env.SHOPIFY_STORE_DOMAIN ?? 'chainztobby.myshopify.com';
-  const token = import.meta.env.SHOPIFY_STOREFRONT_API_TOKEN as string | undefined;
+  const domain: string =
+    (import.meta.env.SHOPIFY_STORE_DOMAIN as string | undefined) ?? 'chainztobby.myshopify.com';
+  const token: string | undefined = import.meta.env.SHOPIFY_STOREFRONT_API_TOKEN as
+    | string
+    | undefined;
 
   if (!token) throw new Error('Missing SHOPIFY_STOREFRONT_API_TOKEN');
 
@@ -129,30 +132,10 @@ export async function fetchShopifyProducts(): Promise<ShopifyProduct[]> {
     products(first: 10, query: "available_for_sale:true") {
       edges {
         node {
-          id
-          title
-          handle
-          vendor
-          productType
-          createdAt
-          updatedAt
-          description
-          featuredImage {
-            url
-          }
-          priceRange {
-            minVariantPrice {
-              amount
-              currencyCode
-            }
-          }
-          variants(first: 1) {
-            edges {
-              node {
-                id
-              }
-            }
-          }
+          id title handle vendor productType createdAt updatedAt description
+          featuredImage { url }
+          priceRange { minVariantPrice { amount currencyCode } }
+          variants(first: 1) { edges { node { id } } }
         }
       }
     }
@@ -169,25 +152,31 @@ export async function fetchShopifyProducts(): Promise<ShopifyProduct[]> {
 
   if (!res.ok) throw new Error(`Shopify Storefront API ${res.status}`);
 
-  const json = (await res.json()) as { data: { products: { edges: any[] } } };
-  const edges = json.data?.products?.edges ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const json = (await res.json()) as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const edges: any[] = json?.data?.products?.edges ?? [];
 
-  return edges.map(({ node: p }: { node: any }) => ({
-    id: p.id as string,
-    title: p.title as string,
-    status: 'ACTIVE',
-    vendor: p.vendor as string,
-    productType: (p.productType as string) || 'Digital Download',
-    totalVariants: 1,
-    totalInventory: 0,
-    createdAt: p.createdAt as string,
-    updatedAt: p.updatedAt as string,
-    handle: p.handle as string,
-    variantId: p.variants.edges[0]?.node.id as string,
-    price: `$${parseFloat(p.priceRange.minVariantPrice.amount).toFixed(2)}`,
-    description: (p.description as string).slice(0, 160) || (p.title as string),
-    image: p.featuredImage?.url as string | undefined,
-  }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return edges.map((edge: any): ShopifyProduct => {
+    const p = edge.node;
+    return {
+      id: String(p.id),
+      title: String(p.title),
+      status: 'ACTIVE',
+      vendor: String(p.vendor),
+      productType: String(p.productType || 'Digital Download'),
+      totalVariants: 1,
+      totalInventory: 0,
+      createdAt: String(p.createdAt),
+      updatedAt: String(p.updatedAt),
+      handle: String(p.handle),
+      variantId: String(p.variants?.edges?.[0]?.node?.id ?? ''),
+      price: `$${parseFloat(String(p.priceRange?.minVariantPrice?.amount ?? '0')).toFixed(2)}`,
+      description: String(p.description ?? '').slice(0, 160) || String(p.title),
+      image: p.featuredImage?.url ? String(p.featuredImage.url) : undefined,
+    };
+  });
 }
 
 export function prioritizeProducts(
@@ -197,18 +186,20 @@ export function prioritizeProducts(
   if (!tags.length) return products;
 
   const lowerTags = tags.map((t) => t.toLowerCase());
+  let priorityHandle: string | undefined;
 
-  const priorityHandle = lowerTags.reduce<string | undefined>((found, tag) => {
-    if (found) return found;
+  outer: for (const tag of lowerTags) {
     for (const [key, handle] of Object.entries(TAG_PRIORITY)) {
-      if (tag.includes(key) || key.includes(tag)) return handle;
+      if (tag.includes(key) || key.includes(tag)) {
+        priorityHandle = handle;
+        break outer;
+      }
     }
-    return undefined;
-  }, undefined);
+  }
 
   if (!priorityHandle) return products;
-
-  const priority = products.filter((p) => p.handle === priorityHandle);
-  const rest = products.filter((p) => p.handle !== priorityHandle);
-  return [...priority, ...rest];
+  return [
+    ...products.filter((p) => p.handle === priorityHandle),
+    ...products.filter((p) => p.handle !== priorityHandle),
+  ];
 }
