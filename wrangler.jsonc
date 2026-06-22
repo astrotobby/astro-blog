@@ -1,6 +1,11 @@
 {
   "compatibility_date": "2024-04-03",
   "name": "astro-blog",
+  "main": "./dist/_worker.js/index.js",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist"
+  },
   "observability": {
     "enabled": true
   },
