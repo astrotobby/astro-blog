@@ -1,7 +1,7 @@
 ---
-// Third-party ad network scripts (Monetag, HilltopAds), injected client-side
-// after a short idle delay so they never block first paint or hurt Core Web
-// Vitals. The full-screen/autoplay formats (vignette, video-slide) are capped
+// Third-party ad network scripts (Monetag, HilltopAds), injected immediately
+// on visit (right after DOMContentLoaded, async — won't block rendering).
+// The full-screen/autoplay formats (vignette, video-slide) are capped
 // to once per browser session so a reader isn't hit on every single page —
 // the banner format can run every page view.
 // Note: Monetag in-page push (fake notification popups) was removed per
@@ -95,20 +95,10 @@
       loadOncePerSession('videoslide', '//surefootedpause.com/dYm.FEzXdkGZNzvCZgGKUk/Heem/9tuSZWUHlXkOPrTxcYxBNEDWgUy_NLjnE/tbNwz/Eg0dOQDOIj2BN-QY');
     }
 
-    // Wait until the page is idle (or ~2s fallback) before injecting anything,
-    // so these never compete with the page's own initial render.
-    function schedule() {
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(boot, { timeout: 3000 });
-      } else {
-        setTimeout(boot, 2000);
-      }
-    }
-
     function start() {
       startTracking();
       watchProductsSection();
-      schedule();
+      boot();
     }
 
     if (document.readyState === 'loading') {
