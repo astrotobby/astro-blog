@@ -5,6 +5,7 @@ import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
 import AdBanner from '../components/AdBanner.astro';
+import AdsterraNativeBanner from '../components/AdsterraNativeBanner.astro';
 import Newsletter from '../components/Newsletter.astro';
 import ShopifyProducts from '../components/ShopifyProducts.astro';
 import RelatedPosts from '../components/RelatedPosts.astro';
@@ -62,6 +63,8 @@ const heroFallback = svgFallback(title);
           {slug && <AdBanner slot="bottom" />}
         </div>
       </article>
+
+      <AdsterraNativeBanner />
 
       <ShopifyProducts tags={tags} limit={3} />
 

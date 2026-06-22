@@ -1,0 +1,44 @@
+---
+// Adsterra Native Banner — a contained, inline ad unit (unlike the floating
+// widgets in AdNetworkScripts.astro). Lazy-loaded only when scrolled near,
+// so it never costs anything for readers who don't get this far down the page.
+---
+
+<div id="container-9443ced55ad6dc338cd7a9fec5677f94" class="adsterra-native"></div>
+
+<script is:inline>
+  (function () {
+    var el = document.getElementById('container-9443ced55ad6dc338cd7a9fec5677f94');
+    if (!el) return;
+
+    function inject() {
+      var s = document.createElement('script');
+      s.async = true;
+      s.dataset.cfasync = 'false';
+      s.src = 'https://pl29385882.effectivecpmnetwork.com/9443ced55ad6dc338cd7a9fec5677f94/invoke.js';
+      document.body.appendChild(s);
+    }
+
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            inject();
+            io.disconnect();
+          }
+        });
+      }, { rootMargin: '200px 0px' });
+      io.observe(el);
+    } else {
+      inject();
+    }
+  })();
+</script>
+
+<style>
+  .adsterra-native {
+    margin: 2.5rem auto;
+    max-width: 720px;
+    min-height: 1px;
+  }
+</style>
