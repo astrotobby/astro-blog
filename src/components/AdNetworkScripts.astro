@@ -9,13 +9,44 @@
 // These networks render as floating/fixed-position widgets rather than
 // inline elements, so they can't be placed "after" content in document flow.
 // Instead: once the visitor reaches the Shopify products section (.sp-section),
-// we stop injecting any ad that hasn't already loaded, so ads never show
-// alongside/after the product showcase.
+// we (a) stop injecting any ad that hasn't already loaded, AND (b) forcibly
+// hide any ad widget already on screen, so nothing ever lingers into the
+// footer/newsletter area below the products.
 ---
 
 <script is:inline>
   (function () {
     var blockedByProducts = false;
+    var trackedNodes = [];
+    var bodyObserver = null;
+
+    function hideTrackedNodes() {
+      trackedNodes.forEach(function (node) {
+        if (!node || !node.style) return;
+        try {
+          node.style.setProperty('display', 'none', 'important');
+          node.style.setProperty('visibility', 'hidden', 'important');
+          node.style.setProperty('pointer-events', 'none', 'important');
+        } catch (e) {}
+      });
+    }
+
+    // Track every node ad scripts add directly to <body> (their iframes/
+    // widgets typically attach there) so we can kill them on demand.
+    function startTracking() {
+      if (!('MutationObserver' in window)) return;
+      bodyObserver = new MutationObserver(function (mutations) {
+        mutations.forEach(function (m) {
+          m.addedNodes.forEach(function (node) {
+            if (node.nodeType === 1) {
+              trackedNodes.push(node);
+              if (blockedByProducts) hideTrackedNodes();
+            }
+          });
+        });
+      });
+      bodyObserver.observe(document.body, { childList: true });
+    }
 
     function watchProductsSection() {
       var section = document.querySelector('.sp-section');
@@ -24,6 +55,7 @@
         entries.forEach(function (entry) {
           if (entry.isIntersecting) {
             blockedByProducts = true;
+            hideTrackedNodes();
             io.disconnect();
           }
         });
@@ -74,6 +106,7 @@
     }
 
     function start() {
+      startTracking();
       watchProductsSection();
       schedule();
     }
