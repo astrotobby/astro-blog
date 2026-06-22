@@ -179,27 +179,70 @@ export async function fetchShopifyProducts(): Promise<ShopifyProduct[]> {
   });
 }
 
+// Deterministic string hash -> seed for a simple PRNG (mulberry32).
+// Same seed always produces the same shuffle, so a given page's product
+// order stays stable across requests (no flicker on refresh/back-button),
+// while different pages/seeds produce different orders.
+function hashSeed(seed: string): number {
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return h >>> 0;
+}
+
+function mulberry32(seed: number): () => number {
+  let a = seed;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function seededShuffle<T>(items: T[], seed: string): T[] {
+  const rand = mulberry32(hashSeed(seed));
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export function prioritizeProducts(
   products: ShopifyProduct[],
-  tags: string[]
+  tags: string[],
+  rotationSeed?: string
 ): ShopifyProduct[] {
-  if (!tags.length) return products;
-
-  const lowerTags = tags.map((t) => t.toLowerCase());
   let priorityHandle: string | undefined;
 
-  outer: for (const tag of lowerTags) {
-    for (const [key, handle] of Object.entries(TAG_PRIORITY)) {
-      if (tag.includes(key) || key.includes(tag)) {
-        priorityHandle = handle;
-        break outer;
+  if (tags.length) {
+    const lowerTags = tags.map((t) => t.toLowerCase());
+    outer: for (const tag of lowerTags) {
+      for (const [key, handle] of Object.entries(TAG_PRIORITY)) {
+        if (tag.includes(key) || key.includes(tag)) {
+          priorityHandle = handle;
+          break outer;
+        }
       }
     }
   }
 
-  if (!priorityHandle) return products;
-  return [
-    ...products.filter((p) => p.handle === priorityHandle),
-    ...products.filter((p) => p.handle !== priorityHandle),
-  ];
+  const featured = priorityHandle
+    ? products.filter((p) => p.handle === priorityHandle)
+    : [];
+  const rest = priorityHandle
+    ? products.filter((p) => p.handle !== priorityHandle)
+    : products;
+
+  // Rotate daily so the order isn't frozen forever, but different pages
+  // (different seeds) still show a different mix from each other today.
+  const today = new Date().toISOString().slice(0, 10);
+  const shuffled = rotationSeed ? seededShuffle(rest, `${rotationSeed}:${today}`) : rest;
+
+  return [...featured, ...shuffled];
 }

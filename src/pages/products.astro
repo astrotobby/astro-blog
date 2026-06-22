@@ -53,7 +53,16 @@ const pageDescription = "Explore our carefully curated digital products designed
         <h2>Featured Products</h2>
         <p>Each product is carefully crafted with actionable insights and proven strategies</p>
       </div>
-      <ShopifyProducts />
+      <div class="product-search">
+        <input
+          type="search"
+          id="product-search-input"
+          placeholder="Search products you've seen before..."
+          aria-label="Search products"
+        />
+        <p id="product-search-empty" hidden>No products match your search.</p>
+      </div>
+      <ShopifyProducts rotationSeed="products-page" />
     </section>
 
     <!-- Benefits Section -->
@@ -95,6 +104,24 @@ const pageDescription = "Explore our carefully curated digital products designed
     <Footer />
   </body>
 </html>
+
+<script>
+  const input = document.getElementById('product-search-input') as HTMLInputElement | null;
+  const empty = document.getElementById('product-search-empty');
+  const cards = () => Array.from(document.querySelectorAll<HTMLElement>('.sp-card'));
+
+  input?.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    let visibleCount = 0;
+    for (const card of cards()) {
+      const title = card.dataset.title ?? '';
+      const matches = !q || title.includes(q);
+      card.style.display = matches ? '' : 'none';
+      if (matches) visibleCount++;
+    }
+    if (empty) empty.hidden = visibleCount !== 0;
+  });
+</script>
 
 <style>
   .products-page {
@@ -206,6 +233,32 @@ const pageDescription = "Explore our carefully curated digital products designed
     color: #666;
     max-width: 600px;
     margin: 0 auto;
+  }
+
+  .product-search {
+    max-width: 480px;
+    margin: 0 auto 2.5rem;
+    text-align: center;
+  }
+
+  .product-search input {
+    width: 100%;
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+    border: 2px solid rgba(102, 126, 234, 0.2);
+    border-radius: 999px;
+    outline: none;
+    transition: border-color 0.2s ease;
+  }
+
+  .product-search input:focus {
+    border-color: #667eea;
+  }
+
+  .product-search p {
+    margin-top: 1rem;
+    color: #666;
+    font-size: 0.95rem;
   }
 
   /* Benefits Section */
