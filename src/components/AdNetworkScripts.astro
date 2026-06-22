@@ -6,11 +6,33 @@
 // the banner format can run every page view.
 // Note: Monetag in-page push (fake notification popups) was removed per
 // explicit request — too intrusive/spammy-looking.
+// These networks render as floating/fixed-position widgets rather than
+// inline elements, so they can't be placed "after" content in document flow.
+// Instead: once the visitor reaches the Shopify products section (.sp-section),
+// we stop injecting any ad that hasn't already loaded, so ads never show
+// alongside/after the product showcase.
 ---
 
 <script is:inline>
   (function () {
+    var blockedByProducts = false;
+
+    function watchProductsSection() {
+      var section = document.querySelector('.sp-section');
+      if (!section || !('IntersectionObserver' in window)) return;
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            blockedByProducts = true;
+            io.disconnect();
+          }
+        });
+      }, { rootMargin: '0px 0px -10% 0px', threshold: 0.01 });
+      io.observe(section);
+    }
+
     function loadAlways(src, zone) {
+      if (blockedByProducts) return;
       var s = document.createElement('script');
       if (zone) s.dataset.zone = zone;
       s.src = src;
@@ -19,6 +41,7 @@
     }
 
     function loadOncePerSession(key, src) {
+      if (blockedByProducts) return;
       var flagKey = 'ad_' + key + '_shown';
       if (sessionStorage.getItem(flagKey)) return;
       sessionStorage.setItem(flagKey, '1');
@@ -50,10 +73,15 @@
       }
     }
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', schedule);
-    } else {
+    function start() {
+      watchProductsSection();
       schedule();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', start);
+    } else {
+      start();
     }
   })();
 </script>
