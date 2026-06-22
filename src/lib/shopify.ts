@@ -141,7 +141,7 @@ export async function fetchShopifyProducts(): Promise<ShopifyProduct[]> {
     }
   }`;
 
-  const res = await fetch(`https://${domain}/api/2024-01/graphql.json`, {
+  const res = await fetch(`https://${domain}/api/2025-10/graphql.json`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
