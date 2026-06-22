@@ -63,7 +63,7 @@ const heroFallback = svgFallback(title);
         </div>
       </article>
 
-      <ShopifyProducts tags={tags} />
+      <ShopifyProducts tags={tags} limit={3} />
 
       {slug && <RelatedPosts currentSlug={slug} tags={tags} />}
 

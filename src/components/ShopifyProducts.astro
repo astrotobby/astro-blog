@@ -6,9 +6,11 @@ interface Props {
   tags?: string[];
   /** Identifies this page for deterministic per-page rotation (defaults to the current URL path). */
   rotationSeed?: string;
+  /** Cap how many products render here (omit to show the full catalog, e.g. on /products). */
+  limit?: number;
 }
 
-const { tags = [], rotationSeed } = Astro.props;
+const { tags = [], rotationSeed, limit } = Astro.props;
 
 let raw: ShopifyProduct[] = FALLBACK_PRODUCTS;
 try {
@@ -17,7 +19,8 @@ try {
   console.warn('[ShopifyProducts] Using fallback data:', (e as Error).message);
 }
 
-const products = prioritizeProducts(raw, tags, rotationSeed ?? Astro.url.pathname);
+const rotated = prioritizeProducts(raw, tags, rotationSeed ?? Astro.url.pathname);
+const products = limit ? rotated.slice(0, limit) : rotated;
 const storeBase = 'https://chainztobby.myshopify.com';
 ---
 
@@ -59,7 +62,7 @@ const storeBase = 'https://chainztobby.myshopify.com';
 
   <div class="sp-store-link" data-reveal>
     <a href="/products" class="btn btn-secondary">
-      See every product (search to find one you saw before) →
+      See every product →
     </a>
   </div>
 </section>
