@@ -3,7 +3,9 @@
 // after a short idle delay so they never block first paint or hurt Core Web
 // Vitals. The full-screen/autoplay formats (vignette, video-slide) are capped
 // to once per browser session so a reader isn't hit on every single page —
-// the lighter formats (in-page push, banner) can run every page view.
+// the banner format can run every page view.
+// Note: Monetag in-page push (fake notification popups) was removed per
+// explicit request — too intrusive/spammy-looking.
 ---
 
 <script is:inline>
@@ -28,9 +30,6 @@
     }
 
     function boot() {
-      // Monetag — in-page push (lightweight, every page view)
-      loadAlways('https://nap5k.com/tag.min.js', '10979500');
-
       // HilltopAds — banner (lightweight, every page view)
       loadAlways('//relieved-understanding.com/blXtVvsQd.GblY0/YkW/ch/reWmK9-uGZzUVluk/PQTtc/xDN_D-gpylMzjiEitCNizPEU0/ORDTI/y/N/Qd');
 
