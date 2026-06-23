@@ -75,7 +75,8 @@
     function loadOncePerSession(key, src) {
       if (blockedByProducts) return;
       var flagKey = 'ad_' + key + '_shown';
-      if (sessionStorage.getItem(flagKey)) return;
+      // TEMP: session-cap disabled for testing — fires every page load.
+      // if (sessionStorage.getItem(flagKey)) return;
       sessionStorage.setItem(flagKey, '1');
       var s = document.createElement('script');
       s.src = src;
@@ -85,14 +86,15 @@
     }
 
     function boot() {
-      // HilltopAds — banner (lightweight, every page view)
-      loadAlways('//relieved-understanding.com/blXtVvsQd.GblY0/YkW/ch/reWmK9-uGZzUVluk/PQTtc/xDN_D-gpylMzjiEitCNizPEU0/ORDTI/y/N/Qd');
+      // HilltopAds — banner: DISABLED, the provided zone URL 404s (dead/expired
+      // smartlink). Needs a fresh code from the HilltopAds dashboard.
+      // loadAlways('//relieved-understanding.com/blXtVvsQd.GblY0/YkW/ch/reWmK9-uGZzUVluk/PQTtc/xDN_D-gpylMzjiEitCNizPEU0/ORDTI/y/N/Qd');
 
-      // Monetag — vignette (full-screen interstitial, capped to once per session)
+      // Monetag — vignette (full-screen interstitial; script verified 200 OK)
       loadOncePerSession('vignette', 'https://n6wxm.com/vignette.min.js');
 
-      // HilltopAds — video slide (autoplay slide-in video, capped to once per session)
-      loadOncePerSession('videoslide', '//surefootedpause.com/dYm.FEzXdkGZNzvCZgGKUk/Heem/9tuSZWUHlXkOPrTxcYxBNEDWgUy_NLjnE/tbNwz/Eg0dOQDOIj2BN-QY');
+      // HilltopAds — video slide: DISABLED, same dead-URL issue as the banner above.
+      // loadOncePerSession('videoslide', '//surefootedpause.com/dYm.FEzXdkGZNzvCZgGKUk/Heem/9tuSZWUHlXkOPrTxcYxBNEDWgUy_NLjnE/tbNwz/Eg0dOQDOIj2BN-QY');
     }
 
     function start() {
