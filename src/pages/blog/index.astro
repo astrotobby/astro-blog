@@ -6,6 +6,7 @@ import Footer from '../../components/Footer.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
 import AdBanner from '../../components/AdBanner.astro';
+import AdsterraNativeBanner from '../../components/AdsterraNativeBanner.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
 import { displayImage, svgFallback } from '../../lib/postImage';
 
@@ -47,6 +48,9 @@ const posts = (await getCollection('blog')).sort((a, b) => orderKey(b) - orderKe
         grid-template-columns: repeat(3, 1fr);
         gap: 2rem;
       }
+      .ad-grid-span {
+        grid-column: 1 / -1;
+      }
       .post-card { text-decoration: none; display: flex; flex-direction: column; overflow: hidden; }
       .post-media { position: relative; height: 210px; overflow: hidden; }
       .post-media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--dur-slow) var(--ease-out); }
@@ -82,19 +86,25 @@ const posts = (await getCollection('blog')).sort((a, b) => orderKey(b) - orderKe
       <section class="section" style="margin: 4rem auto 2rem;">
         <div class="posts-grid">
           {posts.map((post, i) => (
-            <a href={`/blog/${post.id}/`} class="post-card card-glass" data-reveal style={`--reveal-delay:${(i % 3) * 80}ms`}>
-              <div class="post-media">
-                <img src={displayImage(post.data.title, post.data.image)} data-fb={svgFallback(post.data.title)} alt={post.data.title} loading="lazy" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
-              </div>
-              <div class="card-body">
-                <p class="card-date"><FormattedDate date={post.data.pubDate} /></p>
-                <h3 class="card-title">{post.data.title}</h3>
-                <p class="card-desc">{post.data.description}</p>
-              </div>
-            </a>
+            <>
+              {i === 6 && (
+                <div class="ad-grid-span">
+                  <AdsterraNativeBanner />
+                </div>
+              )}
+              <a href={`/blog/${post.id}/`} class="post-card card-glass" data-reveal style={`--reveal-delay:${(i % 3) * 80}ms`}>
+                <div class="post-media">
+                  <img src={displayImage(post.data.title, post.data.image)} data-fb={svgFallback(post.data.title)} alt={post.data.title} loading="lazy" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
+                </div>
+                <div class="card-body">
+                  <p class="card-date"><FormattedDate date={post.data.pubDate} /></p>
+                  <h3 class="card-title">{post.data.title}</h3>
+                  <p class="card-desc">{post.data.description}</p>
+                </div>
+              </a>
+            </>
           ))}
         </div>
-        <AdBanner minHeight="250px" margin="48px auto 0" />
       </section>
     </main>
     <Footer />
