@@ -1,17 +1,13 @@
 ---
-// Third-party ad network scripts (Monetag, HilltopAds), injected immediately
-// on visit (right after DOMContentLoaded, async — won't block rendering).
-// The full-screen/autoplay formats (vignette, video-slide) are capped
-// to once per browser session so a reader isn't hit on every single page —
-// the banner format can run every page view.
-// Note: Monetag in-page push (fake notification popups) was removed once
-// for being intrusive/spammy-looking, then re-added per a later explicit
-// request to restore it.
-// These networks render as floating/fixed-position widgets rather than
-// inline elements, so they can't be placed "after" content in document flow.
-// Instead: once the visitor reaches the Shopify products section (.sp-section),
-// we (a) stop injecting any ad that hasn't already loaded, AND (b) forcibly
-// hide any ad widget already on screen, so nothing ever lingers into the
+// Third-party ad network scripts, injected immediately on visit (right after
+// DOMContentLoaded, async — won't block rendering).
+// Scope: in-page format only (Monetag). Popup/interstitial (Monetag vignette)
+// and HilltopAds banner were both removed per explicit request — only
+// in-page + native bar formats are wanted (see AdsterraNativeBanner.astro
+// for the native bar).
+// Once the visitor reaches the Shopify products section (.sp-section), we
+// (a) stop injecting any ad that hasn't already loaded, AND (b) forcibly
+// hide any ad widget already on screen, so nothing lingers into the
 // footer/newsletter area below the products.
 ---
 
@@ -73,34 +69,10 @@
       document.body.appendChild(s);
     }
 
-    function loadOncePerSession(key, src) {
-      if (blockedByProducts) return;
-      var flagKey = 'ad_' + key + '_shown';
-      // TEMP: session-cap disabled for testing — fires every page load.
-      // if (sessionStorage.getItem(flagKey)) return;
-      sessionStorage.setItem(flagKey, '1');
-      var s = document.createElement('script');
-      s.src = src;
-      s.async = true;
-      s.referrerPolicy = 'no-referrer-when-downgrade';
-      document.body.appendChild(s);
-    }
-
     function boot() {
-      // Monetag — in-page push (script verified 200 OK)
-      loadAlways('https://nap5k.com/tag.min.js', '10979500');
-
-      // HilltopAds — banner. Note: curl-testing these URLs server-side returns
-      // 404 even though the bare domain responds 200 — likely anti-bot/
-      // anti-scraping protection on the obfuscated path rather than a truly
-      // dead link, so we can't reliably verify this one outside a real browser.
-      loadAlways('//relieved-understanding.com/b.XPVWsldcGWlx0gY/WYch/LeGm/9ouVZgUMlnkrP/T/cIx-NEj-IcywMozKMet-NyzoEk2JM/jiIMzBNhwp');
-
-      // Monetag — vignette (full-screen interstitial; script verified 200 OK)
-      loadOncePerSession('vignette', 'https://n6wxm.com/vignette.min.js');
-
-      // HilltopAds — video slide: DISABLED, same dead-URL issue as the banner above.
-      // loadOncePerSession('videoslide', '//surefootedpause.com/dYm.FEzXdkGZNzvCZgGKUk/Heem/9tuSZWUHlXkOPrTxcYxBNEDWgUy_NLjnE/tbNwz/Eg0dOQDOIj2BN-QY');
+      // Monetag — in-page push only (verified 200 OK). Zone updated per
+      // latest request. Vignette (popup) and HilltopAds banner removed.
+      loadAlways('https://nap5k.com/tag.min.js', '11189587');
     }
 
     function start() {
