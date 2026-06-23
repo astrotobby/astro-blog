@@ -90,9 +90,11 @@
       // Monetag — in-page push (script verified 200 OK)
       loadAlways('https://nap5k.com/tag.min.js', '10979500');
 
-      // HilltopAds — banner: DISABLED, every zone URL given so far 404s
-      // (dead/expired smartlink). Needs a fresh, verified-live code.
-      // loadAlways('//relieved-understanding.com/bdXSV.srdxGvlr0xY_WEcy/CefmR9dupZRU/lOk/PcTEcOxUNJDlgfyFMkjCE/t-N/zaEj0POoD_IZypN/QG');
+      // HilltopAds — banner. Note: curl-testing these URLs server-side returns
+      // 404 even though the bare domain responds 200 — likely anti-bot/
+      // anti-scraping protection on the obfuscated path rather than a truly
+      // dead link, so we can't reliably verify this one outside a real browser.
+      loadAlways('//relieved-understanding.com/b.XPVWsldcGWlx0gY/WYch/LeGm/9ouVZgUMlnkrP/T/cIx-NEj-IcywMozKMet-NyzoEk2JM/jiIMzBNhwp');
 
       // Monetag — vignette (full-screen interstitial; script verified 200 OK)
       loadOncePerSession('vignette', 'https://n6wxm.com/vignette.min.js');
