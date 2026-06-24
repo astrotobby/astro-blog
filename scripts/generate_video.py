@@ -315,6 +315,39 @@ def _video_dims(path):
     return int(w), int(h)
 
 
+def mask_clip_watermark(clip_path, cfg):
+    """Overlay the brand logo over the corner where the source clip's tool watermark
+    (e.g. Kling) sits, hiding it. Runs on the raw motion clip BEFORE Wav2Lip, so the
+    cover-up is part of the footage that gets lip-synced and composited. Returns a new
+    clip path, or the original unchanged if no logo is configured/found. Never raises
+    fatally — on any error the caller keeps the original clip."""
+    av = cfg.get("avatar", {})
+    logo_rel = av.get("watermark_logo")
+    if not logo_rel:
+        return clip_path
+    logo = ROOT / logo_rel
+    if not logo.exists():
+        log(f"watermark mask: logo {logo} missing -> clip left unmasked")
+        return clip_path
+    cw, _ = _video_dims(clip_path)
+    lw = max(8, int(cw * float(av.get("watermark_scale", 0.32))))
+    margin = int(cw * float(av.get("watermark_margin", 0.0)))
+    pos = str(av.get("watermark_pos", "bottom-right")).lower()
+    x = f"W-w-{margin}" if "right" in pos else f"{margin}"
+    y = f"H-h-{margin}" if "bottom" in pos else f"{margin}"
+    out = OUT / "avatar_masked.mp4"
+    if out.exists():
+        out.unlink()
+    # scale logo to lw wide (height auto, even for yuv420p); overlay flush in the corner
+    fc = f"[1:v]scale={lw}:-2[logo];[0:v][logo]overlay={x}:{y}:shortest=1[v]"
+    run(["ffmpeg", "-y", "-i", str(clip_path), "-i", str(logo),
+         "-filter_complex", fc, "-map", "[v]", "-map", "0:a?",
+         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+         "-pix_fmt", "yuv420p", out.name], cwd=OUT)
+    log(f"watermark mask: {logo.name} over {pos} ({lw}px wide) -> {out.name}")
+    return out
+
+
 def _feather_mask(bw, bh, feather_frac):
     """Soft-edged alpha mask (rounded rectangle, gaussian-feathered) so the avatar
     blends INTO the scene instead of sitting inside a hard circle or box — the figure
@@ -473,6 +506,11 @@ def main():
         if motion_path and motion_path.exists():
             face_src = motion_path
             log(f"avatar: using motion clip {face_src.name} (gestures + lip-sync)")
+            # cover the source clip's tool watermark with the brand logo before lip-sync
+            try:
+                face_src = mask_clip_watermark(face_src, cfg)
+            except Exception as e:  # noqa  masking must never break the render
+                log(f"watermark mask failed (using unmasked clip): {e}")
         else:
             face_src = avatar_img
         if face_src.exists():
