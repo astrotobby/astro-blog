@@ -78,7 +78,7 @@ video:
 # figure that blends into the scene (no hard bubble/ring) and gently bobs in sync
 # with the motion so it reads as a live presenter rather than a pasted-on circle.
 avatar:
-  enabled: true
+  enabled: false                   # avatar removed — video is montage + captions only
   image: "assets/avatar.png"       # still fallback if no motion clip is present
   # ---- OPTIONAL: a short looping clip of your avatar already MOVING (head/hands/
   # gestures/expressions). Wav2Lip overlays real lip-sync onto this footage and loops
