@@ -315,6 +315,39 @@ def _video_dims(path):
     return int(w), int(h)
 
 
+def build_seamless_loop(clip_path, target_dur, fps):
+    """Make the avatar motion CONTINUOUS across the whole voiceover: build a
+    forward+reverse 'boomerang' of the base clip and loop it to cover target_dur, so
+    there's no jarring jump back to frame 1 every few seconds (which reads as the avatar
+    being disconnected from the speech). Returns a new clip, or the original on error
+    (so the render never breaks)."""
+    import math
+    try:
+        src = OUT / "_av_src.mp4"        # normalize fps, drop base audio (we use the VO)
+        run(["ffmpeg", "-y", "-i", str(clip_path), "-an", "-r", str(fps),
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+             "-pix_fmt", "yuv420p", src.name], cwd=OUT)
+        rev = OUT / "_av_rev.mp4"
+        run(["ffmpeg", "-y", "-i", src.name, "-vf", "reverse", "-an", "-r", str(fps),
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+             "-pix_fmt", "yuv420p", rev.name], cwd=OUT)
+        bounce = OUT / "_av_bounce.mp4"   # forward then reverse = seamless at both ends
+        run(["ffmpeg", "-y", "-i", src.name, "-i", rev.name, "-filter_complex",
+             "[0:v][1:v]concat=n=2:v=1[v]", "-map", "[v]", "-an", "-r", str(fps),
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+             "-pix_fmt", "yuv420p", bounce.name], cwd=OUT)
+        bdur = ffprobe_duration(bounce)
+        loops = max(1, math.ceil((target_dur + 1.0) / max(0.1, bdur)))
+        looped = OUT / "_av_loop.mp4"
+        run(["ffmpeg", "-y", "-stream_loop", str(loops - 1), "-i", bounce.name,
+             "-t", f"{target_dur + 0.5:.3f}", "-an", "-c", "copy", looped.name], cwd=OUT)
+        log(f"avatar seamless loop: {bdur:.1f}s boomerang x{loops} -> {looped.name}")
+        return looped
+    except Exception as e:  # noqa  looping must never break the render
+        log(f"seamless loop failed, using raw clip: {e}")
+        return clip_path
+
+
 def mask_clip_watermark(clip_path, cfg):
     """Overlay the brand logo over the corner where the source clip's tool watermark
     (e.g. Kling) sits, hiding it. Runs on the raw motion clip BEFORE Wav2Lip, so the
@@ -511,6 +544,9 @@ def main():
                 face_src = mask_clip_watermark(face_src, cfg)
             except Exception as e:  # noqa  masking must never break the render
                 log(f"watermark mask failed (using unmasked clip): {e}")
+            # boomerang-loop the short clip so the motion flows continuously (no reset)
+            if av.get("seamless_loop", True):
+                face_src = build_seamless_loop(face_src, dur, fps)
         else:
             face_src = avatar_img
         if face_src.exists():

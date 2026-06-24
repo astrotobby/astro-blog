@@ -96,8 +96,11 @@ avatar:
   timeout: 1500                    # max seconds for Wav2Lip CPU inference (full 1min+ voiceover)
   # ---- integrated, feathered figure (lower-right, over the moving montage) ----
   bubble_frac: 0.56                # figure HEIGHT as a fraction of video height
-  bubble_aspect: 0.56              # figure width / height (matches the 478x850 source,
+  bubble_aspect: 0.75              # figure width / height (matches the 720x958 source,
                                    # so the presenter clip is shown nearly uncropped)
+  # Play the base clip forward-then-reverse on a loop so the avatar motion is CONTINUOUS
+  # across the whole voiceover (no jarring jump back to frame 1 every few seconds).
+  seamless_loop: true
   bubble_margin: 0.04              # gap from the right edge (fraction of height)
   bubble_bottom: 0.16              # gap from the bottom (leaves room for bottom captions)
   feather: 0.10                    # soft-edge blend amount (fraction of figure short side)
