@@ -173,7 +173,9 @@ def build_narration(post, cfg):
     if not picked:
         picked = [post["description"]]
 
-    cta = cfg["script"]["cta"]
+    # One render is cross-posted to every platform, so cover both verbs. ("subscribe"
+    # reads right on YouTube; "follow" on FB/IG/X/Threads.)
+    cta = cfg["script"]["cta"].format(sub_or_follow="subscribe or follow this page")
     narration = " ".join([hook] + picked + [cta])
     return hook, narration
 
