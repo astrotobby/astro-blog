@@ -239,25 +239,31 @@ def pick_music(cfg):
 # ---------- 5. assemble ----------
 # Varied Ken Burns motion per scene (uses 'on' = output frame index, {F} = total
 # frames). Rotating the move keeps a multi-scene montage from feeling static.
+# Punchy Ken Burns — fast, deep moves that combine zoom + pan so every scene feels
+# alive and in-motion ('on' = output frame index, {F} = total frames per segment).
 _KENBURNS = [
-    "z='min(1.0+0.0009*on,1.15)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",  # zoom in
-    "z='max(1.15-0.0009*on,1.0)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",   # zoom out
-    "z='1.12':x='(iw-iw/zoom)*on/{F}':y='ih/2-(ih/zoom/2)'",                     # pan right
-    "z='1.12':x='(iw-iw/zoom)*(1-on/{F})':y='ih/2-(ih/zoom/2)'",                 # pan left
-    "z='min(1.0+0.0008*on,1.12)':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*on/{F}'",  # zoom + tilt down
+    "z='min(1.001+0.0020*on,1.34)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",        # hard punch in
+    "z='max(1.34-0.0020*on,1.04)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",         # snap pull out
+    "z='min(1.10+0.0012*on,1.30)':x='(iw-iw/zoom)*on/{F}':y='ih/2-(ih/zoom/2)'",      # pan right + zoom
+    "z='min(1.10+0.0012*on,1.30)':x='(iw-iw/zoom)*(1-on/{F})':y='ih/2-(ih/zoom/2)'",  # pan left + zoom
+    "z='min(1.06+0.0016*on,1.32)':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*on/{F}'",      # zoom + tilt down
+    "z='min(1.06+0.0016*on,1.32)':x='(iw-iw/zoom)*on/{F}':y='(ih-ih/zoom)*(1-on/{F})'",  # diagonal push
 ]
-# Cinematic colour grade: gentle contrast/saturation lift, soft vignette, light
-# sharpening. Applied per scene so both the montage and the avatar background match.
-_GRADE = ("eq=contrast=1.08:saturation=1.18:brightness=0.02:gamma=0.98,"
-          "vignette=PI/5,unsharp=5:5:0.4:5:5:0.0")
-_TRANSITIONS = ["fade", "dissolve", "wipeleft", "slideup", "fadeblack", "circleopen"]
+# Cinematic colour grade: punchy contrast/saturation, soft vignette, crisp sharpening.
+# Applied per scene so both the montage and the avatar background match.
+_GRADE = ("eq=contrast=1.13:saturation=1.24:brightness=0.02:gamma=0.97,"
+          "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0")
+# Energetic, varied transitions (slides/zoom/wipes) so cuts feel deliberate, not a soft
+# crossfade mush. All are valid ffmpeg xfade types.
+_TRANSITIONS = ["slideleft", "zoomin", "smoothup", "circleopen",
+                "slideright", "wipeleft", "radial", "fadeblack"]
 
 
 def build_clip(images, total_dur, size, fps, out_path):
     w, h = size["w"], size["h"]
     n = len(images)
     per = max(2.0, total_dur / n)
-    xdur = 0.6 if n > 1 else 0.0           # crossfade length between scenes
+    xdur = 0.5 if n > 1 else 0.0           # snappy transition length between scenes
     seg_len = per + xdur                    # build a little long so overlaps net to ~total
     frames = max(1, int(seg_len * fps))
     seg_files = []
@@ -309,21 +315,21 @@ def _video_dims(path):
     return int(w), int(h)
 
 
-def _circle_assets(diameter, ring_color):
-    """A circular alpha mask + a thin ring, for the corner avatar bubble."""
-    from PIL import Image, ImageDraw
-    d = diameter
-    mask = Image.new("L", (d, d), 0)
-    ImageDraw.Draw(mask).ellipse((0, 0, d - 1, d - 1), fill=255)
-    mpath = OUT / "_circle_mask.png"
-    mask.save(mpath)
-    ring = Image.new("RGBA", (d, d), (0, 0, 0, 0))
-    bw = max(4, d // 40)
-    ImageDraw.Draw(ring).ellipse((bw // 2, bw // 2, d - 1 - bw // 2, d - 1 - bw // 2),
-                                 outline=tuple(ring_color), width=bw)
-    rpath = OUT / "_circle_ring.png"
-    ring.save(rpath)
-    return mpath, rpath
+def _feather_mask(bw, bh, feather_frac):
+    """Soft-edged alpha mask (rounded rectangle, gaussian-feathered) so the avatar
+    blends INTO the scene instead of sitting inside a hard circle or box — the figure
+    reads as part of the shot, not a pasted-on bubble."""
+    from PIL import Image, ImageDraw, ImageFilter
+    m = Image.new("L", (bw, bh), 0)
+    short = min(bw, bh)
+    inset = max(2, int(short * feather_frac))
+    radius = int(short * 0.18)
+    ImageDraw.Draw(m).rounded_rectangle(
+        (inset, inset, bw - 1 - inset, bh - 1 - inset), radius=radius, fill=255)
+    m = m.filter(ImageFilter.GaussianBlur(inset * 0.9))
+    mpath = OUT / "_avatar_mask.png"
+    m.save(mpath)
+    return mpath
 
 
 def finalize(silent_video, voice_path, captions, music, size, out_path, cfg):
@@ -342,11 +348,12 @@ def finalize(silent_video, voice_path, captions, music, size, out_path, cfg):
     # --- video: subtitles burn-in (run from OUT so no drive-colon path issues) ---
     vlabel = "0:v"
     if captions and cfg["video"].get("captions"):
-        mv = cfg["video"].get("caption_margin_v", 90)   # margin from the top
-        # Alignment=8 = top-center: always on-screen and clear of the bottom-right bubble.
-        style = (f"FontName=DejaVu Sans,FontSize=16,Bold=1,PrimaryColour=&H00FFFFFF,"
+        mv = cfg["video"].get("caption_margin_v", 70)   # margin from the bottom
+        # Alignment=2 = bottom-center: captions sit at the bottom of the frame, below
+        # the lower-right avatar figure (which is lifted via avatar.bubble_bottom).
+        style = (f"FontName=DejaVu Sans,FontSize=18,Bold=1,PrimaryColour=&H00FFFFFF,"
                  f"OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=1,"
-                 f"Alignment=8,MarginV={mv}")
+                 f"Alignment=2,MarginV={mv}")
         filters.append(f"[0:v]subtitles={captions.name}:force_style='{style}'[v]")
         vlabel = "v"
 
@@ -375,45 +382,62 @@ def finalize(silent_video, voice_path, captions, music, size, out_path, cfg):
 
 
 def build_with_avatar_overlay(talking, images, total_dur, size, fps, out_path, cfg):
-    """Full-duration ken-burns image background + a circular talking-avatar bubble in
-    the bottom-right that lip-syncs the whole voiceover. Captions are added in finalize.
-    So the avatar, the moving images, and (later) the captions all coexist throughout."""
+    """Full-duration ken-burns image background + a NON-circular, soft-feathered
+    talking-avatar figure (head & shoulders) in the lower-right that lip-syncs the whole
+    voiceover and gently bobs so it reads as a LIVE presenter blended into the scene —
+    not a pasted-on circle. Captions are burned at the bottom in finalize, below the
+    figure. So the avatar, the moving images, and the captions all coexist throughout."""
     w, h = size["w"], size["h"]
     avc = cfg.get("avatar", {})
 
     # 1) background: ken-burns image montage for the WHOLE duration
     bg = build_clip(images, total_dur, size, fps, OUT / f"_bg_{w}x{h}.mp4")
 
-    # 2) face close-up crop (the source frame is wider than the face) from real dims
-    tw, th = _video_dims(talking)
-    fz = float(avc.get("face_zoom", 0.62))
-    fcx, fcy = float(avc.get("face_cx", 0.5)), float(avc.get("face_cy", 0.40))
-    side = max(64, int(min(tw, th) * fz))
-    cx = max(0, min(int(tw * fcx) - side // 2, tw - side))
-    cy = max(0, min(int(th * fcy) - side // 2, th - side))
+    # 2) figure box (portrait head-and-shoulders), sized by frame height
+    bh = int(h * float(avc.get("bubble_frac", 0.52)))
+    bh -= bh % 2
+    bw = int(bh * float(avc.get("bubble_aspect", 0.72)))
+    bw -= bw % 2
 
-    # 3) circle bubble size (fraction of height) + bottom-right position
-    d = int(h * float(avc.get("bubble_frac", 0.20)))
-    d -= d % 2
-    margin = int(h * float(avc.get("bubble_margin", 0.03)))
-    ox, oy = w - d - margin, h - d - margin
-    mask, ring = _circle_assets(d, avc.get("ring_color", [255, 255, 255, 235]))
+    # 3) crop a portrait region from the talking head matching the box aspect (wider
+    #    than a tight face close-up, so shoulders show and it looks inclusive, not boxed)
+    tw, th = _video_dims(talking)
+    fz = float(avc.get("face_zoom", 0.92))
+    fcx, fcy = float(avc.get("face_cx", 0.5)), float(avc.get("face_cy", 0.42))
+    cw = max(64, int(min(tw, th) * fz))
+    ch = int(cw * bh / bw)
+    if ch > th:
+        ch, cw = th, int(th * bw / bh)
+    cw, ch = min(cw, tw), min(ch, th)        # never crop beyond the source frame
+    cx = max(0, min(int(tw * fcx) - cw // 2, tw - cw))
+    cy = max(0, min(int(th * fcy) - ch // 2, th - ch))
+
+    # 4) soft-feather alpha so the figure blends into the scene (no circle, no hard box)
+    mask = _feather_mask(bw, bh, float(avc.get("feather", 0.10)))
+
+    # 5) lower-right anchor, lifted off the bottom to leave room for bottom captions,
+    #    with a subtle time-based bob so the figure feels alive and in-motion.
+    margin = int(h * float(avc.get("bubble_margin", 0.04)))
+    bottom = int(h * float(avc.get("bubble_bottom", 0.16)))
+    ox, oy = w - bw - margin, h - bh - bottom
+    bob = int(avc.get("bob_px", 9))
+    bobx = int(avc.get("bob_x_px", 5))
+    ox_expr = f"{ox}+{bobx}*sin(1.7*t)"
+    oy_expr = f"{oy}+{bob}*sin(1.1*t)"
 
     fc = (
-        f"[1:v]crop={side}:{side}:{cx}:{cy},scale={d}:{d},setsar=1,format=rgba[face];"
-        f"[2:v]scale={d}:{d},format=gray[m];"
-        f"[face][m]alphamerge[circ];"
-        f"[0:v][circ]overlay={ox}:{oy}:shortest=1[t];"
-        f"[t][3:v]overlay={ox}:{oy},format=yuv420p[out]"
+        f"[1:v]crop={cw}:{ch}:{cx}:{cy},scale={bw}:{bh},setsar=1,format=rgba[fig];"
+        f"[2:v]scale={bw}:{bh},format=gray[m];"
+        f"[fig][m]alphamerge[av];"
+        f"[0:v][av]overlay=x='{ox_expr}':y='{oy_expr}':shortest=1,format=yuv420p[out]"
     )
     run(["ffmpeg", "-y",
-         "-i", bg.name, "-i", str(talking),
-         "-loop", "1", "-i", mask.name, "-loop", "1", "-i", ring.name,
+         "-i", bg.name, "-i", str(talking), "-loop", "1", "-i", mask.name,
          "-filter_complex", fc, "-map", "[out]", "-an",
          "-r", str(fps), "-t", f"{total_dur:.3f}",
          "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
          "-pix_fmt", "yuv420p", out_path.name], cwd=OUT)
-    log(f"avatar bubble {d}px bottom-right over full montage -> {out_path.name}")
+    log(f"avatar figure {bw}x{bh}px lower-right (feathered, live bob) -> {out_path.name}")
     return out_path
 
 

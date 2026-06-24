@@ -22,17 +22,23 @@ site:
 
 # ---- Narration / script ----
 script:
-  target_seconds: 45           # keep Shorts/Reels-friendly (<60s)
+  target_seconds: 75           # 1 min+ for stronger watch-time / retention signals
   words_per_minute: 165
   # Rotated per post. {topic} is auto-cleaned into a clause that reads naturally
   # (interrogatives stripped, first letter lower-cased unless an acronym).
+  # Short, curiosity-driven, clickbait-style hooks that open a loop the viewer has
+  # to keep watching (and click through to the blog) to close.
   hook_styles:
-    - "Here's what nobody tells you about {topic}."
-    - "Stop scrolling — {topic} is bigger than you think."
-    - "{topic}, explained in 45 seconds."
-    - "Most people get {topic} completely wrong."
-    - "This changes everything about {topic}."
-  cta: "Follow the link to see the full breakdown."
+    - "The truth about {topic} that nobody's telling you."
+    - "Stop scrolling — {topic} just changed everything."
+    - "You won't believe what {topic} really means."
+    - "Most people get {topic} dangerously wrong."
+    - "What they're not telling you about {topic}."
+    - "This is why everyone's suddenly talking about {topic}."
+    - "{topic} is about to break the internet — here's why."
+  # Curiosity-gap CTA: drives back to the blog AND asks for the follow/subscribe.
+  # {sub_or_follow} is filled per platform (YouTube -> "subscribe", else "follow").
+  cta: "But that's only the start of the story. Tap the link to read the full breakdown on the blog — and if this opened your eyes, {sub_or_follow} so you never miss the next one."
 
 # ---- Voice (edge-tts). Run `edge-tts --list-voices` to see all, free. ----
 # Warm, calm MALE voice to match the male avatar. Alternatives:
@@ -47,11 +53,11 @@ voice:
   clone: false
   clone_speed: 1.12
 
-# ---- Visuals (Pollinations, free, no key) ----
+# ---- Visuals (free AI image sources: HF FLUX/SDXL -> Picsum -> gradient) ----
 visuals:
-  scenes: 6                    # images, ~ target_seconds/scenes each
+  scenes: 8                    # more scenes over a ~75s video = faster cuts, higher retention
   model: "flux"
-  style_suffix: "cinematic, high detail, vibrant, professional motion graphic, 9:16"
+  style_suffix: "epic cinematic key art, dramatic volumetric lighting, ultra detailed, vibrant, film grain, professional motion graphic, 9:16"
   width: 1080
   height: 1920
 
@@ -61,26 +67,32 @@ video:
   horizontal: { w: 1920, h: 1080 } # YouTube main
   make_horizontal: true
   captions: true                    # burn-in subtitles (huge for retention)
-  caption_margin_v: 90              # margin from the TOP (captions are top-aligned,
-                                    # clear of the bottom-right avatar bubble)
+  caption_margin_v: 70              # margin from the BOTTOM (captions are bottom-aligned)
   music: true
   music_volume: 0.12
 
 # ---- Talking avatar (Wav2Lip, runs inside the GitHub runner — no external Space) ----
 # Needs the HF_TOKEN secret (to download weights) + an avatar image at the path below.
 # If Wav2Lip setup/inference fails, the render falls back to the image montage.
+# The avatar is composited as a NON-circular, soft-feathered head-and-shoulders
+# figure that blends into the scene (no hard bubble/ring) and gently bobs in sync
+# with the motion so it reads as a live presenter rather than a pasted-on circle.
 avatar:
   enabled: true
   image: "assets/avatar.png"
-  timeout: 900                     # max seconds for Wav2Lip CPU inference (full voiceover)
-  # ---- bottom-right talking bubble (over the full image montage) ----
-  bubble_frac: 0.45                # circle diameter as a fraction of video height (bigger)
-  bubble_margin: 0.03              # gap from the edges (fraction of height)
-  ring_color: [255, 255, 255, 235] # RGBA of the ring around the bubble
-  # face close-up crop inside the bubble (tweak if the face isn't centered):
-  face_zoom: 0.62                  # crop side as fraction of the shorter dimension
+  timeout: 1500                    # max seconds for Wav2Lip CPU inference (full 1min+ voiceover)
+  # ---- integrated, feathered figure (lower-right, over the moving montage) ----
+  bubble_frac: 0.52                # figure HEIGHT as a fraction of video height
+  bubble_aspect: 0.72              # figure width / height (portrait head-and-shoulders)
+  bubble_margin: 0.04              # gap from the right edge (fraction of height)
+  bubble_bottom: 0.16              # gap from the bottom (leaves room for bottom captions)
+  feather: 0.10                    # soft-edge blend amount (fraction of figure short side)
+  bob_px: 9                        # subtle vertical sway (px) so the figure feels alive
+  bob_x_px: 5                      # subtle horizontal sway (px)
+  # head-and-shoulders crop (wider than a face close-up so it looks inclusive, not boxed):
+  face_zoom: 0.92                  # crop width as fraction of the shorter dimension
   face_cx: 0.5                     # face centre X (0=left, 1=right)
-  face_cy: 0.40                    # face centre Y (0=top, 1=bottom)
+  face_cy: 0.42                    # face centre Y (0=top, 1=bottom)
 
 # ---- Posting rules / anti-ban caps (see HONEST-LIMITS.md) ----
 platforms:
