@@ -96,7 +96,7 @@ avatar:
   timeout: 1500                    # max seconds for Wav2Lip CPU inference (full 1min+ voiceover)
   # ---- integrated, feathered figure (lower-right, over the moving montage) ----
   bubble_frac: 0.56                # figure HEIGHT as a fraction of video height
-  bubble_aspect: 0.72              # figure width / height (close to the 960x1280 source,
+  bubble_aspect: 0.56              # figure width / height (matches the 478x850 source,
                                    # so the presenter clip is shown nearly uncropped)
   bubble_margin: 0.04              # gap from the right edge (fraction of height)
   bubble_bottom: 0.16              # gap from the bottom (leaves room for bottom captions)
