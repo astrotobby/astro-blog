@@ -465,15 +465,24 @@ def main():
     talking = None
     av = cfg.get("avatar", {})
     if av.get("enabled"):
+        # Prefer a MOVING base clip (real gestures/expressions/body motion) if present;
+        # Wav2Lip lip-syncs onto it. Otherwise use the still image (lips-only motion).
         avatar_img = ROOT / av.get("image", "assets/avatar.png")
-        if avatar_img.exists():
+        motion = av.get("motion_video")
+        motion_path = (ROOT / motion) if motion else None
+        if motion_path and motion_path.exists():
+            face_src = motion_path
+            log(f"avatar: using motion clip {face_src.name} (gestures + lip-sync)")
+        else:
+            face_src = avatar_img
+        if face_src.exists():
             try:
                 from avatar_lipsync import generate_talking_head
-                talking = generate_talking_head(avatar_img, voice, cfg)
+                talking = generate_talking_head(face_src, voice, cfg)
             except Exception as e:  # noqa
                 log(f"avatar generation errored, using motion graphics: {e}")
         else:
-            log(f"avatar enabled but {avatar_img} missing -> motion graphics")
+            log(f"avatar enabled but {face_src} missing -> motion graphics")
 
     def silent_for(size, tag):
         out = OUT / f"silent_{tag}.mp4"

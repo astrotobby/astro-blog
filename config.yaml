@@ -79,7 +79,13 @@ video:
 # with the motion so it reads as a live presenter rather than a pasted-on circle.
 avatar:
   enabled: true
-  image: "assets/avatar.png"
+  image: "assets/avatar.png"       # still fallback if no motion clip is present
+  # ---- OPTIONAL: a short looping clip of your avatar already MOVING (head/hands/
+  # gestures/expressions). Wav2Lip overlays real lip-sync onto this footage and loops
+  # it to cover the whole voiceover, so the figure gets genuine motion AND correct lips.
+  # Make one free, once (see BLOG-TO-VIDEO.md "Living avatar"), then drop it here.
+  # If the file is absent, the pipeline cleanly falls back to the still image above.
+  motion_video: "assets/avatar_motion.mp4"
   timeout: 1500                    # max seconds for Wav2Lip CPU inference (full 1min+ voiceover)
   # ---- integrated, feathered figure (lower-right, over the moving montage) ----
   bubble_frac: 0.52                # figure HEIGHT as a fraction of video height

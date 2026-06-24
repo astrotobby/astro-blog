@@ -195,4 +195,42 @@ Telegram message with ✅/❌ per platform and links.
 - **Soft-fail per platform:** one platform erroring never blocks the others; you
   get a per-platform ✅/❌ in Telegram.
 
+---
+
+## Living avatar — gestures, expressions, real lip-sync (free, one-time setup)
+
+Wav2Lip only moves the **mouth**. To get hand gestures, head movement and facial
+expressions too, give it a short clip of your avatar **already moving** — Wav2Lip then
+overlays accurate lip-sync onto that real motion and loops it across the whole
+voiceover. The motion is baked into the base clip; you make it **once, for free**.
+
+### Make the base clip (pick any one, all have free tiers)
+Animate your existing `assets/avatar.png` into a 6–10s clip of the person talking
+naturally — subtle hand gestures, friendly expressions, slight head movement,
+head-and-shoulders framing, plain/blurred background:
+
+| Tool | Free tier | Notes |
+|------|-----------|-------|
+| **Hailuo / MiniMax (Image-to-Video)** | free daily credits | best motion quality; upload the photo + prompt |
+| **Kling AI (Image-to-Video)** | free daily credits | great gestures; 5–10s clips |
+| **Pika / Vidu / Hailuo** | free credits | quick image-to-video |
+| **D-ID / HeyGen** | free trial | true presenter avatars (watermark on free) |
+| **LivePortrait (HF Space)** | free | drives your photo with a sample acting video |
+
+**Prompt to use:** *"Professional presenter talking to camera, natural subtle hand
+gestures, warm facial expressions, slight head movement, upper body, soft studio
+background, looping."*
+
+### Drop it in
+1. Save the clip as **`astro-blog/assets/avatar_motion.mp4`** (the path in
+   `config.yaml → avatar.motion_video`).
+2. Keep it **head-and-shoulders** and roughly portrait/centered (the pipeline crops to
+   `avatar.face_cx/face_cy/face_zoom`; tweak those if the framing is off).
+3. A short clip is fine — Wav2Lip **auto-loops** it to match the narration length.
+4. Commit it. If the file is missing the pipeline silently falls back to the still
+   image (lips-only), so nothing breaks.
+
+That's it — every future post renders with a gesturing, expressive, lip-synced avatar,
+fully automatically and free.
+
 See `HONEST-LIMITS.md` and `TROUBLESHOOTING.md`.
