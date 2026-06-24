@@ -2,13 +2,21 @@
 import { type CollectionEntry, getCollection, render } from 'astro:content';
 import BlogPost from '../../layouts/BlogPost.astro';
 
-const { slug } = Astro.params;
+// Prerender every post to static HTML so the @astrojs/sitemap integration
+// discovers each URL at build time and Google can crawl all of them.
+export const prerender = true;
 
-const posts = await getCollection('blog');
-const post = posts.find((p: CollectionEntry<'blog'>) => p.id === slug);
+export async function getStaticPaths() {
+  const posts = await getCollection('blog');
+  return posts.map((post: CollectionEntry<'blog'>) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
 
-if (!post) return Astro.redirect('/404');
+type Props = { post: CollectionEntry<'blog'> };
 
+const { post } = Astro.props;
 const { Content } = await render(post);
 ---
 
