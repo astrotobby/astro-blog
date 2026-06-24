@@ -21,17 +21,24 @@ def generate_talking_head(avatar_path, audio_path, cfg):
     out = OUT / "talking_head.mp4"
     if out.exists():
         out.unlink()
+    # A moving base clip (.mp4/.mov/...) is lip-synced frame-by-frame and auto-looped
+    # to cover the audio, so the avatar keeps its gestures/expressions. A still image
+    # gets lips-only motion. For video we KEEP face-detection smoothing (drop
+    # --nosmooth) so the synced mouth tracks the moving head cleanly.
+    is_video = str(avatar_path).lower().endswith(
+        (".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v"))
     cmd = [
         "python", "inference.py",
         "--checkpoint_path", "checkpoints/wav2lip_gan.pth",
         "--face", str(avatar_path),
         "--audio", str(audio_path),
         "--outfile", str(out),
-        "--nosmooth",
         "--pads", "0", "20", "0", "0",       # add chin padding
         "--face_det_batch_size", "1",         # CPU-friendly
         "--wav2lip_batch_size", "16",
     ]
+    if not is_video:
+        cmd.append("--nosmooth")              # smoothing only helps moving footage
     timeout = int(av.get("timeout", 900))
     try:
         log("avatar: running Wav2Lip on the runner (CPU)...")
