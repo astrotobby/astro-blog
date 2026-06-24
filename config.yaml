@@ -89,14 +89,14 @@ avatar:
   # ---- Mask the source clip's tool watermark with your brand logo (applied to the
   # motion clip BEFORE lip-sync, so the cover-up travels with the avatar). Optional:
   # if watermark_logo is absent the clip is used unmasked.
-  watermark_logo: "assets/brand_logo.jpg"
-  watermark_pos: "bottom-right"    # corner where the Kling watermark sits
+  watermark_logo: ""               # empty = no logo overlay (current clip has no watermark)
+  watermark_pos: "bottom-right"    # corner where a source watermark would sit (if re-enabled)
   watermark_scale: 0.42            # logo width as a fraction of the clip width (grow to fully cover)
   watermark_margin: 0.0            # gap from the corner edges (fraction of clip width; 0 = flush)
   timeout: 1500                    # max seconds for Wav2Lip CPU inference (full 1min+ voiceover)
   # ---- integrated, feathered figure (lower-right, over the moving montage) ----
   bubble_frac: 0.56                # figure HEIGHT as a fraction of video height
-  bubble_aspect: 0.60              # figure width / height (close to the 720x1280 source,
+  bubble_aspect: 0.72              # figure width / height (close to the 960x1280 source,
                                    # so the presenter clip is shown nearly uncropped)
   bubble_margin: 0.04              # gap from the right edge (fraction of height)
   bubble_bottom: 0.16              # gap from the bottom (leaves room for bottom captions)
