@@ -93,7 +93,7 @@ avatar:
   watermark_pos: "bottom-right"    # corner where a source watermark would sit (if re-enabled)
   watermark_scale: 0.42            # logo width as a fraction of the clip width (grow to fully cover)
   watermark_margin: 0.0            # gap from the corner edges (fraction of clip width; 0 = flush)
-  timeout: 1500                    # max seconds for Wav2Lip CPU inference (full 1min+ voiceover)
+  timeout: 1900                    # max seconds for Wav2Lip CPU inference (full 1min+ voiceover)
   # ---- integrated, feathered figure (lower-right, over the moving montage) ----
   bubble_frac: 0.56                # figure HEIGHT as a fraction of video height
   bubble_aspect: 0.75              # figure width / height (matches the 720x958 source,
