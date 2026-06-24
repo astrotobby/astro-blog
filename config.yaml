@@ -88,17 +88,19 @@ avatar:
   motion_video: "assets/avatar_motion.mp4"
   timeout: 1500                    # max seconds for Wav2Lip CPU inference (full 1min+ voiceover)
   # ---- integrated, feathered figure (lower-right, over the moving montage) ----
-  bubble_frac: 0.52                # figure HEIGHT as a fraction of video height
-  bubble_aspect: 0.72              # figure width / height (portrait head-and-shoulders)
+  bubble_frac: 0.56                # figure HEIGHT as a fraction of video height
+  bubble_aspect: 0.60              # figure width / height (close to the 720x1280 source,
+                                   # so the presenter clip is shown nearly uncropped)
   bubble_margin: 0.04              # gap from the right edge (fraction of height)
   bubble_bottom: 0.16              # gap from the bottom (leaves room for bottom captions)
   feather: 0.10                    # soft-edge blend amount (fraction of figure short side)
   bob_px: 9                        # subtle vertical sway (px) so the figure feels alive
   bob_x_px: 5                      # subtle horizontal sway (px)
-  # head-and-shoulders crop (wider than a face close-up so it looks inclusive, not boxed):
-  face_zoom: 0.92                  # crop width as fraction of the shorter dimension
+  # Light crop only — keep the FULL presenter (head, shoulders, hand gestures). A small
+  # inset (zoom 0.98) also trims any thin corner watermark off the source clip.
+  face_zoom: 0.98                  # crop width as fraction of the shorter dimension
   face_cx: 0.5                     # face centre X (0=left, 1=right)
-  face_cy: 0.42                    # face centre Y (0=top, 1=bottom)
+  face_cy: 0.48                    # face centre Y (0=top, 1=bottom)
 
 # ---- Posting rules / anti-ban caps (see HONEST-LIMITS.md) ----
 platforms:
