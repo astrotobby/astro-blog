@@ -9,7 +9,9 @@ Usage: python scripts/generate_video.py .pipeline/script.json
 """
 import argparse
 import asyncio
+import re
 import subprocess
+import time
 import urllib.parse
 
 import requests
@@ -130,8 +132,58 @@ def _hf_image(prompt, token):
     return None
 
 
+def _is_image_bytes(b):
+    """True if the bytes look like a real JPEG/PNG/WEBP (catches HTML error pages)."""
+    return bool(b) and len(b) > 2048 and (
+        b[:2] == b"\xff\xd8" or b[:8] == b"\x89PNG\r\n\x1a\n" or b[8:12] == b"WEBP")
+
+
+def _pollinations_image(prompt, w, h, seed):
+    """Free AI text-to-image (no key) — generates an image FROM the scene prompt, so it
+    matches the article topic. https://image.pollinations.ai/prompt/<prompt>"""
+    url = ("https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt)
+           + f"?width={w}&height={h}&nologo=true&model=flux&seed={seed}")
+    for _ in range(2):
+        try:
+            r = requests.get(url, timeout=120)
+            if r.status_code == 200 and _is_image_bytes(r.content):
+                return r.content
+            if r.status_code in (429, 500, 502, 503):   # busy/warming -> wait & retry
+                time.sleep(8)
+                continue
+            break
+        except Exception:  # noqa
+            break
+    return None
+
+
+def _openverse_image(query, w, h):
+    """Free, key-less topical photo search (Openverse / WordPress) — real photos that
+    match the article's keywords. Picks the first usable result."""
+    try:
+        r = requests.get("https://api.openverse.org/v1/images/",
+                         params={"q": query, "page_size": 8, "mature": "false"},
+                         headers={"User-Agent": "astro-blog-video/1.0"}, timeout=30)
+        if r.status_code != 200:
+            return None
+        for item in r.json().get("results", []):
+            u = item.get("url") or item.get("thumbnail")
+            if not u:
+                continue
+            try:
+                ir = requests.get(u, headers={"User-Agent": "astro-blog-video/1.0"}, timeout=30)
+                if ir.status_code == 200 and _is_image_bytes(ir.content):
+                    return ir.content
+            except Exception:  # noqa
+                continue
+    except Exception:  # noqa
+        pass
+    return None
+
+
 def _picsum_image(seed, w, h):
-    """Reliable real photo (no key, no payment) when AI generation is unavailable."""
+    """Reliable real photo (no key, no payment) — last resort before a gradient. NOT
+    topical, so it sits below the topical sources in the tier list."""
     try:
         r = requests.get(f"https://picsum.photos/seed/{seed}/{w}/{h}", timeout=60)
         if r.status_code == 200 and len(r.content) > 2048:
@@ -142,27 +194,40 @@ def _picsum_image(seed, w, h):
 
 
 def fetch_images(script, cfg):
-    """Tiered, all-free image source (Pollinations dropped — it now returns 402):
-      1) Hugging Face Inference API  -> topical AI image (uses HF_TOKEN)
-      2) Lorem Picsum                -> reliable real photo, no key
-      3) generated gradient          -> last resort so ffmpeg always has input
+    """Tiered, all-free image source — TOPICAL first so visuals match the article:
+      1) Pollinations  -> free AI image generated from the scene prompt (on-topic)
+      2) Hugging Face  -> AI image from the prompt (uses HF_TOKEN if set)
+      3) Openverse     -> free keyword photo search (real photos matching the title)
+      4) Lorem Picsum  -> reliable but RANDOM photo (only if all topical sources fail)
+      5) gradient      -> last resort so ffmpeg always has valid input
     """
     vz = cfg["visuals"]
     w, h = vz["width"], vz["height"]
     token = env("HF_TOKEN") or None
     slug = script["post"]["slug"]
+    title = (script["post"].get("title") or "").strip()
+    base_seed = abs(hash(slug)) % 100000
     paths = []
     for i, prompt in enumerate(script["scene_prompts"]):
         dst = OUT / f"scene_{i:02d}.jpg"
-        content, src = _hf_image(prompt, token), "HF-AI"
+        # topical keyword query for the photo-search fallback (title + this scene's theme)
+        m = re.search(r"theme:\s*([^,]+)", prompt)
+        focus = m.group(1).strip() if m else ""
+        query = (f"{title} {focus}".strip() or title or "technology news")
+
+        content, src = _pollinations_image(prompt, w, h, base_seed + i), "pollinations-AI"
         if not content:
-            content, src = _picsum_image(f"{slug}-{i}", w, h), "picsum"
+            content, src = _hf_image(prompt, token), "HF-AI"
+        if not content:
+            content, src = _openverse_image(query, w, h), "openverse"
+        if not content:
+            content, src = _picsum_image(f"{slug}-{i}", w, h), "picsum(random)"
         if content:
             dst.write_bytes(content)
         if not _valid_image(dst):
             _fallback_image(dst, w, h, i)
             src = "gradient"
-        log(f"scene {i} -> {dst.name} ({src})")
+        log(f"scene {i} -> {dst.name} ({src}) [q: {query[:48]}]")
         paths.append(dst)
     return paths
 
