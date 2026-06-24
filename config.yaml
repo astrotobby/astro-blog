@@ -55,6 +55,9 @@ voice:
 
 # ---- Visuals (free AI image sources: HF FLUX/SDXL -> Picsum -> gradient) ----
 visuals:
+  # When set, the ENTIRE video is just this one image (gentle Ken Burns) + captions +
+  # voiceover — no AI scene montage. Empty "" = normal multi-scene montage.
+  single_image: "assets/avatar.png"
   scenes: 8                    # more scenes over a ~75s video = faster cuts, higher retention
   model: "flux"
   style_suffix: "epic cinematic key art, dramatic volumetric lighting, ultra detailed, vibrant, film grain, professional motion graphic, 9:16"

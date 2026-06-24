@@ -517,9 +517,16 @@ def main():
 
     fps = cfg["video"]["fps"]
 
-    # Images are always fetched now — used as the full montage, or as b-roll after
-    # the avatar intro, so BOTH the avatar and the visuals appear in the video.
-    images = fetch_images(script, cfg)
+    # Single-image mode: when visuals.single_image is set, the whole video is just that
+    # one image (gentle Ken Burns) + captions + voiceover — no AI scene montage at all.
+    single = (cfg.get("visuals", {}) or {}).get("single_image")
+    single_path = (ROOT / single) if single else None
+    if single_path and single_path.exists():
+        images = [single_path]
+        log(f"single-image mode: {single_path.name} only (no scene montage)")
+    else:
+        # Otherwise fetch the scene montage as usual.
+        images = fetch_images(script, cfg)
 
     # ---- talking avatar over the FULL voiceover (Wav2Lip, in-runner) ----
     # The avatar bubble lip-syncs the whole video, so we feed the complete voice.
