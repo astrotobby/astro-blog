@@ -3,9 +3,20 @@ import BaseHead from '../components/BaseHead.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import ShopifyProducts from '../components/ShopifyProducts.astro';
+import { fetchShopifyProducts, FALLBACK_PRODUCTS } from '../lib/shopify';
 
 const pageTitle = "Our Products";
 const pageDescription = "Explore our carefully curated digital products designed to help you master AI, automation, and modern content creation.";
+
+// Live count for the hero stat — tracks Shopify automatically (SSR, per request).
+// Falls back to the bundled list if the live fetch is unavailable.
+let productCount = FALLBACK_PRODUCTS.length;
+try {
+  const liveProducts = await fetchShopifyProducts();
+  if (liveProducts.length) productCount = liveProducts.length;
+} catch {
+  // keep fallback count
+}
 ---
 
 <!doctype html>
@@ -31,7 +42,7 @@ const pageDescription = "Explore our carefully curated digital products designed
         </p>
         <div class="hero-stats">
           <div class="stat">
-            <span class="stat-number">5</span>
+            <span class="stat-number">{productCount}</span>
             <span class="stat-label">Premium Products</span>
           </div>
           <div class="stat">

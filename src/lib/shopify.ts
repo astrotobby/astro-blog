@@ -195,7 +195,7 @@ export async function fetchShopifyProducts(envOverride?: ShopifyEnv): Promise<Sh
   if (!token) throw new Error('Missing SHOPIFY_STOREFRONT_API_TOKEN');
 
   const query = `{
-    products(first: 10, query: "available_for_sale:true") {
+    products(first: 50, query: "available_for_sale:true") {
       edges {
         node {
           id title handle vendor productType createdAt updatedAt description
