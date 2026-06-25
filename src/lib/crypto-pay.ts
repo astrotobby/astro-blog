@@ -137,6 +137,7 @@ export interface ShopifyOrderInfo {
   gateways: string[];
   tags: string[];
   orderStatusUrl: string | null;
+  note: string | null;
 }
 
 /** Fetch the authoritative order state (don't trust the webhook payload). */
@@ -144,7 +145,7 @@ export async function fetchOrder(env: CryptoEnv, orderGid: string): Promise<Shop
   const query = `query($id: ID!) {
     order(id: $id) {
       id name email displayFinancialStatus
-      paymentGatewayNames tags statusPageUrl
+      paymentGatewayNames tags statusPageUrl note
       totalPriceSet { shopMoney { amount currencyCode } }
     }
   }`;
@@ -161,7 +162,36 @@ export async function fetchOrder(env: CryptoEnv, orderGid: string): Promise<Shop
     gateways: o.paymentGatewayNames ?? [],
     tags: o.tags ?? [],
     orderStatusUrl: o.statusPageUrl ?? null,
+    note: o.note ?? null,
   };
+}
+
+/**
+ * Return the crypto pay-link for an order, creating the NOWPayments invoice on
+ * demand if it doesn't exist yet. Returns null if the order isn't a pending
+ * crypto order. Used by the checkout UI extension (/api/crypto/get-link) so the
+ * buyer can pay straight from the Thank you / Order status page.
+ */
+export async function resolveInvoiceLink(env: CryptoEnv, orderGid: string): Promise<string | null> {
+  const order = await fetchOrder(env, orderGid);
+  if (!order) return null;
+  if (order.financialStatus !== 'PENDING') return null;
+  if (!order.gateways.includes(CRYPTO_GATEWAY_NAME)) return null;
+
+  const existing = order.note?.match(/https?:\/\/[^\s]+/)?.[0];
+  if (existing) return existing;
+
+  const invoice = await createNowPaymentsInvoice(env, {
+    orderId: orderGid.replace(/\D/g, ''),
+    amount: order.amount,
+    currency: order.currency,
+    description: `Order ${order.name}`,
+    email: order.email,
+    ipnCallbackUrl: 'https://astrotobby.site/api/crypto/nowpayments-ipn',
+    successUrl: order.orderStatusUrl,
+  });
+  await recordInvoiceOnOrder(env, orderGid, invoice.invoice_url);
+  return invoice.invoice_url;
 }
 
 export interface NowInvoice {
