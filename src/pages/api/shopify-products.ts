@@ -1,9 +1,10 @@
 import type { APIRoute } from 'astro';
 import { fetchShopifyProducts } from '../../lib/shopify';
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ locals }) => {
   try {
-    const products = await fetchShopifyProducts();
+    const env = (locals as { runtime?: { env?: Record<string, string | undefined> } })?.runtime?.env;
+    const products = await fetchShopifyProducts(env);
     return new Response(JSON.stringify({ products }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' },

@@ -151,12 +151,21 @@ export const FALLBACK_PRODUCTS: ShopifyProduct[] = [
   },
 ];
 
-export async function fetchShopifyProducts(): Promise<ShopifyProduct[]> {
+export interface ShopifyEnv {
+  SHOPIFY_STORE_DOMAIN?: string;
+  SHOPIFY_STOREFRONT_API_TOKEN?: string;
+}
+
+export async function fetchShopifyProducts(env?: ShopifyEnv): Promise<ShopifyProduct[]> {
+  // On Cloudflare SSR (output: 'server'), secrets live in the per-request runtime
+  // binding (Astro.locals.runtime.env), NOT in import.meta.env — Vite freezes the
+  // latter at build time, so a Worker secret is undefined there. Prefer the runtime
+  // env the caller passes in; fall back to build-time env for local dev / prerender.
+  const buildEnv = import.meta.env as unknown as Record<string, string | undefined>;
   const domain: string =
-    (import.meta.env.SHOPIFY_STORE_DOMAIN as string | undefined) ?? 'chainztobby.myshopify.com';
-  const token: string | undefined = import.meta.env.SHOPIFY_STOREFRONT_API_TOKEN as
-    | string
-    | undefined;
+    env?.SHOPIFY_STORE_DOMAIN ?? buildEnv.SHOPIFY_STORE_DOMAIN ?? 'chainztobby.myshopify.com';
+  const token: string | undefined =
+    env?.SHOPIFY_STOREFRONT_API_TOKEN ?? buildEnv.SHOPIFY_STOREFRONT_API_TOKEN;
 
   if (!token) throw new Error('Missing SHOPIFY_STOREFRONT_API_TOKEN');
 
