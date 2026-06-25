@@ -173,11 +173,16 @@ def build_narration(post, cfg):
     if not picked:
         picked = [post["description"]]
 
-    # One render is cross-posted to every platform, so cover both verbs. ("subscribe"
-    # reads right on YouTube; "follow" on FB/IG/X/Threads.)
-    cta = cfg["script"]["cta"].format(sub_or_follow="subscribe or follow this page")
-    narration = " ".join([hook] + picked + [cta])
-    return hook, narration
+    # Per-platform CTA verb: YouTube watches the HORIZONTAL cut ("subscribe"); every
+    # other platform (TikTok/IG/FB/X/Threads) watches the VERTICAL cut ("follow"). The
+    # body is identical — only the closing verb differs — so we emit both narrations and
+    # generate_video renders each cut with its matching voiceover/captions.
+    body = [hook] + picked
+    def _with_cta(verb):
+        return " ".join(body + [cfg["script"]["cta"].format(sub_or_follow=verb)])
+    narration = _with_cta("follow")        # vertical -> TikTok / IG / FB / X / Threads
+    narration_yt = _with_cta("subscribe")  # horizontal -> YouTube
+    return hook, narration, narration_yt
 
 
 def make_scenes(post, cfg):
@@ -217,14 +222,15 @@ def main():
     cfg = load_config()
     post = read_json(args.post_json)
 
-    hook, narration = build_narration(post, cfg)
+    hook, narration, narration_yt = build_narration(post, cfg)
     scenes = make_scenes(post, cfg)
     ptext = platform_text(post, cfg)
 
     out = {
         "post": post,
         "hook": hook,
-        "narration": narration,
+        "narration": narration,          # vertical cut (TikTok/IG/FB/X) -> "follow"
+        "narration_yt": narration_yt,    # horizontal cut (YouTube) -> "subscribe"
         "scene_prompts": scenes,
         "platform": ptext,
         "est_words": len(narration.split()),

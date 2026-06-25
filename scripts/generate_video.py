@@ -46,33 +46,36 @@ def _gtts_fallback(text, out_path):
     gTTS(text).save(str(out_path))
 
 
-def make_voice(script, cfg):
+def make_voice(narration, cfg, tag=""):
+    """Synthesize one voiceover for the given narration text. `tag` keeps the per-cut
+    files distinct (e.g. "" for the vertical/follow cut, "_yt" for the horizontal/
+    subscribe cut), so both narrations can coexist in one render."""
     v = cfg["voice"]
     # Cloned voice (free OpenVoice) when enabled; edge-tts is the automatic fallback
     # so the render never breaks if cloning is unavailable.
     if v.get("clone"):
         try:
             from voice_clone import synthesize
-            cw = OUT / "voiceover_clone.wav"
+            cw = OUT / f"voiceover_clone{tag}.wav"
             if cw.exists():
                 cw.unlink()
-            if synthesize(script["narration"], str(cw), cfg):
+            if synthesize(narration, str(cw), cfg):
                 dur = ffprobe_duration(cw)
                 log(f"voiceover (CLONED) {dur:.1f}s -> {cw.name}")
                 return cw, dur
             log("voice clone unavailable -> edge-tts")
         except Exception as e:  # noqa
             log(f"voice clone errored ({e}) -> edge-tts")
-    out = OUT / "voiceover.mp3"
+    out = OUT / f"voiceover{tag}.mp3"
     if out.exists():
         out.unlink()
     try:
-        asyncio.run(_tts(script["narration"], v["name"], v["rate"], v["pitch"], out))
+        asyncio.run(_tts(narration, v["name"], v["rate"], v["pitch"], out))
         if not out.exists() or out.stat().st_size == 0:
             raise RuntimeError("edge-tts produced no audio")
     except Exception as e:  # noqa
         log(f"edge-tts failed ({e}); falling back to gTTS")
-        _gtts_fallback(script["narration"], out)
+        _gtts_fallback(narration, out)
     dur = ffprobe_duration(out)
     log(f"voiceover {dur:.1f}s -> {out.name}")
     return out, dur
@@ -233,13 +236,13 @@ def fetch_images(script, cfg):
 
 
 # ---------- 3. captions ----------
-def _text_captions(script, dur):
+def _text_captions(narration, dur, tag=""):
     """Build an SRT from the narration text spread across the audio duration — no
     whisper needed, so on-screen captions ALWAYS appear (timing is approximate)."""
-    words = (script.get("narration") or "").split()
+    words = (narration or "").split()
     if not words or dur <= 0:
         return None
-    srt = OUT / "captions.srt"
+    srt = OUT / f"captions{tag}.srt"
     per = dur / max(1, len(words))                 # one word at a time, evenly spread
     with open(srt, "w", encoding="utf-8") as f:
         for i, word in enumerate(words):
@@ -248,14 +251,15 @@ def _text_captions(script, dur):
     return srt
 
 
-def make_captions(voice_path, script, dur):
+def make_captions(voice_path, narration, dur, tag=""):
     """Word-accurate captions via whisper if available; otherwise text-timed
-    captions from the narration. Always returns an SRT (captions never vanish)."""
+    captions from the narration. Always returns an SRT (captions never vanish).
+    `tag` keeps each cut's captions in a distinct file (vertical vs horizontal)."""
     try:
         from faster_whisper import WhisperModel
         model = WhisperModel("base", device="cpu", compute_type="int8")
         segments, _ = model.transcribe(str(voice_path), word_timestamps=True)
-        srt = OUT / "captions.srt"
+        srt = OUT / f"captions{tag}.srt"
         idx = 1
         with open(srt, "w", encoding="utf-8") as f:
             for seg in segments:
@@ -270,7 +274,7 @@ def make_captions(voice_path, script, dur):
         log("whisper produced no captions -> text fallback")
     except Exception as e:  # noqa
         log(f"whisper unavailable ({e}) -> text fallback")
-    return _text_captions(script, dur)
+    return _text_captions(narration, dur, tag)
 
 
 def _ts(t):
@@ -588,8 +592,11 @@ def main():
     cfg = load_config()
     script = read_json(args.script_json)
 
-    voice, dur = make_voice(script, cfg)
-    captions = make_captions(voice, script, dur) if cfg["video"].get("captions") else None
+    captions_on = cfg["video"].get("captions")
+    # Vertical cut (TikTok/IG/FB/X/Threads + Stories) speaks the "follow" CTA.
+    narr_v = script["narration"]
+    voice, dur = make_voice(narr_v, cfg, tag="")
+    captions = make_captions(voice, narr_v, dur) if captions_on else None
     music = pick_music(cfg)
     if music:
         log(f"music bed: {music.name}")
@@ -639,18 +646,18 @@ def main():
         else:
             log(f"avatar enabled but {face_src} missing -> motion graphics")
 
-    def silent_for(size, tag):
+    def silent_for(size, tag, seg_dur):
         out = OUT / f"silent_{tag}.mp4"
         if talking is not None:
             try:
-                return build_with_avatar_overlay(talking, images, dur, size, fps, out, cfg)
+                return build_with_avatar_overlay(talking, images, seg_dur, size, fps, out, cfg)
             except Exception as e:  # noqa  avatar must never break the render
                 log(f"avatar overlay failed -> image montage: {e}")
-        return build_clip(images, dur, size, fps, out)
+        return build_clip(images, seg_dur, size, fps, out)
 
     results = {}
     vsize = cfg["video"]["vertical"]
-    vout = finalize(silent_for(vsize, "9x16"), voice, captions, music, vsize,
+    vout = finalize(silent_for(vsize, "9x16", dur), voice, captions, music, vsize,
                     OUT / "video_9x16.mp4", cfg)
     results["vertical"] = str(vout)
 
@@ -664,7 +671,11 @@ def main():
 
     if cfg["video"].get("make_horizontal"):
         hsize = cfg["video"]["horizontal"]
-        hout = finalize(silent_for(hsize, "16x9"), voice, captions, music, hsize,
+        # Horizontal cut is YouTube-only -> its own voiceover/captions speak "subscribe".
+        narr_h = script.get("narration_yt") or narr_v
+        voice_h, dur_h = make_voice(narr_h, cfg, tag="_yt")
+        captions_h = make_captions(voice_h, narr_h, dur_h, tag="_yt") if captions_on else None
+        hout = finalize(silent_for(hsize, "16x9", dur_h), voice_h, captions_h, music, hsize,
                         OUT / "video_16x9.mp4", cfg)
         results["horizontal"] = str(hout)
 
