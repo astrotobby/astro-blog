@@ -12,7 +12,11 @@ export const GET: APIRoute = async ({ locals }) => {
   } catch (err) {
     console.error('[shopify-products]', err);
     return new Response(
-      JSON.stringify({ error: 'Failed to fetch products', products: [] }),
+      JSON.stringify({
+        error: 'Failed to fetch products',
+        detail: (err as Error)?.message ?? String(err),
+        products: [],
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
