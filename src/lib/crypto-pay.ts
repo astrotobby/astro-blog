@@ -33,12 +33,23 @@ export interface CryptoEnv {
 
 /** Read Cloudflare runtime vars/secrets (see lib/shopify.ts for the rationale). */
 export async function readCryptoEnv(): Promise<CryptoEnv> {
+  let raw: Record<string, string | undefined> = {};
   try {
     const mod = await import('cloudflare:workers');
-    return (mod.env ?? {}) as unknown as CryptoEnv;
+    raw = (mod.env ?? {}) as unknown as Record<string, string | undefined>;
   } catch {
-    return {};
+    raw = {};
   }
+  // Accept the secret names already configured in the Cloudflare dashboard as
+  // aliases, so they don't need renaming.
+  return {
+    NOWPAYMENTS_API_KEY: raw.NOWPAYMENTS_API_KEY ?? raw.NOWPAYMENTS_API,
+    NOWPAYMENTS_IPN_SECRET:
+      raw.NOWPAYMENTS_IPN_SECRET ?? raw.NOWPAYMENTS_IPN ?? raw.NOWPAYMENTS_IPN_KEY,
+    SHOPIFY_ADMIN_TOKEN: raw.SHOPIFY_ADMIN_TOKEN ?? raw.SHOPIFY_ADMIN_API_ACCESS_TOKEN,
+    SHOPIFY_STORE_DOMAIN: raw.SHOPIFY_STORE_DOMAIN,
+    RESEND_API_KEY: raw.RESEND_API_KEY,
+  };
 }
 
 /** Lowercase hex HMAC-SHA512 of `message` keyed by `secret` (Web Crypto). */
