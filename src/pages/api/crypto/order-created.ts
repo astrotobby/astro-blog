@@ -51,8 +51,15 @@ export const POST: APIRoute = async ({ request }) => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    console.error('[crypto/order-created]', (err as Error).message);
+    const detail = (err as Error).message;
+    console.error('[crypto/order-created]', detail);
+    // Temporary diagnostic: surface the failure reason so we can tell a missing
+    // secret ("Missing SHOPIFY_ADMIN_TOKEN") apart from an invalid token/scope
+    // ("Shopify Admin API 401/403"). Revert once verified.
     // 500 -> Shopify retries the webhook later (handles transient API hiccups).
-    return new Response('error', { status: 500 });
+    return new Response(JSON.stringify({ error: 'error', detail }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 };
