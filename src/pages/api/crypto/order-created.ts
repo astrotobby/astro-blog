@@ -15,6 +15,36 @@ import {
 // every "ignore" case so Shopify doesn't retry; 500 only on transient errors.
 export const POST: APIRoute = async ({ request }) => {
   const env = await readCryptoEnv();
+  // TEMP Resend wiring test (?emailtest=1): sends one email to the store owner
+  // and returns Resend's status/message so we can confirm the key + domain
+  // verification + from-address all work. Fixed recipient (no open relay).
+  // Remove once verified.
+  if (new URL(request.url).searchParams.get('emailtest') === '1') {
+    if (!env.RESEND_API_KEY) {
+      return new Response(JSON.stringify({ hasKey: false }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: 'Astro Signal <orders@astrotobby.site>',
+        to: ['chanzeratobias@gmail.com'],
+        subject: 'Resend wiring test — crypto automation',
+        html: '<p>If you received this, your crypto pay-link emails are working.</p>',
+      }),
+    });
+    const body = await r.text();
+    return new Response(
+      JSON.stringify({ hasKey: true, resendStatus: r.status, resendBody: body.slice(0, 400) }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
   let payload: { id?: number | string };
   try {
     payload = await request.json();
