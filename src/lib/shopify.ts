@@ -156,22 +156,40 @@ export interface ShopifyEnv {
   SHOPIFY_STOREFRONT_API_TOKEN?: string;
 }
 
-export async function fetchShopifyProducts(env?: ShopifyEnv): Promise<ShopifyProduct[]> {
-  // On Cloudflare SSR (output: 'server'), secrets live in the per-request runtime
-  // binding (Astro.locals.runtime.env), NOT in import.meta.env — Vite freezes the
-  // latter at build time, so a Worker secret is undefined there. Prefer the runtime
-  // env the caller passes in; fall back to build-time env for local dev / prerender.
+/**
+ * Read Cloudflare runtime vars/secrets. In Astro v6 the old
+ * `Astro.locals.runtime.env` was removed — accessing it now THROWS — so we read
+ * from the `cloudflare:workers` virtual module instead. Wrapped defensively so it
+ * resolves to {} during local dev / prerender (node) where it isn't available.
+ */
+async function readCloudflareEnv(): Promise<Record<string, string | undefined>> {
+  try {
+    const mod = await import('cloudflare:workers');
+    return (mod.env ?? {}) as unknown as Record<string, string | undefined>;
+  } catch {
+    return {};
+  }
+}
+
+export async function fetchShopifyProducts(envOverride?: ShopifyEnv): Promise<ShopifyProduct[]> {
+  // Precedence: explicit override -> Cloudflare runtime env (dashboard var/secret)
+  // -> build-time env (local dev) -> baked-in public token (final guarantee).
+  const cfEnv = await readCloudflareEnv();
   const buildEnv = import.meta.env as unknown as Record<string, string | undefined>;
   const domain: string =
-    env?.SHOPIFY_STORE_DOMAIN ?? buildEnv.SHOPIFY_STORE_DOMAIN ?? 'chainztobby.myshopify.com';
+    envOverride?.SHOPIFY_STORE_DOMAIN ??
+    cfEnv.SHOPIFY_STORE_DOMAIN ??
+    buildEnv.SHOPIFY_STORE_DOMAIN ??
+    'chainztobby.myshopify.com';
   const token: string | undefined =
-    env?.SHOPIFY_STOREFRONT_API_TOKEN ??
+    envOverride?.SHOPIFY_STOREFRONT_API_TOKEN ??
+    cfEnv.SHOPIFY_STOREFRONT_API_TOKEN ??
     buildEnv.SHOPIFY_STOREFRONT_API_TOKEN ??
     // Public Storefront access token (read-only, server-side, safe to ship). The
-    // runtime env binding above takes precedence; this baked-in default guarantees
-    // the blog reads live data even when the Cloudflare env var isn't wired up.
-    // To retire it: set SHOPIFY_STOREFRONT_API_TOKEN in the Cloudflare dashboard,
-    // rotate this token in Shopify, then delete this line.
+    // runtime env above takes precedence; this baked-in default guarantees the blog
+    // reads live data even when no Cloudflare env var is set. To retire it: set
+    // SHOPIFY_STOREFRONT_API_TOKEN in the Cloudflare dashboard, rotate this token in
+    // Shopify, then delete this line.
     '27429cf8e2f2e9e6a191721481de15a4';
 
   if (!token) throw new Error('Missing SHOPIFY_STOREFRONT_API_TOKEN');

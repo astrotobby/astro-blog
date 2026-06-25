@@ -1,6 +1,6 @@
 ---
 import { fetchShopifyProducts, prioritizeProducts, FALLBACK_PRODUCTS } from '../lib/shopify';
-import type { ShopifyProduct, ShopifyEnv } from '../lib/shopify';
+import type { ShopifyProduct } from '../lib/shopify';
 
 interface Props {
   tags?: string[];
@@ -12,10 +12,9 @@ interface Props {
 
 const { tags = [], rotationSeed, limit } = Astro.props;
 
-const runtimeEnv = (Astro.locals as { runtime?: { env?: ShopifyEnv } })?.runtime?.env;
 let raw: ShopifyProduct[] = FALLBACK_PRODUCTS;
 try {
-  raw = await fetchShopifyProducts(runtimeEnv);
+  raw = await fetchShopifyProducts();
 } catch (e) {
   console.warn('[ShopifyProducts] Using fallback data:', (e as Error).message);
 }
