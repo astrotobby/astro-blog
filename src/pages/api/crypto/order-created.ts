@@ -21,7 +21,16 @@ export const POST: APIRoute = async ({ request }) => {
   // Remove once verified.
   if (new URL(request.url).searchParams.get('emailtest') === '1') {
     if (!env.RESEND_API_KEY) {
-      return new Response(JSON.stringify({ hasKey: false }), {
+      let emailKeyNames: string[] = [];
+      try {
+        const m = await import('cloudflare:workers');
+        emailKeyNames = Object.keys((m.env ?? {}) as Record<string, unknown>).filter((k) =>
+          /resend|mail|email/i.test(k)
+        );
+      } catch {
+        emailKeyNames = [];
+      }
+      return new Response(JSON.stringify({ hasKey: false, emailKeyNames }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
