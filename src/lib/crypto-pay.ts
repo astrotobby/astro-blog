@@ -243,17 +243,36 @@ export async function emailPayLink(
   invoiceUrl: string
 ): Promise<boolean> {
   if (!env.RESEND_API_KEY) return false;
+  // Multipart (text + html) and richer, branded content score noticeably better
+  // with spam filters than a bare link.
+  const text =
+    `Thanks for your order ${orderName} at Astro Signal.\n\n` +
+    `Complete your payment with cryptocurrency (Bitcoin, USDT, ETH and 300+ coins) ` +
+    `at this secure link:\n\n${invoiceUrl}\n\n` +
+    `Your download is delivered automatically as soon as the payment is confirmed ` +
+    `on-chain (usually a few minutes).\n\n` +
+    `If you didn't place this order, you can safely ignore this email.\n\n— Astro Signal`;
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#1a1a2e;max-width:520px;margin:0 auto">
+      <p>Thanks for your order <strong>${orderName}</strong> at Astro Signal.</p>
+      <p>Complete your payment with cryptocurrency (Bitcoin, USDT, ETH and 300+ coins) using the secure button below:</p>
+      <p style="text-align:center;margin:28px 0">
+        <a href="${invoiceUrl}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:bold">Complete payment</a>
+      </p>
+      <p style="font-size:13px;color:#555">Or open this link in your browser:<br>
+        <a href="${invoiceUrl}" style="color:#4f46e5">${invoiceUrl}</a></p>
+      <p>Your download is delivered automatically once the payment is confirmed on-chain (usually a few minutes).</p>
+      <p style="font-size:12px;color:#888;border-top:1px solid #eee;padding-top:12px">If you didn't place this order, you can safely ignore this email.<br>— Astro Signal · astrotobby.site</p>
+    </div>`;
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.RESEND_API_KEY}` },
     body: JSON.stringify({
       from: 'Astro Signal <orders@astrotobby.site>',
+      reply_to: 'chanzeratobias@gmail.com',
       to: [to],
-      subject: `Complete your crypto payment for order ${orderName}`,
-      html: `<p>Thanks for your order <strong>${orderName}</strong>.</p>
-        <p>Pay securely with Bitcoin, USDT, ETH or 300+ coins here:</p>
-        <p><a href="${invoiceUrl}">${invoiceUrl}</a></p>
-        <p>Your download is sent automatically once the payment is confirmed on-chain.</p>`,
+      subject: `Your order ${orderName} — complete your crypto payment`,
+      text,
+      html,
     }),
   });
   return res.ok;
