@@ -1,0 +1,18 @@
+# Replace the generated extensions/crypto-pay-link/shopify.extension.toml with
+# this (keep the api_version the scaffold generated if it's newer).
+
+api_version = "2025-07"
+
+[[extensions]]
+type = "ui_extension"
+name = "Crypto Pay Link"
+handle = "crypto-pay-link"
+
+  # Static block the merchant places on the Thank you page via the checkout editor.
+  [[extensions.targeting]]
+  target = "purchase.thank-you.block.render"
+  module = "./src/ThankYou.tsx"
+
+  # Required so the extension may fetch the Worker endpoint.
+  [extensions.capabilities]
+  network_access = true
