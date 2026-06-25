@@ -165,7 +165,14 @@ export async function fetchShopifyProducts(env?: ShopifyEnv): Promise<ShopifyPro
   const domain: string =
     env?.SHOPIFY_STORE_DOMAIN ?? buildEnv.SHOPIFY_STORE_DOMAIN ?? 'chainztobby.myshopify.com';
   const token: string | undefined =
-    env?.SHOPIFY_STOREFRONT_API_TOKEN ?? buildEnv.SHOPIFY_STOREFRONT_API_TOKEN;
+    env?.SHOPIFY_STOREFRONT_API_TOKEN ??
+    buildEnv.SHOPIFY_STOREFRONT_API_TOKEN ??
+    // Public Storefront access token (read-only, server-side, safe to ship). The
+    // runtime env binding above takes precedence; this baked-in default guarantees
+    // the blog reads live data even when the Cloudflare env var isn't wired up.
+    // To retire it: set SHOPIFY_STOREFRONT_API_TOKEN in the Cloudflare dashboard,
+    // rotate this token in Shopify, then delete this line.
+    '27429cf8e2f2e9e6a191721481de15a4';
 
   if (!token) throw new Error('Missing SHOPIFY_STOREFRONT_API_TOKEN');
 
