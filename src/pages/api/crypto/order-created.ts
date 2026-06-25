@@ -15,6 +15,18 @@ import {
 // every "ignore" case so Shopify doesn't retry; 500 only on transient errors.
 export const POST: APIRoute = async ({ request }) => {
   const env = await readCryptoEnv();
+  // TEMP self-test (?selftest=1): report whether each secret is visible to the
+  // Worker — booleans only, never values. Remove once verified.
+  if (new URL(request.url).searchParams.get('selftest') === '1') {
+    return new Response(
+      JSON.stringify({
+        adminToken: Boolean(env.SHOPIFY_ADMIN_TOKEN),
+        nowApiKey: Boolean(env.NOWPAYMENTS_API_KEY),
+        ipnSecret: Boolean(env.NOWPAYMENTS_IPN_SECRET),
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
   let payload: { id?: number | string };
   try {
     payload = await request.json();
