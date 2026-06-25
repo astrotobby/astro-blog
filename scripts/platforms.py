@@ -287,6 +287,98 @@ def post_instagram(render, cfg, dry):
 
 
 # --------------------------------------------------------------------------
+# Instagram Story — same Graph API, media_type=STORIES. Uses the <=58s story cut
+# (Stories reject >60s). Independent of the Reel post (soft-fails on its own).
+# --------------------------------------------------------------------------
+def post_instagram_story(render, cfg, dry):
+    ig_id = env("INSTAGRAM_USER_ID")
+    token = ig_token()
+    if not (ig_id and token):
+        return {"ok": False, "skipped": "no creds"}
+    if dry:
+        return {"ok": True, "dry": True}
+    try:
+        import time
+
+        import requests
+        video = render["videos"].get("story") or render["videos"].get("vertical")
+        if not video:
+            return {"ok": False, "error": "no story/vertical video"}
+        video_url = _host_public_url(video, render["post"]["slug"] + "-story")
+        if not video_url:
+            return {"ok": False, "error": "could not host a public video URL"}
+        base = "https://graph.instagram.com/v21.0"
+        # Stories take no caption; just the media. media_type=STORIES.
+        r = requests.post(f"{base}/{ig_id}/media",
+                          data={"media_type": "STORIES", "video_url": video_url,
+                                "access_token": token}, timeout=120)
+        cid = (r.json() or {}).get("id")
+        if not cid:
+            return {"ok": False, "error": str(r.json())[:300]}
+        for _ in range(25):
+            time.sleep(6)
+            st = requests.get(f"{base}/{cid}",
+                              params={"fields": "status_code", "access_token": token},
+                              timeout=60).json().get("status_code")
+            if st == "FINISHED":
+                break
+            if st == "ERROR":
+                return {"ok": False, "error": "Instagram story processing failed"}
+        pub = requests.post(f"{base}/{ig_id}/media_publish",
+                            data={"creation_id": cid, "access_token": token}, timeout=120)
+        mid = (pub.json() or {}).get("id")
+        if mid:
+            return {"ok": True, "url": f"ig-story:{mid}"}
+        return {"ok": False, "error": str(pub.json())[:300]}
+    except Exception as e:  # noqa
+        return {"ok": False, "error": str(e)}
+
+
+# --------------------------------------------------------------------------
+# Facebook Page Story — video_stories API: start -> upload (by file_url) -> finish.
+# Uses the <=58s story cut. Independent of the Page video post (soft-fails alone).
+# --------------------------------------------------------------------------
+def post_facebook_story(render, cfg, dry):
+    if not _has("FACEBOOK_PAGE_ID", "FACEBOOK_PAGE_TOKEN"):
+        return {"ok": False, "skipped": "no creds"}
+    if dry:
+        return {"ok": True, "dry": True}
+    try:
+        import requests
+        page_id = env("FACEBOOK_PAGE_ID")
+        token = env("FACEBOOK_PAGE_TOKEN")
+        video = render["videos"].get("story") or render["videos"].get("vertical")
+        if not video:
+            return {"ok": False, "error": "no story/vertical video"}
+        video_url = _host_public_url(video, render["post"]["slug"] + "-story")
+        if not video_url:
+            return {"ok": False, "error": "could not host a public video URL"}
+        base = "https://graph.facebook.com/v21.0"
+        # 1) start -> video_id + a resumable upload_url
+        start = requests.post(f"{base}/{page_id}/video_stories",
+                              data={"upload_phase": "start", "access_token": token},
+                              timeout=60).json()
+        vid = start.get("video_id")
+        upload_url = start.get("upload_url")
+        if not (vid and upload_url):
+            return {"ok": False, "error": "fb story start: " + str(start)[:250]}
+        # 2) upload -> let FB fetch the hosted file via the file_url header
+        up = requests.post(upload_url, timeout=300,
+                           headers={"Authorization": f"OAuth {token}", "file_url": video_url})
+        if up.status_code >= 300:
+            return {"ok": False, "error": f"fb story upload HTTP {up.status_code}: {up.text[:160]}"}
+        # 3) finish -> publishes the story
+        fin = requests.post(f"{base}/{page_id}/video_stories",
+                            data={"upload_phase": "finish", "video_id": vid,
+                                  "access_token": token}, timeout=120).json()
+        if fin.get("success") or fin.get("post_id"):
+            return {"ok": True, "url": f"fb-story:{fin.get('post_id') or vid}"}
+        return {"ok": False, "error": "fb story finish: " + str(fin)[:250]}
+    except Exception as e:  # noqa
+        return {"ok": False, "error": str(e)}
+
+
+# --------------------------------------------------------------------------
 # Reddit — PRAW (script app, no review). Posts ONE video to ONE subreddit.
 # --------------------------------------------------------------------------
 def post_reddit(render, cfg, dry):

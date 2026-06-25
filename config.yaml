@@ -117,6 +117,10 @@ avatar:
 
 # ---- Posting rules / anti-ban caps (see HONEST-LIMITS.md) ----
 platforms:
+  # Also cross-post each video to Instagram + Facebook STORIES (uses a <=58s trimmed
+  # cut of the vertical, since Stories APIs reject clips over ~60s). NOTE: TikTok has
+  # NO Stories API, so TikTok only ever gets the normal feed/inbox post.
+  also_story: true
   youtube:
     enabled: true
     also_short: false          # true only if <=3 posts/day

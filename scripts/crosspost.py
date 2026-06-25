@@ -75,13 +75,19 @@ def main():
     if "tumblr" in enabled:
         results["tumblr"] = platforms.post_tumblr(render, cfg, args.dry_run)
 
-    # ----- Facebook Page (no cap) -----
+    also_story = cfg["platforms"].get("also_story", True)
+
+    # ----- Facebook Page (no cap) + Story (TikTok has no Stories API) -----
     if "facebook" in enabled:
         results["facebook"] = platforms.post_facebook(render, cfg, args.dry_run)
+        if also_story:
+            results["facebook_story"] = platforms.post_facebook_story(render, cfg, args.dry_run)
 
-    # ----- Instagram (reuses FB token; needs a public video URL via GitHub Release) -----
+    # ----- Instagram (reuses FB token; needs a public video URL via GitHub Release) + Story -----
     if "instagram" in enabled:
         results["instagram"] = platforms.post_instagram(render, cfg, args.dry_run)
+        if also_story:
+            results["instagram_story"] = platforms.post_instagram_story(render, cfg, args.dry_run)
 
     # ----- Threads (no cap; needs a public video URL via GitHub Release) -----
     if "threads" in enabled:

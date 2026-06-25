@@ -567,6 +567,20 @@ def build_with_avatar_overlay(talking, images, total_dur, size, fps, out_path, c
     return out_path
 
 
+def make_story_cut(vertical_path, max_seconds=58):
+    """Trim the finished vertical down to <=max_seconds for Instagram/Facebook Stories,
+    whose publish APIs reject clips longer than ~60s. Re-encodes (fast) with +faststart
+    so the hosted URL streams cleanly. A shorter video is simply re-wrapped at full length.
+    TikTok has no Stories API, so this cut is for IG/FB only."""
+    keep = min(max_seconds, ffprobe_duration(vertical_path))
+    out = OUT / "video_story.mp4"
+    run(["ffmpeg", "-y", "-i", vertical_path.name, "-t", f"{keep:.3f}",
+         "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+         "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", out.name], cwd=OUT)
+    log(f"story cut {keep:.1f}s -> {out.name}")
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("script_json")
@@ -639,6 +653,14 @@ def main():
     vout = finalize(silent_for(vsize, "9x16"), voice, captions, music, vsize,
                     OUT / "video_9x16.mp4", cfg)
     results["vertical"] = str(vout)
+
+    # Story cut: a <=58s trim of the vertical for IG/FB Stories (their publish APIs
+    # reject clips over ~60s). Bonus output — never breaks the render if it fails.
+    if cfg.get("platforms", {}).get("also_story", True):
+        try:
+            results["story"] = str(make_story_cut(vout))
+        except Exception as e:  # noqa
+            log(f"story cut failed (no story video this run): {e}")
 
     if cfg["video"].get("make_horizontal"):
         hsize = cfg["video"]["horizontal"]
