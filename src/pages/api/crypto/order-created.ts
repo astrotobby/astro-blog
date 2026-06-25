@@ -15,6 +15,16 @@ import {
 // every "ignore" case so Shopify doesn't retry; 500 only on transient errors.
 export const POST: APIRoute = async ({ request }) => {
   const env = await readCryptoEnv();
+  // TEMP diagnostic: if the admin token isn't visible, report which runtime env
+  // KEYS the Worker can see (names only, never values) so we can tell a
+  // naming/environment mismatch from "cloudflare:workers env not exposing Pages
+  // secrets at all" (empty list). Remove once secrets are confirmed wired.
+  if (!env.SHOPIFY_ADMIN_TOKEN) {
+    return new Response(
+      JSON.stringify({ error: 'SHOPIFY_ADMIN_TOKEN not visible', visibleEnvKeys: Object.keys(env) }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
   let payload: { id?: number | string };
   try {
     payload = await request.json();
