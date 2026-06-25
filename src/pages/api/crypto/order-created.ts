@@ -15,18 +15,6 @@ import {
 // every "ignore" case so Shopify doesn't retry; 500 only on transient errors.
 export const POST: APIRoute = async ({ request }) => {
   const env = await readCryptoEnv();
-  // TEMP self-test (?selftest=1): report whether each secret is visible to the
-  // Worker — booleans only, never values. Remove once verified.
-  if (new URL(request.url).searchParams.get('selftest') === '1') {
-    return new Response(
-      JSON.stringify({
-        adminToken: Boolean(env.SHOPIFY_ADMIN_TOKEN),
-        nowApiKey: Boolean(env.NOWPAYMENTS_API_KEY),
-        ipnSecret: Boolean(env.NOWPAYMENTS_IPN_SECRET),
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
   let payload: { id?: number | string };
   try {
     payload = await request.json();
@@ -63,15 +51,8 @@ export const POST: APIRoute = async ({ request }) => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    const detail = (err as Error).message;
-    console.error('[crypto/order-created]', detail);
-    // Temporary diagnostic: surface the failure reason so we can tell a missing
-    // secret ("Missing SHOPIFY_ADMIN_TOKEN") apart from an invalid token/scope
-    // ("Shopify Admin API 401/403"). Revert once verified.
+    console.error('[crypto/order-created]', (err as Error).message);
     // 500 -> Shopify retries the webhook later (handles transient API hiccups).
-    return new Response(JSON.stringify({ error: 'error', detail }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response('error', { status: 500 });
   }
 };
