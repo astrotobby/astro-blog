@@ -1,5 +1,9 @@
 /sitemap.xml /sitemap-index.xml 301
 
+# --- retired product: AI Video Freelancer Toolkit (deleted from Shopify) ---
+/products/video-toolkit /products 301
+/products/video-toolkit/ /products 301
+
 # --- fix legacy CTA links (old hyphen slug -> correct underscore slug) ---
 /blog/2026-05-05-the-llm-benchmark-lie-choosing-the-best-ai-model /blog/2026-05-05-the_llm_benchmark_lie_choosing_the_best_ai_model 301
 /blog/2026-05-05-the-llm-benchmark-lie-choosing-the-best-ai-model/ /blog/2026-05-05-the_llm_benchmark_lie_choosing_the_best_ai_model/ 301
