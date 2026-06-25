@@ -8,6 +8,8 @@
     "binding": "AI"
   },
   "vars": {
-    "ENVIRONMENT": "production"
+    "ENVIRONMENT": "production",
+    "SHOPIFY_STORE_DOMAIN": "chainztobby.myshopify.com",
+    "SHOPIFY_STOREFRONT_API_TOKEN": "27429cf8e2f2e9e6a191721481de15a4"
   }
 }
