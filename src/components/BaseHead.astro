@@ -5,7 +5,6 @@ import '../styles/global.css';
 import type { ImageMetadata } from 'astro';
 import FallbackImage from '../assets/blog-placeholder-1.jpg';
 import { SITEE_TITLE } from '../consts';
-import AdNetworkScripts from './AdNetworkScripts.astro';
 
 interface Props {
 	title: string;
@@ -69,9 +68,6 @@ const { title, description, image = FallbackImage } = Astro.props;
 
 <!-- Metricool Tracking -->
 <script>function loadScript(a){var b=document.getElementsByTagName("head")[0],c=document.createElement("script");c.type="text/javascript",c.src="https://tracker.metricool.com/resources/be.js",c.onreadystatechange=a,c.onload=a,b.appendChild(c)}loadScript(function(){beTracker.t({hash:"6ed1db248930a0e900972eb39a9411c0"})});</script>
-
-<!-- Monetag / HilltopAds ad networks (lazy, session-capped — see AdNetworkScripts.astro) -->
-<AdNetworkScripts />
 
 <!-- Liquid-Glass theme: aurora backdrop + scroll-reveal (progressive enhancement) -->
 <script is:inline>
