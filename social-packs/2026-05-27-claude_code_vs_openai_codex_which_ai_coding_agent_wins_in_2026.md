@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-05-27-claude_code_vs_openai_codex_which_ai_coding_agent_wins_in_2026/
 > Matched product: **Agentic AI Workflow Pack 2026** $32 → https://astrotobby.site/products
-> Tags: "ai", "agentic", "agent", "llm", "coding"
+> Tags: "ai", "agent", "agentic", "coding", "llm"
 
 ---
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-05-27-claude_code_vs_openai_codex_which_ai_coding_agent_wins_in_2026/.
-Match an audience of people searching for help with "ai", "agentic", "agent", "llm", "coding"."
+Match an audience of people searching for help with "ai", "agent", "agentic", "coding", "llm"."

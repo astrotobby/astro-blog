@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-12-google deepmind forms ai genomics consortium to revolutionize gene research-1781265813807/
 > Matched product: **the full toolkit**  → https://astrotobby.site/products
-> Tags: —
+> Tags: "ai"
 
 ---
 
@@ -67,7 +67,7 @@ If you'd rather skip the work, the full toolkit does it for you → https://astr
 ---
 
 ## Reddit / Quora seed answer (give value FIRST, link last)
-Genuinely useful 120–150 word answer to a real thread about "this topic".
+Genuinely useful 120–150 word answer to a real thread about ""ai"".
 Draft: Google DeepMind, a prominent leader in the development of artificial intelligence (AI), has recently announced the formation of an innovative AI genomics consortium in partnership with the renowned Wellcome Sanger Instit…
 Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: https://astrotobby.site/blog/2026-06-12-google deepmind forms ai genomics consortium to revolutionize gene research-1781265813807/".
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-12-google deepmind forms ai genomics consortium to revolutionize gene research-1781265813807/.
-Match an audience of people searching for help with google deepmind forms ai genomics consortium to revolutionize gene...."
+Match an audience of people searching for help with "ai"."

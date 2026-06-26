@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-25-revolutionizing search with ai the future of digital discovery begins-1782335100624/
 > Matched product: **AEO Masterguide 2026** $14 → https://astrotobby.site/products
-> Tags: "ai", "search", "digital discovery", "future of search", "artificial intelligence"
+> Tags: "ai", "aeo", "seo"
 
 ---
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-25-revolutionizing search with ai the future of digital discovery begins-1782335100624/.
-Match an audience of people searching for help with "ai", "search", "digital discovery", "future of search", "artificial intelligence"."
+Match an audience of people searching for help with "ai", "aeo", "seo"."

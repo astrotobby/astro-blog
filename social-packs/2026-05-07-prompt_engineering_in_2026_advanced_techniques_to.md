@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-05-07-prompt_engineering_in_2026_advanced_techniques_to/
 > Matched product: **AI Prompt Vault 2026** $12 → https://astrotobby.site/products
-> Tags: "prompt", "prompt-engineering", "ai", "llm"
+> Tags: "ai", "llm", "prompt", "prompt-engineering"
 
 ---
 
@@ -111,7 +111,7 @@ If you'd rather skip the work, AI Prompt Vault 2026 ($12) does it for you → ht
 ---
 
 ## Reddit / Quora seed answer (give value FIRST, link last)
-Genuinely useful 120–150 word answer to a real thread about ""prompt"".
+Genuinely useful 120–150 word answer to a real thread about ""ai"".
 Draft: If you're still writing prompts like it's 2023 — vague, single-line instructions hoping for the best — you're leaving a massive amount of value on the table. This guide covers the advanced techniques that professional AI…
 Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: https://astrotobby.site/blog/2026-05-07-prompt_engineering_in_2026_advanced_techniques_to/".
 
@@ -120,4 +120,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-05-07-prompt_engineering_in_2026_advanced_techniques_to/.
-Match an audience of people searching for help with "prompt", "prompt-engineering", "ai", "llm"."
+Match an audience of people searching for help with "ai", "llm", "prompt", "prompt-engineering"."

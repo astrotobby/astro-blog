@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-10-meta's ai push leaves managers and engineers in limbo under layoffs-1781099920364/
 > Matched product: **the full toolkit**  → https://astrotobby.site/products
-> Tags: —
+> Tags: "ai", "layoffs", "meta"
 
 ---
 
@@ -67,7 +67,7 @@ If you'd rather skip the work, the full toolkit does it for you → https://astr
 ---
 
 ## Reddit / Quora seed answer (give value FIRST, link last)
-Genuinely useful 120–150 word answer to a real thread about "this topic".
+Genuinely useful 120–150 word answer to a real thread about ""ai"".
 Draft: Meta, the parent company of Facebook and Instagram, has recently faced a significant round of layoffs. The cuts have left many employees, particularly those in leadership and AI development roles, in a state of uncertain…
 Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: https://astrotobby.site/blog/2026-06-10-meta's ai push leaves managers and engineers in limbo under layoffs-1781099920364/".
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-10-meta's ai push leaves managers and engineers in limbo under layoffs-1781099920364/.
-Match an audience of people searching for help with meta's ai push leaves managers and engineers in limbo under layoffs."
+Match an audience of people searching for help with "ai", "layoffs", "meta"."

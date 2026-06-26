@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-12-uk adults embracing ai tools for labour-saving tasks and productivity gains-1781265575403/
 > Matched product: **the full toolkit**  → https://astrotobby.site/products
-> Tags: —
+> Tags: "ai"
 
 ---
 
@@ -67,7 +67,7 @@ If you'd rather skip the work, the full toolkit does it for you → https://astr
 ---
 
 ## Reddit / Quora seed answer (give value FIRST, link last)
-Genuinely useful 120–150 word answer to a real thread about "this topic".
+Genuinely useful 120–150 word answer to a real thread about ""ai"".
 Draft: The increasing adoption of Artificial Intelligence (AI) in the United Kingdom has led to a significant shift in the way people approach work and productivity. According to a recent report released by Ofcom, a third of UK…
 Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: https://astrotobby.site/blog/2026-06-12-uk adults embracing ai tools for labour-saving tasks and productivity gains-1781265575403/".
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-12-uk adults embracing ai tools for labour-saving tasks and productivity gains-1781265575403/.
-Match an audience of people searching for help with uk adults embracing ai tools for labour-saving tasks and...."
+Match an audience of people searching for help with "ai"."

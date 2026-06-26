@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/google_ai_breakthroughs_2026_gemini_search_workspace_and_agentic_ai/
 > Matched product: **AEO Masterguide 2026** $14 → https://astrotobby.site/products
-> Tags: "ai", "agentic", "agent", "llm", "coding", "tech"
+> Tags: "ai", "agent", "agentic", "coding", "llm", "seo", "tech"
 
 ---
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/google_ai_breakthroughs_2026_gemini_search_workspace_and_agentic_ai/.
-Match an audience of people searching for help with "ai", "agentic", "agent", "llm", "coding", "tech"."
+Match an audience of people searching for help with "ai", "agent", "agentic", "coding", "llm", "seo", "tech"."

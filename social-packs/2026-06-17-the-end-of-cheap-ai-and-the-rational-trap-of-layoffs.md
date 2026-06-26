@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-17-the-end-of-cheap-ai-and-the-rational-trap-of-layoffs/
 > Matched product: **the full toolkit**  → https://astrotobby.site/products
-> Tags: "artificial intelligence", "tech industry", "layoffs", "ai pricing", "controversy"
+> Tags: "ai", "layoffs", "tech"
 
 ---
 
@@ -67,7 +67,7 @@ If you'd rather skip the work, the full toolkit does it for you → https://astr
 ---
 
 ## Reddit / Quora seed answer (give value FIRST, link last)
-Genuinely useful 120–150 word answer to a real thread about ""artificial intelligence"".
+Genuinely useful 120–150 word answer to a real thread about ""ai"".
 Draft: The End of Cheap AI: Why Your $20 Subscription is a Lie and the 'Rational Trap' of 2026 Layoffs ================================================================================================= If you are currently payin…
 Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: https://astrotobby.site/blog/2026-06-17-the-end-of-cheap-ai-and-the-rational-trap-of-layoffs/".
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-17-the-end-of-cheap-ai-and-the-rational-trap-of-layoffs/.
-Match an audience of people searching for help with "artificial intelligence", "tech industry", "layoffs", "ai pricing", "controversy"."
+Match an audience of people searching for help with "ai", "layoffs", "tech"."

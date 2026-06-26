@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-10-the_rise_of_agentic_ai_how_autonomous_systems_are_reshaping_2026/
 > Matched product: **Make.com Autoblogging Blueprint 2026** $22 → https://astrotobby.site/products
-> Tags: "ai", "automation", "agentic", "agent", "prompt", "llm"
+> Tags: "ai", "agent", "agentic", "automation", "llm", "prompt"
 
 ---
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-10-the_rise_of_agentic_ai_how_autonomous_systems_are_reshaping_2026/.
-Match an audience of people searching for help with "ai", "automation", "agentic", "agent", "prompt", "llm"."
+Match an audience of people searching for help with "ai", "agent", "agentic", "automation", "llm", "prompt"."

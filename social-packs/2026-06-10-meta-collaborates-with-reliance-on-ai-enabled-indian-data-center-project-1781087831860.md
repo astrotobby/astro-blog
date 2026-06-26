@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-10-meta-collaborates-with-reliance-on-ai-enabled-indian-data-center-project-1781087831860/
 > Matched product: **the full toolkit**  → https://astrotobby.site/products
-> Tags: —
+> Tags: "meta"
 
 ---
 
@@ -67,7 +67,7 @@ If you'd rather skip the work, the full toolkit does it for you → https://astr
 ---
 
 ## Reddit / Quora seed answer (give value FIRST, link last)
-Genuinely useful 120–150 word answer to a real thread about "this topic".
+Genuinely useful 120–150 word answer to a real thread about ""meta"".
 Draft: Meta, the parent company of Facebook, Instagram, and WhatsApp, has made significant strides in the world of technology. Recently, the tech giant has collaborated with India's leading conglomerate, Reliance, on an innovat…
 Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: https://astrotobby.site/blog/2026-06-10-meta-collaborates-with-reliance-on-ai-enabled-indian-data-center-project-1781087831860/".
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-10-meta-collaborates-with-reliance-on-ai-enabled-indian-data-center-project-1781087831860/.
-Match an audience of people searching for help with meta collaborates with reliance on ai-enabled indian data center...."
+Match an audience of people searching for help with "meta"."

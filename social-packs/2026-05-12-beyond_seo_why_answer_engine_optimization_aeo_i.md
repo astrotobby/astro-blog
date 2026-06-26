@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-05-12-beyond_seo_why_answer_engine_optimization_aeo_i/
 > Matched product: **AEO Masterguide 2026** $14 → https://astrotobby.site/products
-> Tags: "ai", "aeo", "seo", "llm"
+> Tags: "ai", "aeo", "llm", "seo"
 
 ---
 
@@ -114,4 +114,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-05-12-beyond_seo_why_answer_engine_optimization_aeo_i/.
-Match an audience of people searching for help with "ai", "aeo", "seo", "llm"."
+Match an audience of people searching for help with "ai", "aeo", "llm", "seo"."

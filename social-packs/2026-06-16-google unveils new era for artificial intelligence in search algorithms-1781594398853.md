@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-16-google unveils new era for artificial intelligence in search algorithms-1781594398853/
 > Matched product: **AEO Masterguide 2026** $14 → https://astrotobby.site/products
-> Tags: "artificial intelligence", "search algorithms", "google", "innovation", "technology"
+> Tags: "ai", "aeo", "google", "seo", "tech"
 
 ---
 
@@ -67,7 +67,7 @@ If you'd rather skip the work, AEO Masterguide 2026 ($14) does it for you → ht
 ---
 
 ## Reddit / Quora seed answer (give value FIRST, link last)
-Genuinely useful 120–150 word answer to a real thread about ""artificial intelligence"".
+Genuinely useful 120–150 word answer to a real thread about ""ai"".
 Draft: Google Unveils New Era for Artificial Intelligence in Search Algorithms ================================================================================ On the 16th of June, 2026, Google made a groundbreaking announcemen…
 Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: https://astrotobby.site/blog/2026-06-16-google unveils new era for artificial intelligence in search algorithms-1781594398853/".
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-16-google unveils new era for artificial intelligence in search algorithms-1781594398853/.
-Match an audience of people searching for help with "artificial intelligence", "search algorithms", "google", "innovation", "technology"."
+Match an audience of people searching for help with "ai", "aeo", "google", "seo", "tech"."

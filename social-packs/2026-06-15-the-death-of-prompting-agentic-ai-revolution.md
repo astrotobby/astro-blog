@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-15-the-death-of-prompting-agentic-ai-revolution/
 > Matched product: **Agentic AI Workflow Pack 2026** $32 → https://astrotobby.site/products
-> Tags: "ai", "agentic", "agent", "prompt", "llm"
+> Tags: "ai", "agent", "agentic", "llm", "prompt"
 
 ---
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-15-the-death-of-prompting-agentic-ai-revolution/.
-Match an audience of people searching for help with "ai", "agentic", "agent", "prompt", "llm"."
+Match an audience of people searching for help with "ai", "agent", "agentic", "llm", "prompt"."

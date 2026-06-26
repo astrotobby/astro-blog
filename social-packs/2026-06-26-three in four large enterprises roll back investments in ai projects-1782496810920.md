@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-26-three in four large enterprises roll back investments in ai projects-1782496810920/
 > Matched product: **the full toolkit**  → https://astrotobby.site/products
-> Tags: "ai", "enterprise", "investment", "rollback", "technology"
+> Tags: "ai", "enterprise", "tech"
 
 ---
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-26-three in four large enterprises roll back investments in ai projects-1782496810920/.
-Match an audience of people searching for help with "ai", "enterprise", "investment", "rollback", "technology"."
+Match an audience of people searching for help with "ai", "enterprise", "tech"."

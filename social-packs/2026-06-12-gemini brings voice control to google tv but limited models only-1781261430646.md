@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-12-gemini brings voice control to google tv but limited models only-1781261430646/
 > Matched product: **the full toolkit**  → https://astrotobby.site/products
-> Tags: —
+> Tags: "gemini", "google"
 
 ---
 
@@ -67,7 +67,7 @@ If you'd rather skip the work, the full toolkit does it for you → https://astr
 ---
 
 ## Reddit / Quora seed answer (give value FIRST, link last)
-Genuinely useful 120–150 word answer to a real thread about "this topic".
+Genuinely useful 120–150 word answer to a real thread about ""gemini"".
 Draft: Google's ongoing efforts to improve its Google TV platform seem to be paying off. As the company continues to innovate and release new features, one exciting addition that has caught users' attention is the integration o…
 Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: https://astrotobby.site/blog/2026-06-12-gemini brings voice control to google tv but limited models only-1781261430646/".
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-12-gemini brings voice control to google tv but limited models only-1781261430646/.
-Match an audience of people searching for help with gemini brings voice control to google tv but limited models only."
+Match an audience of people searching for help with "gemini", "google"."

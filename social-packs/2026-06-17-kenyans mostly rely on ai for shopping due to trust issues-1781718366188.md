@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-17-kenyans mostly rely on ai for shopping due to trust issues-1781718366188/
 > Matched product: **the full toolkit**  → https://astrotobby.site/products
-> Tags: "artificial intelligence", "ai shopping", "kenyan consumers", "trust issues"
+> Tags: "ai"
 
 ---
 
@@ -67,7 +67,7 @@ If you'd rather skip the work, the full toolkit does it for you → https://astr
 ---
 
 ## Reddit / Quora seed answer (give value FIRST, link last)
-Genuinely useful 120–150 word answer to a real thread about ""artificial intelligence"".
+Genuinely useful 120–150 word answer to a real thread about ""ai"".
 Draft: **The Rise of AI-Powered Shopping in Kenya** Kenya, a country in East Africa, has witnessed a significant shift in consumer behavior towards e-commerce and online shopping. With the increasing presence of smartphones and…
 Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: https://astrotobby.site/blog/2026-06-17-kenyans mostly rely on ai for shopping due to trust issues-1781718366188/".
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-17-kenyans mostly rely on ai for shopping due to trust issues-1781718366188/.
-Match an audience of people searching for help with "artificial intelligence", "ai shopping", "kenyan consumers", "trust issues"."
+Match an audience of people searching for help with "ai"."

@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-06-how_capcut_templates_save_businesses_10_hours_week/
 > Matched product: **AI Prompt Vault 2026** $12 → https://astrotobby.site/products
-> Tags: "video", "tech"
+> Tags: "ai", "tech", "video"
 
 ---
 
@@ -67,7 +67,7 @@ If you'd rather skip the work, AI Prompt Vault 2026 ($12) does it for you → ht
 ---
 
 ## Reddit / Quora seed answer (give value FIRST, link last)
-Genuinely useful 120–150 word answer to a real thread about ""video"".
+Genuinely useful 120–150 word answer to a real thread about ""ai"".
 Draft: In today's digital-first landscape, video content is no longer optional for businesses; it's a necessity. From engaging social media reels to compelling product demonstrations and insightful explainer videos, visual stor…
 Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: https://astrotobby.site/blog/2026-06-06-how_capcut_templates_save_businesses_10_hours_week/".
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-06-how_capcut_templates_save_businesses_10_hours_week/.
-Match an audience of people searching for help with "video", "tech"."
+Match an audience of people searching for help with "ai", "tech", "video"."

@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-05-12-the_app_less_future_how_ai_agents_are_replacing_y/
 > Matched product: **Agentic AI Workflow Pack 2026** $32 → https://astrotobby.site/products
-> Tags: "ai", "agentic", "agent"
+> Tags: "ai", "agent", "agentic"
 
 ---
 
@@ -96,4 +96,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-05-12-the_app_less_future_how_ai_agents_are_replacing_y/.
-Match an audience of people searching for help with "ai", "agentic", "agent"."
+Match an audience of people searching for help with "ai", "agent", "agentic"."

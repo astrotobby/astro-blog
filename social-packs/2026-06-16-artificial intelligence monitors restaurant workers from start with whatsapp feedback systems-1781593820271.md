@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-16-artificial intelligence monitors restaurant workers from start with whatsapp feedback systems-1781593820271/
 > Matched product: **the full toolkit**  → https://astrotobby.site/products
-> Tags: "restaurant management", "artificial intelligence", "whatsapp feedback"
+> Tags: "ai"
 
 ---
 
@@ -67,7 +67,7 @@ If you'd rather skip the work, the full toolkit does it for you → https://astr
 ---
 
 ## Reddit / Quora seed answer (give value FIRST, link last)
-Genuinely useful 120–150 word answer to a real thread about ""restaurant management"".
+Genuinely useful 120–150 word answer to a real thread about ""ai"".
 Draft: Artificial intelligence is rapidly changing the way restaurants function from the back to front. While it has been around for centuries, the AI revolution has led to the automation of processes in a way never experienced…
 Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: https://astrotobby.site/blog/2026-06-16-artificial intelligence monitors restaurant workers from start with whatsapp feedback systems-1781593820271/".
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-16-artificial intelligence monitors restaurant workers from start with whatsapp feedback systems-1781593820271/.
-Match an audience of people searching for help with "restaurant management", "artificial intelligence", "whatsapp feedback"."
+Match an audience of people searching for help with "ai"."

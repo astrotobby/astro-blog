@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-13-google sues chinese cybercrime network over gemini automated scams-1781355631803/
 > Matched product: **the full toolkit**  → https://astrotobby.site/products
-> Tags: —
+> Tags: "gemini", "google"
 
 ---
 
@@ -67,7 +67,7 @@ If you'd rather skip the work, the full toolkit does it for you → https://astr
 ---
 
 ## Reddit / Quora seed answer (give value FIRST, link last)
-Genuinely useful 120–150 word answer to a real thread about "this topic".
+Genuinely useful 120–150 word answer to a real thread about ""gemini"".
 Draft: Google's ongoing crusade against cybercrime has taken an exciting turn as the tech giant takes a major step against the malicious activities of a Chinese cybercrime network. The network has been implicated in utilizing G…
 Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: https://astrotobby.site/blog/2026-06-13-google sues chinese cybercrime network over gemini automated scams-1781355631803/".
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-13-google sues chinese cybercrime network over gemini automated scams-1781355631803/.
-Match an audience of people searching for help with google sues chinese cybercrime network over gemini automated scams."
+Match an audience of people searching for help with "gemini", "google"."

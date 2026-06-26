@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-26-general intuition's $2.3b bet on video games training real-world ai agents-1782461148314/
 > Matched product: **Agentic AI Workflow Pack 2026** $32 → https://astrotobby.site/products
-> Tags: "general intuition", "ai training", "video games", "real-world ai"
+> Tags: —
 
 ---
 
@@ -67,7 +67,7 @@ If you'd rather skip the work, Agentic AI Workflow Pack 2026 ($32) does it for y
 ---
 
 ## Reddit / Quora seed answer (give value FIRST, link last)
-Genuinely useful 120–150 word answer to a real thread about ""general intuition"".
+Genuinely useful 120–150 word answer to a real thread about "this topic".
 Draft: As the tech industry continues to evolve at breakneck speed, one trend stands out as particularly promising: the use of video games to train real-world AI agents. General Intuition, a pioneering AI research firm, has rec…
 Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: https://astrotobby.site/blog/2026-06-26-general intuition's $2.3b bet on video games training real-world ai agents-1782461148314/".
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-26-general intuition's $2.3b bet on video games training real-world ai agents-1782461148314/.
-Match an audience of people searching for help with "general intuition", "ai training", "video games", "real-world ai"."
+Match an audience of people searching for help with general intuition's $2.3b bet on video games training real-world ai agents."

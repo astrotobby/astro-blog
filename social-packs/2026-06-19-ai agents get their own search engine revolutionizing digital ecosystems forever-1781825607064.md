@@ -2,7 +2,7 @@
 
 > Source: https://astrotobby.site/blog/2026-06-19-ai agents get their own search engine revolutionizing digital ecosystems forever-1781825607064/
 > Matched product: **AEO Masterguide 2026** $14 → https://astrotobby.site/products
-> Tags: "ai", "artificial intelligence", "search engine", "digital ecosystems"
+> Tags: "ai", "aeo", "agent", "seo"
 
 ---
 
@@ -76,4 +76,4 @@ Only if it truly helps the asker, end with: "I wrote a fuller breakdown here: ht
 ## ✨ AI-refine prompt (paste into Claude/ChatGPT to polish any section)
 "You are a direct-response social copywriter. Rewrite the [SECTION] above for [PLATFORM].
 Keep it specific, lead with a hook, one idea per line, end with a soft CTA to https://astrotobby.site/blog/2026-06-19-ai agents get their own search engine revolutionizing digital ecosystems forever-1781825607064/.
-Match an audience of people searching for help with "ai", "artificial intelligence", "search engine", "digital ecosystems"."
+Match an audience of people searching for help with "ai", "aeo", "agent", "seo"."
