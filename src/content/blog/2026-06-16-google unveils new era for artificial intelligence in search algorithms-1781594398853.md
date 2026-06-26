@@ -3,7 +3,7 @@ title: "Google Unveils New Era for Artificial Intelligence in Search Algorithms"
 description: "Google recently announces an innovative new era for Artificial Intelligence in its search algorithms, significantly altering user experiences and search results."
 pubDate: "2026-06-16"
 image: "https://example.com/image_url.jpg"
-tags: ["artificial intelligence", "search algorithms", "google", "innovation", "technology"]
+tags: ["ai", "aeo", "google", "seo", "tech"]
 ---
 
 Google Unveils New Era for Artificial Intelligence in Search Algorithms

@@ -4,7 +4,7 @@ title: "How to Use Claude Code for Free in 2026: Every Method That Actually Work
 pubDate: "2026-06-26"
 date: "2026-06-26"
 description: "A complete guide to every free path into Claude Code — from Anthropic's official programs to open-source proxies, cloud credits, student perks, and local models. 12 methods, all tested."
-tags: ["claude", "ai", "free", "developer tools", "claude code"]
+tags: ["ai", "claude", "coding", "free"]
 ---
 
 ## Key Takeaways

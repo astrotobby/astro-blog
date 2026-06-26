@@ -3,7 +3,7 @@ title: "Three in four large enterprises roll back investments in AI projects"
 description: "Many large enterprises struggle to implement AI projects effectively, leading to a high rate of investment rollbacks."
 pubDate: "2026-06-26"
 image: "https://images.pexels.com/photos/8353809/pexels-photo-8353809.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
-tags: ["AI", "Enterprise", "Investment", "Rollback", "Technology"]
+tags: ["ai", "enterprise", "tech"]
 ---
 
 Artificial intelligence (AI) has been touted as a revolutionary technology that can transform businesses, improve efficiency, and enhance customer experiences. However, a closer look at the data reveals a concerning trend among large enterprises: three in four projects are being rolled back due to lack of effectiveness.

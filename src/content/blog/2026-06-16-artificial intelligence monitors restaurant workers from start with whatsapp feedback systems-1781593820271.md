@@ -3,7 +3,7 @@ title: "Artificial Intelligence Monitors Restaurant Workers from Start with What
 description: "Artificial intelligence is now being used to monitor restaurant workers from the start, providing real-time feedback through WhatsApp systems."
 pubDate: "2026-06-16"
 image: "https://images.pexels.com/photos/12935044/pexels-photo-12935044.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
-tags: ["restaurant management", "artificial intelligence", "whatsapp feedback"]
+tags: ["ai"]
 ---
 
 Artificial intelligence is rapidly changing the way restaurants function from the back to front. While it has been around for centuries, the AI revolution has led to the automation of processes in a way never experienced before. One area that will change significantly in the coming years is employee monitoring, with AI being used to monitor restaurant workers from the very beginning, providing real-time feedback through WhatsApp feedback systems.

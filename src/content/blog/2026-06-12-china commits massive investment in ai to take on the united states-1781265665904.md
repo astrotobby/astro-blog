@@ -4,11 +4,7 @@ description: China has announced a 295 billion dollar plan to invest in artifici
   in this rapidly evolving field.
 image: https://assets.bwbx.io/images/users/iqjWHBFdfxIU/ix.gutKWiA_c/v0/1200x800.jpg
 pubDate: 2026-05-20
-tags:
-- Artificial Intelligence
-- China
-- USA
-- Economy
+tags: ["ai"]
 title: China Commits Massive Investment in AI to Take on the United States
 ---
 China's economy has been rapidly growing over the years, and in the wake of this growth, the country has identified an area that needs significant investment – Artificial Intelligence (AI). The nation's leaders are keenly aware that AI is a rapidly evolving field, one that can significantly impact the economy, and more importantly, it can give a country a competitive edge. It is with this in mind that China has announced plans to invest heavily in AI, a move that is being seen as a significant attempt to take on the United States in this field.

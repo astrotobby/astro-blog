@@ -6,7 +6,7 @@ description: Beyond individual tasks, AI agents are now integrating into complex
 image: /ai-workflow-hero.png
 pubDate: 2026-05-19
 title: 'AI Agents and Workflows: Unlocking Real Business Value in 2026'
-tags: ["ai", "automation", "agentic", "agent"]
+tags: ["ai", "agent", "agentic", "automation"]
 ---
 ## Introduction: The Evolution of Agentic AI
 

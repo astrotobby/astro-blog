@@ -3,7 +3,7 @@ title: "Nokia Enhances Autonomous Networks with AI and Gemini Model Technology I
 description: "Nokia announces the integration of AI and Gemini model technology to enhance autonomous networks and boost 4G and 5G performance."
 pubDate: "2026-06-23"
 image: "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
-tags: ["nokia", "autonomous networks", "ai", "4g", "5g"]
+tags: ["ai", "agentic"]
 ---
 
 Nokia, a leading global leader in telecommunications, network infrastructure, and IoT systems, has recently made significant advancements in the field of autonomous networks. The company has successfully integrated AI and Gemini model technology into its networks, further pushing the boundaries of what is possible in the realm of telecommunications. This integration is set to revolutionize the way networks operate, with AI capabilities that learn, adapt, and respond to traffic patterns in real-time. By doing so, Nokia aims to enhance the overall performance of 4G and 5G networks, creating a more seamless and reliable user experience.

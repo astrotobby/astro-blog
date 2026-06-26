@@ -4,7 +4,7 @@ title: "Advanced Prompt Engineering in 2026: Techniques That Actually Work"
 pubDate: "2026-05-07"
 date: "2026-05-07"
 description: "Chain-of-thought, role prompting, few-shot examples, and context injection — the advanced prompt engineering techniques that consistently produce better AI output in 2026."
-tags: ["prompt", "prompt-engineering", "ai", "llm"]
+tags: ["ai", "llm", "prompt", "prompt-engineering"]
 ---
 
 ## Key Takeaways

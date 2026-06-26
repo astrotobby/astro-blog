@@ -6,7 +6,7 @@ description: The era of meticulous prompt engineering is over. Discover how agen
 image: /death-of-prompting-featured.jpg
 pubDate: 2026-06-11
 title: 'The Death of Prompting: Why Agentic AI is Leaving Traditional...'
-tags: ["ai", "agentic", "agent", "prompt", "llm"]
+tags: ["ai", "agent", "agentic", "llm", "prompt"]
 ---
 ## The End of an Era: Why Prompt Engineering is Becoming Obsolete
 

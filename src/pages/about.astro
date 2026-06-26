@@ -1,47 +1,78 @@
 ---
 export const prerender = true;
 import Layout from '../layouts/BlogPost.astro';
+
+const site = Astro.site?.toString().replace(/\/$/, '') ?? 'https://astrotobby.site';
+const sameAs = [
+  'https://x.com/AstroboyTobby1',
+  'https://www.youtube.com/@aienthusiast001',
+  'https://www.instagram.com/astr_osignal',
+];
+const personSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'ProfilePage',
+  mainEntity: {
+    '@type': 'Person',
+    name: 'Astro Tobby',
+    alternateName: 'Tobby',
+    url: `${site}/about`,
+    image: `${site}/tobby-avatar.jpg`,
+    jobTitle: 'AI Automation Builder & Writer',
+    description:
+      'Builder and writer covering AI agents, automation, vibe coding and Answer Engine Optimization. Runs astrotobby.site as a live demo of the AI content pipeline he teaches.',
+    knowsAbout: [
+      'Answer Engine Optimization (AEO)',
+      'AI agents and multi-agent systems',
+      'Make.com and content automation',
+      'AI coding and vibe coding',
+      'AI video generation',
+    ],
+    sameAs,
+  },
+};
 ---
 
 <Layout
   title="About Astro Tobby"
-  description="The mind behind Astro Tobby's Blog - Exploring AI, Tech, and the Future"
+  description="Who's behind Astro Tobby — an AI automation builder writing about agents, AEO and vibe coding, with the blog itself as a live demo."
   pubDate={new Date('May 18 2026')}
-  image="/blog-placeholder-about.jpg"
+  updatedDate={new Date('Jun 26 2026')}
+  image="/tobby-avatar.jpg"
 >
+  <script type="application/ld+json" is:inline set:html={JSON.stringify(personSchema)} />
+
   <h1>About Astro Tobby</h1>
 
   <p>
-    Hey there! I'm Tobby, and I'm absolutely fascinated by the ever-evolving world of Artificial Intelligence. This blog, Astro Tobby, is my personal space to share what I'm learning, building, and thinking about as we navigate the exciting, sometimes bewildering, frontier of AI and technology.
+    I'm Tobby — I build AI automation systems and write about what actually works. Astro Tobby is where I publish hands-on breakdowns of AI agents, agentic workflows, vibe coding, and Answer Engine Optimization (AEO): the practice of getting content cited by ChatGPT, Perplexity and Google AI Overviews.
   </p>
 
+  <h2>Why you can trust what you read here</h2>
   <p>
-    My background is rooted in software development and emerging technologies, with a particular passion for how AI is reshaping our digital and physical landscapes. I've spent years diving deep into complex systems, from the intricacies of machine learning models to the practical applications of autonomous agents. What truly excites me is not just the theoretical potential of AI, but its tangible impact on businesses, creativity, and daily life.
-  </p>
-
-  <p>
-    Here, you'll find my thoughts on a range of topics, including:
+    I don't write about AI from the sidelines — I ship it. This blog is itself the proof:
   </p>
   <ul>
-    <li><strong>AI Agents & Multi-Agent Systems:</strong> Exploring how intelligent agents collaborate and operate autonomously.</li>
-    <li><strong>Large Language Models (LLMs):</strong> Deep dives into their capabilities, limitations, and ethical considerations.</li>
-    <li><strong>AI in Business & Automation:</strong> Practical insights into leveraging AI for efficiency, innovation, and growth.</li>
-    <li><strong>The Future of Work:</strong> How AI is transforming industries and creating new opportunities.</li>
-    <li><strong>Emerging Tech Trends:</strong> Keeping an eye on the next big shifts in the tech world.</li>
+    <li><strong>It's built on the automation I teach.</strong> The publishing pipeline behind this site (research → article → video → social distribution) runs on the exact Make.com and AI-agent workflows I cover in my guides.</li>
+    <li><strong>It's structured for AI search.</strong> Every post follows the AEO playbook — answer-first writing, question-shaped headings, FAQ and Article schema — so the site ranking in AI engines is a live demo, not a claim.</li>
+    <li><strong>The tools get used before they get written about.</strong> Coverage of Claude Code, multi-agent frameworks, and AI video generators comes from hands-on building, not press releases.</li>
+  </ul>
+
+  <h2>What I cover</h2>
+  <ul>
+    <li><strong>AI Search &amp; AEO:</strong> ranking in ChatGPT, Perplexity and Google AI Overviews. <a href="/topics/ai-search-optimization/">Explore the AEO hub →</a></li>
+    <li><strong>AI Automation &amp; Autoblogging:</strong> building content and workflow pipelines with Make.com and agents. <a href="/topics/ai-automation/">Explore →</a></li>
+    <li><strong>AI Agents &amp; Agentic Workflows:</strong> how multi-agent systems do real work. <a href="/topics/ai-agents/">Explore →</a></li>
+    <li><strong>AI Coding &amp; Vibe Coding:</strong> shipping software by describing intent. <a href="/topics/ai-coding/">Explore →</a></li>
   </ul>
 
   <p>
-    This blog isn't just about reporting on AI; it's about making sense of it, questioning its implications, and helping you understand how these powerful tools can be harnessed responsibly. I believe in cutting through the hype to deliver clear, actionable, and human-centric perspectives.
+    My goal is to cut through the hype and give you clear, specific, build-it-today guidance — and the digital toolkits to act on it faster.
   </p>
 
+  <h2>Work with the toolkits</h2>
   <p>
-    Thank you for stopping by. I'm thrilled to have you join me on this journey of discovery. Let's explore the future of AI together!
+    The same systems behind this site are packaged into instant-download guides and kits — AEO, automation, agents and prompts. <a href="/products">Browse the store →</a>
   </p>
 
   <p><em>This page may contain affiliate links. We may earn a commission at no extra cost to you.</em></p>
-
-  <h2>My Digital Products</h2>
-  <p>
-    (This is where the digital products section would go. For now, it's a placeholder.)
-  </p>
 </Layout>

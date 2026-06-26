@@ -3,13 +3,7 @@ description: Google takes a major step against cybercrime by suing a Chinese net
   that utilized Gemini to automate scams.
 image: https://cdn.arstechnica.net/wp-content/uploads/2025/05/google-logo-green-terminal-1152x648.jpg
 pubDate: 2026-06-04
-tags:
-- google
-- Gemini
-- automated scams
-- cybercrime
-- sue
-- china
+tags: ["gemini", "google"]
 title: Google Sues Chinese Cybercrime Network Over Gemini Automated Scams
 ---
 Google's ongoing crusade against cybercrime has taken an exciting turn as the tech giant takes a major step against the malicious activities of a Chinese cybercrime network. The network has been implicated in utilizing Google's Gemini AI, initially designed to generate human-like content, to automate scams on a grand scale. Google has now taken legal action against this network, seeking to put a stop to their nefarious activities.

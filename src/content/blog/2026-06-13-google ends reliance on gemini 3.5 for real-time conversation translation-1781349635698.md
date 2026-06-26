@@ -3,10 +3,7 @@ description: Google has announced the discontinuation of Gemini 3.5 for real-tim
   conversation translation, marking a significant shift in their translation technologies.
 image: https://www.androidheadlines.com/wp-content/uploads/2026/06/Google-Gemini-3.5-Live-Translate-featured-logo.webp
 pubDate: 2026-06-02
-tags:
-- Google Gemini 3.5
-- Real-Time Conversation Translation
-- Google Translation Technology
+tags: []
 title: Google Ends Reliance on Gemini 3.5 for Real-Time Conversation...
 ---
 Google's dedication to innovation and advancements in technology has led to the creation of groundbreaking tools like Live Translate. While it was still utilizing the Gemini 3.5 framework, it offered exceptional real-time conversation translation capabilities. However, in a recent announcement, Google has declared that they are moving away from Gemini 3.5 for future Live Translate developments.

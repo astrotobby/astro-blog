@@ -4,13 +4,7 @@ description: Google I/O 2026 dropped some of the biggest AI announcements in the
   intelligent eyewear — here's every major announcement broken down.
 image: /google-io-2026-search.jpg
 pubDate: 2026-06-15
-tags:
-- Google
-- AI
-- Gemini
-- Google IO 2026
-- Artificial Intelligence
-- Tech News
+tags: ["ai", "gemini", "google", "seo"]
 title: 'Google I/O 2026: Every Major Announcement That Changes How We Use AI'
 ---
 Google just wrapped one of the most packed developer conferences in its history. Google I/O 2026, held May 19–20 at Shoreline Amphitheatre in Mountain View, was wall-to-wall AI — and this time the announcements weren't just incremental upgrades. Google dropped new models, a new agentic development platform, a redesigned shopping experience, intelligent eyewear, and tools that fundamentally change how developers build software.

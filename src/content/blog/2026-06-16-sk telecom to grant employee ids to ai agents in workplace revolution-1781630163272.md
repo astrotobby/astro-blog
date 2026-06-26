@@ -3,7 +3,7 @@ title: "SK Telecom to Grant Employee IDs to AI Agents in Workplace Revolution"
 description: "SK Telecom, a South Korean telecommunications company, announces plans to assign employee IDs to AI agents, blurring the lines between human and artificial intelligence in the workplace."
 pubDate: "2026-06-16"
 image: ""
-tags: ["AI in the workplace", "artificial intelligence", "SK Telecom", "technology news"]
+tags: ["ai", "tech"]
 ---
 
 In a groundbreaking move, SK Telecom, a leading telecommunications company in South Korea, has announced that it will grant employee IDs to its AI agents. This revolutionary decision is part of a broader initiative to integrate artificial intelligence into the workplace, blurring the lines between human and artificial intelligence.

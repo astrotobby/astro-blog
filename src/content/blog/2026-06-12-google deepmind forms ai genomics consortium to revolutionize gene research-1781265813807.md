@@ -3,12 +3,7 @@ description: Google DeepMind has formed a groundbreaking AI genomics consortium 
   the Wellcome Sanger Institute to transform gene research with artificial intelligence.
 image: https://static1.squarespace.com/static/65a69e0c110a6977ead9741c/t/6a27ea63dbedb812c324d044/1781000803296/google-deepmind-wellcome-sanger-ai-genomics-consortium.jpg.png?format=1500w
 pubDate: 2026-05-24
-tags:
-- Google DeepMind
-- AI Genomics Consortium
-- Artificial Intelligence
-- Gene Research
-- Wellcome Sanger Institute
+tags: ["ai"]
 title: Google DeepMind Forms AI Genomics Consortium To Revolutionize Gene...
 ---
 Google DeepMind, a prominent leader in the development of artificial intelligence (AI), has recently announced the formation of an innovative AI genomics consortium in partnership with the renowned Wellcome Sanger Institute. The groundbreaking collaboration aims to harness the power of AI to revolutionize gene research, ultimately leading to the discovery of groundbreaking solutions to complex health issues.

@@ -3,7 +3,7 @@ title: "General Intuition's $2.3B Bet on Video Games Training Real-World AI Agen
 description: "General Intuition's recent $2.3 billion investment in video game-based AI training highlights the growing importance of real-world AI applications."
 pubDate: 2026-06-26
 image: "https://images.pexels.com/photos/7047008/pexels-photo-7047008.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
-tags: ["General Intuition", "AI Training", "Video Games", "Real-World AI"]
+tags: []
 ---
 
 As the tech industry continues to evolve at breakneck speed, one trend stands out as particularly promising: the use of video games to train real-world AI agents. General Intuition, a pioneering AI research firm, has recently made a splash with a $2.3 billion investment in this emerging field. This massive bet on the potential of video games to drive real-world AI progress has sent shockwaves throughout the tech community, and for good reason.

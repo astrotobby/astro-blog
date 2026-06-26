@@ -4,12 +4,7 @@ description: AI agents have crossed from experiment to mainstream. This deep div
   and where the next 12 months are heading.
 image: /agentic-ai-2026-new.jpg
 pubDate: 2026-06-13
-tags:
-- AI Agents
-- Multi-Agent Systems
-- AI Trends
-- Agentic AI
-- '2026'
+tags: ["ai", "agent", "agentic", "multi-agent"]
 title: 'Agentic AI in 2026: How Multi-Agent Systems Are Rewriting the...'
 ---
 The world of AI crossed a critical threshold in 2025. Chatbots that answered questions gave way to **agents that take action**. In 2026, that shift has gone from experiment to mainstream deployment — and if you're not tracking agentic AI right now, you're already behind.

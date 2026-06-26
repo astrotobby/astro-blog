@@ -4,7 +4,7 @@ description: A comprehensive comparison of Claude Code, Claude Fable 5, Claude M
 pubDate: 2026-06-16
 date: 2026-06-16
 image: /ai_titans_clash.jpg
-tags: ["ai", "agentic", "agent", "llm", "coding"]
+tags: ["ai", "agent", "agentic", "coding", "llm"]
 ---
 
 ## Introduction: A New Era of AI Innovation

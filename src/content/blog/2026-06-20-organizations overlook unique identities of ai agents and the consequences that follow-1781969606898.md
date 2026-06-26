@@ -3,7 +3,7 @@ title: "Organizations Overlook Unique Identities of AI Agents and the Consequenc
 description: "The importance of understanding AI agent identities in organizational settings and the unforeseen consequences of neglecting these identities."
 pubDate: "2026-06-20"
 image: "https://images.pexels.com/photos/8369216/pexels-photo-8369216.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
-tags: ["AI agent identity", "organizational intelligence", "artificial intelligence", "data management"]
+tags: ["ai", "agent"]
 ---
 
 As organizations continue to integrate artificial intelligence (AI) systems into their operations, it's crucial to recognize the inherent complexities associated with AI agent identities. These identities, often overlooked in favor of broader AI strategies, have a profound impact on the efficiency and efficacy of these systems.

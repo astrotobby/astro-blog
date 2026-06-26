@@ -3,7 +3,7 @@ title: "Kenyans Mostly Rely on AI for Shopping Due to Trust Issues"
 description: "Kenyans are increasingly relying on Artificial Intelligence (AI) powered shopping platforms due to concerns about trust and security in traditional shopping methods."
 pubDate: "2026-06-17"
 image: "https://images.pexels.com/photos/35856106/pexels-photo-35856106.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
-tags: ["artificial intelligence", "ai shopping", "kenyan consumers", "trust issues"]
+tags: ["ai"]
 ---
 
 **The Rise of AI-Powered Shopping in Kenya**

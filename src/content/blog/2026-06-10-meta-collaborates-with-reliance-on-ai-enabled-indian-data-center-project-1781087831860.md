@@ -4,12 +4,7 @@ description: Meta has partnered with Reliance to create a cutting-edge AI-enable
   and digital development in the region.
 image: https://about.fb.com/wp-content/uploads/2026/06/Meta-Partners-With-Reliance-on-AI-Data-Center-in-India_Header.jpg?w=1200
 pubDate: 2026-05-10
-tags:
-- Meta
-- Reliance
-- AI-Enabled Data Center
-- Indian Data Center
-- Data Center Partnership
+tags: ["meta"]
 title: Meta Collaborates with Reliance on AI-Enabled Indian Data Center...
 ---
 Meta, the parent company of Facebook, Instagram, and WhatsApp, has made significant strides in the world of technology. Recently, the tech giant has collaborated with India's leading conglomerate, Reliance, on an innovative project aimed at creating an AI-enabled data center in India. This groundbreaking partnership highlights Meta's dedication to advancing digital infrastructure in the country and fostering innovation in the region.

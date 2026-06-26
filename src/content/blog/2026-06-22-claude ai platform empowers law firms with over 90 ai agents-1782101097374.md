@@ -3,7 +3,7 @@ title: "Claude AI Platform Empowers Law Firms with Over 90 AI Agents"
 description: "Discover how Claude AI Platform is revolutionizing the legal industry with its extensive range of AI agents, empowering law firms to streamline their operations and improve client satisfaction."
 pubDate: 2026-06-22
 image: "https://images.pexels.com/photos/16027824/pexels-photo-16027824.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
-tags: ["AI in Law Firms", "Claude AI Platform", "AI Agents", "Legal Industry"]
+tags: ["ai", "agent", "claude"]
 ---
 
 The legal industry is undergoing a significant transformation thanks to the rapid advancement of artificial intelligence (AI). AI-powered tools are being increasingly adopted by law firms to enhance their operations, improve efficiency, and provide better services to their clients. Among the various AI platforms available, the Claude AI Platform has emerged as a game-changer with its extensive range of over 90 AI agents.
