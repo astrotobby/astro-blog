@@ -42,6 +42,10 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const dc = apiKey.split('-')[1]; // e.g. 'us8'
+  if (!dc) {
+    console.error('[subscribe] MAILCHIMP_API_KEY has no datacenter suffix (expected key-usXX)');
+    return json({ error: 'Server configuration error' }, 500);
+  }
 
   try {
     const listId = await getListId(apiKey, dc);
@@ -52,21 +56,36 @@ export const POST: APIRoute = async ({ request }) => {
         Authorization: `Basic ${btoa(`anystring:${apiKey}`)}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email_address: email, status: 'subscribed' }),
+      // Tag the subscriber so the welcome automation can target "free-pack" leads.
+      body: JSON.stringify({ email_address: email, status: 'subscribed', tags: ['free-pack'] }),
     });
 
     const data = (await res.json()) as { title?: string; detail?: string };
 
-    // Mailchimp returns 400 + title "Member Exists" for already-subscribed — treat as success
+    // Success, or already-on-the-list — both are wins for the user.
     if (res.ok || data.title === 'Member Exists') {
-      return json({ message: "You're subscribed! Check your inbox." }, 200);
+      return json({ message: "You're in! Your free pack link is below." }, 200);
     }
 
-    throw new Error(data.detail ?? `Mailchimp error ${res.status}`);
+    // Map Mailchimp's known rejections to friendly, correct-status responses instead of
+    // leaking raw internals as a 500 (which made a working form look broken).
+    const detail = (data.detail ?? '').toLowerCase();
+    if (detail.includes('looks fake') || data.title === 'Invalid Resource') {
+      return json({ error: 'Please enter a real email address.' }, 400);
+    }
+    if (detail.includes('signed up to a lot') || detail.includes('compliance state')) {
+      return json({ error: "This address can't be subscribed automatically. Try another, or contact us." }, 400);
+    }
+    if (data.title === 'Forgotten Email Not Subscribed' || detail.includes('cannot be subscribed')) {
+      return json({ error: 'You previously unsubscribed. Please re-subscribe from your last Mailchimp email.' }, 400);
+    }
+
+    // Genuine upstream problem — log the detail, but never expose Mailchimp internals.
+    console.error('[subscribe] Mailchimp error', res.status, data.title, data.detail);
+    return json({ error: "We couldn't subscribe you right now. Please try again in a moment." }, 502);
   } catch (err) {
     console.error('[subscribe]', err);
-    const msg = err instanceof Error ? err.message : 'Failed to subscribe';
-    return json({ error: msg }, 500);
+    return json({ error: "We couldn't subscribe you right now. Please try again in a moment." }, 502);
   }
 };
 
