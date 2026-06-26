@@ -4,8 +4,8 @@ import Layout from '../layouts/BlogPost.astro';
 ---
 
 <Layout
-  title="Contact | Astro Tobby"
-  description="Get in touch with Astro Tobby - AI Agents & Technology Insights"
+  title="Contact"
+  description="Get in touch with Astro Signal — AI agents, automation & AEO insights, by Astro Tobby."
   pubDate={new Date()}
 >
   <p class="contact-lede">
@@ -50,29 +50,46 @@ import Layout from '../layouts/BlogPost.astro';
     </div>
   </div>
 
-  <form name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" class="contact-form card-glass">
-    <input type="hidden" name="form-name" value="contact" />
-    <p class="hidden">
-      <label>Don’t fill this out if you’re human: <input name="bot-field" /></label>
-    </p>
-    <p>
-      <label for="name">Name:</label>
-      <input type="text" id="name" name="name" required />
-    </p>
-    <p>
-      <label for="email">Email:</label>
-      <input type="email" id="email" name="email" required />
-    </p>
-    <p>
-      <label for="message">Message:</label>
-      <textarea id="message" name="message" required></textarea>
-    </p>
-    <p>
-      <button type="submit" class="btn btn-primary">Send Message</button>
-    </p>
+  <form id="contactForm" class="contact-form card-glass">
+    <div class="field">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" autocomplete="name" required />
+    </div>
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" autocomplete="email" required />
+    </div>
+    <div class="field">
+      <label for="message">Message</label>
+      <textarea id="message" name="message" rows="5" required></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Send Message</button>
+    <p class="form-note" id="formNote" hidden>Opening your email app… if nothing happens, email <a href="mailto:goodluck@astrotobby.site">goodluck@astrotobby.site</a> directly.</p>
   </form>
 
   <p class="contact-foot">I typically respond within 3 hours.</p>
+
+  <script is:inline>
+    (function () {
+      var form = document.getElementById('contactForm');
+      if (!form) return;
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = (document.getElementById('name').value || '').trim();
+        var email = (document.getElementById('email').value || '').trim();
+        var message = (document.getElementById('message').value || '').trim();
+        var subject = 'Astro Signal contact — ' + (name || 'site visitor');
+        var body = 'Name: ' + name + '\nEmail: ' + email + '\n\n' + message;
+        var note = document.getElementById('formNote');
+        if (note) note.hidden = false;
+        window.location.href =
+          'mailto:goodluck@astrotobby.site?subject=' +
+          encodeURIComponent(subject) +
+          '&body=' +
+          encodeURIComponent(body);
+      });
+    })();
+  </script>
 </Layout>
 
 <style>
@@ -108,43 +125,46 @@ import Layout from '../layouts/BlogPost.astro';
   .contact-form {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.25rem;
     padding: 2rem;
     margin-top: 2rem;
+    max-width: 560px;
   }
+  .contact-form .field { display: flex; flex-direction: column; gap: 0.4rem; margin: 0; }
   .contact-form label {
     font-weight: 600;
-    margin-bottom: 0.5rem;
-    display: block;
+    font-size: 0.95rem;
+    color: var(--text-heading);
   }
   .contact-form input[type="text"],
   .contact-form input[type="email"],
   .contact-form textarea {
     width: 100%;
-    padding: 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    background-color: var(--card-bg);
+    padding: 0.7rem 0.85rem;
+    font: inherit;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm, 10px);
+    background: var(--glass-bg-strong, #fff);
     color: var(--text-body);
+    transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+  }
+  .contact-form input:focus,
+  .contact-form textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
   }
   .contact-form textarea {
-    min-height: 120px;
+    min-height: 130px;
     resize: vertical;
   }
   .contact-form button {
     align-self: flex-start;
-    padding: 0.75rem 1.5rem;
-    border-radius: 0.5rem;
-    border: none;
-    background-color: var(--accent);
-    color: white;
-    font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s ease-in-out;
   }
-  .contact-form button:hover {
-    background-color: var(--accent-dark);
+  .form-note { font-size: 0.85rem; color: var(--text-muted); margin: 0.25rem 0 0; }
+  @media (max-width: 640px) {
+    .contact-grid { grid-template-columns: 1fr; }
+    .contact-form { max-width: 100%; padding: 1.5rem; }
   }
-  .hidden { display: none; }
-  @media (max-width: 640px) { .contact-grid { grid-template-columns: 1fr; } }
 </style>
