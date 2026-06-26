@@ -64,7 +64,7 @@ import Layout from '../layouts/BlogPost.astro';
       <textarea id="message" name="message" rows="5" required></textarea>
     </div>
     <button type="submit" class="btn btn-primary">Send Message</button>
-    <p class="form-note" id="formNote" hidden>Opening your email app… if nothing happens, email <a href="mailto:goodluck@astrotobby.site">goodluck@astrotobby.site</a> directly.</p>
+    <p class="form-note" id="formStatus" role="status" hidden></p>
   </form>
 
   <p class="contact-foot">I typically respond within 3 hours.</p>
@@ -73,20 +73,48 @@ import Layout from '../layouts/BlogPost.astro';
     (function () {
       var form = document.getElementById('contactForm');
       if (!form) return;
+      var status = document.getElementById('formStatus');
+      var btn = form.querySelector('button[type="submit"]');
+      var ENDPOINT = 'https://formsubmit.co/ajax/goodluck@astrotobby.site';
+      function setStatus(cls, html) {
+        status.hidden = false;
+        status.className = 'form-note ' + cls;
+        status.innerHTML = html;
+      }
       form.addEventListener('submit', function (e) {
         e.preventDefault();
         var name = (document.getElementById('name').value || '').trim();
         var email = (document.getElementById('email').value || '').trim();
         var message = (document.getElementById('message').value || '').trim();
-        var subject = 'Astro Signal contact — ' + (name || 'site visitor');
-        var body = 'Name: ' + name + '\nEmail: ' + email + '\n\n' + message;
-        var note = document.getElementById('formNote');
-        if (note) note.hidden = false;
-        window.location.href =
-          'mailto:goodluck@astrotobby.site?subject=' +
-          encodeURIComponent(subject) +
-          '&body=' +
-          encodeURIComponent(body);
+        if (!name || !email || !message) return;
+        btn.disabled = true;
+        btn.textContent = 'Sending…';
+        setStatus('', 'Sending your message…');
+        fetch(ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            name: name,
+            email: email,
+            message: message,
+            _subject: 'New Astro Signal contact message',
+            _template: 'table',
+            _captcha: 'false'
+          })
+        })
+          .then(function (r) { return r.ok; })
+          .then(function (ok) {
+            if (!ok) throw new Error('bad response');
+            form.reset();
+            setStatus('form-ok', 'Thanks! Your message has been sent. I usually reply within a few hours.');
+          })
+          .catch(function () {
+            setStatus('form-err', 'Sorry, that didn’t go through. Please email <a href="mailto:goodluck@astrotobby.site">goodluck@astrotobby.site</a> directly.');
+          })
+          .then(function () {
+            btn.disabled = false;
+            btn.textContent = 'Send Message';
+          });
       });
     })();
   </script>
@@ -162,7 +190,10 @@ import Layout from '../layouts/BlogPost.astro';
     align-self: flex-start;
     cursor: pointer;
   }
-  .form-note { font-size: 0.85rem; color: var(--text-muted); margin: 0.25rem 0 0; }
+  .form-note { font-size: 0.9rem; color: var(--text-muted); margin: 0.25rem 0 0; }
+  .form-note.form-ok { color: #15803d; font-weight: 600; }
+  .form-note.form-err { color: #b91c1c; font-weight: 600; }
+  .form-note a { text-decoration: underline; }
   @media (max-width: 640px) {
     .contact-grid { grid-template-columns: 1fr; }
     .contact-form { max-width: 100%; padding: 1.5rem; }
