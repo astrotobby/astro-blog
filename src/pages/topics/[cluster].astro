@@ -1,0 +1,154 @@
+---
+export const prerender = true;
+import { getCollection } from 'astro:content';
+import BaseHead from '../../components/BaseHead.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import FormattedDate from '../../components/FormattedDate.astro';
+import Newsletter from '../../components/Newsletter.astro';
+import InArticleCTA from '../../components/InArticleCTA.astro';
+import ShopifyProducts from '../../components/ShopifyProducts.astro';
+import { CLUSTERS, postInCluster } from '../../lib/clusters';
+import { displayImage, svgFallback } from '../../lib/postImage';
+
+export async function getStaticPaths() {
+  return CLUSTERS.map((cluster) => ({ params: { cluster: cluster.slug }, props: { cluster } }));
+}
+
+const { cluster } = Astro.props;
+
+const orderKey = (p: any) => {
+  const id = p.id || '';
+  const ms = id.match(/-(\d{13})$/);
+  if (ms) return Number(ms[1]);
+  const d = id.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (d) return Date.parse(`${d[1]}-${d[2]}-${d[3]}T00:00:00Z`);
+  return p.data.pubDate ? p.data.pubDate.valueOf() : 0;
+};
+
+const posts = (await getCollection('blog'))
+  .filter((p) => postInCluster((p.data.tags as string[]) ?? [], cluster))
+  .sort((a, b) => orderKey(b) - orderKey(a));
+
+const site = Astro.site?.toString().replace(/\/$/, '') ?? 'https://astrotobby.site';
+const pageUrl = `${site}/topics/${cluster.slug}/`;
+
+const breadcrumb = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: `${site}/` },
+    { '@type': 'ListItem', position: 2, name: 'Topics', item: `${site}/topics/` },
+    { '@type': 'ListItem', position: 3, name: cluster.name, item: pageUrl },
+  ],
+};
+
+const collectionSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: cluster.seoTitle,
+  description: cluster.metaDescription,
+  url: pageUrl,
+  mainEntity: {
+    '@type': 'ItemList',
+    itemListElement: posts.slice(0, 25).map((p, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: `${site}/blog/${p.id}/`,
+      name: p.data.title,
+    })),
+  },
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: cluster.buyerQuestion,
+      acceptedAnswer: { '@type': 'Answer', text: cluster.answer },
+    },
+  ],
+};
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <BaseHead title={cluster.seoTitle} description={cluster.metaDescription} />
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(breadcrumb)} />
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(collectionSchema)} />
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(faqSchema)} />
+    <style>
+      .hub-header { max-width: var(--maxw); margin: 3.5rem auto 0; padding: 4rem 2rem; text-align: center; border-radius: var(--radius-xl); overflow: hidden; }
+      .hub-title { font-size: clamp(2.2rem, 5vw, 3.25rem); font-weight: 800; margin: 0.5rem 0 1.25rem; letter-spacing: -0.03em; }
+      .hub-answer { color: var(--text-body); font-size: 1.15rem; max-width: 60ch; margin: 0 auto; line-height: 1.7; }
+      .hub-q { max-width: var(--maxw); margin: 3rem auto 0; padding: 0 1.5rem; }
+      .hub-q h2 { font-size: 1.35rem; margin: 0; color: var(--text-heading); }
+      .posts-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+      .post-card { text-decoration: none; display: flex; flex-direction: column; overflow: hidden; }
+      .post-media { position: relative; height: 200px; overflow: hidden; }
+      .post-media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--dur-slow) var(--ease-out); }
+      .post-card:hover .post-media img { transform: scale(1.06); }
+      .card-body { padding: 1.5rem; display: flex; flex-direction: column; flex: 1; }
+      .card-date { font-size: 0.82rem; color: var(--accent); font-weight: 600; margin-bottom: 0.5rem; }
+      .card-title { font-size: 1.18rem; color: var(--text-heading); margin: 0 0 0.6rem; line-height: 1.3; font-weight: 700; }
+      .card-desc { font-size: 0.94rem; color: var(--text-body); line-height: 1.55; margin: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+      .other-hubs { max-width: var(--maxw); margin: 4rem auto 0; padding: 0 1.5rem; }
+      .other-hubs h2 { font-size: 1.2rem; margin: 0 0 1.25rem; }
+      .hub-chips { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+      .hub-chip { padding: 0.55rem 1.05rem; border-radius: 999px; font-weight: 600; font-size: 0.9rem; text-decoration: none; color: var(--text-body); background: var(--accent-soft, rgba(79,70,229,0.08)); border: 1px solid var(--glass-border, rgba(99,102,241,0.18)); }
+      .hub-chip:hover { color: var(--accent); }
+      @media (max-width: 900px) { .posts-grid { grid-template-columns: repeat(2, 1fr); } }
+      @media (max-width: 600px) { .posts-grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <Header />
+    <main>
+      <section class="hub-header glass" data-reveal>
+        <span class="badge"><span class="dot"></span> {cluster.eyebrow} hub</span>
+        <h1 class="hub-title">{cluster.name}</h1>
+        <p class="hub-answer">{cluster.answer}</p>
+      </section>
+
+      <section class="hub-q" data-reveal>
+        <h2>{cluster.buyerQuestion}</h2>
+      </section>
+
+      <!-- Offer matched to this pillar, before the article list -->
+      <InArticleCTA tags={cluster.tags} hook={cluster.ctaHook} />
+
+      <section class="section" style="margin: 3rem auto 2rem;">
+        <div class="posts-grid">
+          {posts.map((post, i) => (
+            <a href={`/blog/${post.id}/`} class="post-card card-glass" data-reveal style={`--reveal-delay:${(i % 3) * 80}ms`}>
+              <div class="post-media">
+                <img src={displayImage(post.data.title, post.data.image)} data-fb={svgFallback(post.data.title)} alt={post.data.title} loading="lazy" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
+              </div>
+              <div class="card-body">
+                <p class="card-date"><FormattedDate date={post.data.pubDate} /></p>
+                <h3 class="card-title">{post.data.title}</h3>
+                <p class="card-desc">{post.data.description}</p>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <ShopifyProducts tags={cluster.tags} limit={3} />
+
+      <section class="other-hubs" data-reveal>
+        <h2>Explore other topics</h2>
+        <div class="hub-chips">
+          {CLUSTERS.filter((c) => c.slug !== cluster.slug).map((c) => (
+            <a class="hub-chip" href={`/topics/${c.slug}/`}>{c.name}</a>
+          ))}
+        </div>
+      </section>
+
+      <Newsletter />
+    </main>
+    <Footer />
+  </body>
+</html>

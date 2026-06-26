@@ -9,11 +9,21 @@ import { SITE_TITLE } from '../consts';
 interface Props {
 	title: string;
 	description: string;
-	image?: ImageMetadata;
+	image?: ImageMetadata | string;
+	/** "website" for index/listing pages, "article" for blog posts. */
+	ogType?: string;
 }
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
-const { title, description, image = FallbackImage } = Astro.props;
+const { title, description, image = FallbackImage, ogType = 'website' } = Astro.props;
+
+// Resolve a fully-qualified social-share image from either an imported asset
+// (ImageMetadata) or a string path/URL (per-post hero). Falls back to the
+// bundled placeholder. This is what makes link previews show the real hero.
+const rawImage = typeof image === 'string' ? image : image.src;
+const ogImage = rawImage.startsWith('http')
+	? rawImage
+	: new URL(rawImage, Astro.url).toString();
 
 // Append the brand to every page title (except the homepage, which already is the
 // brand) so search results carry recognizable, consistent branding.
@@ -56,18 +66,18 @@ const fullTitle =
 <meta name="description" content={description} />
 
 <!-- Open Graph / Facebook -->
-<meta property="og:type" content="website" />
+<meta property="og:type" content={ogType} />
 <meta property="og:url" content={Astro.url} />
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
-<meta property="og:image" content={new URL(image.src, Astro.url)} />
+<meta property="og:image" content={ogImage} />
 
 <!-- Twitter -->
 <meta property="twitter:card" content="summary_large_image" />
 <meta property="twitter:url" content={Astro.url} />
 <meta property="twitter:title" content={title} />
 <meta property="twitter:description" content={description} />
-<meta property="twitter:image" content={new URL(image.src, Astro.url)} />
+<meta property="twitter:image" content={ogImage} />
 
 
 
