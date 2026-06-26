@@ -1,0 +1,57 @@
+name: repurpose-content
+
+# Regenerate the social-distribution packs whenever blog content changes, and commit
+# them back to social-packs/. Keeps distribution assets in sync with zero manual work.
+#
+# Loop-safe: this workflow only triggers on src/content/blog/** changes, while the
+# commit it makes touches ONLY social-packs/** — so its own commit can never re-trigger
+# it. The "[skip ci]" message is a second belt-and-braces guard.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/content/blog/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repurpose-content
+  cancel-in-progress: false
+
+jobs:
+  repurpose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.12.0"
+
+      - name: Generate social packs
+        run: node scripts/repurpose.mjs --all
+
+      - name: Commit packs back (if changed)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add social-packs
+          if git diff --cached --quiet; then
+            echo "No social-pack changes."
+            exit 0
+          fi
+          git commit -m "Regenerate social packs (automated) [skip ci]"
+          # Rebase onto whatever the autoblogger pushed meanwhile, then push (one retry).
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin main && exit 0
+            echo "Push race, retrying ($i)..."
+            sleep 3
+          done
+          echo "Could not push after retries; next content push will regenerate." >&2
+          exit 0

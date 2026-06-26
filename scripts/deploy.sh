@@ -20,6 +20,16 @@ echo "==> Files to deploy:"; git diff --cached --name-only | sed 's/^/   /'
 
 msg="${1:-Deploy: content + SEO/conversion update $(date '+%Y-%m-%d %H:%M')}"
 git commit -m "$msg" >/dev/null
+
+# The autoblogger pushes to main often, so sync (rebase our commit on top) before pushing.
+echo "==> Syncing with remote (rebase)..."
+git fetch origin main
+if ! git pull --rebase origin main; then
+  echo "Rebase conflict. Resolve the listed files, then run:"
+  echo "   git rebase --continue && git push origin main"
+  exit 1
+fi
+
 echo "==> Pushing to origin/main (triggers Cloudflare build)..."
 git push origin main
 

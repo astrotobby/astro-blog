@@ -30,6 +30,17 @@ if ([string]::IsNullOrWhiteSpace($Message)) {
 }
 
 git commit -m $Message | Out-Null
+
+# The autoblogger pushes to main often, so sync (rebase our commit on top) before pushing.
+Write-Host "==> Syncing with remote (rebase)..." -ForegroundColor Cyan
+git fetch origin main
+git pull --rebase origin main
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "Rebase conflict. Resolve the listed files, then run:" -ForegroundColor Yellow
+  Write-Host "   git rebase --continue ; git push origin main" -ForegroundColor Yellow
+  exit 1
+}
+
 Write-Host "==> Pushing to origin/main (triggers Cloudflare build)..." -ForegroundColor Cyan
 git push origin main
 
