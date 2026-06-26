@@ -6,6 +6,7 @@ description: Explore the latest AI developments from June 2026, including PwC's 
 image: /ai-labor-market-2026.png
 pubDate: 2026-06-12
 title: The Two-Track AI Labor Market and the Fable 5 Jailbreak:...
+tags: ["ai"]
 ---
 ## Introduction: A Week of Contrasts in the AI Industry
 

@@ -3,8 +3,8 @@
 <section class="newsletter-section">
     <div class="newsletter-container">
         <div class="newsletter-content">
-            <h2>Stay Updated</h2>
-            <p>Get notified whenever I publish a new post about AI, technology, and the future.</p>
+            <h2>Get the free 2026 AI Starter Pack</h2>
+            <p>20 plug-and-play AI prompts + 3 zero-budget automation recipes — instant, free. Plus new posts when they drop.</p>
         </div>
         <form id="newsletter-form" class="newsletter-form">
             <div class="input-group">
@@ -17,7 +17,7 @@
                     aria-label="Email address"
                 />
                 <button type="submit" id="submit-btn">
-                    <span>Subscribe</span>
+                    <span>Get the pack</span>
                     <svg class="spinner" viewBox="0 0 24 24" style="display: none;">
                         <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
                     </svg>
@@ -212,7 +212,7 @@
 
             if (response.ok) {
                 if (messageEl) {
-                    messageEl.textContent = 'Successfully subscribed! Check your inbox.';
+                    messageEl.innerHTML = "You're in! 🎉 <a href=\"/free/ai-starter-pack.html\" style=\"color:#fff;text-decoration:underline;font-weight:700\">Grab your free Starter Pack →</a>";
                     messageEl.classList.add('success');
                 }
                 form.reset();
@@ -227,7 +227,7 @@
         } finally {
             if (submitBtn) submitBtn.disabled = false;
             if (spinner) spinner.style.display = 'none';
-            if (btnText) btnText.textContent = 'Subscribe';
+            if (btnText) btnText.textContent = 'Get the pack';
         }
     });
 </script>

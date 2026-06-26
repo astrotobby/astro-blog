@@ -7,7 +7,9 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "node scripts/sanitize-frontmatter.mjs && astro build",
+    "build": "node scripts/sanitize-frontmatter.mjs && node scripts/normalize-content.mjs && astro build",
+    "repurpose": "node ../growth-engine/repurpose.mjs --all",
+    "ship": "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1",
     "preview": "npm run build && wrangler dev",
     "astro": "astro",
     "generate-types": "wrangler types",

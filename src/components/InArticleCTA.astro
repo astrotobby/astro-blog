@@ -1,0 +1,91 @@
+---
+// A single, tag-matched product offer rendered right after the article body —
+// the first thing a reader sees when they finish, before any ad unit.
+// Picks the most relevant product for the post's tags using the same logic
+// the store grid uses, so the pitch always matches what they just read.
+import { fetchShopifyProducts, prioritizeProducts, FALLBACK_PRODUCTS } from '../lib/shopify';
+import type { ShopifyProduct } from '../lib/shopify';
+
+interface Props {
+  tags?: string[];
+  /** Optional override for the headline hook. */
+  hook?: string;
+}
+
+const { tags = [], hook } = Astro.props;
+
+let raw: ShopifyProduct[] = FALLBACK_PRODUCTS;
+try {
+  raw = await fetchShopifyProducts();
+} catch (e) {
+  console.warn('[InArticleCTA] Using fallback data:', (e as Error).message);
+}
+
+const product = prioritizeProducts(raw, tags, 'in-article-cta')[0];
+const storeBase = 'https://chainztobby.myshopify.com';
+const variantId = product.variantId.split('/').pop();
+const cartUrl = `${storeBase}/cart/add?id=${variantId}`;
+const pdpUrl = `${storeBase}/products/${product.handle}`;
+const headline = hook ?? 'Want this done-for-you?';
+---
+
+<aside class="iacta" aria-label="Recommended product" data-reveal>
+  <div class="iacta-body">
+    <p class="iacta-eyebrow">★ Reader pick · Instant download</p>
+    <h3 class="iacta-title">{headline}</h3>
+    <p class="iacta-desc">
+      <strong>{product.title.split('—')[0].trim()}</strong> — {product.description}
+    </p>
+    <ul class="iacta-points">
+      <li>Instant digital delivery</li>
+      <li>One-time payment, lifetime access</li>
+      <li>Built for 2026 tools &amp; workflows</li>
+    </ul>
+  </div>
+  <div class="iacta-action">
+    <span class="iacta-price">{product.price}</span>
+    <a class="iacta-btn" href={cartUrl} target="_blank" rel="noopener noreferrer">Get instant access →</a>
+    <a class="iacta-link" href={pdpUrl} target="_blank" rel="noopener noreferrer">See what's inside</a>
+  </div>
+</aside>
+
+<style>
+  .iacta {
+    display: grid;
+    grid-template-columns: 1.6fr 0.9fr;
+    gap: 1.5rem;
+    align-items: center;
+    margin: 3rem auto;
+    max-width: 760px;
+    padding: 1.75rem 1.85rem;
+    border-radius: var(--radius-lg, 20px);
+    border: 1px solid var(--accent, #4F46E5);
+    background: var(--glass-bg, rgba(255,255,255,0.6));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 14px));
+    backdrop-filter: blur(var(--glass-blur, 14px));
+    box-shadow: var(--shadow-lift, 0 16px 40px -10px rgba(79,70,229,0.18));
+  }
+  .iacta-eyebrow {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--accent, #4F46E5); margin: 0 0 0.5rem;
+  }
+  .iacta-title { font-size: 1.3rem; font-weight: 800; margin: 0 0 0.6rem; line-height: 1.2; }
+  .iacta-desc { font-size: 0.97rem; color: var(--text-body, #334155); margin: 0 0 0.85rem; line-height: 1.55; }
+  .iacta-points { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; }
+  .iacta-points li { font-size: 0.85rem; color: var(--text-muted, #64748b); position: relative; padding-left: 1.2rem; }
+  .iacta-points li::before { content: '✓'; position: absolute; left: 0; color: var(--accent, #4F46E5); font-weight: 800; }
+  .iacta-action { display: flex; flex-direction: column; align-items: stretch; gap: 0.5rem; text-align: center; }
+  .iacta-price { font-size: 1.7rem; font-weight: 800; line-height: 1; }
+  .iacta-btn {
+    background: var(--brand-gradient, linear-gradient(90deg,#6366F1,#EC4899));
+    color: #fff; font-weight: 700; text-decoration: none;
+    padding: 0.8rem 1.1rem; border-radius: 12px;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+  .iacta-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -8px rgba(99,102,241,0.5); }
+  .iacta-link { font-size: 0.85rem; color: var(--text-muted, #64748b); text-decoration: underline; }
+  @media (max-width: 640px) {
+    .iacta { grid-template-columns: 1fr; gap: 1.1rem; text-align: left; }
+    .iacta-action { align-items: stretch; }
+  }
+</style>

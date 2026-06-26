@@ -9,9 +9,12 @@ import AdsterraNativeBanner from '../components/AdsterraNativeBanner.astro';
 import Newsletter from '../components/Newsletter.astro';
 import ShopifyProducts from '../components/ShopifyProducts.astro';
 import RelatedPosts from '../components/RelatedPosts.astro';
+import InArticleCTA from '../components/InArticleCTA.astro';
+import ArticleSchema from '../components/ArticleSchema.astro';
+import FAQSchema from '../components/FAQSchema.astro';
 import { displayImage, svgFallback } from '../lib/postImage';
 
-type Props = CollectionEntry<'blog'>['data'] & { slug?: string };
+type Props = CollectionEntry<'blog'>['data'] & { slug?: string; body?: string };
 
 const {
   title,
@@ -21,6 +24,8 @@ const {
   image,
   tags = [],
   slug = '',
+  author = 'Astro Tobby',
+  body = '',
 } = Astro.props;
 
 const heroImage = displayImage(title, image);
@@ -30,6 +35,16 @@ const heroFallback = svgFallback(title);
 <html lang="en">
   <head>
     <BaseHead title={title} description={description} />
+    <ArticleSchema
+      title={title}
+      description={description}
+      pubDate={pubDate}
+      updatedDate={updatedDate}
+      image={heroImage}
+      slug={slug}
+      author={author}
+    />
+    <FAQSchema body={body} />
   </head>
   <body>
     <Header />
@@ -64,13 +79,18 @@ const heroFallback = svgFallback(title);
         </div>
       </article>
 
-      <AdsterraNativeBanner />
+      <!-- Conversion zone: the reader's own topic → matching offer comes FIRST,
+           before any ad unit, so the product is never buried below the ads. -->
+      <InArticleCTA tags={tags} />
 
       <ShopifyProducts tags={tags} limit={3} />
 
       {slug && <RelatedPosts currentSlug={slug} tags={tags} />}
 
       <Newsletter />
+
+      <!-- Ad moved to the very bottom so it can't outrank our own products. -->
+      <AdsterraNativeBanner />
     </main>
     <Footer />
   </body>

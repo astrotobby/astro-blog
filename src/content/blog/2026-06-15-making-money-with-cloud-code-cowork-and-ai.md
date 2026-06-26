@@ -6,6 +6,7 @@ description: Discover the most effective strategies for making money using the l
 image: /claude-monetization-hero.jpg
 pubDate: 2026-06-09
 title: 'The New Gold Rush: How to Monetize Claude-Code, Claude-Cowork, and...'
+tags: ["ai", "agentic", "agent", "llm", "coding"]
 ---
 ## Introduction: The Age of the AI Entrepreneur
 

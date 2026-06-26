@@ -4,7 +4,7 @@
 import '../styles/global.css';
 import type { ImageMetadata } from 'astro';
 import FallbackImage from '../assets/blog-placeholder-1.jpg';
-import { SITEE_TITLE } from '../consts';
+import { SITE_TITLE } from '../consts';
 
 interface Props {
 	title: string;
@@ -14,6 +14,11 @@ interface Props {
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const { title, description, image = FallbackImage } = Astro.props;
+
+// Append the brand to every page title (except the homepage, which already is the
+// brand) so search results carry recognizable, consistent branding.
+const fullTitle =
+	title === SITE_TITLE || title.includes(SITE_TITLE) ? title : `${title} | ${SITE_TITLE}`;
 ---
 
 <!-- Google Search Console Verification -->
@@ -46,8 +51,8 @@ const { title, description, image = FallbackImage } = Astro.props;
 <noscript><style>[data-reveal]{opacity:1 !important;transform:none !important;}</style></noscript>
 
 <!-- Primary Meta Tags -->
-<title>{title}</title>
-<meta name="title" content={title} />
+<title>{fullTitle}</title>
+<meta name="title" content={fullTitle} />
 <meta name="description" content={description} />
 
 <!-- Open Graph / Facebook -->

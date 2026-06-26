@@ -20,6 +20,6 @@ const { post } = Astro.props;
 const { Content } = await render(post);
 ---
 
-<BlogPost {...post.data} slug={post.id}>
+<BlogPost {...post.data} slug={post.id} body={post.body}>
   <Content />
 </BlogPost>

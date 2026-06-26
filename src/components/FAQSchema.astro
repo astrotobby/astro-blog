@@ -1,0 +1,53 @@
+---
+// Auto-derives FAQPage JSON-LD from a post's question-shaped headings + the text
+// that follows each — the single highest-leverage AEO signal (it's what Google AI
+// Overviews, ChatGPT and Perplexity lift into answers). Zero manual work per post:
+// any heading phrased as a question becomes an eligible FAQ entry. Renders nothing
+// unless the post has at least 2 real question/answer pairs.
+interface Props {
+  body: string;
+}
+const { body = '' } = Astro.props;
+
+function stripTags(s: string): string {
+  return s
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+    .replace(/&#39;|&rsquo;|&lsquo;/g, "'").replace(/&quot;|&ldquo;|&rdquo;/g, '"')
+    .replace(/&[a-z]+;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const QUESTION_START = /^(what|why|how|when|where|who|which|is|are|can|does|do|should|will|could)\b/i;
+
+// Split the body on h2/h3 headings, keeping heading + the chunk that follows it.
+const parts = body.split(/(?=<h[23][^>]*>)/i);
+const faqs: { q: string; a: string }[] = [];
+for (const part of parts) {
+  const hm = part.match(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/i);
+  if (!hm) continue;
+  const q = stripTags(hm[1]);
+  if (!q || (!q.endsWith('?') && !QUESTION_START.test(q))) continue;
+  const after = part.slice(hm.index! + hm[0].length);
+  let a = stripTags(after);
+  if (a.length < 40) continue;
+  // First 1–2 sentences, capped so the schema stays tight and quotable.
+  const cut = a.slice(0, 300);
+  const stop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('? '), cut.lastIndexOf('! '));
+  a = stop > 60 ? cut.slice(0, stop + 1).trim() : cut.replace(/\s+\S*$/, '').trim();
+  faqs.push({ q: q.replace(/^["']|["']$/g, ''), a });
+  if (faqs.length >= 5) break;
+}
+
+const schema = faqs.length >= 2 ? {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((f) => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+} : null;
+---
+{schema && <script type="application/ld+json" is:inline set:html={JSON.stringify(schema)} />}
