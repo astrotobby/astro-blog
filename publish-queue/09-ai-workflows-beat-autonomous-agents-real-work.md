@@ -2,7 +2,7 @@
 title: "The Boring AI Setup That's Quietly Outperforming Everyone's Fancy Agents"
 description: "Enterprises are discovering that simple, scoped AI workflows beat flashy autonomous agents on real work. Here's the unsexy 2026 approach to actually getting results from AI — and how to copy it today."
 pubDate: 2026-07-03
-image: /ai-automation-tools.jpg
+image: /hero-ai-workflows-vs-agents.jpg
 author: Astro Tobby
 tags: ["ai", "workflow", "automation", "productivity"]
 ---

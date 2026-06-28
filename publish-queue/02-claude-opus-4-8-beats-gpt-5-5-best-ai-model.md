@@ -2,7 +2,7 @@
 title: "There's a New #1 AI Model — and It Quietly Dethroned GPT-5.5"
 description: "Claude Opus 4.8 just took the top spot on the AI leaderboards, edging past GPT-5.5 and Gemini 3.1 Pro. Here's what changed, what the benchmarks actually say, and which model you should use in June 2026."
 pubDate: 2026-06-29
-image: /ai_comparison_infographic.jpg
+image: /hero-claude-opus-48-number-one.jpg
 author: Astro Tobby
 tags: ["ai", "claude", "model", "comparison"]
 ---

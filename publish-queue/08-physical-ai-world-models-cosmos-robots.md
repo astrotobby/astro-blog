@@ -2,7 +2,7 @@
 title: "AI Can Now 'Imagine' the Physical World — and It's the Breakthrough Behind Every Robot You've Seen"
 description: "World models like NVIDIA Cosmos 3 let AI predict and simulate physical reality — the quiet 2026 breakthrough powering self-driving cars, humanoid robots, and the next leap in machine intelligence. Explained simply."
 pubDate: 2026-07-02
-image: /world-models.jpg
+image: /hero-world-models-physical-ai.jpg
 author: Astro Tobby
 tags: ["ai", "world-models", "robotics", "research"]
 ---

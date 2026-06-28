@@ -2,7 +2,7 @@
 title: "Humanoid Robots Quietly Stopped Being a Demo This Year — They're Going to Work"
 description: "Figure 03, Tesla Optimus Gen 3, and Unitree's G1 are moving from viral clips to real factory floors in 2026. Here's what actually changed, who's leading, and what it means for jobs and everyday life."
 pubDate: 2026-07-01
-image: /ai-vs-humans.jpg
+image: /hero-humanoid-robots-2026.jpg
 author: Astro Tobby
 tags: ["ai", "robotics", "future-of-work"]
 ---

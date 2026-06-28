@@ -2,7 +2,7 @@
 title: "AI Agents Just Graduated From 'Cool Demo' to 'Actually Running Your Business'"
 description: "NVIDIA's new Agent Toolkit and the rise of reusable agent 'loops' are quietly moving AI agents from flashy demos into real production. Here's what changed in June 2026 — and how to ride it instead of getting left behind."
 pubDate: 2026-06-30
-image: /ai-agents-collaboration-2026.jpg
+image: /hero-nvidia-agent-toolkit.jpg
 author: Astro Tobby
 tags: ["ai", "agent", "agentic", "nvidia"]
 ---

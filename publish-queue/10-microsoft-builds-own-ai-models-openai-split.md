@@ -2,7 +2,7 @@
 title: "Microsoft Is Quietly Breaking Up With OpenAI — and Building Its Own AI Instead"
 description: "Microsoft just unveiled its own in-house AI models to cut costs and reduce dependence on OpenAI. Here's what the most important partnership in AI splitting apart means for ChatGPT, Copilot, and the whole industry."
 pubDate: 2026-07-03
-image: /ai-shift.jpg
+image: /hero-microsoft-openai-split.jpg
 author: Astro Tobby
 tags: ["ai", "microsoft", "openai", "industry"]
 ---

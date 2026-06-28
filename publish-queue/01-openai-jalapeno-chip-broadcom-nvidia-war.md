@@ -2,7 +2,7 @@
 title: "OpenAI Just Built Its Own Chip — And It's Aimed Straight at NVIDIA"
 description: "OpenAI and Broadcom unveiled 'Jalapeño,' OpenAI's first custom AI chip — a 10-gigawatt bet that could break NVIDIA's stranglehold on AI. Here's what it actually means for the AI you use every day."
 pubDate: 2026-06-29
-image: /ai_titans_clash.jpg
+image: /hero-openai-jalapeno-chip.jpg
 author: Astro Tobby
 tags: ["ai", "openai", "nvidia", "hardware"]
 ---

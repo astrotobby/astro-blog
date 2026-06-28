@@ -2,7 +2,7 @@
 title: "Kling 3.0 vs Sora 2 vs Veo 3.1: I Tested the 'Best AI Video Generator' Claims So You Don't Have To"
 description: "Kling 3.0 just launched and the hype is real — but is it actually better than Sora 2 and Veo 3.1? A no-fluff 2026 breakdown of which AI video generator wins for creators, ads, and faceless content."
 pubDate: 2026-06-30
-image: /best-ai-video-tools-2026-new.jpg
+image: /hero-ai-video-battle-2026.jpg
 author: Astro Tobby
 tags: ["ai", "video", "tools", "comparison"]
 ---
