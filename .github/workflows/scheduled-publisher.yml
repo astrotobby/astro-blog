@@ -1,0 +1,73 @@
+name: scheduled-publisher
+
+# Publishes ONE queued blog post per run by moving the next file out of
+# publish-queue/ into src/content/blog/ and pushing it. Cloudflare Pages builds
+# on push, so the post goes live at that moment.
+#
+# Schedule = 2 posts/day at 12:00 and 15:00 EAT (UTC+3) = 09:00 and 12:00 UTC,
+# for the 5 days Mon Jun 29 -> Fri Jul 3, 2026. That's exactly 10 slots for the
+# 10 queued posts. Posts publish in filename order (01-, 02-, ... 10-).
+#
+# Cron note: GitHub Actions cron is UTC and can be delayed a few minutes under
+# load; for a blog that's fine. After Jul 3 these cron lines simply never match
+# again (specific days), so this workflow goes dormant on its own.
+on:
+  schedule:
+    - cron: "0 9 29,30 6 *"    # 12:00 EAT on Jun 29 & 30
+    - cron: "0 12 29,30 6 *"   # 15:00 EAT on Jun 29 & 30
+    - cron: "0 9 1,2,3 7 *"    # 12:00 EAT on Jul 1, 2 & 3
+    - cron: "0 12 1,2,3 7 *"   # 15:00 EAT on Jul 1, 2 & 3
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: "dry run: show what would publish, but don't commit (true|false)"
+        default: "false"
+
+# Never run two publishers at once (a 09:00 and a 12:00 should never overlap, but
+# be safe) so they can't both grab the same file.
+concurrency:
+  group: scheduled-publisher
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Publish next queued post
+        run: |
+          set -euo pipefail
+          QUEUE_DIR="publish-queue"
+          DEST_DIR="src/content/blog"
+
+          if [ ! -d "$QUEUE_DIR" ] || [ -z "$(ls -A "$QUEUE_DIR"/*.md 2>/dev/null || true)" ]; then
+            echo "Queue is empty — nothing to publish. Exiting cleanly."
+            exit 0
+          fi
+
+          # Next file = lexicographically first .md in the queue (01-, 02-, ...).
+          NEXT="$(ls "$QUEUE_DIR"/*.md | sort | head -n 1)"
+          BASE="$(basename "$NEXT")"
+          # Strip the NN- ordering prefix so the live URL slug stays clean.
+          SLUG="$(echo "$BASE" | sed -E 's/^[0-9]+-//')"
+          echo "Next post: $BASE  ->  $DEST_DIR/$SLUG"
+
+          if [ "${{ github.event.inputs.dry }}" = "true" ]; then
+            echo "DRY RUN — not committing."
+            head -n 12 "$NEXT"
+            exit 0
+          fi
+
+          mkdir -p "$DEST_DIR"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git mv "$NEXT" "$DEST_DIR/$SLUG"
+
+          git commit -m "Publish scheduled post: $SLUG"
+          git push
+          echo "Published $SLUG"
