@@ -218,9 +218,12 @@ def fetch_images(script, cfg):
         focus = m.group(1).strip() if m else ""
         query = (f"{title} {focus}".strip() or title or "technology news")
 
-        content, src = _pollinations_image(prompt, w, h, base_seed + i), "pollinations-AI"
+        # Rotate style per scene so visuals are visually varied across the video.
+        style = _STYLES[(base_seed + i) % len(_STYLES)]
+        styled_prompt = f"{prompt}, {style}"
+        content, src = _pollinations_image(styled_prompt, w, h, base_seed + i), "pollinations-AI"
         if not content:
-            content, src = _hf_image(prompt, token), "HF-AI"
+            content, src = _hf_image(styled_prompt, token), "HF-AI"
         if not content:
             content, src = _openverse_image(query, w, h), "openverse"
         if not content:
@@ -310,6 +313,19 @@ def pick_music(cfg):
 # frames). Rotating the move keeps a multi-scene montage from feeling static.
 # Punchy Ken Burns — fast, deep moves that combine zoom + pan so every scene feels
 # alive and in-motion ('on' = output frame index, {F} = total frames per segment).
+# Varied visual style suffixes rotated per scene so consecutive images have
+# distinct aesthetics instead of all looking like the same cinematic key-art.
+_STYLES = [
+    "epic cinematic key art, dramatic volumetric lighting, ultra detailed, vibrant, film grain, 9:16",
+    "photorealistic, golden hour photography, shallow depth of field, editorial, 9:16",
+    "bold flat illustration, vivid color blocks, modern graphic design, 9:16",
+    "dark moody atmosphere, neon accents, cyberpunk aesthetic, high contrast, 9:16",
+    "clean minimalist infographic style, white space, sharp typography, 9:16",
+    "watercolor concept art, painterly textures, dreamy soft light, 9:16",
+    "gritty documentary photography, street style, raw natural light, 9:16",
+    "futuristic sci-fi render, holographic elements, deep space, ultra detailed, 9:16",
+]
+
 _KENBURNS = [
     "z='min(1.001+0.0020*on,1.34)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",        # hard punch in
     "z='max(1.34-0.0020*on,1.04)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",         # snap pull out
@@ -505,8 +521,12 @@ def finalize(silent_video, voice_path, captions, music, size, out_path, cfg):
                 "-map", f"[{alabel}]" if alabel == "a" else alabel]
     else:
         cmd += ["-map", "0:v", "-map", alabel]
-    cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-            "-c:a", "aac", "-b:a", "160k", "-shortest", str(out_path.name)]
+    # crf 26 + preset fast: ~35% smaller than crf 23/veryfast with negligible quality loss.
+    # +faststart moves the moov atom to the front so the video starts playing immediately
+    # on socials without downloading the whole file first.
+    cmd += ["-c:v", "libx264", "-preset", "fast", "-crf", "26",
+            "-c:a", "aac", "-b:a", "128k", "-shortest",
+            "-movflags", "+faststart", str(out_path.name)]
     run(cmd, cwd=OUT)
     return out_path
 
@@ -579,8 +599,8 @@ def make_story_cut(vertical_path, max_seconds=58):
     keep = min(max_seconds, ffprobe_duration(vertical_path))
     out = OUT / "video_story.mp4"
     run(["ffmpeg", "-y", "-i", vertical_path.name, "-t", f"{keep:.3f}",
-         "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-         "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", out.name], cwd=OUT)
+         "-c:v", "libx264", "-preset", "fast", "-crf", "26",
+         "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", out.name], cwd=OUT)
     log(f"story cut {keep:.1f}s -> {out.name}")
     return out
 
