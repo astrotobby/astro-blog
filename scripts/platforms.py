@@ -562,10 +562,14 @@ _RB_FILE = ['#Filedata', 'input[type="file"]']
 _RB_TITLE = ['#title', 'input[name="title"]']
 _RB_DESC = ['#description', 'textarea[name="description"]']
 _RB_CATEGORY = 'input[name="primary-category"]'   # filter-then-click custom dropdown
-# visibility radios are real <input> by id -> click directly
-_RB_VIS_RADIO = {"public": "#visibility_public",
-                 "unlisted": "#visibility_unlisted",
-                 "private": "#visibility_private"}
+# Visibility + rights/terms are CUSTOM-STYLED inputs: the real <input> is
+# display:none, so .check() and visibility-waits fail. They're toggled via the
+# associated <label for="..."> (verified 2026-06-29). Click the label, not the input.
+_RB_VIS_LABEL = {"public": 'label[for="visibility_public"]',
+                 "unlisted": 'label[for="visibility_unlisted"]',
+                 "private": 'label[for="visibility_private"]'}
+_RB_RIGHTS_LABEL = 'label[for="crights"]'   # also the step-2 "we're on rights" signal
+_RB_TERMS_LABEL = 'label[for="cterms"]'
 
 
 def _rb_fill(page, selectors, value, timeout=15000):
@@ -686,24 +690,27 @@ def post_rumble(render, cfg, dry):
                     return {"ok": False, "error": "rumble: could not set required "
                             f"primary category '{primary_category}'"}
 
-            # ---- 5) visibility radio (real <input> by id) ----
-            vis_sel = _RB_VIS_RADIO.get(visibility, _RB_VIS_RADIO["public"])
+            # ---- 5) visibility: click the LABEL (the real radio is display:none) ----
+            vis_sel = _RB_VIS_LABEL.get(visibility, _RB_VIS_LABEL["public"])
             try:
-                page.check(vis_sel, timeout=5000)
+                page.click(vis_sel, timeout=5000)
             except Exception:  # noqa
                 log(f"rumble: could not set visibility '{visibility}'; using default")
 
             # ---- 6) step 1 submit ("Upload") -> advances to the rights/terms step.
-            # Wait for the video upload to finish so the publish actually goes through:
-            # retry the advance until the rights checkbox (#crights) appears. ----
+            # The button only advances once the video upload finishes, so re-click while
+            # we're still on step 1. Detect step 2 by the rights LABEL becoming visible
+            # (the #crights INPUT is display:none, so we must watch the label instead). ----
             advanced = False
             for _ in range(40):                 # ~40 * 6s = up to 4 min for the upload
+                # only (re)click step-1 submit while the rights step isn't up yet
+                if not page.locator(_RB_RIGHTS_LABEL).is_visible():
+                    try:
+                        page.click("#submitForm", timeout=4000)
+                    except Exception:  # noqa
+                        pass
                 try:
-                    page.click("#submitForm", timeout=4000)
-                except Exception:  # noqa
-                    pass
-                try:
-                    page.wait_for_selector("#crights", state="visible", timeout=6000)
+                    page.wait_for_selector(_RB_RIGHTS_LABEL, state="visible", timeout=6000)
                     advanced = True
                     break
                 except Exception:  # noqa
@@ -713,10 +720,10 @@ def post_rumble(render, cfg, dry):
                 return {"ok": False, "error": "rumble: never reached the rights/terms step "
                         "(upload still processing or #submitForm changed)"}
 
-            # ---- 7) accept the two required rights/terms checkboxes ----
-            for cb_id in ("#crights", "#cterms"):
+            # ---- 7) accept the two required rights/terms boxes via their labels ----
+            for lab in (_RB_RIGHTS_LABEL, _RB_TERMS_LABEL):
                 try:
-                    page.check(cb_id, timeout=5000)
+                    page.click(lab, timeout=5000)
                 except Exception:  # noqa
                     pass
 
