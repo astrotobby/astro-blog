@@ -12,10 +12,12 @@ interface Props {
 	image?: ImageMetadata | string;
 	/** "website" for index/listing pages, "article" for blog posts. */
 	ogType?: string;
+	/** When true, tell search/AI engines not to index this page (still followed). */
+	noindex?: boolean;
 }
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
-const { title, description, image = FallbackImage, ogType = 'website' } = Astro.props;
+const { title, description, image = FallbackImage, ogType = 'website', noindex = false } = Astro.props;
 
 // Resolve a fully-qualified social-share image from either an imported asset
 // (ImageMetadata) or a string path/URL (per-post hero). Falls back to the
@@ -56,6 +58,9 @@ const fullTitle =
 
 <!-- Canonical URL -->
 <link rel="canonical" href={canonicalURL} />
+
+<!-- Indexing: noindex thin/auto-news so authority concentrates on evergreen pages -->
+{noindex && <meta name="robots" content="noindex,follow" />}
 
 <!-- No-JS fallback: never keep scroll-reveal content hidden -->
 <noscript><style>[data-reveal]{opacity:1 !important;transform:none !important;}</style></noscript>

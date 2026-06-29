@@ -13,6 +13,7 @@ import InArticleCTA from '../components/InArticleCTA.astro';
 import ArticleSchema from '../components/ArticleSchema.astro';
 import FAQSchema from '../components/FAQSchema.astro';
 import { displayImage, svgFallback } from '../lib/postImage';
+import { shouldNoindex } from '../lib/noindex';
 
 type Props = CollectionEntry<'blog'>['data'] & { slug?: string; body?: string };
 
@@ -30,11 +31,12 @@ const {
 
 const heroImage = displayImage(title, image);
 const heroFallback = svgFallback(title);
+const noindex = shouldNoindex(slug);
 ---
 
 <html lang="en">
   <head>
-    <BaseHead title={title} description={description} image={heroImage} ogType="article" />
+    <BaseHead title={title} description={description} image={heroImage} ogType="article" noindex={noindex} />
     <ArticleSchema
       title={title}
       description={description}
