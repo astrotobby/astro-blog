@@ -122,7 +122,7 @@ platforms:
   # NO Stories API, so TikTok only ever gets the normal feed/inbox post.
   also_story: true
   youtube:
-    enabled: true
+    enabled: false             # TEMP isolated-Rumble-test — REVERT to true
     also_short: false          # true only if <=3 posts/day
     category_id: "22"          # People & Blogs; 27=Education, 28=Tech
     privacy: "public"
@@ -134,7 +134,13 @@ platforms:
   # X stays configured (keys in GitHub secrets, code ready). It currently soft-fails
   # with 402 "no credits" because X's API requires a paid tier — it will START
   # POSTING automatically once you subscribe to a paid X plan. No code change needed.
-  direct: [x, facebook, instagram, threads, tiktok]   # tumblr removed; add "reddit" per HONEST-LIMITS.md
+  direct: [rumble]   # TEMP isolated-Rumble-test — REVERT to: [x, facebook, instagram, threads, tiktok, rumble]
+  # Rumble has NO upload API -> the poster drives the real upload page with a
+  # headless browser (Playwright). Needs RUMBLE_EMAIL + RUMBLE_PASSWORD secrets and
+  # 2FA OFF on that account. visibility: public | unlisted | private.
+  rumble:
+    visibility: "unlisted"          # TEMP isolated-Rumble-test — REVERT to "public"
+    primary_category: "Finance & Crypto"   # Rumble REQUIRES a primary category
 
 tumblr:
   blog: ""                 # your blog host, e.g. "astrotobby.tumblr.com" (TUMBLR_BLOG also works)

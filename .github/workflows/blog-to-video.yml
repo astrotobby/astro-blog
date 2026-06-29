@@ -58,6 +58,12 @@ jobs:
       - name: Install Python deps
         run:  pip install -r requirements-blog2video.txt
 
+      # Chromium for the Rumble browser-automation poster (no official upload API).
+      # Non-fatal: if it fails, only Rumble is skipped; the API posters are unaffected.
+      - name: Install Playwright Chromium
+        continue-on-error: true
+        run: python -m playwright install --with-deps chromium
+
       # Talking-avatar (Wav2Lip) — non-fatal: if it fails, the pipeline still
       # renders the image montage (the avatar code sees no checkpoint and falls back).
       - name: Set up Wav2Lip avatar
@@ -124,6 +130,8 @@ jobs:
           TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
           TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
           TIKTOK_REFRESH_TOKEN: ${{ secrets.TIKTOK_REFRESH_TOKEN }}
+          RUMBLE_EMAIL: ${{ secrets.RUMBLE_EMAIL }}
+          RUMBLE_PASSWORD: ${{ secrets.RUMBLE_PASSWORD }}
           GH_TOKEN: ${{ github.token }}   # lets gh publish the Release (public video URL)
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
@@ -168,6 +176,7 @@ jobs:
           name: rendered-videos
           path: |
             .pipeline/out/video_*.mp4
+            .pipeline/out/rumble_fail_*.png
             .pipeline/results.json
           if-no-files-found: ignore
           retention-days: 7

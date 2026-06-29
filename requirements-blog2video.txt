@@ -18,6 +18,7 @@ google-auth-httplib2==0.2.0
 PyTumblr==0.1.2           # Tumblr API v2
 praw==7.7.1               # Reddit (optional, off by default)
 tweepy==4.14.0            # X / Twitter v2 + chunked video upload
+playwright==1.47.0        # Rumble: no upload API -> headless-browser upload (needs `playwright install chromium`)
 
 # FFmpeg is a system binary, NOT pip. Install separately:
 #   Windows:  winget install Gyan.FFmpeg

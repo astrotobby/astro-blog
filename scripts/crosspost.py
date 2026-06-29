@@ -97,6 +97,10 @@ def main():
     if "tiktok" in enabled:
         results["tiktok"] = platforms.post_tiktok(render, cfg, args.dry_run)
 
+    # ----- Rumble (browser automation; no official API; no cap) -----
+    if "rumble" in enabled:
+        results["rumble"] = platforms.post_rumble(render, cfg, args.dry_run)
+
     # ----- X / Twitter (daily cap) -----
     if "x" in enabled:
         if _under_cap(state, "x", cfg["limits"]["x_per_day"]):

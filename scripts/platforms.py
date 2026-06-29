@@ -9,7 +9,7 @@ DEFERRED (need platform app review): Instagram, Facebook, LinkedIn, Pinterest
 — see HONEST-LIMITS.md. The workflow saves the rendered Reels as artifacts so
 you can hand-upload those until their apps are approved.
 """
-from common import (env, ig_token, log, save_tiktok_refresh,
+from common import (OUT, env, ig_token, log, save_tiktok_refresh,
                     tiktok_refresh_token)
 
 
@@ -533,9 +533,218 @@ def post_tiktok(render, cfg, dry):
         return {"ok": False, "error": str(e)}
 
 
+# --------------------------------------------------------------------------
+# Rumble — NO official upload API, so we drive the real upload page with a
+# headless browser (Playwright/Chromium). Logs in with RUMBLE_EMAIL/PASSWORD,
+# uploads the 16:9 video, fills title + description (with the blog link), sets
+# visibility, accepts the rights/terms, and submits. Soft-fails like the others:
+# if Rumble challenges the login (CAPTCHA) or the form selectors drift, it returns
+# an error, a debug screenshot is saved to .pipeline/out/ (uploaded as an artifact),
+# and the video is already in the artifacts for a 2-tap manual upload.
+#
+# NOTE: the SELECTORS below are best-effort and are the FIRST thing to check if a
+# real run fails — Rumble's upload page changes; patch the lists here. Each helper
+# tries every selector in order so a single redesign rarely breaks everything.
+# --------------------------------------------------------------------------
+# login.php 302-redirects to auth.rumble.com (verified 2026-06-29); Playwright
+# follows the redirect, so navigating to login.php is fine. The auth form uses
+# styled-components with RANDOMIZED ids, but stable name="username"/"password"
+# attributes — so target by name, NOT id. Button text is "Sign In".
+RUMBLE_LOGIN_URL = "https://rumble.com/login.php"
+RUMBLE_UPLOAD_URL = "https://rumble.com/upload.php"
+# field selectors (first match wins; verified ones first to avoid wasted waits)
+_RB_USER = ['input[name="username"]', 'input[type="email"]', "#login-username"]
+_RB_PASS = ['input[name="password"]', 'input[type="password"]', "#login-password"]
+_RB_LOGIN_BTN = ['button:has-text("Sign In")', 'button[type="submit"]',
+                 'input[type="submit"]', 'button:has-text("Log in")']
+# Upload form (verified against the live logged-in form 2026-06-29):
+_RB_FILE = ['#Filedata', 'input[type="file"]']
+_RB_TITLE = ['#title', 'input[name="title"]']
+_RB_DESC = ['#description', 'textarea[name="description"]']
+_RB_CATEGORY = 'input[name="primary-category"]'   # filter-then-click custom dropdown
+# visibility radios are real <input> by id -> click directly
+_RB_VIS_RADIO = {"public": "#visibility_public",
+                 "unlisted": "#visibility_unlisted",
+                 "private": "#visibility_private"}
+
+
+def _rb_fill(page, selectors, value, timeout=15000):
+    """Fill the first selector that exists. Returns True on success."""
+    for sel in selectors:
+        try:
+            el = page.wait_for_selector(sel, timeout=timeout, state="visible")
+            if el:
+                el.fill(value)
+                return True
+        except Exception:  # noqa
+            continue
+    return False
+
+
+def _rb_click(page, selectors, timeout=15000):
+    for sel in selectors:
+        try:
+            el = page.wait_for_selector(sel, timeout=timeout, state="visible")
+            if el:
+                el.click()
+                return True
+        except Exception:  # noqa
+            continue
+    return False
+
+
+def post_rumble(render, cfg, dry):
+    if not _has("RUMBLE_EMAIL", "RUMBLE_PASSWORD"):
+        return {"ok": False, "skipped": "no creds"}
+    if dry:
+        return {"ok": True, "dry": True}
+
+    import os
+
+    rb_cfg = (cfg.get("platforms", {}).get("rumble") or {})
+    visibility = str(rb_cfg.get("visibility", "public")).lower()
+    # Rumble REQUIRES a primary category; "Finance & Crypto" fits the blog's niche.
+    primary_category = rb_cfg.get("primary_category", "Finance & Crypto")
+    # 16:9 main cut (Rumble is YouTube-style/landscape); fall back to vertical.
+    video = render["videos"].get("horizontal") or render["videos"]["vertical"]
+    p = render["platform"]
+    post = render["post"]
+    link = p.get("short_url") or post["url"]
+    title = (post["title"] or "Untitled")[:100]
+    desc_body = p.get("yt_desc") or p.get("caption") or post.get("description", "")
+    tags = " ".join(p.get("hashtags", [])[:8])
+    description = f"{desc_body}\n\nRead the full post: {link}\n\n{tags}".strip()
+
+    shot = str(OUT / f"rumble_fail_{post['slug'][:40]}.png")
+
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception as e:  # noqa
+        return {"ok": False, "error": f"playwright not installed: {e}"}
+
+    try:
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True, args=["--no-sandbox"])
+            ctx = browser.new_context(
+                viewport={"width": 1366, "height": 900},
+                user_agent=("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                            "AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/124.0 Safari/537.36"))
+            page = ctx.new_page()
+            page.set_default_timeout(30000)
+
+            # ---- 1) log in ----
+            page.goto(RUMBLE_LOGIN_URL, wait_until="domcontentloaded")
+            if not _rb_fill(page, _RB_USER, env("RUMBLE_EMAIL")):
+                page.screenshot(path=shot)
+                return {"ok": False, "error": "rumble: username field not found "
+                        "(login page changed or CAPTCHA challenge)"}
+            _rb_fill(page, _RB_PASS, env("RUMBLE_PASSWORD"))
+            _rb_click(page, _RB_LOGIN_BTN)
+            page.wait_for_timeout(6000)   # let the session cookie settle
+            # A still-visible password field == login was rejected/challenged.
+            for sel in _RB_PASS:
+                if page.query_selector(sel):
+                    page.screenshot(path=shot)
+                    return {"ok": False, "error": "rumble: login failed/challenged "
+                            "(check creds, disable 2FA, or CAPTCHA on CI IP)"}
+
+            # ---- 2) open the upload form + attach the file (starts the upload) ----
+            page.goto(RUMBLE_UPLOAD_URL, wait_until="domcontentloaded")
+            file_set = False
+            for sel in _RB_FILE:
+                try:
+                    page.set_input_files(sel, video, timeout=15000)
+                    file_set = True
+                    break
+                except Exception:  # noqa
+                    continue
+            if not file_set:
+                page.screenshot(path=shot)
+                return {"ok": False, "error": "rumble: file input not found "
+                        "(not logged in, or upload page changed)"}
+
+            # ---- 3) details: title + description (fillable while the upload runs) ----
+            if not _rb_fill(page, _RB_TITLE, title):
+                page.screenshot(path=shot)
+                return {"ok": False, "error": "rumble: title field not found"}
+            _rb_fill(page, _RB_DESC, description)
+
+            # ---- 4) primary category (REQUIRED): filter then click the matching option ----
+            try:
+                page.fill(_RB_CATEGORY, primary_category)
+                page.wait_for_timeout(1200)   # let the options list filter
+                page.locator(".select-options-container") \
+                    .get_by_text(primary_category, exact=True).first.click(timeout=6000)
+            except Exception:  # noqa
+                # fallback: pick the first option that appears for the typed text
+                try:
+                    page.locator(".select-options-container div").first.click(timeout=4000)
+                    log(f"rumble: exact category '{primary_category}' not found; took first match")
+                except Exception:  # noqa
+                    page.screenshot(path=shot)
+                    return {"ok": False, "error": "rumble: could not set required "
+                            f"primary category '{primary_category}'"}
+
+            # ---- 5) visibility radio (real <input> by id) ----
+            vis_sel = _RB_VIS_RADIO.get(visibility, _RB_VIS_RADIO["public"])
+            try:
+                page.check(vis_sel, timeout=5000)
+            except Exception:  # noqa
+                log(f"rumble: could not set visibility '{visibility}'; using default")
+
+            # ---- 6) step 1 submit ("Upload") -> advances to the rights/terms step.
+            # Wait for the video upload to finish so the publish actually goes through:
+            # retry the advance until the rights checkbox (#crights) appears. ----
+            advanced = False
+            for _ in range(40):                 # ~40 * 6s = up to 4 min for the upload
+                try:
+                    page.click("#submitForm", timeout=4000)
+                except Exception:  # noqa
+                    pass
+                try:
+                    page.wait_for_selector("#crights", state="visible", timeout=6000)
+                    advanced = True
+                    break
+                except Exception:  # noqa
+                    continue
+            if not advanced:
+                page.screenshot(path=shot)
+                return {"ok": False, "error": "rumble: never reached the rights/terms step "
+                        "(upload still processing or #submitForm changed)"}
+
+            # ---- 7) accept the two required rights/terms checkboxes ----
+            for cb_id in ("#crights", "#cterms"):
+                try:
+                    page.check(cb_id, timeout=5000)
+                except Exception:  # noqa
+                    pass
+
+            # ---- 8) step 2 submit ("Submit") -> publishes ----
+            try:
+                page.click("#submitForm2", timeout=10000)
+            except Exception:  # noqa
+                page.screenshot(path=shot)
+                return {"ok": False, "error": "rumble: final submit (#submitForm2) failed"}
+            page.wait_for_timeout(10000)        # let the publish request complete
+            final = page.url
+            ctx.close()
+            browser.close()
+            return {"ok": True, "url": final,
+                    "note": f"uploaded via browser automation "
+                            f"(visibility={visibility}, category={primary_category})"}
+    except Exception as e:  # noqa
+        try:
+            page.screenshot(path=shot)  # noqa
+        except Exception:  # noqa
+            pass
+        return {"ok": False, "error": str(e)[:300]}
+
+
 # registry used by crosspost.py
 DIRECT_POSTERS = {
     "tumblr": post_tumblr,
     "reddit": post_reddit,
     "x": post_twitter,
+    "rumble": post_rumble,
 }
