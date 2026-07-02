@@ -146,13 +146,13 @@ def _pollinations_image(prompt, w, h, seed):
     matches the article topic. https://image.pollinations.ai/prompt/<prompt>"""
     url = ("https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt)
            + f"?width={w}&height={h}&nologo=true&model=flux&seed={seed}")
-    for _ in range(2):
+    for _ in range(3):
         try:
             r = requests.get(url, timeout=120)
             if r.status_code == 200 and _is_image_bytes(r.content):
                 return r.content
-            if r.status_code in (429, 500, 502, 503):   # busy/warming -> wait & retry
-                time.sleep(8)
+            if r.status_code in (429, 500, 502, 503):   # busy/throttled -> wait & retry
+                time.sleep(14)
                 continue
             break
         except Exception:  # noqa
@@ -232,7 +232,7 @@ def fetch_images(script, cfg):
       5) gradient      -> last resort so ffmpeg always has valid input
     Scenes are fetched with a small thread pool: Pollinations takes ~45s per image,
     and sequential fetches were the single biggest time sink in the render (~7 min
-    of a ~17-min post). 3 workers keeps the request rate polite while cutting the
+    of a ~17-min post). 2 workers keeps the request rate polite while cutting the
     image stage to ~2 min.
     """
     vz = cfg["visuals"]
@@ -242,7 +242,7 @@ def fetch_images(script, cfg):
     title = (script["post"].get("title") or "").strip()
     base_seed = abs(hash(slug)) % 100000
     from concurrent.futures import ThreadPoolExecutor
-    with ThreadPoolExecutor(max_workers=3) as ex:
+    with ThreadPoolExecutor(max_workers=2) as ex:
         futs = [ex.submit(_fetch_scene, i, p, w, h, token, slug, title, base_seed)
                 for i, p in enumerate(script["scene_prompts"])]
         return [f.result() for f in futs]

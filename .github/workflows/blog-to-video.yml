@@ -30,6 +30,9 @@ on:
       unskip:
         description: "repair ledger: forget skipped-as-duplicate entries first (true | false)"
         default: "false"
+      file:
+        description: "render THIS post only (repo-relative path, e.g. src/content/blog/x.md)"
+        default: ""
 
 permissions:
   contents: write   # needed to publish the video as a Release asset (public URL for Threads)
@@ -173,6 +176,8 @@ jobs:
             python scripts/run_pipeline.py --sweep
           elif [ "${{ github.event.inputs.prime }}" = "true" ]; then
             python scripts/run_pipeline.py --prime
+          elif [ -n "${{ github.event.inputs.file }}" ]; then
+            python scripts/run_pipeline.py --changed "${{ github.event.inputs.file }}" $FORCE $UNSKIP
           elif [ "${{ github.event.inputs.sweep }}" = "true" ]; then
             python scripts/run_pipeline.py --sweep $FORCE $UNSKIP
           elif [ "${{ github.event.inputs.mode }}" = "dry" ]; then
