@@ -15,6 +15,10 @@ function stripTags(s: string): string {
     .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
     .replace(/&#39;|&rsquo;|&lsquo;/g, "'").replace(/&quot;|&ldquo;|&rdquo;/g, '"')
     .replace(/&[a-z]+;/gi, ' ')
+    // markdown syntax: images, links, emphasis/code/quote/table markers
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/[*_`>|#]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -22,14 +26,27 @@ function stripTags(s: string): string {
 const QUESTION_START = /^(what|why|how|when|where|who|which|is|are|can|does|do|should|will|could)\b/i;
 
 // Split the body on h2/h3 headings, keeping heading + the chunk that follows it.
-const parts = body.split(/(?=<h[23][^>]*>)/i);
+// Content-collection bodies arrive as RAW MARKDOWN (## heading), not HTML —
+// handle both so the component works regardless of what the caller passes.
+type Section = { heading: string; after: string };
+const sections: Section[] = [];
+if (/<h[23][^>]*>/i.test(body)) {
+  for (const part of body.split(/(?=<h[23][^>]*>)/i)) {
+    const hm = part.match(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/i);
+    if (!hm) continue;
+    sections.push({ heading: hm[1], after: part.slice(hm.index! + hm[0].length) });
+  }
+} else {
+  for (const part of body.split(/(?=^#{2,3}[ \t])/m)) {
+    const hm = part.match(/^#{2,3}[ \t]+(.+)/);
+    if (!hm) continue;
+    sections.push({ heading: hm[1], after: part.slice(hm[0].length) });
+  }
+}
 const faqs: { q: string; a: string }[] = [];
-for (const part of parts) {
-  const hm = part.match(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/i);
-  if (!hm) continue;
-  const q = stripTags(hm[1]);
+for (const { heading, after } of sections) {
+  const q = stripTags(heading);
   if (!q || (!q.endsWith('?') && !QUESTION_START.test(q))) continue;
-  const after = part.slice(hm.index! + hm[0].length);
   let a = stripTags(after);
   if (a.length < 40) continue;
   // First 1–2 sentences, capped so the schema stays tight and quotable.
