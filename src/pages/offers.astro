@@ -3,6 +3,7 @@ import BaseHead from '../components/BaseHead.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import CpaleadOffers from '../components/CpaleadOffers.astro';
+import { env } from 'cloudflare:workers';
 import { detectDevice, countryName, countryFlag } from '../lib/cpalead';
 import { getBlendedOffers } from '../lib/offers';
 
@@ -21,8 +22,7 @@ const visitorCountry =
 const ip = Astro.request.headers.get('cf-connecting-ip');
 const userAgent = Astro.request.headers.get('user-agent');
 const device = detectDevice(userAgent);
-const cpagripPubkey =
-  (Astro.locals as any)?.runtime?.env?.CPAGRIP_PUBKEY ?? import.meta.env.CPAGRIP_PUBKEY ?? null;
+const cpagripPubkey = (env as any).CPAGRIP_PUBKEY ?? null;
 
 // Blended CPAlead + CPAGrip selection (geo/device matched, ranked by value, never empty).
 const { offers, matchedCountry } = await getBlendedOffers({

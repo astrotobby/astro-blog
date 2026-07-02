@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { env } from 'cloudflare:workers';
 import { detectDevice, countryName, countryFlag } from '../../lib/cpalead';
 import { getBlendedOffers } from '../../lib/offers';
 
@@ -7,7 +8,7 @@ import { getBlendedOffers } from '../../lib/offers';
 // (static) pages show personalized offers via a client-side fetch.
 export const prerender = false;
 
-export const GET: APIRoute = async ({ request, url, locals }) => {
+export const GET: APIRoute = async ({ request, url }) => {
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 6, 1), 24);
   const subid = (url.searchParams.get('subid') || 'astroblog').slice(0, 60);
 
@@ -19,8 +20,7 @@ export const GET: APIRoute = async ({ request, url, locals }) => {
   const device = detectDevice(userAgent);
 
   // CPAGrip pubkey lives in a Cloudflare secret; absent → CPAlead-only (graceful).
-  const cpagripPubkey =
-    (locals as any)?.runtime?.env?.CPAGRIP_PUBKEY ?? import.meta.env.CPAGRIP_PUBKEY ?? null;
+  const cpagripPubkey = (env as any).CPAGRIP_PUBKEY ?? null;
 
   const { offers, matchedCountry, networks } = await getBlendedOffers({
     country: visitorCountry, ip, userAgent, device, limit, subid, cpagripPubkey,
