@@ -36,28 +36,45 @@ def normalize_title(title: str) -> str:
     return re.sub(r"\s+", " ", t).strip()
 
 
-def find_duplicate_title(title: str, ledger: dict, threshold: float = 0.45):
+# Boilerplate words carry no identity: two unrelated "What Is X in 2026" posts on
+# an AI blog overlap heavily through these alone. Run 28570465256 skipped 4 posts
+# this way, 3 of them unrelated (incl. the Claude Fable 5 article, which "matched"
+# an always-on-AI post through {what,is,ai,in,2026}). Only DISTINCTIVE words may
+# vote on duplicate identity.
+_GENERIC_TITLE_WORDS = set(
+    "what is are was were how why when which who the a an in on of for to and or vs "
+    "versus guide explained explainer complete ultimate best top new its it your you "
+    "here heres difference between everything need know really actually ai 2024 2025 "
+    "2026 2027".split())
+
+
+def _title_core(key: str) -> set:
+    return {w for w in key.split() if w not in _GENERIC_TITLE_WORDS}
+
+
+def find_duplicate_title(title: str, ledger: dict, threshold: float = 0.8):
     """Return the slug of an already-posted entry covering the same underlying
-    story as `title`, or None. The autoblog pipeline's LLM rewrites the headline
-    from scratch each time (different wording, different word order), so a
-    character-level SequenceMatcher.ratio() on the raw strings badly undershoots
-    on real duplicates (measured ~0.51-0.64 on confirmed republished-story pairs
-    from git history) while sitting close to genuinely-different titles (~0.23-0.44)
-    -> too little margin to threshold safely. Word-SET overlap is order-invariant
-    and separates the same cases cleanly (dupes ~0.45-0.56, unrelated ~0.0-0.13),
-    so that's what we key the threshold on."""
-    words = set(normalize_title(title).split())
-    if len(words) < 3:
+    story as `title`, or None. Word-SET overlap (order-invariant, since the
+    autoblog LLM rewrites headlines from scratch) — but computed over DISTINCTIVE
+    words only, with generic headline filler stripped, so republished stories are
+    still caught ("AI Automation for Small Business..." ~ "AI Automation Small
+    Business 2026") while unrelated posts sharing boilerplate are not. Both
+    titles need >=3 distinctive words to be judged at all, and entries that were
+    themselves skipped as duplicates don't vote (no cascading skips)."""
+    core = _title_core(normalize_title(title))
+    if len(core) < 3:
         return None
     for slug, entry in ledger.items():
+        if entry.get("skipped_duplicate_of"):
+            continue
         prev = entry.get("title_key")
         if not prev:
             continue
-        prev_words = set(prev.split())
-        if len(prev_words) < 3:
+        prev_core = _title_core(prev)
+        if len(prev_core) < 3:
             continue
-        overlap = len(words & prev_words) / min(len(words), len(prev_words))
-        if overlap >= threshold:
+        inter = core & prev_core
+        if len(inter) >= 3 and len(inter) / min(len(core), len(prev_core)) >= threshold:
             return slug
     return None
 

@@ -27,6 +27,9 @@ on:
       prime:
         description: "baseline ledger: mark all current posts done WITHOUT posting"
         default: "false"
+      unskip:
+        description: "repair ledger: forget skipped-as-duplicate entries first (true | false)"
+        default: "false"
 
 permissions:
   contents: write   # needed to publish the video as a Release asset (public URL for Threads)
@@ -149,6 +152,8 @@ jobs:
         run: |
           FORCE=""
           if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE="--force"; fi
+          UNSKIP=""
+          if [ "${{ github.event.inputs.unskip }}" = "true" ]; then UNSKIP="--unskip"; fi
           if [ "${{ github.event_name }}" = "push" ]; then
             # Only act when a post is genuinely ADDED. Bulk EDITS (image optimization,
             # SEO tweaks, etc.) modify post files but must NOT trigger posting. We just
@@ -169,11 +174,11 @@ jobs:
           elif [ "${{ github.event.inputs.prime }}" = "true" ]; then
             python scripts/run_pipeline.py --prime
           elif [ "${{ github.event.inputs.sweep }}" = "true" ]; then
-            python scripts/run_pipeline.py --sweep $FORCE
+            python scripts/run_pipeline.py --sweep $FORCE $UNSKIP
           elif [ "${{ github.event.inputs.mode }}" = "dry" ]; then
             python scripts/run_pipeline.py --latest --dry-run $FORCE
           else
-            python scripts/run_pipeline.py --latest $FORCE
+            python scripts/run_pipeline.py --latest $FORCE $UNSKIP
           fi
 
       # if: always() so this still runs (and the ledger is still persisted) even

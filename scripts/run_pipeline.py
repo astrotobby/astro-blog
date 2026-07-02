@@ -165,6 +165,22 @@ def process_one(post_file, dry, force=False):
         log(f"notify failed (non-fatal): {e}")
 
 
+def unskip_duplicates():
+    """Ledger repair: forget entries recorded only as skipped_duplicate_of (the
+    over-loose dedup of run 28570465256 wrongly skipped unrelated posts). They
+    then look unposted again and the normal sweep/latest path picks them up
+    under the fixed matcher."""
+    led = load_ledger()
+    bad = [s for s, e in led.items()
+           if e.get("skipped_duplicate_of") and not e.get("results")]
+    for s in bad:
+        del led[s]
+        log(f"unskip: removed wrongly-skipped ledger entry '{s}'")
+    if bad:
+        save_ledger(led)
+    log(f"unskip: {len(bad)} entry(ies) removed")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--latest", action="store_true")
@@ -176,7 +192,12 @@ def main():
                     help="process every live post not yet in the ledger (manual safety net)")
     ap.add_argument("--prime", action="store_true",
                     help="baseline: mark all current posts as done WITHOUT posting (run once)")
+    ap.add_argument("--unskip", action="store_true",
+                    help="repair ledger first: forget skipped-as-duplicate entries")
     args = ap.parse_args()
+
+    if args.unskip:
+        unskip_duplicates()
 
     if args.prime:
         prime_ledger()
