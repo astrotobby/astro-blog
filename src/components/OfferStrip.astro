@@ -1,0 +1,115 @@
+---
+// Compact, geo/device-matched offer strip for STATIC pages (homepage, blog posts).
+// Renders hidden, then a client script fills it from /api/offers.json (SSR) so it
+// personalizes per visitor even though the host page is prerendered.
+interface Props {
+  title?: string;
+  limit?: number;
+  subid?: string;
+  seeAll?: string;
+}
+const { title = 'Featured Offers', limit = 4, subid = 'astroblog', seeAll = '/offers' } = Astro.props;
+---
+
+<section class="offer-strip" data-limit={limit} data-subid={subid} aria-label="Sponsored offers" hidden>
+  <div class="ostrip-head">
+    <h2>{title}</h2>
+    <a class="ostrip-all" href={seeAll}>See all →</a>
+  </div>
+  <div class="ostrip-track" role="list"></div>
+  <p class="ostrip-note">Sponsored · rewards vary by country &amp; device</p>
+</section>
+
+<script>
+  (async () => {
+    const strips = Array.from(document.querySelectorAll<HTMLElement>('.offer-strip'));
+    if (!strips.length) return;
+    const cache = new Map<string, Promise<any>>();
+    const load = (limit: string, subid: string) => {
+      const key = `${limit}|${subid}`;
+      if (!cache.has(key)) {
+        cache.set(
+          key,
+          fetch(`/api/offers.json?limit=${encodeURIComponent(limit)}&subid=${encodeURIComponent(subid)}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null),
+        );
+      }
+      return cache.get(key)!;
+    };
+    const esc = (s: unknown) =>
+      String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+
+    for (const strip of strips) {
+      const limit = strip.getAttribute('data-limit') || '4';
+      const subid = strip.getAttribute('data-subid') || 'astroblog';
+      const data = await load(limit, subid);
+      const offers = data && Array.isArray(data.offers) ? data.offers : [];
+      if (!offers.length) { strip.remove(); continue; }
+      const track = strip.querySelector('.ostrip-track');
+      if (!track) continue;
+      track.innerHTML = offers
+        .map(
+          (o: any) => `
+        <a class="ostrip-card" role="listitem" href="${esc(o.link)}" target="_blank" rel="sponsored noopener noreferrer">
+          <span class="ostrip-img"${o.image ? ` style="background-image:url('${esc(o.image)}')"` : ''}>
+            <span class="ostrip-pay">$${Number(o.amount).toFixed(2)}</span>
+          </span>
+          <span class="ostrip-title">${esc(o.title)}</span>
+          <span class="ostrip-cta">Get Offer →</span>
+        </a>`,
+        )
+        .join('');
+      strip.hidden = false;
+    }
+  })();
+</script>
+
+<style>
+  .offer-strip { margin: 2.5rem auto; max-width: var(--maxw, 1200px); padding: 0 1.25rem; }
+  .ostrip-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1rem; }
+  .ostrip-head h2 { font-size: 1.25rem; font-weight: 800; margin: 0; color: var(--text-heading, #1a1a1a); }
+  .ostrip-all { font-size: 0.9rem; font-weight: 600; color: var(--accent, #667eea); text-decoration: none; white-space: nowrap; }
+  .ostrip-all:hover { text-decoration: underline; }
+
+  .ostrip-track {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(180px, 1fr);
+    gap: 0.9rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ostrip-note { font-size: 0.72rem; color: #9ca3af; margin: 0.5rem 0 0; }
+
+  /* Cards are injected at runtime, so target them globally (namespaced under .offer-strip). */
+  .offer-strip :global(.ostrip-card) {
+    display: flex; flex-direction: column;
+    background: #fff; border: 1px solid rgba(15, 18, 34, 0.08);
+    border-radius: 12px; overflow: hidden; text-decoration: none;
+    scroll-snap-align: start;
+    box-shadow: 0 3px 10px rgba(15, 18, 34, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .offer-strip :global(.ostrip-card:hover) { transform: translateY(-4px); box-shadow: 0 12px 24px -10px rgba(31, 38, 90, 0.22); }
+  .offer-strip :global(.ostrip-img) {
+    position: relative; display: block; aspect-ratio: 16 / 10;
+    background: linear-gradient(135deg, #667eea, #764ba2) center/cover no-repeat;
+  }
+  .offer-strip :global(.ostrip-pay) {
+    position: absolute; top: 8px; right: 8px;
+    background: #16a34a; color: #fff; font-weight: 800; font-size: 0.8rem;
+    padding: 0.2rem 0.5rem; border-radius: 999px;
+  }
+  .offer-strip :global(.ostrip-title) {
+    font-size: 0.86rem; font-weight: 700; line-height: 1.3; color: var(--text-heading, #1a1a1a);
+    padding: 0.6rem 0.7rem 0.3rem;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .offer-strip :global(.ostrip-cta) {
+    margin-top: auto; padding: 0.5rem 0.7rem 0.7rem;
+    font-size: 0.8rem; font-weight: 700; color: var(--accent, #667eea);
+  }
+</style>

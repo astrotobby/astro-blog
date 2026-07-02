@@ -10,6 +10,7 @@ import Newsletter from '../components/Newsletter.astro';
 import ShopifyProducts from '../components/ShopifyProducts.astro';
 import RelatedPosts from '../components/RelatedPosts.astro';
 import InArticleCTA from '../components/InArticleCTA.astro';
+import OfferStrip from '../components/OfferStrip.astro';
 import ArticleSchema from '../components/ArticleSchema.astro';
 import FAQSchema from '../components/FAQSchema.astro';
 import { displayImage, svgFallback } from '../lib/postImage';
@@ -86,6 +87,8 @@ const noindex = shouldNoindex(slug);
       <InArticleCTA tags={tags} />
 
       <ShopifyProducts tags={tags} limit={3} />
+
+      <OfferStrip title="Free Offers For You" subid={slug ? `post-${slug}` : 'blogpost'} limit={4} />
 
       {slug && <RelatedPosts currentSlug={slug} tags={tags} />}
 

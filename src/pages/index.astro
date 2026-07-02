@@ -8,6 +8,7 @@ import { getCollection } from 'astro:content';
 import FormattedDate from '../components/FormattedDate.astro';
 import AdBanner from '../components/AdBanner.astro';
 import Newsletter from '../components/Newsletter.astro';
+import OfferStrip from '../components/OfferStrip.astro';
 import { displayImage, svgFallback } from '../lib/postImage';
 
 const orderKey = (p) => {
@@ -293,6 +294,8 @@ const totalPosts = posts.length;
 					</a>
 				</div>
 			</section>
+
+			<OfferStrip title="Free Offers &amp; Rewards" subid="home" limit={4} />
 
 			<Newsletter />
 		</main>

@@ -1,0 +1,154 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import CpaleadOffers from '../components/CpaleadOffers.astro';
+import { pickOffersFor, detectDevice, countryName, countryFlag } from '../lib/cpalead';
+
+const pageTitle = 'Free Offers & Rewards';
+const pageDescription =
+  'Hand-picked free offers, app installs and sign-up rewards. Complete an offer to earn — updated live.';
+
+// Tracking subid — every offer link carries this so conversions show up under it
+// in your postback dashboard. Change per campaign/placement if you like.
+const SUBID = 'astroblog';
+
+// Per-visitor signals: country from Cloudflare's header, device from the User-Agent.
+const cf = (Astro.request.headers.get('cf-ipcountry') || '').toUpperCase();
+const visitorCountry =
+  /^[A-Z]{2}$/.test(cf) && !['XX', 'T1', 'A1', 'A2'].includes(cf) ? cf : null;
+const device = detectDevice(Astro.request.headers.get('user-agent'));
+
+// Shared geo+device selection (tiered, never empty).
+const { offers, matchedCountry } = await pickOffersFor({ country: visitorCountry, device, limit: 24 });
+
+// Personalized per visitor → must NOT be shared by the edge cache.
+// (Upstream API JSON is still edge-cached per country inside fetchOffers.)
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+
+const geoLabel = matchedCountry ? `${countryFlag(matchedCountry)} ${countryName(matchedCountry)}` : '';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <BaseHead title={pageTitle} description={pageDescription} />
+    <style>
+      :global(body) { margin: 0; padding: 0; }
+    </style>
+  </head>
+  <body>
+    <Header />
+    <main class="offers-page">
+      <section class="hero-section">
+        <div class="hero-content">
+          <h1 class="hero-title">Free Offers &amp; Rewards</h1>
+          <p class="hero-subtitle">
+            Complete a quick offer — sign up, install an app, or claim a bonus — and get rewarded. New offers added live.
+          </p>
+          {geoLabel && (
+            <p class="hero-geo" aria-live="polite">
+              📍 Showing offers available in <strong>{geoLabel}</strong>
+            </p>
+          )}
+          <div class="hero-stats">
+            <div class="stat"><span class="stat-number">{offers.length}</span><span class="stat-label">Live Offers</span></div>
+            <div class="stat"><span class="stat-number">Free</span><span class="stat-label">To Complete</span></div>
+            <div class="stat"><span class="stat-number">Daily</span><span class="stat-label">Fresh Updates</span></div>
+          </div>
+        </div>
+        <div class="hero-background"></div>
+      </section>
+
+      <section class="offers-showcase">
+        <div class="section-intro">
+          <h2>Pick an Offer</h2>
+          <p>Tap any card to open the offer. Follow the steps shown to complete it.</p>
+        </div>
+        <CpaleadOffers offers={offers} subid={SUBID} heading={false} />
+
+        <p class="affiliate-disclosure">
+          <strong>Disclosure:</strong> The offers above are provided by third-party advertisers via CPAlead.
+          We may earn a commission when you complete an offer, at no extra cost to you. Availability, rewards
+          and eligibility (including your country and device) are set by each advertiser and may change.
+        </p>
+      </section>
+
+      <section class="how-section">
+        <h2>How It Works</h2>
+        <div class="how-grid">
+          <div class="how-card"><div class="how-icon">👆</div><h3>1. Choose</h3><p>Pick an offer that matches your device and country.</p></div>
+          <div class="how-card"><div class="how-icon">✅</div><h3>2. Complete</h3><p>Follow the advertiser's steps — usually a sign-up or app install.</p></div>
+          <div class="how-card"><div class="how-icon">🎉</div><h3>3. Get Rewarded</h3><p>Your completion is tracked automatically once confirmed.</p></div>
+        </div>
+      </section>
+    </main>
+    <Footer />
+  </body>
+</html>
+
+<style>
+  .offers-page { width: 100%; overflow-x: hidden; }
+
+  .hero-section {
+    position: relative; min-height: 420px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 4rem 2rem; overflow: hidden;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+  }
+  .hero-background {
+    position: absolute; top: 0; right: 0; width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    border-radius: 50%; animation: float 6s ease-in-out infinite;
+  }
+  @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+  .hero-content { position: relative; z-index: 2; text-align: center; max-width: 800px; }
+  .hero-title { font-size: 3.25rem; font-weight: 800; margin-bottom: 1rem; line-height: 1.2; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+  .hero-subtitle { font-size: 1.25rem; margin-bottom: 1rem; opacity: 0.95; line-height: 1.6; }
+  .hero-geo {
+    display: inline-block; margin: 0 0 2.25rem;
+    background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35);
+    padding: 0.4rem 0.9rem; border-radius: 999px; font-size: 0.95rem;
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  }
+  .hero-geo strong { font-weight: 800; }
+  .hero-stats { display: flex; justify-content: center; gap: 3rem; flex-wrap: wrap; }
+  .stat { display: flex; flex-direction: column; align-items: center; }
+  .stat-number { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; }
+  .stat-label { font-size: 0.95rem; opacity: 0.85; }
+
+  .offers-showcase { padding: 4rem 2rem; max-width: 1400px; margin: 0 auto; }
+  .section-intro { text-align: center; margin-bottom: 2.5rem; }
+  .section-intro h2 { font-size: 2.25rem; font-weight: 800; color: #1a1a1a; margin-bottom: 0.75rem; }
+  .section-intro p { font-size: 1.05rem; color: #666; max-width: 600px; margin: 0 auto; }
+
+  .affiliate-disclosure {
+    margin: 3rem auto 0; max-width: 820px; text-align: center;
+    font-size: 0.85rem; line-height: 1.6; color: #6b7280;
+    background: #f7f8fb; border: 1px solid rgba(15,18,34,0.06);
+    border-radius: 12px; padding: 1rem 1.25rem;
+  }
+
+  .how-section { padding: 4rem 2rem; background: linear-gradient(135deg, #f5f7fa 0%, #e9ecf1 100%); }
+  .how-section h2 { font-size: 2.25rem; font-weight: 800; text-align: center; color: #1a1a1a; margin-bottom: 2.5rem; }
+  .how-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; max-width: 1000px; margin: 0 auto; }
+  .how-card { background: #fff; padding: 2rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+  .how-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+  .how-card h3 { font-size: 1.2rem; font-weight: 700; color: #1a1a1a; margin-bottom: 0.5rem; }
+  .how-card p { font-size: 0.92rem; color: #666; line-height: 1.6; }
+
+  @media (max-width: 768px) {
+    .hero-section { min-height: 340px; padding: 3rem 1rem; }
+    .hero-title { font-size: 2.25rem; }
+    .hero-subtitle { font-size: 1.05rem; }
+    .hero-stats { gap: 1.5rem; }
+    .stat-number { font-size: 2rem; }
+    .offers-showcase { padding: 3rem 1rem; }
+    .section-intro h2, .how-section h2 { font-size: 1.8rem; }
+  }
+  @media (max-width: 480px) {
+    .hero-title { font-size: 1.8rem; }
+    .hero-stats { flex-direction: column; gap: 1rem; }
+  }
+</style>

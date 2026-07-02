@@ -1,0 +1,181 @@
+---
+import { fetchOffers, withSubid, FALLBACK_OFFERS } from '../lib/cpalead';
+import type { CpaOffer } from '../lib/cpalead';
+
+interface Props {
+  /** Pass pre-fetched offers (e.g. from the page) to avoid a second API call. */
+  offers?: CpaOffer[];
+  /** Tracking subid stitched onto every offer link → drives the postback {subid}. */
+  subid?: string;
+  /** Display cap. */
+  limit?: number;
+  /** Filters used only when this component fetches its own data. */
+  minPayout?: number;
+  geos?: string[];
+  type?: string;
+  sort?: 'epc' | 'payout';
+  /** Show the section header. */
+  heading?: boolean;
+}
+
+const {
+  offers: provided,
+  subid = 'astroblog',
+  limit = 24,
+  minPayout = 1,
+  geos,
+  type,
+  sort = 'epc',
+  heading = true,
+} = Astro.props;
+
+let offers: CpaOffer[] = provided ?? [];
+if (!provided) {
+  try {
+    offers = await fetchOffers({ limit, minPayout, geos, type, sort });
+  } catch (e) {
+    console.warn('[CpaleadOffers] Using fallback offers:', (e as Error).message);
+    offers = FALLBACK_OFFERS.slice(0, limit);
+  }
+}
+
+const deviceLabel = (d: string) =>
+  d === 'all_devices' ? 'All devices' : d.charAt(0).toUpperCase() + d.slice(1);
+---
+
+<section class="cpa-section" aria-label="Featured offers">
+  {heading && (
+    <header class="cpa-header" data-reveal>
+      <p class="cpa-eyebrow">Complete &amp; earn</p>
+      <h2 class="cpa-title gradient-text">Featured Offers</h2>
+      <p class="cpa-subtitle">Free sign-ups, app installs and rewards — updated live</p>
+    </header>
+  )}
+
+  {offers.length === 0 ? (
+    <p class="cpa-empty">No offers available right now — check back soon.</p>
+  ) : (
+    <div class="cpa-grid">
+      {offers.map((o, i) => {
+        const href = withSubid(o.link, subid);
+        const geos = o.countries.slice(0, 4).join(', ');
+        return (
+          <article class="cpa-card" data-reveal data-title={o.title.toLowerCase()} style={`--reveal-delay:${i * 50}ms`}>
+            <a class="cpa-media" href={href} target="_blank" rel="sponsored noopener noreferrer" aria-label={o.title}>
+              {o.image
+                ? <img src={o.image} alt={o.title} loading="lazy" decoding="async" width="320" height="200" />
+                : <div class="cpa-media--placeholder">{o.payout_type}</div>}
+              <span class="cpa-payout">${o.amount.toFixed(2)}</span>
+              {o.is_fast_pay && <span class="cpa-fast">⚡ Fast Pay</span>}
+            </a>
+            <div class="cpa-body">
+              <h3 class="cpa-card-title">
+                <a href={href} target="_blank" rel="sponsored noopener noreferrer">{o.title}</a>
+              </h3>
+              <div class="cpa-meta">
+                <span class="cpa-tag">{o.payout_type}</span>
+                <span class="cpa-tag">{deviceLabel(o.device)}</span>
+                {geos && <span class="cpa-tag cpa-geo">{geos}</span>}
+              </div>
+              <a class="cpa-btn" href={href} target="_blank" rel="sponsored noopener noreferrer">
+                Get Offer
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </a>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  )}
+</section>
+
+<style>
+  .cpa-section { margin: 3rem 0 0; }
+
+  .cpa-header { text-align: center; margin-bottom: 2.5rem; }
+  .cpa-eyebrow {
+    font-size: 0.8rem; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 0.5rem;
+  }
+  .cpa-title { font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 800; margin: 0 0 0.5rem; }
+  .cpa-subtitle { color: var(--text-body); font-size: 1rem; margin: 0; }
+
+  .cpa-empty { text-align: center; color: var(--text-body); padding: 2rem 0; }
+
+  .cpa-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .cpa-card {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid rgba(15, 18, 34, 0.08);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(15, 18, 34, 0.06);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .cpa-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 34px -12px rgba(31, 38, 90, 0.22);
+  }
+
+  .cpa-media {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 10;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    overflow: hidden;
+  }
+  .cpa-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cpa-media--placeholder {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 1.5rem; letter-spacing: 0.05em;
+  }
+  .cpa-payout {
+    position: absolute; top: 10px; right: 10px;
+    background: #16a34a; color: #fff;
+    font-weight: 800; font-size: 0.95rem;
+    padding: 0.3rem 0.6rem; border-radius: 999px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  }
+  .cpa-fast {
+    position: absolute; bottom: 10px; left: 10px;
+    background: rgba(0,0,0,0.65); color: #ffd54a;
+    font-weight: 700; font-size: 0.72rem;
+    padding: 0.22rem 0.5rem; border-radius: 999px;
+  }
+
+  .cpa-body { display: flex; flex-direction: column; gap: 0.7rem; padding: 1rem 1.1rem 1.2rem; flex: 1; }
+  .cpa-card-title { font-size: 1.02rem; font-weight: 700; line-height: 1.3; margin: 0; }
+  .cpa-card-title a { color: var(--text-heading); text-decoration: none; }
+  .cpa-card-title a:hover { color: var(--accent); }
+
+  .cpa-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: auto; }
+  .cpa-tag {
+    font-size: 0.72rem; font-weight: 600;
+    color: var(--text-body);
+    background: var(--accent-soft, rgba(102,126,234,0.1));
+    padding: 0.22rem 0.55rem; border-radius: 999px;
+  }
+  .cpa-geo { font-variant: small-caps; letter-spacing: 0.03em; }
+
+  .cpa-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    margin-top: 0.4rem;
+    background: var(--brand-gradient, linear-gradient(135deg, #667eea, #764ba2));
+    color: #fff; font-weight: 700; font-size: 0.92rem;
+    padding: 0.7rem 1rem; border-radius: 10px;
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .cpa-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px -6px rgba(102,126,234,0.6); }
+
+  @media (max-width: 480px) {
+    .cpa-grid { grid-template-columns: 1fr; }
+  }
+</style>
