@@ -43,6 +43,11 @@ def astro_slug(stem: str) -> str:
 
 def strip_md(text: str) -> str:
     html = md.render(text)
+    # Headings/blockquote-labels aren't sentences; without a terminator they merge
+    # into the NEXT sentence and the TTS reads garbage like "Frequently asked
+    # questions Is AEO replacing SEO?". Drop heading text entirely — narration
+    # should be built from prose, not from section labels.
+    html = re.sub(r"<h[1-6][^>]*>.*?</h[1-6]>", " ", html, flags=re.S | re.I)
     plain = re.sub(r"<[^>]+>", " ", html)
     return re.sub(r"\s+", " ", plain).strip()
 

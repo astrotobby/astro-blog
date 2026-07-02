@@ -334,10 +334,14 @@ _KENBURNS = [
     "z='min(1.06+0.0016*on,1.32)':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*on/{F}'",      # zoom + tilt down
     "z='min(1.06+0.0016*on,1.32)':x='(iw-iw/zoom)*on/{F}':y='(ih-ih/zoom)*(1-on/{F})'",  # diagonal push
 ]
-# Cinematic colour grade: punchy contrast/saturation, soft vignette, crisp sharpening.
-# Applied per scene so both the montage and the avatar background match.
+# Cinematic colour grade: punchy contrast/saturation, teal-orange split tone
+# (cool shadows / warm highlights — the tech-documentary look), soft vignette,
+# crisp sharpening, and a whisper of animated film grain so AI stills read as
+# footage instead of slides. Applied per scene so montage + avatar bg match.
 _GRADE = ("eq=contrast=1.13:saturation=1.24:brightness=0.02:gamma=0.97,"
-          "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0")
+          "colorbalance=rs=-0.04:bs=0.05:rh=0.05:bh=-0.06,"
+          "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0,"
+          "noise=alls=5:allf=t")
 # Energetic, varied transitions (slides/zoom/wipes) so cuts feel deliberate, not a soft
 # crossfade mush. All are valid ffmpeg xfade types.
 _TRANSITIONS = ["slideleft", "zoomin", "smoothup", "circleopen",
@@ -478,7 +482,76 @@ def _feather_mask(bw, bh, feather_frac):
     return mpath
 
 
-def finalize(silent_video, voice_path, captions, music, size, out_path, cfg):
+def _font_file():
+    """Bold system font for the drawtext cards (Linux paths only — a Windows path
+    contains a drive-letter colon, which ffmpeg's filter parser treats as an option
+    separator). Returns None if not found: cards are then skipped rather than
+    breaking the render. CI renders on ubuntu-latest, which ships DejaVu."""
+    import os
+    for p in ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+              "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"):
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def _wrap(text, max_chars):
+    """Greedy word-wrap for drawtext (which does not wrap on its own)."""
+    lines, cur = [], ""
+    for w in text.split():
+        if cur and len(cur) + 1 + len(w) > max_chars:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = f"{cur} {w}".strip()
+    if cur:
+        lines.append(cur)
+    return "\n".join(lines[:4])
+
+
+def _overlay_cards(cfg, size, hook_text, total_dur, tag):
+    """drawtext filter snippets for (a) a bold HOOK TITLE CARD over the first ~2.8s
+    — the 3-second scroll-stopper — and (b) a dimmed END CARD with the blog + store
+    CTA over the last ~3.4s. Pure ffmpeg, zero cost. Returns [] if disabled or no
+    usable font, so the render never depends on them."""
+    font = _font_file()
+    if not font:
+        return []
+    vc = cfg["video"]
+    w = size["w"]
+    chain = []
+    if vc.get("hook_card") and hook_text:
+        hk = OUT / f"_hook_{tag}.txt"
+        hk.write_text(_wrap(hook_text.upper(), 20 if w < 1500 else 34),
+                      encoding="utf-8")
+        fs = int(w / 13) if w < 1500 else int(w / 22)
+        chain.append(
+            f"drawtext=textfile={hk.name}:fontfile={font}:fontsize={fs}:"
+            f"fontcolor=white:borderw=3:bordercolor=black:box=1:"
+            f"boxcolor=black@0.45:boxborderw=28:line_spacing=14:"
+            f"x=(w-text_w)/2:y=h*0.14:"
+            f"alpha='if(lt(t,2.3),1,max(0,(2.8-t)/0.5))':enable='lt(t,2.8)'")
+    lines = vc.get("end_card_lines") or []
+    if vc.get("end_card") and lines and total_dur and total_dur > 12:
+        start = max(0.0, total_dur - 3.4)
+        en = f"enable='gte(t,{start:.2f})'"
+        chain.append(f"drawbox=color=black@0.55:t=fill:{en}")
+        # (y-fraction, width-divisor, colour) per line: headline, domain, offer
+        layout = [(0.38, 17, "white"), (0.47, 12, "white"), (0.57, 22, "0xFFD166")]
+        for i, line in enumerate(lines[:3]):
+            lf = OUT / f"_end_{tag}_{i}.txt"
+            lf.write_text(str(line), encoding="utf-8")
+            frac, div, col = layout[i]
+            fs = int(w / div) if w < 1500 else int(w / (div * 1.7))
+            chain.append(
+                f"drawtext=textfile={lf.name}:fontfile={font}:fontsize={fs}:"
+                f"fontcolor={col}:borderw=2:bordercolor=black:"
+                f"x=(w-text_w)/2:y=h*{frac}:{en}")
+    return chain
+
+
+def finalize(silent_video, voice_path, captions, music, size, out_path, cfg,
+             hook_text=None, total_dur=None):
     # inputs: 0=silent video, 1=voiceover, (2=music if present)
     inputs = ["-i", silent_video.name, "-i", str(voice_path.name)]
     has_music = bool(music)
@@ -491,16 +564,20 @@ def finalize(silent_video, voice_path, captions, music, size, out_path, cfg):
         voice_idx = "1:a"
 
     filters = []
-    # --- video: subtitles burn-in (run from OUT so no drive-colon path issues) ---
-    vlabel = "0:v"
+    # --- video: subtitles burn-in + hook/end cards, chained on one video path ---
+    vchain = []
     if captions and cfg["video"].get("captions"):
         mv = cfg["video"].get("caption_margin_v", 70)   # margin from the bottom
         # Alignment=2 = bottom-center: captions sit at the bottom of the frame, below
         # the lower-right avatar figure (which is lifted via avatar.bubble_bottom).
-        style = (f"FontName=DejaVu Sans,FontSize=18,Bold=1,PrimaryColour=&H00FFFFFF,"
+        style = (f"FontName=DejaVu Sans,FontSize=20,Bold=1,PrimaryColour=&H00FFFFFF,"
                  f"OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=1,"
                  f"Alignment=2,MarginV={mv}")
-        filters.append(f"[0:v]subtitles={captions.name}:force_style='{style}'[v]")
+        vchain.append(f"subtitles={captions.name}:force_style='{style}'")
+    vchain += _overlay_cards(cfg, size, hook_text, total_dur, out_path.stem)
+    vlabel = "0:v"
+    if vchain:
+        filters.append(f"[0:v]{','.join(vchain)}[v]")
         vlabel = "v"
 
     # --- audio: duck music under voice, then mix ---
@@ -676,9 +753,10 @@ def main():
         return build_clip(images, seg_dur, size, fps, out)
 
     results = {}
+    hook = script.get("hook") or ""
     vsize = cfg["video"]["vertical"]
     vout = finalize(silent_for(vsize, "9x16", dur), voice, captions, music, vsize,
-                    OUT / "video_9x16.mp4", cfg)
+                    OUT / "video_9x16.mp4", cfg, hook_text=hook, total_dur=dur)
     results["vertical"] = str(vout)
 
     # Story cut: a <=58s trim of the vertical for IG/FB Stories (their publish APIs
@@ -696,7 +774,7 @@ def main():
         voice_h, dur_h = make_voice(narr_h, cfg, tag="_yt")
         captions_h = make_captions(voice_h, narr_h, dur_h, tag="_yt") if captions_on else None
         hout = finalize(silent_for(hsize, "16x9", dur_h), voice_h, captions_h, music, hsize,
-                        OUT / "video_16x9.mp4", cfg)
+                        OUT / "video_16x9.mp4", cfg, hook_text=hook, total_dur=dur_h)
         results["horizontal"] = str(hout)
 
     out = {

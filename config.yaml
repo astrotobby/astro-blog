@@ -19,6 +19,8 @@ site:
   base_url: "https://astrotobby.site"
   # Astro route is src/pages/blog/[...slug].astro with params.slug = post.id
   post_url_pattern: "{base}/blog/{slug}"
+  # Store link woven into captions/descriptions and the end card ("AI Starter Pack").
+  products_url: "https://astrotobby.site/products"
 
 # ---- Narration / script ----
 script:
@@ -36,6 +38,17 @@ script:
     - "What they're not telling you about {topic}."
     - "This is why everyone's suddenly talking about {topic}."
     - "{topic} is about to break the internet — here's why."
+  # Mid-video PATTERN INTERRUPTS (rotated per post): re-open the curiosity loop at
+  # ~40% in — exactly where short-form drop-off peaks. Spoken by the narrator.
+  rehooks:
+    - "But here's the part most people miss."
+    - "Now this is where it actually gets interesting."
+    - "And this next part is the reason this video exists."
+    - "Here's where almost everyone gets it wrong."
+    - "But wait — the real story is what happens next."
+  # Short mid-roll CTA (~65% in): plants the blog link while early-scrollers are
+  # still watching, without breaking the narration's flow.
+  mid_cta: "By the way — the full breakdown is linked below."
   # Curiosity-gap CTA: drives back to the blog AND asks for the follow/subscribe.
   # {sub_or_follow} is filled per platform (YouTube -> "subscribe", else "follow").
   cta: "But that's only the start of the story. Tap the link to read the full breakdown on the blog — and if this opened your eyes, {sub_or_follow} so you never miss the next one."
@@ -58,7 +71,8 @@ visuals:
   # When set, the ENTIRE video is just this one image (gentle Ken Burns) + captions +
   # voiceover — no AI scene montage. Empty "" = normal multi-scene montage (current).
   single_image: ""
-  scenes: 8                    # more scenes over a ~75s video = faster cuts, higher retention
+  scenes: 10                   # ~7.5s per visual over a ~75s video = a fresh visual
+                               # hook every 8-15s window (retention rule of thumb)
   model: "flux"
   style_suffix: "epic cinematic key art, dramatic volumetric lighting, ultra detailed, vibrant, film grain, professional motion graphic, 9:16"
   width: 1080
@@ -73,6 +87,13 @@ video:
   caption_margin_v: 70              # margin from the BOTTOM (captions are bottom-aligned)
   music: true
   music_volume: 0.12
+  # ---- Cinematic overlays (drawtext, all free/in-ffmpeg) ----
+  hook_card: true                   # burn the hook as a big title card over the first ~2.8s
+  end_card: true                    # dimmed CTA card over the last ~3.4s of the video
+  end_card_lines:                   # rendered top-to-bottom, auto-sized per aspect
+    - "READ THE FULL BREAKDOWN"
+    - "astrotobby.site"
+    - "AI STARTER PACK → /products"
 
 # ---- Talking avatar (Wav2Lip, runs inside the GitHub runner — no external Space) ----
 # Needs the HF_TOKEN secret (to download weights) + an avatar image at the path below.

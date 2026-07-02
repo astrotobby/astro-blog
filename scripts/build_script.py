@@ -105,8 +105,24 @@ def relevant_hashtags(post, cfg):
 
 
 def sentences(text: str):
-    parts = re.split(r"(?<=[.!?])\s+", text)
-    return [s.strip() for s in parts if len(s.strip()) > 25]
+    """Split prose into speakable sentences. Markdown tables, heading runs, HTML
+    entities and symbol-soup survive upstream stripping in some posts — TTS would
+    read them aloud ('pipe pipe dash dash') — so anything that isn't mostly prose
+    is dropped here."""
+    text = (text.replace("&amp;", "&").replace("&#39;", "'")
+                .replace("&quot;", '"').replace("→", " ").replace("`", ""))
+    out = []
+    for s in re.split(r"(?<=[.!?])\s+", text):
+        s = " ".join(s.split())
+        if len(s) <= 25:
+            continue
+        if s.count("|") >= 2 or "---" in s or s.count("#") > 1:
+            continue
+        prose = sum(1 for c in s if c.isalpha() or c.isspace() or c in ".,'%$&-()")
+        if prose / len(s) < 0.85:
+            continue
+        out.append(s)
+    return out
 
 
 def keywords(text: str, n=6):
@@ -141,45 +157,111 @@ def _smart_lower(word: str) -> str:
 
 def clean_topic(title: str) -> str:
     """Turn a headline into a clause that slots into a hook template cleanly.
-    'Why GameFi Is Quietly Eating Web2 Gaming' -> 'GameFi is quietly eating web2 gaming'."""
-    t = title.strip().rstrip(" ?.!")
+    'Why GameFi Is Quietly Eating Web2 Gaming' -> 'GameFi is quietly eating web2 gaming'.
+    Two-part SEO headlines are cut at '?', ':' or ' — ' so the hook stays punchy:
+    'What Is AEO? The 2026 Guide to...' -> 'AEO' (not the whole 20-word title).
+    Interrogatives are stripped repeatedly ('What Is X' sheds both 'what' and 'is')."""
+    t = title.strip()
+    head = re.split(r"[?:]|\s+[—–|]\s+", t, maxsplit=1)[0].strip()
+    if len(head.split()) >= 2 or len(t.split()) > 8:
+        t = head or t
+    t = t.rstrip(" ?.!")
     low = t.lower()
-    for q in INTERROGATIVES:
-        if low.startswith(q):
-            t = t[len(q):]
-            break
+    stripped = True
+    while stripped:
+        stripped = False
+        for q in INTERROGATIVES + ("will ", "can ", "could ", "should "):
+            if low.startswith(q) and len(low) > len(q) + 3:
+                t = t[len(q):]
+                low = t.lower()
+                stripped = True
+                break
     return " ".join(_smart_lower(w) for w in t.split())
 
 
+def _specificity(s: str) -> float:
+    """Score a sentence by how concrete/quotable it is. Numbers, money, percentages,
+    named tools/brands, and comparisons are what stop the scroll; vague filler
+    ('in today's fast-paced world...') scores ~0 and gets skipped."""
+    score = 0.0
+    score += 3.0 * len(re.findall(r"\d[\d,.]*", s))          # numbers / versions / dates
+    score += 2.0 * len(re.findall(r"[$%]|\bper cent\b", s))  # money & percentages
+    # capitalised tokens mid-sentence = named entities (Claude, TikTok, Make.com)
+    words = s.split()
+    score += 1.0 * sum(1 for w in words[1:] if w[:1].isupper() and len(w) > 2)
+    score += 1.5 * len(re.findall(r"\b(vs\.?|versus|instead of|faster|cheaper|beats?|"
+                                  r"replac\w+|kill\w+|nobody|never|first|only)\b", s, re.I))
+    n = len(words)
+    if n > 32:                                # rambling sentences read badly aloud
+        score *= 0.55
+    elif n < 6:
+        score *= 0.6
+    return score
+
+
 def build_narration(post, cfg):
-    target = cfg["script"]["target_seconds"]
-    wpm = cfg["script"]["words_per_minute"]
+    """Retention-structured narration:
+        HOOK -> context line -> punchiest facts -> RE-HOOK (~40%) -> more facts
+        -> MID-CTA (~65%) -> final facts -> closing CTA.
+    The re-hook re-opens the curiosity loop right where short-form drop-off peaks,
+    and the mid-CTA plants the blog link before viewers who bail early are gone."""
+    sc = cfg["script"]
+    target = sc["target_seconds"]
+    wpm = sc["words_per_minute"]
     budget = int(target * wpm / 60)  # total words
 
     topic = clean_topic(post["title"])
-    hook_tpl = cfg["script"]["hook_styles"][hash(post["slug"]) % len(cfg["script"]["hook_styles"])]
+    seed = hash(post["slug"])
+    hook_tpl = sc["hook_styles"][seed % len(sc["hook_styles"])]
     hook = hook_tpl.format(topic=topic)
     hook = hook[0].upper() + hook[1:] if hook else hook  # capitalise sentence start
 
-    # body: take the most informative sentences until we hit the word budget
+    rehooks = sc.get("rehooks") or []
+    rehook = rehooks[seed % len(rehooks)] if rehooks else ""
+    mid_cta = sc.get("mid_cta", "")
+
+    # ---- pick body sentences: keep the opening 1-2 for context, then fill the
+    # budget with the most SPECIFIC sentences, replayed in original order so the
+    # narration still flows as a story instead of a highlight salad.
     sents = sentences(post["description"] + " " + post["body"])
-    picked, used = [], len(hook.split())
-    for s in sents:
-        w = len(s.split())
-        if used + w > budget - 12:  # leave room for CTA
-            break
-        picked.append(s)
+    overhead = (len(hook.split()) + len(rehook.split()) + len(mid_cta.split()) + 14)
+    body_budget = budget - overhead
+    lead = sents[:2]
+    used = sum(len(s.split()) for s in lead)
+    rest = sents[2:]
+    ranked = sorted(range(len(rest)), key=lambda i: -_specificity(rest[i]))
+    chosen_idx = []
+    for i in ranked:
+        w = len(rest[i].split())
+        if used + w > body_budget:
+            continue
+        chosen_idx.append(i)
         used += w
+    picked = lead + [rest[i] for i in sorted(chosen_idx)]
     if not picked:
         picked = [post["description"]]
+
+    # ---- weave in the re-hook (~40% of body words) and mid-CTA (~65%)
+    total_words = sum(len(s.split()) for s in picked)
+    woven, acc = [], 0
+    rehook_done, midcta_done = not rehook, not mid_cta
+    for s in picked:
+        woven.append(s)
+        acc += len(s.split())
+        if not rehook_done and acc >= total_words * 0.40:
+            woven.append(rehook)
+            rehook_done = True
+        elif not midcta_done and rehook_done and acc >= total_words * 0.65:
+            woven.append(mid_cta)
+            midcta_done = True
 
     # Per-platform CTA verb: YouTube watches the HORIZONTAL cut ("subscribe"); every
     # other platform (TikTok/IG/FB/X/Threads) watches the VERTICAL cut ("follow"). The
     # body is identical — only the closing verb differs — so we emit both narrations and
     # generate_video renders each cut with its matching voiceover/captions.
-    body = [hook] + picked
+    body = [hook] + woven
     def _with_cta(verb):
-        return " ".join(body + [cfg["script"]["cta"].format(sub_or_follow=verb)])
+        return " ".join(body + [sc["cta"].format(sub_or_follow=verb)])
     narration = _with_cta("follow")        # vertical -> TikTok / IG / FB / X / Threads
     narration_yt = _with_cta("subscribe")  # horizontal -> YouTube
     return hook, narration, narration_yt
@@ -203,14 +285,18 @@ def platform_text(post, cfg):
     # an interstitial/preview page for script-created links, confusing visitors; the
     # real domain is trustworthy, clean, and resolves straight to the post.
     link = post["url"]
+    store = cfg["site"].get("products_url", "")
+    store_line = f"\n🧰 AI Starter Pack (guides + templates): {store}" if store else ""
     log(f"{len(out)} matched hashtags; link {link}")
-    caption = f"{post['title']}\n\n{post['description'][:200]}\n\nFull post: {link}\n\n" + " ".join(out)
+    caption = (f"{post['title']}\n\n{post['description'][:200]}\n\n"
+               f"Full post: {link}{store_line}\n\n" + " ".join(out))
     # Instagram strips links in captions (only the bio link is clickable), so a raw URL
     # is dead text — use a "link in bio" CTA there instead.
     ig_caption = (f"{post['title']}\n\n{post['description'][:200]}\n\n"
-                  f"🔗 Full breakdown — link in bio\n\n" + " ".join(out))
+                  f"🔗 Full breakdown + AI Starter Pack — link in bio\n\n" + " ".join(out))
     yt_title = post["title"][:95]
-    yt_desc = f"{post['description']}\n\nRead more: {link}\n\n{' '.join(out)}"
+    yt_desc = (f"{post['description']}\n\nRead more: {link}{store_line}"
+               f"\n\n{' '.join(out)}")
     return {"caption": caption, "ig_caption": ig_caption, "hashtags": out, "short_url": link,
             "yt_title": yt_title, "yt_desc": yt_desc}
 
