@@ -31,16 +31,20 @@ const {
 
 let offers: CpaOffer[] = provided ?? [];
 if (!provided) {
+  // Self-fetch fallback (CPAlead only) — finalize links with the subid here so the
+  // render loop can treat every offer's link as ready-to-use.
   try {
     offers = await fetchOffers({ limit, minPayout, geos, type, sort });
   } catch (e) {
     console.warn('[CpaleadOffers] Using fallback offers:', (e as Error).message);
     offers = FALLBACK_OFFERS.slice(0, limit);
   }
+  offers = offers.map((o) => ({ ...o, link: withSubid(o.link, subid) }));
 }
 
 const deviceLabel = (d: string) =>
   d === 'all_devices' ? 'All devices' : d.charAt(0).toUpperCase() + d.slice(1);
+const networkLabel = (n?: string) => (n === 'cpagrip' ? 'CPAGrip' : 'CPAlead');
 ---
 
 <section class="cpa-section" aria-label="Featured offers">
@@ -57,7 +61,7 @@ const deviceLabel = (d: string) =>
   ) : (
     <div class="cpa-grid">
       {offers.map((o, i) => {
-        const href = withSubid(o.link, subid);
+        const href = o.link;
         const geos = o.countries.slice(0, 4).join(', ');
         return (
           <article class="cpa-card" data-reveal data-title={o.title.toLowerCase()} style={`--reveal-delay:${i * 50}ms`}>
@@ -65,6 +69,7 @@ const deviceLabel = (d: string) =>
               {o.image
                 ? <img src={o.image} alt={o.title} loading="lazy" decoding="async" width="320" height="200" />
                 : <div class="cpa-media--placeholder">{o.payout_type}</div>}
+              <span class={`cpa-net cpa-net--${o.network ?? 'cpalead'}`}>{networkLabel(o.network)}</span>
               <span class="cpa-payout">${o.amount.toFixed(2)}</span>
               {o.is_fast_pay && <span class="cpa-fast">⚡ Fast Pay</span>}
             </a>
@@ -149,6 +154,14 @@ const deviceLabel = (d: string) =>
     font-weight: 700; font-size: 0.72rem;
     padding: 0.22rem 0.5rem; border-radius: 999px;
   }
+  .cpa-net {
+    position: absolute; top: 10px; left: 10px;
+    font-weight: 700; font-size: 0.66rem; letter-spacing: 0.02em;
+    color: #fff; padding: 0.2rem 0.5rem; border-radius: 999px;
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(2px);
+  }
+  .cpa-net--cpalead { background: rgba(37, 99, 235, 0.9); }
+  .cpa-net--cpagrip { background: rgba(219, 39, 119, 0.9); }
 
   .cpa-body { display: flex; flex-direction: column; gap: 0.7rem; padding: 1rem 1.1rem 1.2rem; flex: 1; }
   .cpa-card-title { font-size: 1.02rem; font-weight: 700; line-height: 1.3; margin: 0; }

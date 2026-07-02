@@ -49,16 +49,19 @@ const { title = 'Featured Offers', limit = 4, subid = 'astroblog', seeAll = '/of
       const track = strip.querySelector('.ostrip-track');
       if (!track) continue;
       track.innerHTML = offers
-        .map(
-          (o: any) => `
+        .map((o: any) => {
+          const net = o.network === 'cpagrip' ? 'CPAGrip' : 'CPAlead';
+          const netClass = o.network === 'cpagrip' ? 'ostrip-net--cpagrip' : 'ostrip-net--cpalead';
+          return `
         <a class="ostrip-card" role="listitem" href="${esc(o.link)}" target="_blank" rel="sponsored noopener noreferrer">
           <span class="ostrip-img"${o.image ? ` style="background-image:url('${esc(o.image)}')"` : ''}>
+            <span class="ostrip-net ${netClass}">${net}</span>
             <span class="ostrip-pay">$${Number(o.amount).toFixed(2)}</span>
           </span>
           <span class="ostrip-title">${esc(o.title)}</span>
           <span class="ostrip-cta">Get Offer →</span>
-        </a>`,
-        )
+        </a>`;
+        })
         .join('');
       strip.hidden = false;
     }
@@ -103,6 +106,13 @@ const { title = 'Featured Offers', limit = 4, subid = 'astroblog', seeAll = '/of
     background: #16a34a; color: #fff; font-weight: 800; font-size: 0.8rem;
     padding: 0.2rem 0.5rem; border-radius: 999px;
   }
+  .offer-strip :global(.ostrip-net) {
+    position: absolute; top: 8px; left: 8px;
+    color: #fff; font-weight: 700; font-size: 0.6rem; letter-spacing: 0.02em;
+    padding: 0.16rem 0.42rem; border-radius: 999px; background: rgba(0,0,0,0.55);
+  }
+  .offer-strip :global(.ostrip-net--cpalead) { background: rgba(37, 99, 235, 0.9); }
+  .offer-strip :global(.ostrip-net--cpagrip) { background: rgba(219, 39, 119, 0.9); }
   .offer-strip :global(.ostrip-title) {
     font-size: 0.86rem; font-weight: 700; line-height: 1.3; color: var(--text-heading, #1a1a1a);
     padding: 0.6rem 0.7rem 0.3rem;

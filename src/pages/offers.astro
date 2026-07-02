@@ -3,7 +3,8 @@ import BaseHead from '../components/BaseHead.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import CpaleadOffers from '../components/CpaleadOffers.astro';
-import { pickOffersFor, detectDevice, countryName, countryFlag } from '../lib/cpalead';
+import { detectDevice, countryName, countryFlag } from '../lib/cpalead';
+import { getBlendedOffers } from '../lib/offers';
 
 const pageTitle = 'Free Offers & Rewards';
 const pageDescription =
@@ -13,14 +14,20 @@ const pageDescription =
 // in your postback dashboard. Change per campaign/placement if you like.
 const SUBID = 'astroblog';
 
-// Per-visitor signals: country from Cloudflare's header, device from the User-Agent.
+// Per-visitor signals: country + IP from Cloudflare, device from the User-Agent.
 const cf = (Astro.request.headers.get('cf-ipcountry') || '').toUpperCase();
 const visitorCountry =
   /^[A-Z]{2}$/.test(cf) && !['XX', 'T1', 'A1', 'A2'].includes(cf) ? cf : null;
-const device = detectDevice(Astro.request.headers.get('user-agent'));
+const ip = Astro.request.headers.get('cf-connecting-ip');
+const userAgent = Astro.request.headers.get('user-agent');
+const device = detectDevice(userAgent);
+const cpagripPubkey =
+  (Astro.locals as any)?.runtime?.env?.CPAGRIP_PUBKEY ?? import.meta.env.CPAGRIP_PUBKEY ?? null;
 
-// Shared geo+device selection (tiered, never empty).
-const { offers, matchedCountry } = await pickOffersFor({ country: visitorCountry, device, limit: 24 });
+// Blended CPAlead + CPAGrip selection (geo/device matched, ranked by value, never empty).
+const { offers, matchedCountry } = await getBlendedOffers({
+  country: visitorCountry, ip, userAgent, device, limit: 24, subid: SUBID, cpagripPubkey,
+});
 
 // Personalized per visitor → must NOT be shared by the edge cache.
 // (Upstream API JSON is still edge-cached per country inside fetchOffers.)

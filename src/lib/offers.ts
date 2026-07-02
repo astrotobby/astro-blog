@@ -1,0 +1,66 @@
+// Unified offer wall — blends CPAlead + CPAGrip into one geo/device-matched list.
+// Both networks are fetched in parallel and either can fail without breaking the wall.
+
+import { pickOffersFor, withSubid, type CpaOffer } from './cpalead';
+import { fetchCpagripOffers } from './cpagrip';
+
+export interface BlendOptions {
+  /** Visitor country (Cloudflare cf-ipcountry) — drives CPAlead's API filter. */
+  country?: string | null;
+  /** Visitor IP (CF-Connecting-IP) — forwarded to CPAGrip for geo matching. */
+  ip?: string | null;
+  /** Visitor User-Agent — device detection (CPAlead) + forwarded to CPAGrip. */
+  userAgent?: string | null;
+  /** Detected device bucket: 'ios' | 'android' | 'desktop'. */
+  device?: string | null;
+  /** Max offers returned after blending. */
+  limit?: number;
+  /** Tracking subid — appended to CPAlead links; sent as CPAGrip tracking_id. */
+  subid?: string;
+  /** CPAGrip public key (Cloudflare secret). Omit → CPAlead-only. */
+  cpagripPubkey?: string | null;
+}
+
+export interface BlendResult {
+  offers: CpaOffer[];
+  matchedCountry: string | null;
+  networks: Array<'cpalead' | 'cpagrip'>;
+}
+
+export async function getBlendedOffers(opts: BlendOptions): Promise<BlendResult> {
+  const {
+    country, ip, userAgent, device,
+    limit = 24, subid = 'astroblog', cpagripPubkey,
+  } = opts;
+
+  const [cpaRes, cgRes] = await Promise.allSettled([
+    pickOffersFor({ country, device, limit }),
+    fetchCpagripOffers({ pubkey: cpagripPubkey, ip, userAgent, subid, limit }),
+  ]);
+
+  const matchedCountry = cpaRes.status === 'fulfilled' ? cpaRes.value.matchedCountry : null;
+
+  const cpalead: CpaOffer[] =
+    cpaRes.status === 'fulfilled'
+      ? cpaRes.value.offers.map((o) => ({
+          ...o,
+          network: 'cpalead' as const,
+          link: withSubid(o.link, subid), // CPAlead needs subid appended
+        }))
+      : [];
+
+  const cpagrip: CpaOffer[] = cgRes.status === 'fulfilled' ? cgRes.value : [];
+
+  // Merge, de-dupe by title, rank by value (payout, then EPC).
+  const seen = new Set<string>();
+  const merged = [...cpalead, ...cpagrip].filter((o) => {
+    const key = o.title.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  merged.sort((a, b) => b.amount - a.amount || (b.epc ?? 0) - (a.epc ?? 0));
+
+  const networks = [...new Set(merged.map((o) => o.network ?? 'cpalead'))] as Array<'cpalead' | 'cpagrip'>;
+  return { offers: merged.slice(0, limit), matchedCountry, networks };
+}

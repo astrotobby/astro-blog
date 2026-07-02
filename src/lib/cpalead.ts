@@ -3,7 +3,7 @@
 // Publisher ID is public (it appears in every offer link anyway).
 
 export interface CpaOffer {
-  id: number;
+  id: number | string;
   title: string;
   description?: string;
   conversion?: string;
@@ -17,6 +17,10 @@ export interface CpaOffer {
   daily_cap?: number;
   link: string;
   image?: string;
+  /** Which network this offer came from (used for the card badge). */
+  network?: 'cpalead' | 'cpagrip';
+  /** Offer category, when the network provides one (CPAGrip). */
+  category?: string;
 }
 
 const PUBLISHER_ID = '2716424';
@@ -131,6 +135,7 @@ function normalize(o: any): CpaOffer {
     daily_cap: o.daily_cap,
     link: o.link,
     image: o.creatives?.og_image || o.creatives?.url || o.image,
+    network: 'cpalead',
   };
 }
 
