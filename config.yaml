@@ -134,7 +134,7 @@ platforms:
   # X stays configured (keys in GitHub secrets, code ready). It currently soft-fails
   # with 402 "no credits" because X's API requires a paid tier — it will START
   # POSTING automatically once you subscribe to a paid X plan. No code change needed.
-  direct: [x, facebook, instagram, threads, tiktok, rumble]   # tumblr removed; add "reddit" per HONEST-LIMITS.md
+  direct: [x, facebook, instagram, threads, tiktok, rumble, pinterest]   # tumblr removed; add "reddit" per HONEST-LIMITS.md
   # Rumble has NO upload API -> the poster drives the real upload page with a
   # headless browser (Playwright). Needs RUMBLE_EMAIL + RUMBLE_PASSWORD secrets and
   # 2FA OFF on that account. visibility: public | unlisted | private.
@@ -144,6 +144,13 @@ platforms:
     # Entertainment, Finance & Crypto, Gaming, Health & Science, HowTo, Music, News,
     # Podcasts, Sports, Technology, Travel, Viral, Vlogs. Blog niche = AI/tech.
     primary_category: "Technology"
+
+  # Pinterest: pins the post hero image linking back to the blog post.
+  # Needs PINTEREST_ACCESS_TOKEN + PINTEREST_BOARD_ID secrets in GitHub.
+  # Get a token: https://developers.pinterest.com/apps/ -> create app -> OAuth -> get access token
+  # Get board_id: open your board on Pinterest, the ID is in the URL (last numeric segment).
+  pinterest:
+    board_id: ""   # override with PINTEREST_BOARD_ID secret; leave blank to use only the secret
 
 tumblr:
   blog: ""                 # your blog host, e.g. "astrotobby.tumblr.com" (TUMBLR_BLOG also works)

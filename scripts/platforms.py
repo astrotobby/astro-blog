@@ -4,8 +4,8 @@ Each poster returns a dict: {"ok": bool, "url"/"error"/"skipped": ...}.
 Missing credentials -> {"ok": False, "skipped": "no creds"} so the pipeline
 soft-fails one platform without blocking the rest.
 
-AUTOMATED NOW (free, no app review): YouTube, Tumblr, Reddit, X.
-DEFERRED (need platform app review): Instagram, Facebook, LinkedIn, Pinterest
+AUTOMATED NOW (free, no app review): YouTube, Tumblr, Reddit, X, Pinterest.
+DEFERRED (need platform app review): Instagram, Facebook, LinkedIn
 — see HONEST-LIMITS.md. The workflow saves the rendered Reels as artifacts so
 you can hand-upload those until their apps are approved.
 """
@@ -746,6 +746,57 @@ def post_rumble(render, cfg, dry):
         except Exception:  # noqa
             pass
         return {"ok": False, "error": str(e)[:300]}
+
+
+# --------------------------------------------------------------------------
+# Pinterest — API v5. Creates a Pin on the specified board using the post's
+# hero image (image_url) and links back to the blog post. No app review needed
+# for personal use with your own access token (standard OAuth flow).
+# Requires: PINTEREST_ACCESS_TOKEN, PINTEREST_BOARD_ID
+# --------------------------------------------------------------------------
+def post_pinterest(render, cfg, dry):
+    if not _has("PINTEREST_ACCESS_TOKEN", "PINTEREST_BOARD_ID"):
+        return {"ok": False, "skipped": "no creds"}
+    post = render["post"]
+    image_url = post.get("image_url", "")
+    if not image_url:
+        return {"ok": False, "error": "post has no image_url; set 'image' in frontmatter"}
+    if dry:
+        return {"ok": True, "dry": True, "url": f"(dry) pin for {post['slug']}"}
+    try:
+        import requests
+        token = env("PINTEREST_ACCESS_TOKEN")
+        board_id = env("PINTEREST_BOARD_ID")
+        p = render["platform"]
+        note = p.get("caption") or post["description"]
+        # Pinterest description cap is 500 chars; strip hashtags (not allowed in desc)
+        description = " ".join(
+            w for w in note.split() if not w.startswith("#")
+        )[:500]
+        body = {
+            "link": post["url"],
+            "title": post["title"][:100],
+            "description": description,
+            "board_id": board_id,
+            "media_source": {
+                "source_type": "image_url",
+                "url": image_url,
+            },
+        }
+        r = requests.post(
+            "https://api.pinterest.com/v5/pins",
+            headers={"Authorization": f"Bearer {token}",
+                     "Content-Type": "application/json"},
+            json=body,
+            timeout=60,
+        )
+        j = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+        pin_id = j.get("id")
+        if r.status_code < 300 and pin_id:
+            return {"ok": True, "url": f"https://www.pinterest.com/pin/{pin_id}/"}
+        return {"ok": False, "error": str(j or r.text)[:300]}
+    except Exception as e:  # noqa
+        return {"ok": False, "error": str(e)}
 
 
 # registry used by crosspost.py

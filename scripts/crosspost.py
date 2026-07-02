@@ -1,7 +1,7 @@
 """Stage 4: cross-post the rendered videos via direct official APIs (no server).
 
-Automated free, no app review:  YouTube + Tumblr + Reddit + X (capped).
-Deferred (need platform app review): Instagram / Facebook / LinkedIn / Pinterest
+Automated free, no app review:  YouTube + Tumblr + Reddit + X (capped) + Pinterest.
+Deferred (need platform app review): Instagram / Facebook / LinkedIn
   -> the workflow saves the rendered Reels as artifacts for hand-upload.
 
 Keeps a content-hash dedup ledger and per-platform daily caps, both persisted
@@ -16,7 +16,7 @@ import json
 
 import platforms
 from common import (STATE, content_hash, load_config, load_ledger, log,
-                    read_json, save_ledger, write_json)
+                    normalize_title, read_json, save_ledger, write_json)
 
 COUNTS = STATE / "post_counts.json"
 
@@ -119,9 +119,14 @@ def main():
         else:
             results["reddit"] = {"ok": False, "skipped": "daily cap reached"}
 
+    # ----- Pinterest (pin the post hero image; no cap) -----
+    if "pinterest" in enabled:
+        results["pinterest"] = platforms.post_pinterest(render, cfg, args.dry_run)
+
     # ----- record in ledger -----
     if not args.dry_run:
         ledger[post["slug"]] = {"hash": chash, "ts": dt.datetime.utcnow().isoformat(),
+                                "title_key": normalize_title(post["title"]),
                                 "results": results}
         save_ledger(ledger)
 

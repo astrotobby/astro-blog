@@ -12,9 +12,21 @@ import re
 import frontmatter
 from markdown_it import MarkdownIt
 
-from common import ROOT, load_config, log, write_json
+from common import ROOT, git_added_times, load_config, log, write_json
 
 md = MarkdownIt()
+
+
+def _sort_key(files, posts_dir):
+    """Order files by real publish time (git history), not filesystem mtime —
+    actions/checkout resets mtimes to checkout time, which made 'latest'/sweep
+    ordering effectively arbitrary on a fresh CI runner."""
+    added = git_added_times(posts_dir)
+    def key(p):
+        rel = str(p.relative_to(ROOT)).replace("\\", "/")
+        ts = added.get(rel)
+        return ts if ts is not None else p.stat().st_mtime
+    return sorted(files, key=key)
 
 
 def astro_slug(stem: str) -> str:
@@ -41,7 +53,7 @@ def pick_latest(cfg) -> pathlib.Path:
     files = [p for p in posts_dir.rglob("*") if p.suffix in exts]
     if not files:
         raise SystemExit(f"no posts found in {posts_dir}")
-    return max(files, key=lambda p: p.stat().st_mtime)
+    return _sort_key(files, posts_dir)[-1]
 
 
 def parse(path: pathlib.Path, cfg) -> dict:
@@ -59,6 +71,10 @@ def parse(path: pathlib.Path, cfg) -> dict:
     url = cfg["site"]["post_url_pattern"].format(
         base=cfg["site"]["base_url"].rstrip("/"), slug=slug
     )
+    raw_image = fm.get("image") or ""
+    base = cfg["site"]["base_url"].rstrip("/")
+    image_url = (raw_image if raw_image.startswith("http")
+                 else f"{base}{raw_image}") if raw_image else ""
     return {
         "file": str(path.relative_to(ROOT)),
         "title": str(title).strip(),
@@ -67,6 +83,7 @@ def parse(path: pathlib.Path, cfg) -> dict:
         "tags": tags,
         "url": url,
         "body": body,
+        "image_url": image_url,
     }
 
 
@@ -81,7 +98,7 @@ def changed_posts(cfg, changed):
         if pathlib.Path(c).suffix in exts
         and str((ROOT / c).resolve()).startswith(str(posts_dir))
     ]
-    return sorted(cand, key=lambda p: p.stat().st_mtime)
+    return _sort_key(cand, posts_dir)
 
 
 def main():
@@ -101,8 +118,7 @@ def main():
         if args.all:
             exts = set(cfg["post_extensions"])
             pd = ROOT / cfg["posts_dir"]
-            files = sorted([p for p in pd.rglob("*") if p.suffix in exts],
-                           key=lambda p: p.stat().st_mtime)
+            files = _sort_key([p for p in pd.rglob("*") if p.suffix in exts], pd)
         elif args.changed:
             files = changed_posts(cfg, args.changed)
         else:

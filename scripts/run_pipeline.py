@@ -14,10 +14,23 @@ import re
 import subprocess
 import sys
 
-from common import PIPE, ROOT, load_config, load_ledger, log
+from common import (PIPE, ROOT, find_duplicate_title, load_config, load_ledger,
+                    log, normalize_title, save_ledger)
 
 PY = sys.executable
 S = ROOT / "scripts"
+
+# Hard cap on how many not-yet-posted articles a single run will render+post.
+# crosspost.py posts to ~10 platforms sequentially, several with multi-minute
+# worst-case waits (Threads/Instagram processing polls, Rumble browser upload) —
+# an unbounded sweep over a big backlog can blow the job's timeout-minutes. When
+# GitHub Actions hard-cancels a timed-out job, the cache save (which persists the
+# dedup ledger across runs) does NOT run, so every post that succeeded earlier in
+# that same run gets reprocessed (== reposted/duplicated) on the next trigger,
+# while posts further back in the backlog never get reached. Capping guarantees
+# each run finishes well inside the timeout and hands off a shrinking backlog to
+# the next trigger instead of risking losing a whole run's progress.
+MAX_POSTS_PER_RUN = 6
 
 
 def step(args):
@@ -56,6 +69,7 @@ def prime_ledger():
             continue
         led[post["slug"]] = {
             "hash": content_hash(post["slug"], post["title"], post["description"]),
+            "title_key": normalize_title(post["title"]),
             "ts": dt.datetime.utcnow().isoformat(), "primed": True,
         }
         n += 1
@@ -84,6 +98,53 @@ def sweep_posts():
     new = [p for p in allp if _astro_slug(pathlib.Path(p).stem) not in led]
     log(f"sweep: {len(allp)} live posts, {len(new)} not yet posted")
     return new
+
+
+def _prepare_run(posts, force):
+    """Two safety nets applied to the candidate post list, in order:
+
+    1) Title-dedup: the autoblog content pipeline has twice republished the same
+       story under a brand-new filename/slug (see git history: c578994, 6b13849).
+       Since the ledger keys on slug, those looked "new" and got a second video +
+       cross-post. Catch that here by fuzzy-matching against every already-posted
+       title, BEFORE spending time rendering. Matches are recorded in the ledger
+       under their own slug (so they're not retried every run) but never posted.
+    2) Per-run cap (MAX_POSTS_PER_RUN): guarantees this run can't blow the job
+       timeout and lose a whole run's ledger writes (see MAX_POSTS_PER_RUN docstring).
+       Posts are already oldest-first, so this always makes forward progress and
+       hands the rest to the next trigger.
+    """
+    import datetime as dt
+    import pathlib
+
+    from fetch_post import parse
+    if force:
+        return posts[:MAX_POSTS_PER_RUN]
+    cfg = load_config()
+    led = load_ledger()
+    keep = []
+    for pf in posts:
+        try:
+            title = parse(pathlib.Path(pf), cfg)["title"]
+        except Exception as e:  # noqa
+            log(f"dedup-check: could not parse {pf} ({e}); keeping it in the run")
+            keep.append(pf)
+            continue
+        dup_of = find_duplicate_title(title, led)
+        if dup_of:
+            slug = _astro_slug(pathlib.Path(pf).stem)
+            log(f"skip '{pf}': title matches already-posted '{dup_of}' "
+                f"(likely a republish of the same story) -> not rendering/posting")
+            led[slug] = {"title_key": normalize_title(title),
+                        "ts": dt.datetime.utcnow().isoformat(),
+                        "skipped_duplicate_of": dup_of}
+        else:
+            keep.append(pf)
+    save_ledger(led)
+    if len(keep) > MAX_POSTS_PER_RUN:
+        log(f"{len(keep)} posts are due; processing the oldest {MAX_POSTS_PER_RUN} this "
+            f"run, {len(keep) - MAX_POSTS_PER_RUN} will roll to the next trigger")
+    return keep[:MAX_POSTS_PER_RUN]
 
 
 def process_one(post_file, dry, force=False):
@@ -125,6 +186,11 @@ def main():
         posts = list_posts(args.changed if args.changed else None)
     if not posts:
         log("no new posts to process — exiting cleanly")
+        return
+
+    posts = _prepare_run(posts, args.force)
+    if not posts:
+        log("nothing left to process after dedup — exiting cleanly")
         return
 
     log(f"{len(posts)} post(s) went live this run")

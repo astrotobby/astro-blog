@@ -41,7 +41,7 @@ concurrency:
 jobs:
   render-and-post:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
@@ -75,8 +75,15 @@ jobs:
 
       # Persist dedup ledger + per-platform daily caps across runs.
       # restore-keys pulls the most recent prior state; a unique key saves a new one.
+      # Split into explicit restore/save (rather than the combined actions/cache@v4)
+      # so the save is its own step we control with if: always() — the combined
+      # action only saves via a post-job hook, which does not run if this job is
+      # hard-cancelled by timeout-minutes, silently losing every ledger update made
+      # earlier in that same run (-> those posts look "unposted" again next run and
+      # get reprocessed/reposted). An explicit always()-guarded save step is the
+      # documented mitigation for that failure mode.
       - name: Restore pipeline state
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: .pipeline/state
           key: blog2video-state-${{ github.run_id }}
@@ -168,6 +175,18 @@ jobs:
           else
             python scripts/run_pipeline.py --latest $FORCE
           fi
+
+      # if: always() so this still runs (and the ledger is still persisted) even
+      # if the pipeline step above failed or a post errored out — the only case
+      # it can't run is a hard timeout-cancellation of the whole job, which the
+      # per-run post cap (MAX_POSTS_PER_RUN in run_pipeline.py) + the 60-minute
+      # budget above are sized to avoid in normal operation.
+      - name: Save pipeline state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .pipeline/state
+          key: blog2video-state-${{ github.run_id }}
 
       - name: Upload rendered videos as artifacts
         if: always()
