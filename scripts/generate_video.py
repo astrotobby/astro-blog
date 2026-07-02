@@ -196,6 +196,33 @@ def _picsum_image(seed, w, h):
     return None
 
 
+def _fetch_scene(i, prompt, w, h, token, slug, title, base_seed):
+    """One scene through the tiered source chain (see fetch_images)."""
+    dst = OUT / f"scene_{i:02d}.jpg"
+    # topical keyword query for the photo-search fallback (title + this scene's theme)
+    m = re.search(r"theme:\s*([^,]+)", prompt)
+    focus = m.group(1).strip() if m else ""
+    query = (f"{title} {focus}".strip() or title or "technology news")
+
+    # Rotate style per scene so visuals are visually varied across the video.
+    style = _STYLES[(base_seed + i) % len(_STYLES)]
+    styled_prompt = f"{prompt}, {style}"
+    content, src = _pollinations_image(styled_prompt, w, h, base_seed + i), "pollinations-AI"
+    if not content:
+        content, src = _hf_image(styled_prompt, token), "HF-AI"
+    if not content:
+        content, src = _openverse_image(query, w, h), "openverse"
+    if not content:
+        content, src = _picsum_image(f"{slug}-{i}", w, h), "picsum(random)"
+    if content:
+        dst.write_bytes(content)
+    if not _valid_image(dst):
+        _fallback_image(dst, w, h, i)
+        src = "gradient"
+    log(f"scene {i} -> {dst.name} ({src}) [q: {query[:48]}]")
+    return dst
+
+
 def fetch_images(script, cfg):
     """Tiered, all-free image source — TOPICAL first so visuals match the article:
       1) Pollinations  -> free AI image generated from the scene prompt (on-topic)
@@ -203,6 +230,10 @@ def fetch_images(script, cfg):
       3) Openverse     -> free keyword photo search (real photos matching the title)
       4) Lorem Picsum  -> reliable but RANDOM photo (only if all topical sources fail)
       5) gradient      -> last resort so ffmpeg always has valid input
+    Scenes are fetched with a small thread pool: Pollinations takes ~45s per image,
+    and sequential fetches were the single biggest time sink in the render (~7 min
+    of a ~17-min post). 3 workers keeps the request rate polite while cutting the
+    image stage to ~2 min.
     """
     vz = cfg["visuals"]
     w, h = vz["width"], vz["height"]
@@ -210,32 +241,11 @@ def fetch_images(script, cfg):
     slug = script["post"]["slug"]
     title = (script["post"].get("title") or "").strip()
     base_seed = abs(hash(slug)) % 100000
-    paths = []
-    for i, prompt in enumerate(script["scene_prompts"]):
-        dst = OUT / f"scene_{i:02d}.jpg"
-        # topical keyword query for the photo-search fallback (title + this scene's theme)
-        m = re.search(r"theme:\s*([^,]+)", prompt)
-        focus = m.group(1).strip() if m else ""
-        query = (f"{title} {focus}".strip() or title or "technology news")
-
-        # Rotate style per scene so visuals are visually varied across the video.
-        style = _STYLES[(base_seed + i) % len(_STYLES)]
-        styled_prompt = f"{prompt}, {style}"
-        content, src = _pollinations_image(styled_prompt, w, h, base_seed + i), "pollinations-AI"
-        if not content:
-            content, src = _hf_image(styled_prompt, token), "HF-AI"
-        if not content:
-            content, src = _openverse_image(query, w, h), "openverse"
-        if not content:
-            content, src = _picsum_image(f"{slug}-{i}", w, h), "picsum(random)"
-        if content:
-            dst.write_bytes(content)
-        if not _valid_image(dst):
-            _fallback_image(dst, w, h, i)
-            src = "gradient"
-        log(f"scene {i} -> {dst.name} ({src}) [q: {query[:48]}]")
-        paths.append(dst)
-    return paths
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        futs = [ex.submit(_fetch_scene, i, p, w, h, token, slug, title, base_seed)
+                for i, p in enumerate(script["scene_prompts"])]
+        return [f.result() for f in futs]
 
 
 # ---------- 3. captions ----------

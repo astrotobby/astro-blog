@@ -30,7 +30,9 @@ S = ROOT / "scripts"
 # while posts further back in the backlog never get reached. Capping guarantees
 # each run finishes well inside the timeout and hands off a shrinking backlog to
 # the next trigger instead of risking losing a whole run's progress.
-MAX_POSTS_PER_RUN = 6
+# Measured 2026-07-02: one post = ~17 min sequential (~14 with threaded image
+# fetch), so 3 posts + setup fits the 60-min budget with margin; 6 did not.
+MAX_POSTS_PER_RUN = 3
 
 
 def step(args):
