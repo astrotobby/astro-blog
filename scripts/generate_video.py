@@ -523,7 +523,7 @@ def _overlay_cards(cfg, size, hook_text, total_dur, tag):
     if vc.get("hook_card") and hook_text:
         hk = OUT / f"_hook_{tag}.txt"
         hk.write_text(_wrap(hook_text.upper(), 20 if w < 1500 else 34),
-                      encoding="utf-8")
+                      encoding="utf-8", newline="\n")
         fs = int(w / 13) if w < 1500 else int(w / 22)
         chain.append(
             f"drawtext=textfile={hk.name}:fontfile={font}:fontsize={fs}:"
@@ -540,7 +540,7 @@ def _overlay_cards(cfg, size, hook_text, total_dur, tag):
         layout = [(0.38, 17, "white"), (0.47, 12, "white"), (0.57, 22, "0xFFD166")]
         for i, line in enumerate(lines[:3]):
             lf = OUT / f"_end_{tag}_{i}.txt"
-            lf.write_text(str(line), encoding="utf-8")
+            lf.write_text(str(line), encoding="utf-8", newline="\n")
             frac, div, col = layout[i]
             fs = int(w / div) if w < 1500 else int(w / (div * 1.7))
             chain.append(
