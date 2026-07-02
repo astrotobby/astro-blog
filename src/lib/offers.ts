@@ -19,6 +19,9 @@ export interface BlendOptions {
   subid?: string;
   /** CPAGrip public key (Cloudflare secret). Omit → CPAlead-only. */
   cpagripPubkey?: string | null;
+  /** Guarantee up to this many CPAGrip offers in the visible set (if available), even
+   *  when value-ranking would bury them. Keeps both networks visible. Default 3. */
+  reserveCpagrip?: number;
 }
 
 export interface BlendResult {
@@ -31,6 +34,7 @@ export async function getBlendedOffers(opts: BlendOptions): Promise<BlendResult>
   const {
     country, ip, userAgent, device,
     limit = 24, subid = 'astroblog', cpagripPubkey,
+    reserveCpagrip = 3,
   } = opts;
 
   const [cpaRes, cgRes] = await Promise.allSettled([
@@ -52,15 +56,36 @@ export async function getBlendedOffers(opts: BlendOptions): Promise<BlendResult>
   const cpagrip: CpaOffer[] = cgRes.status === 'fulfilled' ? cgRes.value : [];
 
   // Merge, de-dupe by title, rank by value (payout, then EPC).
+  const byValue = (a: CpaOffer, b: CpaOffer) => b.amount - a.amount || (b.epc ?? 0) - (a.epc ?? 0);
+
+  // De-dupe by title, keep highest-value instance.
   const seen = new Set<string>();
-  const merged = [...cpalead, ...cpagrip].filter((o) => {
+  const merged = [...cpalead, ...cpagrip].sort(byValue).filter((o) => {
     const key = o.title.trim().toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
-  merged.sort((a, b) => b.amount - a.amount || (b.epc ?? 0) - (a.epc ?? 0));
 
-  const networks = [...new Set(merged.map((o) => o.network ?? 'cpalead'))] as Array<'cpalead' | 'cpagrip'>;
-  return { offers: merged.slice(0, limit), matchedCountry, networks };
+  // Value-ranked top N.
+  let visible = merged.slice(0, limit);
+
+  // Guarantee CPAGrip visibility: if fewer than `reserveCpagrip` CPAGrip offers made the
+  // natural top, swap out the lowest-value CPAlead offers to make room for the best CPAGrip ones.
+  const want = Math.min(reserveCpagrip, cpagrip.length);
+  const have = visible.filter((o) => o.network === 'cpagrip').length;
+  if (want > have) {
+    const inVisible = new Set(visible);
+    const extraCg = merged
+      .filter((o) => o.network === 'cpagrip' && !inVisible.has(o))
+      .slice(0, want - have);
+    let need = extraCg.length;
+    for (let i = visible.length - 1; i >= 0 && need > 0; i--) {
+      if (visible[i].network === 'cpalead') { visible.splice(i, 1); need--; }
+    }
+    visible = [...visible, ...extraCg].sort(byValue);
+  }
+
+  const networks = [...new Set(visible.map((o) => o.network ?? 'cpalead'))] as Array<'cpalead' | 'cpagrip'>;
+  return { offers: visible, matchedCountry, networks };
 }
