@@ -16,7 +16,7 @@ import FAQSchema from '../components/FAQSchema.astro';
 import { displayImage, svgFallback } from '../lib/postImage';
 import { shouldNoindex } from '../lib/noindex';
 
-type Props = CollectionEntry<'blog'>['data'] & { slug?: string; body?: string };
+type Props = CollectionEntry<'blog'>['data'] & { slug?: string; body?: string; hideHero?: boolean };
 
 const {
   title,
@@ -28,6 +28,7 @@ const {
   slug = '',
   author = 'Astro Tobby',
   body = '',
+  hideHero = false,
 } = Astro.props;
 
 const heroImage = displayImage(title, image);
@@ -55,7 +56,7 @@ const noindex = shouldNoindex(slug);
       <article>
         <div class="hero-image">
           <a href="/blog">&larr; Back to archive</a>
-          {heroImage && (
+          {heroImage && !hideHero && (
             <img
               src={heroImage}
               alt={title}
