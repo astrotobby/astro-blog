@@ -1,9 +1,9 @@
 ---
 date: 2026-07-06
-description: Explore the latest advancements in agentic AI with Anthropic's Claude Sonnet 5 and the redeployment of Fable 5, reshaping automation and intelligent systems in July 2026.
+description: "Explore the latest advancements in agentic AI with Anthropic's Claude Sonnet 5 and the redeployment of Fable 5, reshaping automation and intelligent systems in July 2026."
 image: /claude-sonnet-fable-5.jpg
 pubDate: 2026-07-06
-title: The New Era of Agentic AI: Claude Sonnet 5 and Fable 5 Redefine Automation
+title: "The New Era of Agentic AI: Claude Sonnet 5 and Fable 5 Redefine Automation"
 tags: ["ai", "agentic ai", "claude", "anthropic", "automation", "llm"]
 ---
 
