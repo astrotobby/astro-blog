@@ -68,8 +68,17 @@ def post_youtube(render, cfg, dry):
         return out
     yt = _yt_client()
     try:
-        out["youtube"] = {"ok": True, "url": _yt_upload(
-            yt, main_video, p["yt_title"], p["yt_desc"], p["hashtags"], cfg)}
+        _url = _yt_upload(
+            yt, main_video, p["yt_title"], p["yt_desc"], p["hashtags"], cfg)
+        out["youtube"] = {"ok": True, "url": _url}
+        try:
+            from thumbnail import set_thumbnail_for
+            _vid = _url.rstrip("/").split("/")[-1]
+            out["youtube"]["thumbnail"] = set_thumbnail_for(yt, _vid, p["yt_title"])
+            log("youtube thumbnail set for " + _vid)
+        except Exception as _te:  # noqa  (never let a thumbnail error break the upload)
+            log("youtube thumbnail failed: " + str(_te)[:200])
+            out["youtube"]["thumbnail"] = {"ok": False, "error": str(_te)[:200]}
     except Exception as e:  # noqa
         out["youtube"] = {"ok": False, "error": str(e)}
     if cfg["platforms"]["youtube"].get("also_short") and render["videos"].get("vertical"):
