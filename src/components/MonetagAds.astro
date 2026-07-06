@@ -1,0 +1,19 @@
+---
+// Monetag loaders — injects each configured zone script on every page.
+// These are auto-display formats (vignette, in-page push); Monetag decides
+// when to show them. Managed from MONETAG_ZONES in consts.ts.
+import { MONETAG_ZONES } from '../consts';
+---
+{MONETAG_ZONES.map((z) => (
+  <script is:inline define:vars={{ zone: z.zone, src: z.src }}>
+    (function (s) {
+      s.dataset.zone = zone;
+      s.src = src;
+    })(
+      [document.documentElement, document.body]
+        .filter(Boolean)
+        .pop()
+        .appendChild(document.createElement('script')),
+    );
+  </script>
+))}

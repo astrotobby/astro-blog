@@ -9,47 +9,49 @@
 
 /* ─── Design Tokens ──────────────────────────────────────────────────────── */
 :root {
-  /* Surfaces (60%) */
-  --bg-primary:       #F6F7FB;
+  /* Surfaces (60%) — Rambler near-white cyan */
+  --bg-primary:       #F0FDFF;
   --bg-secondary:     #FFFFFF;
   --bg-elevated:      #FFFFFF;
 
-  /* Text (30%) */
-  --text-heading:     #0F1222;
-  --text-body:        #2D3748;
-  --text-muted:       #6B7280;
+  /* Text (30%) — Rambler ink */
+  --text-heading:     #15161A;
+  --text-body:        #47474A;
+  --text-muted:       #76767A;
 
-  /* Brand accent (10%) — indigo identity preserved */
-  --accent:           #4F46E5;
-  --accent-hover:     #4338CA;
-  --accent-soft:      rgba(79, 70, 229, 0.08);
+  /* Brand accent (10%) — Rambler teal-green */
+  --accent:           #00C89A;
+  --accent-hover:     #00A67F;
+  --accent-soft:      rgba(0, 200, 154, 0.10);
 
-  /* Brand gradient stops (indigo → violet → fuchsia / cyan) */
-  --grad-1:           #6366F1;
-  --grad-2:           #8B5CF6;
-  --grad-3:           #EC4899;
+  /* Brand gradient stops — teal identity + warm top-bar hint */
+  --grad-1:           #00C89A;
+  --grad-2:           #12B6C9;
+  --grad-3:           #FF7EB3;
   --grad-4:           #06B6D4;
-  --brand-gradient:   linear-gradient(135deg, var(--grad-1) 0%, var(--grad-2) 50%, var(--grad-3) 100%);
+  --brand-gradient:   linear-gradient(135deg, var(--grad-1) 0%, var(--grad-2) 100%);
   --brand-gradient-cool: linear-gradient(135deg, var(--grad-1) 0%, var(--grad-4) 100%);
+  /* Warm hairline that runs across the very top of the page (Rambler signature) */
+  --top-hairline:     linear-gradient(90deg, #ffd9c0 0%, #ffc0d6 50%, #d9c0ff 100%);
 
-  /* Glass system */
-  --glass-bg:         rgba(255, 255, 255, 0.55);
-  --glass-bg-strong:  rgba(255, 255, 255, 0.72);
-  --glass-border:     rgba(255, 255, 255, 0.65);
-  --glass-blur:       18px;
+  /* Card surfaces — flat white magazine cards (kept var names for compatibility) */
+  --glass-bg:         #FFFFFF;
+  --glass-bg-strong:  #FFFFFF;
+  --glass-border:     rgba(15, 22, 26, 0.08);
+  --glass-blur:       0px;
 
-  /* Borders & shadows */
-  --border-light:     rgba(15, 18, 34, 0.07);
-  --box-shadow:       0 4px 6px -1px rgba(15, 18, 34, 0.05), 0 2px 4px -2px rgba(15, 18, 34, 0.05);
-  --shadow-glass:     0 8px 32px -8px rgba(31, 38, 90, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  --shadow-lift:      0 24px 48px -12px rgba(31, 38, 90, 0.22);
-  --shadow-glow:      0 0 0 1px rgba(99, 102, 241, 0.25), 0 16px 40px -12px rgba(99, 102, 241, 0.45);
+  /* Borders & shadows — soft, understated (Rambler) */
+  --border-light:     rgba(15, 22, 26, 0.08);
+  --box-shadow:       0 1px 2px rgba(15, 22, 26, 0.06), 0 6px 18px -12px rgba(15, 22, 26, 0.18);
+  --shadow-glass:     0 1px 2px rgba(15, 22, 26, 0.05), 0 10px 30px -18px rgba(15, 22, 26, 0.22);
+  --shadow-lift:      0 14px 40px -16px rgba(15, 22, 26, 0.28);
+  --shadow-glow:      0 0 0 1px rgba(0, 200, 154, 0.30), 0 14px 34px -14px rgba(0, 200, 154, 0.35);
 
-  /* Radii */
-  --radius-sm: 10px;
-  --radius:    16px;
-  --radius-lg: 24px;
-  --radius-xl: 32px;
+  /* Radii — tighter, editorial */
+  --radius-sm: 6px;
+  --radius:    10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
   /* Motion */
   --ease-out:   cubic-bezier(0.22, 1, 0.36, 1);
@@ -58,7 +60,8 @@
   --dur:        320ms;
   --dur-slow:   520ms;
 
-  --maxw: 1120px;
+  --maxw: 1240px;
+  --sidebar-w: 320px;
 }
 
 /* ─── Reset & Base ───────────────────────────────────────────────────────── */
@@ -70,13 +73,13 @@ html {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
   margin: 0;
   padding: 0;
   background: var(--bg-primary);
   color: var(--text-body);
-  font-size: 18px;
-  line-height: 1.8;
+  font-size: 17px;
+  line-height: 1.75;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -85,77 +88,37 @@ body {
   overflow-x: hidden;
 }
 
-/* ─── Aurora Canvas ──────────────────────────────────────────────────────────
-   Fixed, soft, drifting colour fields that the frosted glass refracts.        */
+/* ─── Flat background (Rambler) ───────────────────────────────────────────────
+   The old aurora fields are retired for a clean, high-legibility magazine look.
+   The injected .aurora-bg element is repurposed as the warm top hairline.       */
 body::before,
-body::after {
-  content: '';
-  position: fixed;
-  z-index: -2;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.55;
-  pointer-events: none;
-  will-change: transform;
-}
-body::before {
-  width: 60vw; height: 60vw;
-  top: -22vw; left: -14vw;
-  background: radial-gradient(circle at 30% 30%, var(--grad-1), transparent 62%);
-  animation: aurora-a 22s ease-in-out infinite alternate;
-}
-body::after {
-  width: 55vw; height: 55vw;
-  top: 8vh; right: -18vw; left: auto;
-  background: radial-gradient(circle at 70% 30%, var(--grad-3), transparent 60%);
-  animation: aurora-b 26s ease-in-out infinite alternate;
-}
-/* A third tinted field + faint grid lives on a fixed backdrop element */
+body::after { content: none; }
+
 .aurora-bg {
   position: fixed;
-  inset: 0;
-  z-index: -3;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  z-index: 200;
   pointer-events: none;
-  background:
-    radial-gradient(40vw 40vw at 50% 110%, rgba(6, 182, 212, 0.18), transparent 60%),
-    radial-gradient(46vw 46vw at 85% 80%, rgba(139, 92, 246, 0.16), transparent 60%);
-}
-.aurora-bg::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(15, 18, 34, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 18, 34, 0.035) 1px, transparent 1px);
-  background-size: 64px 64px;
-  -webkit-mask-image: radial-gradient(circle at 50% 0%, #000 0%, transparent 70%);
-  mask-image: radial-gradient(circle at 50% 0%, #000 0%, transparent 70%);
-}
-
-@keyframes aurora-a {
-  0%   { transform: translate3d(0, 0, 0) scale(1); }
-  100% { transform: translate3d(6vw, 5vh, 0) scale(1.15); }
-}
-@keyframes aurora-b {
-  0%   { transform: translate3d(0, 0, 0) scale(1.05); }
-  100% { transform: translate3d(-5vw, 4vh, 0) scale(0.92); }
+  background: var(--top-hairline);
 }
 
 /* ─── Typography ─────────────────────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
+  font-family: 'Roboto Condensed', 'Roboto', Arial, sans-serif;
   color: var(--text-heading);
   font-weight: 700;
-  line-height: 1.2;
-  margin: 2.5rem 0 1.25rem;
-  letter-spacing: -0.02em;
+  line-height: 1.18;
+  margin: 2.25rem 0 1.1rem;
+  letter-spacing: -0.005em;
 }
 h1 {
-  font-size: 2.5rem;
+  font-size: 2.35rem;
   margin-top: 0;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.01em;
 }
-h2 { font-size: 2rem; }
-h3 { font-size: 1.5rem; }
+h2 { font-size: 1.8rem; }
+h3 { font-size: 1.4rem; }
 
 p { margin-bottom: 1.5rem; }
 
@@ -286,7 +249,7 @@ main {
 .btn:focus-visible,
 a:focus-visible,
 button:focus-visible {
-  outline: 3px solid rgba(99, 102, 241, 0.55);
+  outline: 3px solid rgba(0, 200, 154, 0.55);
   outline-offset: 2px;
 }
 
@@ -302,12 +265,12 @@ button:focus-visible {
   letter-spacing: 0.02em;
   color: var(--accent);
   background: var(--accent-soft);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(0, 200, 154, 0.22);
 }
 .badge .dot {
   width: 7px; height: 7px; border-radius: 50%;
-  background: var(--grad-3);
-  box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.18);
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(0, 200, 154, 0.18);
 }
 
 /* ─── Scroll reveal ──────────────────────────────────────────────────────── */
@@ -415,3 +378,165 @@ textarea, input { font-size: 16px; }
 @media (min-width: 1200px) {
   main { max-width: var(--maxw); }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RAMBLER MAGAZINE LAYOUT — 2-column content + sidebar, editorial cards
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Content + sidebar grid (used by homepage and post pages) */
+.rd-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--sidebar-w);
+  gap: 2.5rem;
+  align-items: start;
+}
+.rd-main { min-width: 0; }
+.rd-aside { position: sticky; top: 96px; }
+
+@media (max-width: 980px) {
+  .rd-layout { grid-template-columns: 1fr; }
+  .rd-aside { position: static; }
+}
+
+/* Breadcrumb */
+.rd-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 1.1rem;
+}
+.rd-crumbs a { color: var(--accent); font-weight: 600; }
+.rd-crumbs a:hover { color: var(--accent-hover); }
+.rd-crumbs .sep { opacity: 0.5; }
+
+/* Post meta row (avatar · author · date · comments) */
+.rd-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 0.9rem;
+  margin: 0.5rem 0 1.4rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.rd-meta .rd-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  object-fit: cover; display: block;
+  border: 2px solid var(--accent);
+  padding: 1px; background: #fff;
+}
+.rd-meta .rd-author { color: var(--accent); font-weight: 600; }
+.rd-meta .rd-dot { opacity: 0.45; }
+.rd-meta .rd-chip {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+}
+
+/* Section heading with the Rambler left-accent underline */
+.rd-heading {
+  position: relative;
+  font-family: 'Roboto Condensed', 'Roboto', Arial, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-heading);
+  margin: 0 0 1.25rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--border-light);
+}
+.rd-heading::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: -1px;
+  width: 56px; height: 3px;
+  background: var(--accent);
+  border-radius: 3px;
+}
+
+/* ── Sidebar widgets ── */
+.rd-widget { margin-bottom: 2.25rem; }
+.rd-widget-title {
+  font-family: 'Roboto Condensed', 'Roboto', Arial, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-heading);
+  margin: 0 0 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid var(--border-light);
+  position: relative;
+}
+.rd-widget-title::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: -2px;
+  width: 48px; height: 2px;
+  background: var(--accent);
+}
+
+/* Follow Us buttons */
+.rd-follow { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+.rd-follow a {
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.7rem 0.6rem;
+  border-radius: var(--radius-sm);
+  color: #fff; font-weight: 600; font-size: 0.9rem;
+  transition: transform var(--dur-fast) var(--ease-out), filter var(--dur-fast) var(--ease-out);
+}
+.rd-follow a:hover { color: #fff; transform: translateY(-2px); filter: brightness(1.05); }
+.rd-follow .yt { background: #FF0000; }
+.rd-follow .ig { background: linear-gradient(45deg, #F58529, #DD2A7B 55%, #8134AF 90%); }
+.rd-follow .x  { background: #15161A; }
+.rd-follow .full { grid-column: 1 / -1; }
+
+/* Popular posts list */
+.rd-poplist { display: flex; flex-direction: column; gap: 1rem; }
+.rd-pop {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 0.85rem;
+  align-items: center;
+  text-decoration: none;
+}
+.rd-pop-thumb {
+  width: 84px; height: 62px; border-radius: var(--radius-sm);
+  overflow: hidden; background: var(--bg-secondary);
+}
+.rd-pop-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--dur) var(--ease-out); }
+.rd-pop:hover .rd-pop-thumb img { transform: scale(1.06); }
+.rd-pop-title {
+  font-family: 'Roboto Condensed', 'Roboto', Arial, sans-serif;
+  font-size: 0.98rem; font-weight: 600; line-height: 1.3;
+  color: var(--text-heading);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.rd-pop:hover .rd-pop-title { color: var(--accent); }
+.rd-pop-date { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+/* Responsive YouTube / video embed (also usable inside post markdown) */
+.rd-video, .video-embed {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+  box-shadow: var(--box-shadow);
+}
+.rd-video iframe, .video-embed iframe {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; border: 0;
+}
+.rd-video-fallback {
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: 1.25rem;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius);
+  color: #fff; text-decoration: none; font-weight: 600;
+  background: linear-gradient(135deg, #15161A, #2a2a30);
+}
+.rd-video-fallback:hover { color: #fff; }
+.rd-video-cap { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.6rem; }

@@ -1,0 +1,81 @@
+---
+// Rambler-style sidebar: Follow Us · Latest Video · Popular Posts.
+// Self-contained — pulls its own post list so any page can drop it in.
+import { getCollection } from 'astro:content';
+import FormattedDate from './FormattedDate.astro';
+import YouTubeLatest from './YouTubeLatest.astro';
+import { displayImage, svgFallback } from '../lib/postImage';
+import { YOUTUBE_URL, INSTAGRAM_URL } from '../consts';
+
+interface Props {
+  /** Post id to exclude from Popular Posts (e.g. the article currently open). */
+  currentId?: string;
+  limit?: number;
+}
+const { currentId = '', limit = 5 } = Astro.props;
+
+const orderKey = (p: any) => {
+  const id = p.id || '';
+  const ms = id.match(/-(\d{13})$/);
+  if (ms) return Number(ms[1]);
+  const d = id.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (d) return Date.parse(`${d[1]}-${d[2]}-${d[3]}T00:00:00Z`);
+  return p.data.pubDate ? p.data.pubDate.valueOf() : 0;
+};
+
+const popular = (await getCollection('blog'))
+  .filter((p) => p.id !== currentId)
+  .sort((a, b) => orderKey(b) - orderKey(a))
+  .slice(0, limit);
+---
+<aside class="rd-aside">
+  <!-- Follow Us -->
+  <div class="rd-widget">
+    <h2 class="rd-widget-title">Follow Us</h2>
+    <div class="rd-follow">
+      <a class="yt" href={YOUTUBE_URL} target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        YouTube
+      </a>
+      <a class="ig" href={INSTAGRAM_URL} target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+        Instagram
+      </a>
+    </div>
+  </div>
+
+  <!-- Latest Video -->
+  <div class="rd-widget">
+    <h2 class="rd-widget-title">Latest Video</h2>
+    <YouTubeLatest />
+  </div>
+
+  <!-- Popular Posts -->
+  {popular.length > 0 && (
+    <div class="rd-widget">
+      <h2 class="rd-widget-title">Popular Posts</h2>
+      <div class="rd-poplist">
+        {popular.map((post) => (
+          <a class="rd-pop" href={`/blog/${post.id}/`}>
+            <span class="rd-pop-thumb">
+              <img
+                src={displayImage(post.data.title, post.data.image)}
+                data-fb={svgFallback(post.data.title)}
+                alt={post.data.title}
+                width="168"
+                height="124"
+                loading="lazy"
+                decoding="async"
+                onerror="this.onerror=null;this.src=this.dataset.fb;"
+              />
+            </span>
+            <span>
+              <span class="rd-pop-title">{post.data.title}</span>
+              <span class="rd-pop-date"><FormattedDate date={post.data.pubDate} /></span>
+            </span>
+          </a>
+        ))}
+      </div>
+    </div>
+  )}
+</aside>

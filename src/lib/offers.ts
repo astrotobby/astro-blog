@@ -3,6 +3,7 @@
 
 import { pickOffersFor, withSubid, type CpaOffer } from './cpalead';
 import { fetchCpagripOffers } from './cpagrip';
+import { ENABLE_CPALEAD, ENABLE_CPAGRIP } from '../consts';
 
 export interface BlendOptions {
   /** Visitor country (Cloudflare cf-ipcountry) — drives CPAlead's API filter. */
@@ -37,9 +38,18 @@ export async function getBlendedOffers(opts: BlendOptions): Promise<BlendResult>
     reserveCpagrip = 3,
   } = opts;
 
+  // Each network sits behind a feature flag — when disabled it is never fetched or shown.
+  // (OfferStrip removes itself client-side when the API returns no offers, so turning
+  // both off makes every offer strip disappear site-wide.)
+  const wantCpagrip = ENABLE_CPAGRIP && !!cpagripPubkey;
+
   const [cpaRes, cgRes] = await Promise.allSettled([
-    pickOffersFor({ country, device, limit }),
-    fetchCpagripOffers({ pubkey: cpagripPubkey, ip, userAgent, subid, limit }),
+    ENABLE_CPALEAD
+      ? pickOffersFor({ country, device, limit })
+      : Promise.resolve({ offers: [], matchedCountry: null } as Awaited<ReturnType<typeof pickOffersFor>>),
+    wantCpagrip
+      ? fetchCpagripOffers({ pubkey: cpagripPubkey, ip, userAgent, subid, limit })
+      : Promise.resolve([] as CpaOffer[]),
   ]);
 
   const matchedCountry = cpaRes.status === 'fulfilled' ? cpaRes.value.matchedCountry : null;

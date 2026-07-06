@@ -1,0 +1,31 @@
+---
+// Embeds the channel's latest video (resolved at build time). Falls back to a
+// "watch on YouTube" card if the feed can't be reached during the build.
+import { getLatestVideo } from '../lib/youtube';
+import { YOUTUBE_URL } from '../consts';
+
+interface Props {
+  /** Optional caption under the player (e.g. the video title). Auto-filled from the feed. */
+  showTitle?: boolean;
+}
+const { showTitle = true } = Astro.props;
+
+const latest = await getLatestVideo();
+---
+{latest ? (
+  <div class="rd-video">
+    <iframe
+      src={`https://www.youtube-nocookie.com/embed/${latest.id}?rel=0`}
+      title={latest.title || 'Latest video'}
+      loading="lazy"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowfullscreen
+    ></iframe>
+  </div>
+) : (
+  <a class="rd-video-fallback" href={YOUTUBE_URL} target="_blank" rel="noopener">
+    ▶ Watch the latest video on YouTube
+  </a>
+)}
+{showTitle && latest && latest.title && <p class="rd-video-cap">{latest.title}</p>}

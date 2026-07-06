@@ -6,7 +6,7 @@ import { SITE_TITLE } from '../consts';
   <nav>
     <div class="nav-inner">
       <a href="/" class="site-brand" aria-label={SITE_TITLE}>
-        <img class="brand-mark" src="/astrosignal-logo.png" alt="AstroSignal" width="40" height="40" decoding="async" />
+        <img class="brand-mark" src="/astrosignal-logo.png" alt="AstroSignal" width="48" height="48" decoding="async" />
         <span class="brand-text">{SITE_TITLE}</span>
       </a>
 
@@ -18,8 +18,12 @@ import { SITE_TITLE } from '../consts';
         <HeaderLink href="/">Home</HeaderLink>
         <HeaderLink href="/blog">Blog</HeaderLink>
         <HeaderLink href="/products">Store</HeaderLink>
+        <HeaderLink href="/topics">Topics</HeaderLink>
         <HeaderLink href="/about">About</HeaderLink>
         <HeaderLink href="/contact">Contact</HeaderLink>
+        <a class="nav-search" href="/blog" aria-label="Search articles">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </a>
       </div>
     </div>
   </nav>
@@ -29,23 +33,20 @@ import { SITE_TITLE } from '../consts';
     position: sticky;
     top: 0;
     z-index: 100;
-    background: rgba(255, 255, 255, 0.6);
-    -webkit-backdrop-filter: blur(16px) saturate(160%);
-    backdrop-filter: blur(16px) saturate(160%);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.5);
-    box-shadow: 0 1px 0 rgba(15, 18, 34, 0.04);
-    transition: background var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+    background: #ffffff;
+    border-bottom: 1px solid var(--border-light);
+    box-shadow: 0 1px 0 rgba(15, 22, 26, 0.03);
+    transition: box-shadow var(--dur) var(--ease-out);
   }
   header.scrolled {
-    background: rgba(255, 255, 255, 0.78);
-    box-shadow: 0 8px 30px -12px rgba(31, 38, 90, 0.18);
+    box-shadow: 0 6px 24px -14px rgba(15, 22, 26, 0.28);
   }
 
   .nav-inner {
     max-width: var(--maxw);
     margin: 0 auto;
     padding: 0 1.5rem;
-    height: 76px;
+    height: 72px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -54,52 +55,62 @@ import { SITE_TITLE } from '../consts';
   .site-brand { display: flex; align-items: center; gap: 0.7rem; }
 
   .brand-mark {
-    width: 40px; height: 40px;
-    border-radius: 11px;
+    width: 48px; height: 48px;
+    border-radius: 50%;
     object-fit: cover;
     display: block;
     background: var(--bg-secondary);
-    box-shadow: 0 8px 18px -8px rgba(99, 102, 241, 0.7);
-    border: 1.5px solid rgba(255, 255, 255, 0.75);
-    transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur) var(--ease-out);
+    border: 2px solid var(--accent);
+    padding: 1px;
+    transition: transform var(--dur) var(--ease-spring);
   }
-  .site-brand:hover .brand-mark {
-    transform: scale(1.07);
-    box-shadow: var(--shadow-glow);
-  }
+  .site-brand:hover .brand-mark { transform: scale(1.06); }
 
   .brand-text {
-    font-size: 1.3rem;
-    font-weight: 800;
+    font-family: 'Roboto Condensed', 'Roboto', Arial, sans-serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
     color: var(--text-heading);
-    letter-spacing: -0.02em;
   }
 
-  .nav-links { display: flex; gap: 0.35rem; align-items: center; }
+  .nav-links { display: flex; gap: 0.15rem; align-items: center; }
 
   .nav-links :global(a) {
-    color: var(--text-body);
-    font-weight: 500;
-    padding: 0.5rem 1rem;
-    border-radius: 9px;
+    font-family: 'Roboto Condensed', 'Roboto', Arial, sans-serif;
+    color: var(--text-heading);
+    font-weight: 600;
+    font-size: 0.86rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.5rem 0.85rem;
+    border-radius: 6px;
     transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
     position: relative;
   }
-  .nav-links :global(a)::after {
+  .nav-links :global(a:hover) { color: var(--accent); }
+  .nav-links :global(a.active) { color: var(--accent); }
+  .nav-links :global(a.active)::after {
     content: '';
     position: absolute;
-    bottom: 4px;
-    left: 50%;
-    width: 0; height: 2px;
-    background: var(--brand-gradient);
+    bottom: 2px; left: 0.85rem; right: 0.85rem;
+    height: 2px;
+    background: var(--accent);
     border-radius: 2px;
-    transition: width var(--dur) var(--ease-out);
-    transform: translateX(-50%);
   }
-  .nav-links :global(a:hover) { color: var(--accent); background: var(--accent-soft); }
-  .nav-links :global(a:hover)::after { width: calc(100% - 2rem); }
-  .nav-links :global(a.active) { color: var(--accent); font-weight: 700; background: var(--accent-soft); }
-  .nav-links :global(a.active)::after { width: calc(100% - 2rem); }
+
+  .nav-search {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 38px; height: 38px;
+    margin-left: 0.4rem;
+    color: var(--text-heading);
+    border-radius: 50%;
+    background: var(--bg-primary);
+  }
+  .nav-search:hover { color: var(--accent); }
 
   /* Hamburger */
   .nav-toggle {

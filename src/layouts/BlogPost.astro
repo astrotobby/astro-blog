@@ -4,6 +4,7 @@ import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
+import Sidebar from '../components/Sidebar.astro';
 import AdBanner from '../components/AdBanner.astro';
 import AdsterraNativeBanner from '../components/AdsterraNativeBanner.astro';
 import Newsletter from '../components/Newsletter.astro';
@@ -53,35 +54,50 @@ const noindex = shouldNoindex(slug);
   <body>
     <Header />
     <main>
-      <article>
-        <div class="hero-image">
-          <a href="/blog">&larr; Back to archive</a>
-          {heroImage && !hideHero && (
-            <img
-              src={heroImage}
-              alt={title}
-              onerror={`this.onerror=null;this.src='${heroFallback}'`}
-            />
-          )}
-        </div>
-        <div class="prose">
-          <div class="title">
-            <div class="date">
-              <FormattedDate date={pubDate} />
+      <div class="rd-layout">
+        <div class="rd-main">
+          <article>
+            <!-- Breadcrumb -->
+            <nav class="rd-crumbs" aria-label="Breadcrumb">
+              <a href="/">Home</a>
+              <span class="sep">›</span>
+              <a href="/blog">Blog</a>
+              <span class="sep">›</span>
+              <span>{title}</span>
+            </nav>
+
+            <h1 class="post-title">{title}</h1>
+
+            <!-- Meta row: avatar · author · date -->
+            <div class="rd-meta">
+              <img class="rd-avatar" src="/astrosignal-logo.png" alt={author} width="34" height="34" decoding="async" />
+              <span class="rd-author">{author}</span>
+              <span class="rd-dot">·</span>
+              <span><FormattedDate date={pubDate} /></span>
               {updatedDate && (
-                <div class="last-updated-on">
-                  (Updated: <FormattedDate date={updatedDate} />)
-                </div>
+                <>
+                  <span class="rd-dot">·</span>
+                  <span class="last-updated-on">Updated <FormattedDate date={updatedDate} /></span>
+                </>
               )}
             </div>
-            <h1>{title}</h1>
-            <hr />
-          </div>
-          {slug && <AdBanner slot="top" />}
-          <slot />
-          {slug && <AdBanner slot="bottom" />}
+
+            {heroImage && !hideHero && (
+              <div class="post-hero">
+                <img src={heroImage} alt={title} onerror={`this.onerror=null;this.src='${heroFallback}'`} />
+              </div>
+            )}
+
+            <div class="prose">
+              {slug && <AdBanner slot="top" />}
+              <slot />
+              {slug && <AdBanner slot="bottom" />}
+            </div>
+          </article>
         </div>
-      </article>
+
+        <Sidebar currentId={slug} limit={5} />
+      </div>
 
       <!-- Conversion zone: the reader's own topic → matching offer comes FIRST,
            before any ad unit, so the product is never buried below the ads. -->
@@ -99,5 +115,12 @@ const noindex = shouldNoindex(slug);
       <AdsterraNativeBanner />
     </main>
     <Footer />
+
+    <style>
+      .post-title { font-size: clamp(1.9rem, 4vw, 2.6rem); margin: 0 0 0.4rem; }
+      .post-hero { margin: 0.5rem 0 1.8rem; border-radius: var(--radius); overflow: hidden; box-shadow: var(--box-shadow); }
+      .post-hero img { width: 100%; height: auto; display: block; }
+      .last-updated-on { font-style: italic; }
+    </style>
   </body>
 </html>

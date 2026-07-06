@@ -60,7 +60,7 @@ const today = new Date();
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 3px;
-    background: linear-gradient(90deg, #6366F1, #8B5CF6, #EC4899, #06B6D4);
+    background: linear-gradient(90deg, #00C89A, #12B6C9, #06B6D4);
   }
   
   .footer-inner {
@@ -73,9 +73,12 @@ const today = new Date();
   }
   
   .footer-brand-name {
-    font-size: 1.25rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, #0F172A 0%, #4F46E5 100%);
+    font-family: 'Roboto Condensed', 'Roboto', Arial, sans-serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    background: linear-gradient(135deg, #15161A 0%, #00A67F 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -115,13 +118,13 @@ const today = new Date();
     left: 0;
     width: 0;
     height: 2px;
-    background: #4F46E5;
+    background: var(--accent);
     transition: width 0.3s ease;
     bottom: -2px;
   }
-  
+
   .footer-links-group a:hover {
-    color: #4F46E5;
+    color: var(--accent);
   }
   
   .footer-links-group a:hover::before {
@@ -149,8 +152,8 @@ const today = new Date();
   }
   
   .footer-social-horizontal a:hover {
-    color: #4F46E5;
-    background: rgba(79, 70, 229, 0.08);
+    color: var(--accent);
+    background: var(--accent-soft);
     transform: translateY(-2px);
   }
   

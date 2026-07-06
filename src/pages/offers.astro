@@ -6,6 +6,15 @@ import CpaleadOffers from '../components/CpaleadOffers.astro';
 import { env } from 'cloudflare:workers';
 import { detectDevice, countryName, countryFlag } from '../lib/cpalead';
 import { getBlendedOffers } from '../lib/offers';
+import { ENABLE_OFFERS_PAGE } from '../consts';
+
+// Kept private until re-enabled — the page is not reachable while the flag is off.
+if (!ENABLE_OFFERS_PAGE) {
+  return new Response('Not Found', {
+    status: 404,
+    headers: { 'X-Robots-Tag': 'noindex' },
+  });
+}
 
 const pageTitle = 'Free Offers & Rewards';
 const pageDescription =

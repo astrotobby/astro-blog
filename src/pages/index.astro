@@ -3,6 +3,7 @@ export const prerender = true;
 import BaseHead from '../components/BaseHead.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import Sidebar from '../components/Sidebar.astro';
 import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
 import { getCollection } from 'astro:content';
 import FormattedDate from '../components/FormattedDate.astro';
@@ -22,283 +23,132 @@ const orderKey = (p) => {
 const posts = (await getCollection('blog')).sort((a, b) => orderKey(b) - orderKey(a));
 
 const featuredPost = posts[0];
-const recentPosts = posts.slice(1, 4);
-const totalPosts = posts.length;
+const gridPosts = posts.slice(1, 9);
 ---
 
 <!doctype html>
 <html lang="en">
-	<head>
-<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-		<style>
-			/* ── Hero ── */
-			.hero {
-				position: relative;
-				max-width: var(--maxw);
-				margin: 3.5rem auto 0;
-				padding: 5.5rem 2.5rem;
-				text-align: center;
-				border-radius: var(--radius-xl);
-				overflow: hidden;
-			}
-			.hero-inner { position: relative; z-index: 1; }
-			.hero .badge { margin-bottom: 1.5rem; }
-			.hero h1 {
-				font-size: clamp(2.6rem, 6vw, 4.25rem);
-				line-height: 1.05;
-				margin: 0 auto 1.5rem;
-				max-width: 16ch;
-				letter-spacing: -0.035em;
-			}
-			.hero p {
-				font-size: 1.2rem;
-				color: var(--text-body);
-				max-width: 56ch;
-				margin: 0 auto 2.5rem;
-				line-height: 1.7;
-			}
-			.hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+  <head>
+    <BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
+  </head>
+  <body>
+    <Header />
+    <main>
+      <AdBanner minHeight="90px" margin="0 auto 24px" />
 
-			/* Floating glass orbs inside hero */
-			.hero-orb {
-				position: absolute;
-				border-radius: 50%;
-				filter: blur(8px);
-				opacity: 0.5;
-				z-index: 0;
-			}
-			.hero-orb.one { width: 120px; height: 120px; top: 12%; left: 8%; background: radial-gradient(circle at 30% 30%, var(--grad-1), transparent 70%); animation: float-y 9s var(--ease-out) infinite alternate; }
-			.hero-orb.two { width: 90px; height: 90px; bottom: 16%; right: 12%; background: radial-gradient(circle at 30% 30%, var(--grad-3), transparent 70%); animation: float-y 11s var(--ease-out) infinite alternate-reverse; }
-			@keyframes float-y { to { transform: translateY(-22px); } }
+      <div class="rd-layout">
+        <div class="rd-main">
+          {featuredPost && (
+            <a href={`/blog/${featuredPost.id}/`} class="feat" data-reveal>
+              <div class="feat-media">
+                <img
+                  src={displayImage(featuredPost.data.title, featuredPost.data.image)}
+                  data-fb={svgFallback(featuredPost.data.title)}
+                  alt={featuredPost.data.title}
+                  width="1200" height="627" loading="eager" fetchpriority="high" decoding="async"
+                  onerror="this.onerror=null;this.src=this.dataset.fb;"
+                />
+                <span class="feat-badge">Featured</span>
+              </div>
+              <div class="feat-body">
+                <span class="feat-date"><FormattedDate date={featuredPost.data.pubDate} /></span>
+                <h2 class="feat-title">{featuredPost.data.title}</h2>
+                <p class="feat-desc">{featuredPost.data.description}</p>
+                <span class="feat-more">Read article →</span>
+              </div>
+            </a>
+          )}
 
-			/* ── Stats strip ── */
-			.stats {
-				display: flex;
-				justify-content: center;
-				gap: 2.5rem;
-				flex-wrap: wrap;
-				margin: 2.75rem auto 0;
-			}
-			.stat { text-align: center; }
-			.stat .num { font-size: 1.9rem; font-weight: 800; line-height: 1; }
-			.stat .label { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.35rem; letter-spacing: 0.03em; }
+          <h2 class="rd-heading">Latest Articles</h2>
+          <div class="post-grid">
+            {gridPosts.map((post, i) => (
+              <a href={`/blog/${post.id}/`} class="pcard" data-reveal style={`--reveal-delay:${i * 60}ms`}>
+                <div class="pcard-media">
+                  <img
+                    src={displayImage(post.data.title, post.data.image)}
+                    data-fb={svgFallback(post.data.title)}
+                    alt={post.data.title}
+                    width="600" height="360" loading="lazy" decoding="async"
+                    onerror="this.onerror=null;this.src=this.dataset.fb;"
+                  />
+                </div>
+                <div class="pcard-body">
+                  <span class="pcard-date"><FormattedDate date={post.data.pubDate} /></span>
+                  <h3 class="pcard-title">{post.data.title}</h3>
+                  <p class="pcard-desc">{post.data.description}</p>
+                  <span class="pcard-more">Read more →</span>
+                </div>
+              </a>
+            ))}
+          </div>
 
-			/* ── Sections ── */
-			.section { max-width: var(--maxw); margin: 7rem auto; padding: 0 1.5rem; }
-			.section-title {
-				display: flex;
-				justify-content: space-between;
-				align-items: baseline;
-				gap: 1rem;
-				margin-bottom: 2.5rem;
-			}
-			.section-title h2 {
-				font-size: 1.7rem;
-				margin: 0;
-				display: inline-flex;
-				align-items: center;
-				gap: 0.7rem;
-			}
-			.section-title .eyebrow {
-				display: block;
-				font-size: 0.8rem;
-				font-weight: 700;
-				letter-spacing: 0.12em;
-				text-transform: uppercase;
-				color: var(--accent);
-				margin-bottom: 0.4rem;
-			}
-			.section-title a { font-size: 0.95rem; font-weight: 600; white-space: nowrap; }
+          <div class="see-all">
+            <a href="/blog" class="btn btn-primary">View all articles</a>
+          </div>
+        </div>
 
-			/* ── Featured ── */
-			.featured-card {
-				display: grid;
-				grid-template-columns: 1.1fr 0.9fr;
-				gap: 0;
-				overflow: hidden;
-				text-decoration: none;
-			}
-			.featured-media { position: relative; min-height: 380px; overflow: hidden; }
-			.featured-media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--dur-slow) var(--ease-out); }
-			.featured-card:hover .featured-media img { transform: scale(1.05); }
-			.featured-media .tag {
-				position: absolute; top: 1.25rem; left: 1.25rem;
-				padding: 0.4rem 0.9rem; border-radius: 999px;
-				font-size: 0.78rem; font-weight: 700; color: #fff;
-				background: rgba(15, 18, 34, 0.55);
-				-webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-				border: 1px solid rgba(255,255,255,0.25);
-			}
-			.featured-content { padding: 3rem; display: flex; flex-direction: column; justify-content: center; }
-			.featured-content .post-date { font-size: 0.875rem; color: var(--accent); font-weight: 600; margin-bottom: 0.85rem; }
-			.featured-content h3 { font-size: clamp(1.6rem, 3vw, 2.25rem); margin: 0 0 1rem; color: var(--text-heading); line-height: 1.18; }
-			.featured-content p { color: var(--text-body); margin: 0 0 1.75rem; }
-			.read-more { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--accent); }
-			.featured-card:hover .read-more svg { transform: translateX(4px); }
-			.read-more svg { transition: transform var(--dur) var(--ease-out); }
+        <Sidebar limit={5} />
+      </div>
 
-			/* ── Post grid ── */
-			.posts-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
-			.post-card { overflow: hidden; text-decoration: none; display: flex; flex-direction: column; }
-			.post-media { position: relative; height: 200px; overflow: hidden; }
-			.post-media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--dur-slow) var(--ease-out); }
-			.post-card:hover .post-media img { transform: scale(1.06); }
-			.post-content { padding: 1.6rem; display: flex; flex-direction: column; flex: 1; }
-			.post-date { font-size: 0.82rem; color: var(--accent); font-weight: 600; margin-bottom: 0.6rem; }
-			.post-title { font-size: 1.2rem; margin: 0 0 0.7rem; color: var(--text-heading); line-height: 1.3; font-weight: 700; }
-			.post-desc {
-				font-size: 0.96rem; color: var(--text-body); line-height: 1.6; margin: 0;
-				display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-			}
+      <OfferStrip title="Free Offers &amp; Rewards" subid="home" limit={4} />
 
-			/* ── CTA banner ── */
-			.cta-banner {
-				position: relative;
-				max-width: var(--maxw);
-				margin: 0 auto 7rem;
-				padding: 5rem 2rem;
-				text-align: center;
-				border-radius: var(--radius-xl);
-				color: #fff;
-				overflow: hidden;
-				background: linear-gradient(135deg, #1b1d3a 0%, #312e81 55%, #4f46e5 100%);
-			}
-			.cta-banner::after {
-				content: ''; position: absolute; inset: 0;
-				background: radial-gradient(40% 60% at 80% 10%, rgba(236,72,153,0.5), transparent 60%),
-				            radial-gradient(45% 55% at 10% 90%, rgba(6,182,212,0.4), transparent 60%);
-			}
-			.cta-banner > * { position: relative; z-index: 1; }
-			.cta-banner h2 { color: #fff; font-size: clamp(1.8rem, 4vw, 2.6rem); margin: 0 0 0.8rem; }
-			.cta-banner p { color: rgba(255,255,255,0.82); margin: 0 auto 2.5rem; font-size: 1.1rem; max-width: 46ch; }
-			.cta-socials { display: flex; gap: 0.9rem; justify-content: center; flex-wrap: wrap; }
-			.cta-social-btn {
-				display: inline-flex; align-items: center; gap: 0.6rem;
-				padding: 0.8rem 1.5rem; border-radius: var(--radius-sm);
-				font-weight: 600; color: #fff;
-				background: rgba(255,255,255,0.12);
-				border: 1px solid rgba(255,255,255,0.25);
-				-webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-				transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
-			}
-			.cta-social-btn:hover { color: #fff; transform: translateY(-3px); background: rgba(255,255,255,0.22); }
+      <Newsletter />
+    </main>
+    <Footer />
 
-			@media (max-width: 900px) {
-				.hero { padding: 4rem 1.5rem; margin-top: 2rem; }
-				.featured-card { grid-template-columns: 1fr; }
-				.featured-media { min-height: 240px; }
-				.featured-content { padding: 2rem; }
-				.posts-grid { grid-template-columns: repeat(2, 1fr); }
-				.section { margin: 4.5rem auto; }
-			}
-			@media (max-width: 600px) {
-				.posts-grid { grid-template-columns: 1fr; }
-				.stats { gap: 1.75rem; }
-				.section-title { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
-			}
-		</style>
-	</head>
-	<body>
-		<Header />
-		<main>
-			<AdBanner minHeight="90px" margin="0 auto 24px" />
+    <style>
+      /* Featured card — image on top, text below (avoids clashing with title-in-image) */
+      .feat {
+        display: block; text-decoration: none; margin-bottom: 2.5rem;
+        background: var(--bg-secondary); border: 1px solid var(--border-light);
+        border-radius: var(--radius); overflow: hidden; box-shadow: var(--box-shadow);
+        transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+      }
+      .feat:hover { transform: translateY(-4px); box-shadow: var(--shadow-lift); }
+      .feat-media { position: relative; aspect-ratio: 16 / 9; overflow: hidden; }
+      .feat-media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--dur-slow) var(--ease-out); }
+      .feat:hover .feat-media img { transform: scale(1.04); }
+      .feat-badge {
+        position: absolute; top: 1rem; left: 1rem; z-index: 2;
+        padding: 0.35rem 0.85rem; border-radius: 999px;
+        font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+        color: #fff; background: var(--accent);
+      }
+      .feat-body { padding: 1.5rem 1.75rem 1.75rem; }
+      .feat-date { display: block; color: var(--accent); font-size: 0.82rem; font-weight: 600; margin-bottom: 0.5rem; }
+      .feat-title { font-size: clamp(1.5rem, 3vw, 2.05rem); color: var(--text-heading); margin: 0 0 0.6rem; line-height: 1.18; }
+      .feat-desc {
+        color: var(--text-body); margin: 0 0 1rem; font-size: 1rem; line-height: 1.6;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      }
+      .feat-more { font-weight: 700; color: var(--accent); font-size: 0.95rem; }
 
-			<section class="hero glass" data-reveal>
-				<span class="hero-orb one" aria-hidden="true"></span>
-				<span class="hero-orb two" aria-hidden="true"></span>
-				<div class="hero-inner">
-					<span class="badge"><span class="dot"></span> Decoding AI, agents &amp; the future</span>
-					<h1>The Signal <span class="gradient-text-animated">Through the Noise</span></h1>
-					<p>Deep-dive analysis on AI agents, multi-agent systems, vibe coding, and the technologies reshaping how we build.</p>
-					<div class="hero-actions">
-						<a href="/products" class="btn btn-primary">
-							Get the toolkits
-							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-						</a>
-						<a href="/blog" class="btn btn-secondary">Read the blog</a>
-					</div>
-					<div class="stats">
-						<div class="stat"><div class="num gradient-text">{totalPosts}+</div><div class="label">Articles published</div></div>
-						<div class="stat"><div class="num gradient-text">AI</div><div class="label">Agents &amp; automation</div></div>
-						<div class="stat"><div class="num gradient-text">Weekly</div><div class="label">Fresh insights</div></div>
-					</div>
-				</div>
-			</section>
+      /* Article grid */
+      .post-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+      .pcard {
+        display: flex; flex-direction: column; text-decoration: none;
+        background: var(--bg-secondary); border: 1px solid var(--border-light);
+        border-radius: var(--radius); overflow: hidden;
+        transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+      }
+      .pcard:hover { transform: translateY(-4px); box-shadow: var(--shadow-lift); }
+      .pcard-media { aspect-ratio: 16 / 9; overflow: hidden; }
+      .pcard-media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--dur-slow) var(--ease-out); }
+      .pcard:hover .pcard-media img { transform: scale(1.06); }
+      .pcard-body { padding: 1.1rem 1.2rem 1.3rem; display: flex; flex-direction: column; flex: 1; }
+      .pcard-date { font-size: 0.78rem; color: var(--accent); font-weight: 600; margin-bottom: 0.45rem; }
+      .pcard-title { font-size: 1.15rem; margin: 0 0 0.5rem; color: var(--text-heading); line-height: 1.25; }
+      .pcard-desc {
+        font-size: 0.92rem; color: var(--text-body); line-height: 1.55; margin: 0 0 0.9rem;
+        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+      }
+      .pcard-more { margin-top: auto; font-weight: 600; color: var(--accent); font-size: 0.9rem; }
 
-			{featuredPost && (
-				<section class="section" data-reveal>
-					<div class="section-title">
-						<div>
-							<span class="eyebrow">Editor&#39;s pick</span>
-							<h2>Featured Insight</h2>
-						</div>
-					</div>
-					<a href={`/blog/${featuredPost.id}/`} class="featured-card card-glass">
-						<div class="featured-media">
-							<span class="tag">Featured</span>
-							<img src={displayImage(featuredPost.data.title, featuredPost.data.image)} data-fb={svgFallback(featuredPost.data.title)} alt={featuredPost.data.title} width="1200" height="627" loading="eager" fetchpriority="high" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
-						</div>
-						<div class="featured-content">
-							<p class="post-date"><FormattedDate date={featuredPost.data.pubDate} /></p>
-							<h3>{featuredPost.data.title}</h3>
-							<p>{featuredPost.data.description}</p>
-							<span class="read-more">Read article
-								<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-							</span>
-						</div>
-					</a>
-				</section>
-			)}
+      .see-all { margin: 2.5rem 0 0.5rem; text-align: center; }
 
-			<section class="section">
-				<div class="section-title" data-reveal>
-					<div>
-						<span class="eyebrow">Latest</span>
-						<h2>Fresh from the lab</h2>
-					</div>
-					<a href="/blog" class="read-more">View all articles
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-					</a>
-				</div>
-				<div class="posts-grid">
-					{recentPosts.map((post, i) => (
-						<a href={`/blog/${post.id}/`} class="post-card card-glass" data-reveal style={`--reveal-delay:${i * 90}ms`}>
-							<div class="post-media">
-								<img src={displayImage(post.data.title, post.data.image)} data-fb={svgFallback(post.data.title)} alt={post.data.title} width="1200" height="627" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb;" />
-							</div>
-							<div class="post-content">
-								<p class="post-date"><FormattedDate date={post.data.pubDate} /></p>
-								<h3 class="post-title">{post.data.title}</h3>
-								<p class="post-desc">{post.data.description}</p>
-							</div>
-						</a>
-					))}
-				</div>
-			</section>
-
-			<section class="cta-banner" data-reveal>
-				<h2>Never miss a signal</h2>
-				<p>Follow along across platforms for breakdowns on AI tooling, agentic workflows, and what actually ships.</p>
-				<div class="cta-socials">
-					<a class="cta-social-btn" href="https://x.com/AstroboyTobby1" target="_blank" rel="noopener">
-						<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-						Follow on X
-					</a>
-					<a class="cta-social-btn" href="https://www.youtube.com/@aienthusiast001" target="_blank" rel="noopener">
-						<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-						YouTube
-					</a>
-					<a class="cta-social-btn" href="https://www.instagram.com/astr_osignal" target="_blank" rel="noopener">
-						<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-						Instagram
-					</a>
-				</div>
-			</section>
-
-			<OfferStrip title="Free Offers &amp; Rewards" subid="home" limit={4} />
-
-			<Newsletter />
-		</main>
-		<Footer />
-	</body>
+      @media (max-width: 620px) {
+        .post-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </body>
 </html>
