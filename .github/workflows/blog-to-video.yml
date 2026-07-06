@@ -3,16 +3,28 @@ name: blog-to-video
 # Fires when a new/edited post lands in the posts dir. Adjust paths to match
 # config.yaml -> posts_dir. Also runnable on-demand from the Actions tab.
 on:
-  # Publish ONLY what actually goes live on the blog: a push that adds/changes a post in
-  # the content dir (your Make.com scenario OR a manual commit) triggers the pipeline.
-  # It processes only GENUINELY-NEW posts (slug not in the dedup ledger), exactly once —
-  # no repeats, no duplicates. There is NO scheduled/timed trigger, so nothing ever
-  # publishes on its own clock. This is the strict "watch the blog, post new posts" mode.
+  # Turn EVERY article that goes live on the blog into a video, no matter how it got
+  # there. Two complementary triggers, both of which run a --sweep (which processes
+  # every live post whose slug isn't already in the dedup ledger, exactly once):
+  #   1. push  — fires immediately when any commit touches the content dir (a Make.com
+  #      scenario, the scheduled-publisher, or a manual commit). Immediate coverage.
+  #   2. schedule — a periodic safety net that catches anything the push trigger
+  #      missed (a push that didn't fire, a post added out-of-band, a backfill, a run
+  #      that errored). This is what guarantees "any article that goes live becomes a
+  #      video, regardless of source" even when no qualifying push event happened.
+  # The primed ledger + slug/title dedup mean a scheduled sweep NEVER re-posts existing
+  # posts or publishes a backlog on its own clock — it only ever picks up genuinely-new
+  # live posts.
   push:
     branches: [main, master]
     paths:
       - "src/content/blog/**"
       - "posts/**"
+  schedule:
+    # Every 3 hours. The sweep is a cheap no-op when there's nothing new (it just
+    # parses front-matter and checks the ledger), so a frequent cadence keeps the
+    # "every live post → video" guarantee tight without cost.
+    - cron: "0 */3 * * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -157,23 +169,19 @@ jobs:
           if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE="--force"; fi
           UNSKIP=""
           if [ "${{ github.event.inputs.unskip }}" = "true" ]; then UNSKIP="--unskip"; fi
-          if [ "${{ github.event_name }}" = "push" ]; then
-            # Only act when a post is genuinely ADDED. Bulk EDITS (image optimization,
-            # SEO tweaks, etc.) modify post files but must NOT trigger posting. We just
-            # COUNT added post files (no filename passing, so spaces are fine); if none
-            # were added, skip entirely. If a new post was added, --sweep posts only the
-            # new slug(s) (dedup + primed ledger prevent any re-posting of existing ones).
-            BEFORE="${{ github.event.before }}"
-            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
-              BEFORE="${{ github.sha }}^"
-            fi
-            ADDED=$(git diff --name-only --diff-filter=A "$BEFORE" "${{ github.sha }}" -- src/content/blog posts | head -1)
-            if [ -z "$ADDED" ]; then
-              echo "No NEW post added in this push (edits only) -> skipping; nothing will be posted."
-              exit 0
-            fi
-            echo "New post(s) detected -> sweeping for genuinely-new posts."
-            python scripts/run_pipeline.py --sweep
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+            # Any content push OR the periodic safety-net tick: --sweep processes EVERY
+            # live post whose slug isn't already in the dedup ledger, and turns each into
+            # a video exactly once. This is source-agnostic on purpose — it does not try
+            # to detect "was a file ADDED in this exact push" (that before..after check
+            # silently missed posts whenever the push pointer was unreliable: force-push,
+            # rebase, or a batch of previously-unpushed commits landing at once). The
+            # primed ledger makes the sweep safe on edits-only pushes and on every
+            # scheduled tick alike: it simply finds nothing new and exits cleanly — no
+            # reposts, no backlog dump. Net effect: every article that goes live on the
+            # blog, by ANY route, becomes a video.
+            echo "${{ github.event_name }} event -> sweeping for genuinely-new live posts."
+            python scripts/run_pipeline.py --sweep $UNSKIP
           elif [ "${{ github.event.inputs.prime }}" = "true" ]; then
             python scripts/run_pipeline.py --prime
           elif [ -n "${{ github.event.inputs.file }}" ]; then

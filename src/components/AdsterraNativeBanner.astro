@@ -1,15 +1,35 @@
 ---
-// Adsterra Native Banner — a contained, inline ad unit (unlike the floating
-// widgets in AdNetworkScripts.astro). Lazy-loaded only when scrolled near,
-// so it never costs anything for readers who don't get this far down the page.
+// Adsterra Native Banner — rendered INLINE, IN THE MIDDLE of the article body
+// (relocated into `.prose` after roughly the middle content block) rather than at
+// the bottom of the page. Lazy-loaded only when scrolled near, so it never costs
+// anything for readers who bounce before reaching it. If JS is disabled it simply
+// stays where it was server-rendered (a harmless fallback).
 ---
 
-<div id="container-9443ced55ad6dc338cd7a9fec5677f94" class="adsterra-native"></div>
+<div id="container-9443ced55ad6dc338cd7a9fec5677f94" class="adsterra-native" data-in-article></div>
 
 <script is:inline>
   (function () {
     var el = document.getElementById('container-9443ced55ad6dc338cd7a9fec5677f94');
     if (!el) return;
+
+    // Move the ad into the middle of the article prose so it appears BETWEEN
+    // paragraphs, not at the end of the post.
+    function relocate() {
+      var prose = document.querySelector('.prose');
+      if (!prose) return;
+      var blocks = Array.prototype.filter.call(prose.children, function (n) {
+        if (n === el) return false;
+        // Skip the disabled AdBanner placeholders and non-content nodes.
+        if (n.classList && n.classList.contains('ad-placeholder')) return false;
+        var t = n.tagName;
+        return t === 'P' || t === 'H2' || t === 'H3' || t === 'UL' || t === 'OL' ||
+               t === 'BLOCKQUOTE' || t === 'FIGURE' || t === 'PRE' || t === 'TABLE';
+      });
+      if (!blocks.length) return;
+      var mid = blocks[Math.floor(blocks.length / 2)];
+      mid.parentNode.insertBefore(el, mid.nextSibling);
+    }
 
     function inject() {
       var s = document.createElement('script');
@@ -19,18 +39,27 @@
       document.body.appendChild(s);
     }
 
-    if ('IntersectionObserver' in window) {
-      var io = new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-          if (entry.isIntersecting) {
-            inject();
-            io.disconnect();
-          }
-        });
-      }, { rootMargin: '200px 0px' });
-      io.observe(el);
+    function start() {
+      relocate();
+      if ('IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              inject();
+              io.disconnect();
+            }
+          });
+        }, { rootMargin: '200px 0px' });
+        io.observe(el);
+      } else {
+        inject();
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', start);
     } else {
-      inject();
+      start();
     }
   })();
 </script>

@@ -111,7 +111,9 @@ const noindex = shouldNoindex(slug);
 
       <Newsletter />
 
-      <!-- Ad moved to the very bottom so it can't outrank our own products. -->
+      <!-- Adsterra native banner. The component relocates itself into the MIDDLE
+           of the article body (between paragraphs) on load, so it renders in-article
+           rather than at the page bottom. Kept mounted here as the no-JS fallback. -->
       <AdsterraNativeBanner />
     </main>
     <Footer />

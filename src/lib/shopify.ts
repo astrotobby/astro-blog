@@ -180,7 +180,7 @@ export async function fetchShopifyProducts(envOverride?: ShopifyEnv): Promise<Sh
     envOverride?.SHOPIFY_STORE_DOMAIN ??
     cfEnv.SHOPIFY_STORE_DOMAIN ??
     buildEnv.SHOPIFY_STORE_DOMAIN ??
-    'chainztobby.myshopify.com';
+    'astrotobby.myshopify.com';
   const token: string | undefined =
     envOverride?.SHOPIFY_STOREFRONT_API_TOKEN ??
     cfEnv.SHOPIFY_STOREFRONT_API_TOKEN ??

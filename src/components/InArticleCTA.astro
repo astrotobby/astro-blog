@@ -22,7 +22,7 @@ try {
 }
 
 const product = prioritizeProducts(raw, tags, 'in-article-cta')[0];
-const storeBase = 'https://chainztobby.myshopify.com';
+const storeBase = 'https://astrotobby.myshopify.com';
 const variantId = product.variantId.split('/').pop();
 const cartUrl = `${storeBase}/cart/add?id=${variantId}`;
 const pdpUrl = `${storeBase}/products/${product.handle}`;

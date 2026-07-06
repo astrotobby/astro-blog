@@ -15,9 +15,9 @@
 //   NOWPAYMENTS_API_KEY     - NOWPayments API key (create invoices)
 //   NOWPAYMENTS_IPN_SECRET  - NOWPayments IPN secret (verify webhooks)
 //   SHOPIFY_ADMIN_TOKEN     - Shopify Admin API token (shpat_…, write_orders)
-//   SHOPIFY_STORE_DOMAIN    - optional, defaults to chainztobby.myshopify.com
+//   SHOPIFY_STORE_DOMAIN    - optional, defaults to astrotobby.myshopify.com
 
-const STORE_DOMAIN_DEFAULT = 'chainztobby.myshopify.com';
+const STORE_DOMAIN_DEFAULT = 'astrotobby.myshopify.com';
 const ADMIN_API_VERSION = '2025-10';
 // Must match the manual payment method name created in Shopify admin.
 export const CRYPTO_GATEWAY_NAME = 'pay in crypto with NOWPayments';
