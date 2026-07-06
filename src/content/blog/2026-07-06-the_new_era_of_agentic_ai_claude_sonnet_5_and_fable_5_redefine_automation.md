@@ -26,6 +26,8 @@ The redeployment of Claude Fable 5, alongside Mythos 5, marks another pivotal mo
 The incident that led to the temporary restriction highlighted the industry's need for a standardized framework to assess and address AI model 
 jailbreaks. Anthropic, in collaboration with Amazon, Microsoft, Google, and other Glasswing partners, is actively developing such a framework to ensure safer and more consistent deployment of highly capable AI models.
 
+![The Future of AI Automation](/ai-automation-future.jpg)
+
 ### The Future of Automation is Agentic
 
 The advancements in Claude Sonnet 5 and the secure redeployment of Fable 5 signify a clear trajectory towards a future where AI agents are not just tools but autonomous collaborators. These models are designed to handle complex, multi-step tasks, reason through workflows, generate media, and interact with various applications with unprecedented efficiency and safety. As AI continues to integrate deeper into our digital and physical worlds, the emphasis on agentic capabilities, coupled with robust safety measures, will be paramount in shaping a future where AI truly empowers human potential.
