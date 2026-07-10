@@ -10,8 +10,8 @@ export const SITE_DESCRIPTION = 'AI tools, agentic workflows, vibe coding and an
 // To use a different channel, change the handle here — or, if the build
 // can't resolve the handle, hard-set YOUTUBE_CHANNEL_ID to its UC… id.
 export const YOUTUBE_HANDLE = '@aienthusiast001';
-export const YOUTUBE_CHANNEL_ID = '';        // optional UC… override; leave '' to auto-resolve
-export const YOUTUBE_FALLBACK_VIDEO_ID = ''; // optional video id shown if the feed can't be fetched at build time
+export const YOUTUBE_CHANNEL_ID = 'UCE_cklDludc6nkU1_4K6JzA';        // optional UC… override; leave '' to auto-resolve
+export const YOUTUBE_FALLBACK_VIDEO_ID = '-Jxg6Y9K74o'; // optional video id shown if the feed can't be fetched at build time
 export const YOUTUBE_URL = `https://www.youtube.com/${YOUTUBE_HANDLE}`;
 export const INSTAGRAM_URL = 'https://www.instagram.com/astr_osignal';
 
