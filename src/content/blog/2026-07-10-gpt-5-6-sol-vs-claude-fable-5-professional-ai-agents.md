@@ -66,7 +66,7 @@ With Zapier’s MCP integration, your AI agent can now talk to over 9,000 apps. 
 
 The most effective way to use these models isn't to pick one, but to use them in tandem.
 
-![AI Agentic Workflow Patterns](/images/blog/ai-agent-workflows.png)
+![AI Agentic Workflow Patterns](/images/blog/ai-agent-workflows.jpg)
 
 > **The Pro Strategy:** Use **Claude Fable 5** as your "Manager" to handle high-level reasoning, strategic planning, and quality control. Then, let it orchestrate multiple **GPT-5.6 Sol** "Workers" to execute the code, find the bugs, and ship the product.
 

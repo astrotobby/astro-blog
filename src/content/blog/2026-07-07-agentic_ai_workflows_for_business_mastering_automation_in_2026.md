@@ -2,13 +2,13 @@
 author: Astro Tobby
 date: 2026-07-07
 description: Explore how agentic AI workflows are transforming business automation in 2026, offering strategies for implementation and maximizing efficiency.
-image: /agentic-ai-hero.png
+image: /agentic-ai-hero.jpg
 pubDate: 2026-07-07
 tags: ["ai", "automation", "agentic ai", "business", "workflows"]
 title: "Agentic AI Workflows for Business: Mastering Automation in 2026"
 ---
 
-![Agentic AI Hero](/agentic-ai-hero.png)
+![Agentic AI Hero](/agentic-ai-hero.jpg)
 
 ## The Rise of Agentic AI in Business Automation
 
@@ -18,7 +18,7 @@ In 2026, the landscape of business automation is undergoing a profound transform
 
 **Agentic AI workflows** involve the orchestration of multiple AI agents, each designed to handle specific sub-tasks within a larger process. These agents can communicate, collaborate, and make decisions independently, working towards a common goal. Unlike simpler automation scripts, agentic systems possess a degree of autonomy and intelligence that allows them to manage exceptions, optimize processes, and even initiate new actions without constant human oversight [2].
 
-![The Agentic Workflow Loop](/agentic-ai-workflow-infographic.png)
+![The Agentic Workflow Loop](/agentic-ai-workflow-infographic.jpg)
 
 For instance, in a marketing campaign, an agentic workflow might involve one AI agent researching target demographics, another drafting ad copy, a third scheduling posts across platforms, and a fourth analyzing performance data to suggest real-time adjustments. This multi-agent collaboration significantly reduces manual effort and accelerates execution.
 

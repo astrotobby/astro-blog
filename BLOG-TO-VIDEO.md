@@ -1,8 +1,8 @@
 # blog-to-video — zero-budget blog → video → social autopilot
 
 Turns every new blog post in your GitHub repo into a captioned, voiced
-motion-graphics video and cross-posts it to YouTube + (via self-hosted Postiz)
-Instagram, Facebook, LinkedIn, X, Tumblr, Pinterest and Reddit.
+motion-graphics video and cross-posts it to YouTube + Facebook + Instagram
++ X + Tumblr + Pinterest + Reddit + TikTok (direct API, no app review needed).
 
 Everything runs **free on GitHub Actions** — your laptop can be off.
 
@@ -21,7 +21,7 @@ new commit to /posts  ──►  GitHub Action  ──►  pipeline
                                                     • ffmpeg          -> video_9x16.mp4 + video_16x9.mp4
                                                4. crosspost.py
                                                     • YouTube Data API  (direct, instant)
-                                                    • Postiz API        (IG/FB/LinkedIn/X/Tumblr/Pinterest/Reddit)
+                                                    • direct platform APIs (FB/IG/X/Tumblr/Pinterest/TikTok/Reddit)
                                                5. notify.py        (Telegram summary: ✅/❌ per platform)
 ```
 
@@ -56,7 +56,7 @@ and saves them as Action artifacts so you can hand-upload those four meanwhile.
 # from the project root
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+pip install -r requirements-blog2video.txt
 # FFmpeg (Windows):
 winget install Gyan.FFmpeg
 ```
@@ -65,7 +65,7 @@ winget install Gyan.FFmpeg
 
 This pipeline assumes your posts live in a folder like `posts/` or `src/content/blog/`.
 Set the path in `config.yaml` (`posts_dir`). Copy the `scripts/`, `config.yaml`,
-`requirements.txt` and `.github/workflows/blog-to-video.yml` into your blog repo root.
+`requirements-blog2video.txt` and `.github/workflows/blog-to-video.yml` into your blog repo root.
 
 ### D. Add GitHub repo secrets
 
@@ -124,12 +124,12 @@ skips any platform whose secrets are missing.
   a **script** app → use its id/secret + your reddit username/password. Then set
   `limits.reddit_enabled: true` and list safe subs in `config.yaml`.
 
-Enable each in `config.yaml → platforms.direct` (default `[tumblr, x]`).
+Enable each in `config.yaml → platforms.*` (see config for defaults).
 
-> **Instagram / Facebook / LinkedIn / Pinterest** are deferred — they each require
-> their own developer app + review (no free tool, Postiz included, skips this). The
+> **LinkedIn** is deferred — it requires its own developer app + review. The
 > workflow saves the rendered 9:16 Reels as downloadable Action artifacts so you can
-> hand-upload those four until you decide their apps are worth doing.
+> hand-upload until you decide the app is worth doing. All other platforms (YouTube,
+> Facebook, Instagram, X, Tumblr, Pinterest, TikTok, Reddit) post directly via API.
 
 ---
 

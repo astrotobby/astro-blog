@@ -2,7 +2,7 @@
 title: "The End of Cheap AI: Why Your $20 Subscription is a Lie and the 'Rational Trap' of 2026 Layoffs"
 description: "The $20/month AI era is ending. As VC subsidies dry up and compute costs skyrocket, the tech industry faces a systemic crisis driven by the 'Rational Trap' of AI-induced layoffs."
 pubDate: "2026-06-17"
-image: "/assets/ai-pricing-layoffs.png"
+image: "/assets/ai-pricing-layoffs.jpg"
 tags: ["ai", "layoffs", "tech"]
 ---
 

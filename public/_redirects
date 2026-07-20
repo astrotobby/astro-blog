@@ -1,10 +1,9 @@
 /sitemap.xml /sitemap-index.xml 301
-
 # --- retired product: AI Video Freelancer Toolkit (deleted from Shopify) ---
 /products/video-toolkit /products 301
 /products/video-toolkit/ /products 301
 
-# --- fix legacy CTA links (old hyphen slug -> correct underscore slug) ---
+# --- legacy blog URL redirects (hyphen -> underscore) ---
 /blog/2026-05-05-the-llm-benchmark-lie-choosing-the-best-ai-model /blog/2026-05-05-the_llm_benchmark_lie_choosing_the_best_ai_model 301
 /blog/2026-05-05-the-llm-benchmark-lie-choosing-the-best-ai-model/ /blog/2026-05-05-the_llm_benchmark_lie_choosing_the_best_ai_model/ 301
 /blog/2026-05-07-prompt-engineering-in-2026-advanced-techniques-to /blog/2026-05-07-prompt_engineering_in_2026_advanced_techniques_to 301
@@ -47,6 +46,14 @@
 /blog/2026-06-09-apple-wwdc-2026-siri-ai-and-ios-27/ /blog/2026-06-09-apple_wwdc_2026_siri_ai_and_ios_27/ 301
 /blog/2026-06-10-the-rise-of-agentic-ai-how-autonomous-systems-are-reshaping-2026 /blog/2026-06-10-the_rise_of_agentic_ai_how_autonomous_systems_are_reshaping_2026 301
 /blog/2026-06-10-the-rise-of-agentic-ai-how-autonomous-systems-are-reshaping-2026/ /blog/2026-06-10-the_rise_of_agentic_ai_how_autonomous_systems_are_reshaping_2026/ 301
+/blog/2026-06-16-ai-arena-claude-code-fable-5-mythos-gpt-5-5 /blog/2026-06-16-ai_arena_claude_code_fable_5_mythos_gpt_5_5 301
+/blog/2026-06-16-ai-arena-claude-code-fable-5-mythos-gpt-5-5/ /blog/2026-06-16-ai_arena_claude_code_fable_5_mythos_gpt_5_5/ 301
+/blog/2026-06-26-how-to-use-claude-code-for-free-every-method-that-actually-works /blog/2026-06-26-how_to_use_claude_code_for_free_every_method_that_actually_works 301
+/blog/2026-06-26-how-to-use-claude-code-for-free-every-method-that-actually-works/ /blog/2026-06-26-how_to_use_claude_code_for_free_every_method_that_actually_works/ 301
+/blog/2026-07-06-the-new-era-of-agentic-ai-claude-sonnet-5-and-fable-5-redefine-automation /blog/2026-07-06-the_new_era_of_agentic_ai_claude_sonnet_5_and_fable_5_redefine_automation 301
+/blog/2026-07-06-the-new-era-of-agentic-ai-claude-sonnet-5-and-fable-5-redefine-automation/ /blog/2026-07-06-the_new_era_of_agentic_ai_claude_sonnet_5_and_fable_5_redefine_automation/ 301
+/blog/2026-07-07-agentic-ai-workflows-for-business-mastering-automation-in-2026 /blog/2026-07-07-agentic_ai_workflows_for_business_mastering_automation_in_2026 301
+/blog/2026-07-07-agentic-ai-workflows-for-business-mastering-automation-in-2026/ /blog/2026-07-07-agentic_ai_workflows_for_business_mastering_automation_in_2026/ 301
 /blog/agentic-ai-in-2026-how-multi-agent-systems-are-rewriting-the-rules-of-work /blog/agentic_ai_in_2026_how_multi_agent_systems_are_rewriting_the_rules_of_work 301
 /blog/agentic-ai-in-2026-how-multi-agent-systems-are-rewriting-the-rules-of-work/ /blog/agentic_ai_in_2026_how_multi_agent_systems_are_rewriting_the_rules_of_work/ 301
 /blog/best-ai-video-generators-in-2026-veo-3-1-vs-kling-3-0-vs-runway-gen-4-5-honest-freelancer-s-guide /blog/best_ai_video_generators_in_2026_veo_3_1_vs_kling_3_0_vs_runway_gen_4_5_honest_freelancer_s_guide 301

@@ -23,6 +23,13 @@ pnpm-debug.log*
 # jetbrains setting folder
 .idea/
 
+# Python cache
+__pycache__/
+*.pyc
+
+# pipeline state
+.pipeline/
+
 # wrangler files
 .wrangler
 .dev.vars*

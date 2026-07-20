@@ -125,7 +125,7 @@ def main():
 
     # ----- record in ledger -----
     if not args.dry_run:
-        ledger[post["slug"]] = {"hash": chash, "ts": dt.datetime.utcnow().isoformat(),
+        ledger[post["slug"]] = {"hash": chash, "ts": dt.datetime.now(dt.timezone.utc).isoformat(),
                                 "title_key": normalize_title(post["title"]),
                                 "results": results}
         save_ledger(ledger)

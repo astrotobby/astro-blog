@@ -3,7 +3,7 @@ date: 2026-05-19
 description: Beyond individual tasks, AI agents are now integrating into complex workflows,
   delivering unprecedented business value. Explore how this shift is redefining productivity
   and creating new opportunities.
-image: /ai-workflow-hero.png
+image: /agentic-ai-hero.jpg
 pubDate: 2026-05-19
 title: 'AI Agents and Workflows: Unlocking Real Business Value in 2026'
 tags: ["ai", "agent", "agentic", "automation"]

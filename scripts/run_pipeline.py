@@ -72,7 +72,7 @@ def prime_ledger():
         led[post["slug"]] = {
             "hash": content_hash(post["slug"], post["title"], post["description"]),
             "title_key": normalize_title(post["title"]),
-            "ts": dt.datetime.utcnow().isoformat(), "primed": True,
+            "ts": dt.datetime.now(dt.timezone.utc).isoformat(), "primed": True,
         }
         n += 1
     save_ledger(led)
@@ -138,7 +138,7 @@ def _prepare_run(posts, force):
             log(f"skip '{pf}': title matches already-posted '{dup_of}' "
                 f"(likely a republish of the same story) -> not rendering/posting")
             led[slug] = {"title_key": normalize_title(title),
-                        "ts": dt.datetime.utcnow().isoformat(),
+                        "ts": dt.datetime.now(dt.timezone.utc).isoformat(),
                         "skipped_duplicate_of": dup_of}
         else:
             keep.append(pf)

@@ -30,13 +30,18 @@
   consent screen, **publish the app to Production** (still free, no review needed
   for the upload scope on your own channel). Re-run `youtube_auth.py`.
 
-**Postiz post returns 4xx**
-- Confirm the account is connected in the Postiz UI and the `integrations`
-  values in `config.yaml -> platforms.postiz.targets` match the integration
-  identifiers Postiz expects. Check Postiz logs: `docker compose logs -f`.
+**Facebook/Instagram/Threads post returns 4xx**
+- Confirm your Page access token is valid and not expired. Long-lived tokens
+  expire after 60 days — re-run the token refresh workflow.
+- Check the platform error in the Action log: 403 = token expired/insufficient
+  permissions; 400 = malformed request.
 
-**X / Reddit got restricted**
-- Expected if you exceed caps — see `HONEST-LIMITS.md`. Lower `limits.x_per_day`,
+**X (Twitter) returns 402 or 403**
+- X's free tier caps at ~500 writes/month. The 402 "no credits" means you need
+  to subscribe to a paid X API plan. The code is ready; just add the subscription.
+
+**Reddit got restricted**
+- Expected if you exceed caps — see `HONEST-LIMITS.md`. Lower `limits.reddit_per_day`,
   keep `reddit_enabled: false`, and never post identical text to many subs.
 
 **Everything "succeeds" but nothing posts**

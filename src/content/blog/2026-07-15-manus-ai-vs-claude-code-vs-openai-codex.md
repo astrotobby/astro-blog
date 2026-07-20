@@ -3,7 +3,7 @@ title: "Manus AI vs. Claude Code vs. OpenAI Codex: The Ultimate 2026 Comparison 
 description: "Dive deep into the strengths and weaknesses of Manus AI, Claude Code, and OpenAI Codex. Discover which AI agent is best for your coding, automation, and general AI needs in 2026."
 pubDate: 2026-07-15
 date: 2026-07-15
-image: /images/blog/comparison/hero.png
+image: /images/blog/comparison/hero.jpg
 tags: ["Manus AI", "Claude Code", "OpenAI Codex", "AI agents", "coding AI", "automation", "developer tools", "2026"]
 author: "Manus AI"
 ---
@@ -14,7 +14,7 @@ The landscape of artificial intelligence is evolving at an unprecedented pace, w
 
 This article provides a comprehensive comparison of these three powerful AI agents, helping you determine which one best suits your development and automation needs.
 
-![Manus AI, Claude Code, and OpenAI Codex logos on holographic screens](/images/blog/comparison/hero.png)
+![Manus AI, Claude Code, and OpenAI Codex logos on holographic screens](/images/blog/comparison/hero.jpg)
 
 ## Manus AI: The General-Purpose Autonomous Agent
 
@@ -28,7 +28,7 @@ This article provides a comprehensive comparison of these three powerful AI agen
 *   **Browser Operator**: This feature allows Manus to transform a local Chrome or Edge browser into an AI-powered agent, operating with the user's existing logins and cookies. This is a game-changer for interacting with authenticated platforms like CRMs, LinkedIn, or analytics tools that cloud-based AIs cannot typically access [1].
 *   **Performance**: Manus has demonstrated strong performance, scoring 86.5% on the GAIA benchmark, outperforming some competitors in deep research tasks [1].
 
-![Infographic showing Manus AI's Agent Mode workflow](/images/blog/comparison/manus-agent.png)
+![Infographic showing Manus AI's Agent Mode workflow](/images/blog/comparison/manus-agent.jpg)
 
 ### Ideal Use Cases for Manus AI:
 
@@ -46,7 +46,7 @@ orchestration capabilities, allowing it to spawn parallel sub-agents for complex
 *   **Large Context Window**: With a context window of 1 million tokens, Claude Code can hold entire codebases, documentation, and multiple agent outputs in memory simultaneously, reducing the need for constant context switching [2].
 *   **Deep Harness and Tool Integration**: Claude Code offers a deep programmable harness with 26 hook events, allowing for fine-grained control and integration with various tools and workflows. It prioritizes planning and verification before execution, leading to more robust architectural solutions [2].
 
-![Claude Code terminal interface showing code diff and plan](/images/blog/comparison/claude-terminal.png)
+![Claude Code terminal interface showing code diff and plan](/images/blog/comparison/claude-terminal.jpg)
 
 ### Ideal Use Cases for Claude Code:
 
@@ -63,7 +63,7 @@ Claude Code is ideal for developers who live in the terminal and require an AI a
 *   **Kernel-Level Sandboxing**: For enhanced security, Codex enforces sandboxing at the kernel level using technologies like Seatbelt on macOS, Landlock on Linux, and Windows Sandbox. This provides a deterministic and secure environment for code execution [3].
 *   **Unified Experience**: All surfaces share the user's ChatGPT account, session history, and `AGENTS.md` configuration, ensuring context is maintained regardless of where the work is being done [3].
 
-![OpenAI Codex across multiple devices: laptop, smartphone, and tablet](/images/blog/comparison/codex-surfaces.png)
+![OpenAI Codex across multiple devices: laptop, smartphone, and tablet](/images/blog/comparison/codex-surfaces.jpg)
 
 ### Ideal Use Cases for OpenAI Codex:
 

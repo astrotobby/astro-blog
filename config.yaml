@@ -147,15 +147,17 @@ platforms:
     also_short: false          # true only if <=3 posts/day
     category_id: "22"          # People & Blogs; 27=Education, 28=Tech
     privacy: "public"
-  # Direct official-API posters (no server). Only platforms WITHOUT an app-review
-  # gate are automated now. Add creds in .env / GitHub secrets to activate each.
-  #   tumblr -> no review | x -> capped below | reddit -> opt-in + capped (off by default)
-  # Instagram/Facebook/LinkedIn/Pinterest are deferred (need their own dev apps);
-  # the workflow saves the rendered Reels as artifacts for hand-upload meanwhile.
-  # X stays configured (keys in GitHub secrets, code ready). It currently soft-fails
-  # with 402 "no credits" because X's API requires a paid tier — it will START
-  # POSTING automatically once you subscribe to a paid X plan. No code change needed.
-  direct: [x, facebook, instagram, threads, tiktok, rumble, pinterest]   # tumblr removed; add "reddit" per HONEST-LIMITS.md
+  # Direct official-API posters (no server). Add creds in .env / GitHub secrets
+  # to activate each platform. All listed platforms post directly via their APIs
+  # without requiring a self-hosted Postiz server:
+  #   facebook  -> Graph API (needs FACEBOOK_PAGE_ID + FACEBOOK_PAGE_TOKEN)
+  #   instagram -> Graph API (needs INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_ACCOUNT_ID)
+  #   threads   -> Threads API (needs THREADS_ACCESS_TOKEN + THREADS_ACCOUNT_ID)
+  #   tiktok    -> TikTok Content Posting API
+  #   x         -> X API v2 (free tier caps at ~500 writes/month)
+  #   rumble    -> headless browser upload (needs RUMBLE_EMAIL + RUMBLE_PASSWORD)
+  #   pinterest -> Pinterest API (needs PINTEREST_ACCESS_TOKEN + PINTEREST_BOARD_ID)
+  direct: [x, facebook, instagram, threads, tiktok, rumble, pinterest]
   # Rumble has NO upload API -> the poster drives the real upload page with a
   # headless browser (Playwright). Needs RUMBLE_EMAIL + RUMBLE_PASSWORD secrets and
   # 2FA OFF on that account. visibility: public | unlisted | private.

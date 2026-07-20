@@ -161,15 +161,24 @@ def _pollinations_image(prompt, w, h, seed):
 
 
 def _openverse_image(query, w, h):
-    """Free, key-less topical photo search (Openverse / WordPress) — real photos that
-    match the article's keywords. Picks the first usable result."""
+    """Free topical photo search (Openverse) — real photos that match the article's
+    keywords. Uses API key from OPENVERSE_TOKEN env var if available (recommended;
+    unauthenticated requests are rate-limited to 5/day). Picks the first usable result."""
     try:
+        headers = {"User-Agent": "astro-blog-video/1.0"}
+        # Openverse API key is optional but strongly recommended — without it
+        # the API throttles to 5 requests/day which is unusable for batch pipelines.
+        api_key = env("OPENVERSE_TOKEN") or None
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
         r = requests.get("https://api.openverse.org/v1/images/",
                          params={"q": query, "page_size": 8, "mature": "false"},
-                         headers={"User-Agent": "astro-blog-video/1.0"}, timeout=30)
-        if r.status_code != 200:
+                         headers=headers, timeout=30)
+        if r.status_code not in (200, 301, 302):
             return None
-        for item in r.json().get("results", []):
+        data = r.json()
+        results = data.get("results", []) if isinstance(data, dict) else []
+        for item in results:
             u = item.get("url") or item.get("thumbnail")
             if not u:
                 continue

@@ -3,7 +3,7 @@ title: "The Anatomy of a High-Converting Landing Page: A Step-by-Step Guide for 
 description: "Master the psychology of high-converting landing pages. Learn how to optimize your hero section, build trust with social proof, and use visual hierarchy to boost conversions in 2026."
 pubDate: 2026-07-10
 date: 2026-07-10
-image: "/high-converting-landing-page-anatomy.png"
+image: "/high-converting-landing-page-anatomy.jpg"
 tags: ["landing page optimization", "conversion rate optimization", "ux design", "digital marketing", "seo"]
 author: "Astro Tobby"
 ---
@@ -14,7 +14,7 @@ author: "Astro Tobby"
 
 In the fast-paced digital landscape of 2026, your landing page is often the first—and potentially only—chance to make a lasting impression. With attention spans shorter than ever, the difference between a bounce and a conversion lies in how effectively you communicate value and build trust within seconds.
 
-![The Anatomy of a High-Converting Landing Page](/high-converting-landing-page-anatomy.png)
+![The Anatomy of a High-Converting Landing Page](/high-converting-landing-page-anatomy.jpg)
 
 ## 1. The "5-Second Rule" for Hero Sections
 
@@ -48,7 +48,7 @@ Trust is the currency of the internet. In 2026, visitors are increasingly skepti
 *   **Humanized Testimonials:** Use real names, photos, and specific results. A testimonial that says "This tool increased our ROI by 40%" is far more powerful than "Great tool!"
 *   **Case Studies:** For high-ticket items, include a short section or link to a detailed success story.
 
-![Landing Page Psychology Icon](/landing-page-psychology-icon.png)
+![Landing Page Psychology Icon](/landing-page-psychology-icon.jpg)
 
 ## 4. Reducing Friction with a Single Goal
 
