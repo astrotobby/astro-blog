@@ -24,7 +24,7 @@ try {
 const product = prioritizeProducts(raw, tags, 'in-article-cta')[0];
 const storeBase = 'https://astrotobby.myshopify.com';
 const variantId = product.variantId.split('/').pop();
-const cartUrl = `${storeBase}/cart/add?id=${variantId}`;
+const cartUrl = `${storeBase}/cart/${variantId}:1`;
 const pdpUrl = `${storeBase}/products/${product.handle}`;
 const headline = hook ?? 'Want this done-for-you?';
 ---

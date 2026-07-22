@@ -34,7 +34,7 @@ const storeBase = 'https://astrotobby.myshopify.com';
   <div class="sp-grid">
     {products.map((product, i) => {
       const variantId = product.variantId.split('/').pop();
-      const cartUrl = `${storeBase}/cart/add?id=${variantId}`;
+      const cartUrl = `${storeBase}/cart/${variantId}:1`;
       const pdpUrl = `${storeBase}/products/${product.handle}`;
       const isFeatured = i === 0;
       return (
@@ -51,7 +51,7 @@ const storeBase = 'https://astrotobby.myshopify.com';
           <div class="sp-card-footer">
             <a href={pdpUrl} class="sp-link" target="_blank" rel="noopener noreferrer">Learn more</a>
             <a href={cartUrl} class="sp-btn" target="_blank" rel="noopener noreferrer">
-              Add to Cart
+              Check Out
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
           </div>
