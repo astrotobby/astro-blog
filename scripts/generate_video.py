@@ -5,6 +5,15 @@
   faster-whisper  -> captions.srt    (local, optional)
   ffmpeg          -> video_9x16.mp4 [+ video_16x9.mp4]
 
+CINEMATIC VISUAL LOGIC (redesigned):
+  - Scene 0 uses the post's own hero image (Pexels) for brand continuity
+  - Each scene has a semantic TYPE (HOOK/ESTABLISH/EXPLAIN/TENSION/DATA/PAYOFF/CTA)
+    embedded in its prompt by build_script.py
+  - Ken Burns motion is driven by scene TYPE, not scene index
+  - Per-scene duration is weighted by scene type energy level
+  - Topic-aware colour grading (security/healthcare/finance/general_ai etc.)
+  - DATA scenes get a lower-third stat bar overlay
+
 Usage: python scripts/generate_video.py .pipeline/script.json
 """
 import argparse
@@ -166,8 +175,6 @@ def _openverse_image(query, w, h):
     unauthenticated requests are rate-limited to 5/day). Picks the first usable result."""
     try:
         headers = {"User-Agent": "astro-blog-video/1.0"}
-        # Openverse API key is optional but strongly recommended — without it
-        # the API throttles to 5 requests/day which is unusable for batch pipelines.
         api_key = env("OPENVERSE_TOKEN") or None
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
@@ -205,20 +212,167 @@ def _picsum_image(seed, w, h):
     return None
 
 
-def _fetch_scene(i, prompt, w, h, token, slug, title, base_seed):
-    """One scene through the tiered source chain (see fetch_images)."""
+def _fetch_hero_image(image_url, w, h):
+    """Fetch the post's own hero image (from frontmatter) and resize/crop it to the
+    target dimensions. Returns image bytes or None. This is used for scene 0 to anchor
+    the video to the blog post's visual identity."""
+    if not image_url:
+        return None
+    try:
+        # Rewrite Pexels URLs to request the exact dimensions we need
+        url = image_url
+        if "pexels.com" in url:
+            # Pexels supports fit=crop&w=W&h=H for exact crops
+            url = re.sub(r"[?&](w|h|fit|auto|cs)=[^&]*", "", url)
+            url = url.rstrip("?&")
+            url += f"?auto=compress&cs=tinysrgb&fit=crop&w={w}&h={h}"
+        r = requests.get(url, timeout=60, headers={"User-Agent": "astro-blog-video/1.0"})
+        if r.status_code == 200 and _is_image_bytes(r.content):
+            log(f"hero image fetched from {url[:60]}...")
+            return r.content
+    except Exception as e:  # noqa
+        log(f"hero image fetch failed ({e})")
+    return None
+
+
+# ---------- Scene metadata parsing ----------
+
+def _parse_scene_meta(prompt: str) -> dict:
+    """Extract scene_type, kb_preset, and dur_mult from the embedded metadata tag
+    appended by build_script.py. Returns defaults if the tag is absent (backward compat)."""
+    meta = {"scene_type": "EXPLAIN", "kb_preset": "pan_right", "dur_mult": 1.0}
+    m = re.search(r"scene_type:(\w+)\|kb:(\w+)\|dur:([\d.]+)", prompt)
+    if m:
+        meta["scene_type"] = m.group(1)
+        meta["kb_preset"] = m.group(2)
+        try:
+            meta["dur_mult"] = float(m.group(3))
+        except ValueError:
+            pass
+    return meta
+
+
+def _clean_prompt(prompt: str) -> str:
+    """Strip the metadata tag from the prompt before sending to the image API."""
+    return re.sub(r",?\s*scene_type:\w+\|kb:\w+\|dur:[\d.]+", "", prompt).strip()
+
+
+# ---------- Ken Burns presets (semantic, not index-based) ----------
+# Each preset is a zoompan expression for ffmpeg.
+# {F} is replaced with the total frame count for that segment.
+_KENBURNS_PRESETS = {
+    # HOOK: hard fast punch-in — maximum energy, scroll-stopping
+    "punch_in":   "z='min(1.001+0.0035*on,1.45)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",
+    # ESTABLISH: slow pull-out — reveals the world, sets context
+    "pull_out":   "z='max(1.40-0.0018*on,1.05)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",
+    # EXPLAIN: steady pan right — clarity, forward motion
+    "pan_right":  "z='min(1.08+0.0010*on,1.22)':x='(iw-iw/zoom)*on/{F}':y='ih/2-(ih/zoom/2)'",
+    # TENSION: fast diagonal push — pattern interrupt, visceral energy
+    "diagonal":   "z='min(1.06+0.0022*on,1.35)':x='(iw-iw/zoom)*on/{F}':y='(ih-ih/zoom)*(1-on/{F})'",
+    # DATA: near-static with very subtle zoom — let the stat breathe
+    "static":     "z='min(1.02+0.0004*on,1.08)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",
+    # PAYOFF: slow pull-back — resolution, breathing room
+    "pull_back":  "z='max(1.30-0.0012*on,1.04)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",
+    # CTA: gentle zoom in — inviting, warm
+    "gentle_zoom":"z='min(1.04+0.0008*on,1.18)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",
+    # Legacy fallbacks (keep for backward compat with any cached prompts)
+    "pan_left":   "z='min(1.10+0.0012*on,1.30)':x='(iw-iw/zoom)*(1-on/{F})':y='ih/2-(ih/zoom/2)'",
+    "tilt_down":  "z='min(1.06+0.0016*on,1.32)':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*on/{F}'",
+}
+
+# Fallback list for any unrecognised preset key
+_KENBURNS_FALLBACK = list(_KENBURNS_PRESETS.values())
+
+# ---------- Topic-aware colour grades ----------
+# Imported from build_script.py's TOPIC_VISUAL_PROFILES at runtime.
+# Default (teal-orange tech-documentary) used when topic is undetected.
+_GRADE_DEFAULT = (
+    "eq=contrast=1.13:saturation=1.24:brightness=0.02:gamma=0.97,"
+    "colorbalance=rs=-0.04:bs=0.05:rh=0.05:bh=-0.06,"
+    "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0,"
+    "noise=alls=5:allf=t"
+)
+
+_GRADE_BY_CATEGORY = {
+    "security": (
+        "eq=contrast=1.18:saturation=1.10:brightness=-0.02:gamma=0.95,"
+        "colorbalance=rs=0.06:bs=-0.04:rh=0.04:bh=-0.05,"
+        "vignette=PI/4,unsharp=5:5:0.7:5:5:0.0,noise=alls=4:allf=t"
+    ),
+    "healthcare": (
+        "eq=contrast=1.10:saturation=0.95:brightness=0.03:gamma=1.02,"
+        "colorbalance=rs=-0.05:bs=0.07:rh=-0.03:bh=0.04,"
+        "vignette=PI/6,unsharp=5:5:0.5:5:5:0.0,noise=alls=3:allf=t"
+    ),
+    "finance": (
+        "eq=contrast=1.15:saturation=1.20:brightness=0.01:gamma=0.98,"
+        "colorbalance=rs=0.05:bs=-0.06:rh=0.07:bh=-0.04,"
+        "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0,noise=alls=4:allf=t"
+    ),
+    "automation": (
+        "eq=contrast=1.12:saturation=1.18:brightness=0.02:gamma=0.97,"
+        "colorbalance=rs=-0.03:bs=0.04:rh=0.04:bh=-0.05,"
+        "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0,noise=alls=5:allf=t"
+    ),
+    "llm_model": _GRADE_DEFAULT,
+    "general_ai": _GRADE_DEFAULT,
+}
+
+# Cinematic transitions — varied so cuts feel deliberate
+_TRANSITIONS = ["slideleft", "zoomin", "smoothup", "circleopen",
+                "slideright", "wipeleft", "radial", "fadeblack"]
+
+
+def _detect_topic_from_script(script) -> str:
+    """Detect topic category from the script post data. Mirrors build_script.detect_topic_category
+    but works on the already-rendered script.json (avoids re-importing build_script)."""
+    from build_script import TOPIC_VISUAL_PROFILES, detect_topic_category
+    return detect_topic_category(script["post"])
+
+
+def _get_grade(script) -> str:
+    """Return the colour grade filter string for this post's topic category."""
+    try:
+        cat = _detect_topic_from_script(script)
+        return _GRADE_BY_CATEGORY.get(cat, _GRADE_DEFAULT)
+    except Exception:  # noqa — never break the render over a grade lookup
+        return _GRADE_DEFAULT
+
+
+def _fetch_scene(i, prompt, w, h, token, slug, title, base_seed, image_url=None):
+    """One scene through the tiered source chain.
+
+    Scene 0 gets special treatment: we try the post's own hero image first (Pexels),
+    which creates visual continuity between the blog post and the video. If the hero
+    image fetch fails, we fall through to the normal AI-generation chain.
+
+    All other scenes use the cinematic prompt built by build_script.make_scenes(),
+    which encodes topic-specific visual language + scene type modifiers.
+    """
     dst = OUT / f"scene_{i:02d}.jpg"
-    # topical keyword query for the photo-search fallback (title + this scene's theme)
-    m = re.search(r"theme:\s*([^,]+)", prompt)
+
+    # Parse scene metadata from the prompt
+    meta = _parse_scene_meta(prompt)
+    clean = _clean_prompt(prompt)
+    scene_type = meta["scene_type"]
+
+    # Scene 0: try the post's hero image first for brand continuity
+    if i == 0 and image_url:
+        content = _fetch_hero_image(image_url, w, h)
+        if content:
+            dst.write_bytes(content)
+            if _valid_image(dst):
+                log(f"scene 0 [HOOK] -> {dst.name} (hero-image) [post's own Pexels photo]")
+                return dst, meta
+
+    # Topical keyword query for the photo-search fallback
+    m = re.search(r"theme:\s*([^,]+)", clean)
     focus = m.group(1).strip() if m else ""
     query = (f"{title} {focus}".strip() or title or "technology news")
 
-    # Rotate style per scene so visuals are visually varied across the video.
-    style = _STYLES[(base_seed + i) % len(_STYLES)]
-    styled_prompt = f"{prompt}, {style}"
-    content, src = _pollinations_image(styled_prompt, w, h, base_seed + i), "pollinations-AI"
+    content, src = _pollinations_image(clean, w, h, base_seed + i), "pollinations-AI"
     if not content:
-        content, src = _hf_image(styled_prompt, token), "HF-AI"
+        content, src = _hf_image(clean, token), "HF-AI"
     if not content:
         content, src = _openverse_image(query, w, h), "openverse"
     if not content:
@@ -228,31 +382,35 @@ def _fetch_scene(i, prompt, w, h, token, slug, title, base_seed):
     if not _valid_image(dst):
         _fallback_image(dst, w, h, i)
         src = "gradient"
-    log(f"scene {i} -> {dst.name} ({src}) [q: {query[:48]}]")
-    return dst
+    log(f"scene {i} [{scene_type}] -> {dst.name} ({src}) [q: {query[:48]}]")
+    return dst, meta
 
 
 def fetch_images(script, cfg):
-    """Tiered, all-free image source — TOPICAL first so visuals match the article:
-      1) Pollinations  -> free AI image generated from the scene prompt (on-topic)
+    """Tiered, all-free image source — TOPICAL first so visuals match the article.
+
+    Returns a list of (image_path, scene_meta) tuples so the renderer can apply
+    the correct Ken Burns motion and duration weighting per scene.
+
+    Source priority:
+      0) Post hero image (scene 0 only) — blog's own Pexels photo
+      1) Pollinations  -> free AI image generated from the cinematic scene prompt
       2) Hugging Face  -> AI image from the prompt (uses HF_TOKEN if set)
       3) Openverse     -> free keyword photo search (real photos matching the title)
       4) Lorem Picsum  -> reliable but RANDOM photo (only if all topical sources fail)
       5) gradient      -> last resort so ffmpeg always has valid input
-    Scenes are fetched with a small thread pool: Pollinations takes ~45s per image,
-    and sequential fetches were the single biggest time sink in the render (~7 min
-    of a ~17-min post). 2 workers keeps the request rate polite while cutting the
-    image stage to ~2 min.
     """
     vz = cfg["visuals"]
     w, h = vz["width"], vz["height"]
     token = env("HF_TOKEN") or None
     slug = script["post"]["slug"]
     title = (script["post"].get("title") or "").strip()
+    image_url = script["post"].get("image_url") or ""
     base_seed = abs(hash(slug)) % 100000
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=2) as ex:
-        futs = [ex.submit(_fetch_scene, i, p, w, h, token, slug, title, base_seed)
+        futs = [ex.submit(_fetch_scene, i, p, w, h, token, slug, title, base_seed,
+                          image_url if i == 0 else None)
                 for i, p in enumerate(script["scene_prompts"])]
         return [f.result() for f in futs]
 
@@ -328,79 +486,82 @@ def pick_music(cfg):
 
 
 # ---------- 5. assemble ----------
-# Varied Ken Burns motion per scene (uses 'on' = output frame index, {F} = total
-# frames). Rotating the move keeps a multi-scene montage from feeling static.
-# Punchy Ken Burns — fast, deep moves that combine zoom + pan so every scene feels
-# alive and in-motion ('on' = output frame index, {F} = total frames per segment).
-# Varied visual style suffixes rotated per scene so consecutive images have
-# distinct aesthetics instead of all looking like the same cinematic key-art.
-_STYLES = [
-    "epic cinematic key art, dramatic volumetric lighting, ultra detailed, vibrant, film grain, 9:16",
-    "photorealistic, golden hour photography, shallow depth of field, editorial, 9:16",
-    "bold flat illustration, vivid color blocks, modern graphic design, 9:16",
-    "dark moody atmosphere, neon accents, cyberpunk aesthetic, high contrast, 9:16",
-    "clean minimalist infographic style, white space, sharp typography, 9:16",
-    "watercolor concept art, painterly textures, dreamy soft light, 9:16",
-    "gritty documentary photography, street style, raw natural light, 9:16",
-    "futuristic sci-fi render, holographic elements, deep space, ultra detailed, 9:16",
-]
 
-_KENBURNS = [
-    "z='min(1.001+0.0020*on,1.34)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",        # hard punch in
-    "z='max(1.34-0.0020*on,1.04)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",         # snap pull out
-    "z='min(1.10+0.0012*on,1.30)':x='(iw-iw/zoom)*on/{F}':y='ih/2-(ih/zoom/2)'",      # pan right + zoom
-    "z='min(1.10+0.0012*on,1.30)':x='(iw-iw/zoom)*(1-on/{F})':y='ih/2-(ih/zoom/2)'",  # pan left + zoom
-    "z='min(1.06+0.0016*on,1.32)':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*on/{F}'",      # zoom + tilt down
-    "z='min(1.06+0.0016*on,1.32)':x='(iw-iw/zoom)*on/{F}':y='(ih-ih/zoom)*(1-on/{F})'",  # diagonal push
-]
-# Cinematic colour grade: punchy contrast/saturation, teal-orange split tone
-# (cool shadows / warm highlights — the tech-documentary look), soft vignette,
-# crisp sharpening, and a whisper of animated film grain so AI stills read as
-# footage instead of slides. Applied per scene so montage + avatar bg match.
-_GRADE = ("eq=contrast=1.13:saturation=1.24:brightness=0.02:gamma=0.97,"
-          "colorbalance=rs=-0.04:bs=0.05:rh=0.05:bh=-0.06,"
-          "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0,"
-          "noise=alls=5:allf=t")
-# Energetic, varied transitions (slides/zoom/wipes) so cuts feel deliberate, not a soft
-# crossfade mush. All are valid ffmpeg xfade types.
-_TRANSITIONS = ["slideleft", "zoomin", "smoothup", "circleopen",
-                "slideright", "wipeleft", "radial", "fadeblack"]
+def build_clip(image_results, total_dur, size, fps, out_path, grade=None):
+    """Build the image montage with SEMANTIC Ken Burns motion and scene-type-weighted
+    per-scene durations.
 
+    `image_results` is a list of (image_path, scene_meta) tuples produced by
+    fetch_images(). Each scene_meta contains:
+      - scene_type: HOOK/ESTABLISH/EXPLAIN/TENSION/DATA/PAYOFF/CTA
+      - kb_preset:  Ken Burns preset name (semantic, not index-based)
+      - dur_mult:   duration multiplier relative to the base per-scene duration
 
-def build_clip(images, total_dur, size, fps, out_path):
-    w, h = size["w"], size["h"]
+    The total duration is preserved: individual scene durations are weighted by
+    dur_mult and then normalised so they sum to total_dur.
+    """
+    # Unpack image results — support both old (path-only) and new (path, meta) formats
+    images = []
+    metas = []
+    for item in image_results:
+        if isinstance(item, tuple):
+            images.append(item[0])
+            metas.append(item[1])
+        else:
+            images.append(item)
+            metas.append({"scene_type": "EXPLAIN", "kb_preset": "pan_right", "dur_mult": 1.0})
+
     n = len(images)
-    per = max(2.0, total_dur / n)
-    xdur = 0.5 if n > 1 else 0.0           # snappy transition length between scenes
-    seg_len = per + xdur                    # build a little long so overlaps net to ~total
-    frames = max(1, int(seg_len * fps))
+    w, h = size["w"], size["h"]
+    _grade = grade or _GRADE_DEFAULT
+
+    # Compute per-scene durations weighted by dur_mult, normalised to total_dur
+    raw_mults = [m.get("dur_mult", 1.0) for m in metas]
+    total_mult = sum(raw_mults)
+    base_per = max(1.5, total_dur / n)
+    # Weighted durations, then normalise so sum == total_dur
+    raw_durs = [base_per * mult for mult in raw_mults]
+    scale = total_dur / sum(raw_durs)
+    scene_durs = [max(1.2, d * scale) for d in raw_durs]
+
+    xdur = 0.5 if n > 1 else 0.0
     seg_files = []
-    for i, img in enumerate(images):
+    for i, (img, meta, sdur) in enumerate(zip(images, metas, scene_durs)):
         seg = OUT / f"_seg_{w}x{h}_{i:02d}.mp4"
-        kb = _KENBURNS[i % len(_KENBURNS)].replace("{F}", str(frames))
+        seg_len = sdur + xdur
+        frames = max(1, int(seg_len * fps))
+
+        # Semantic Ken Burns: look up by preset name, fall back to index-based
+        kb_key = meta.get("kb_preset", "pan_right")
+        kb_expr = _KENBURNS_PRESETS.get(kb_key, _KENBURNS_FALLBACK[i % len(_KENBURNS_FALLBACK)])
+        kb = kb_expr.replace("{F}", str(frames))
+
         vf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,"
-              f"zoompan={kb}:d={frames}:s={w}x{h}:fps={fps},{_GRADE},format=yuv420p")
+              f"zoompan={kb}:d={frames}:s={w}x{h}:fps={fps},{_grade},format=yuv420p")
         run(["ffmpeg", "-y", "-loop", "1", "-framerate", str(fps), "-i", str(img),
              "-t", f"{seg_len:.3f}", "-vf", vf, "-r", str(fps), "-pix_fmt", "yuv420p",
              str(seg)])
-        seg_files.append(seg)
+        seg_files.append((seg, sdur))
+        log(f"  segment {i} [{meta.get('scene_type','?')}] kb={kb_key} dur={sdur:.2f}s")
 
     if n == 1:
-        run(["ffmpeg", "-y", "-i", seg_files[0].name, "-t", f"{total_dur:.3f}",
+        run(["ffmpeg", "-y", "-i", seg_files[0][0].name, "-t", f"{total_dur:.3f}",
              "-c", "copy", str(out_path.name)], cwd=OUT)
         return out_path
 
-    # Smooth crossfade transitions via a chained xfade graph (offset_k = k*per).
+    # Smooth crossfade transitions via a chained xfade graph
     try:
         inputs = []
-        for s in seg_files:
+        for s, _ in seg_files:
             inputs += ["-i", s.name]
         fc, prev = [], "0:v"
+        offset = 0.0
         for k in range(1, n):
             lbl = f"x{k}" if k < n - 1 else "vout"
             tr = _TRANSITIONS[(k - 1) % len(_TRANSITIONS)]
+            offset += scene_durs[k - 1]
             fc.append(f"[{prev}][{k}:v]xfade=transition={tr}:duration={xdur}:"
-                      f"offset={k * per:.3f}[{lbl}]")
+                      f"offset={offset:.3f}[{lbl}]")
             prev = lbl
         run(["ffmpeg", "-y", *inputs, "-filter_complex", ";".join(fc), "-map", "[vout]",
              "-r", str(fps), "-pix_fmt", "yuv420p", "-c:v", "libx264",
@@ -409,7 +570,7 @@ def build_clip(images, total_dur, size, fps, out_path):
     except Exception as e:  # noqa  transitions must never break the render
         log(f"xfade transitions failed ({e}); falling back to plain concat")
         listf = OUT / f"_list_{w}x{h}.txt"
-        listf.write_text("".join(f"file '{s.name}'\n" for s in seg_files), encoding="utf-8")
+        listf.write_text("".join(f"file '{s.name}'\n" for s, _ in seg_files), encoding="utf-8")
         run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listf.name,
              "-c", "copy", str(out_path.name)], cwd=OUT)
         return out_path
@@ -528,17 +689,35 @@ def _wrap(text, max_chars):
     return "\n".join(lines[:4])
 
 
-def _overlay_cards(cfg, size, hook_text, total_dur, tag):
-    """drawtext filter snippets for (a) a bold HOOK TITLE CARD over the first ~2.8s
-    — the 3-second scroll-stopper — and (b) a dimmed END CARD with the blog + store
-    CTA over the last ~3.4s. Pure ffmpeg, zero cost. Returns [] if disabled or no
-    usable font, so the render never depends on them."""
+def _extract_stat(text: str) -> str:
+    """Extract the first meaningful number/stat from a text string for the DATA
+    lower-third overlay. Returns empty string if nothing found."""
+    m = re.search(r"(\d[\d,.]*\s*(?:%|percent|million|billion|trillion|x faster|x cheaper|\$[\d,.]+))",
+                  text, re.I)
+    if m:
+        return m.group(1).strip()
+    # Fallback: any standalone number with context
+    m = re.search(r"(\d[\d,.]+(?:\s+\w+){0,3})", text)
+    return m.group(1).strip() if m else ""
+
+
+def _overlay_cards(cfg, size, hook_text, total_dur, tag, scene_metas=None, narration_segments=None):
+    """drawtext filter snippets for cinematic overlays:
+
+    (a) HOOK TITLE CARD: bold title over the first ~2.8s — the scroll-stopper
+    (b) DATA LOWER-THIRDS: a subtle stat bar shown during DATA-type scenes
+    (c) END CARD: dimmed CTA card over the last ~3.4s
+
+    Pure ffmpeg, zero cost. Returns [] if disabled or no usable font.
+    """
     font = _font_file()
     if not font:
         return []
     vc = cfg["video"]
     w = size["w"]
     chain = []
+
+    # (a) Hook title card
     if vc.get("hook_card") and hook_text:
         hk = OUT / f"_hook_{tag}.txt"
         hk.write_text(_wrap(hook_text.upper(), 20 if w < 1500 else 34),
@@ -550,6 +729,38 @@ def _overlay_cards(cfg, size, hook_text, total_dur, tag):
             f"boxcolor=black@0.45:boxborderw=28:line_spacing=14:"
             f"x=(w-text_w)/2:y=h*0.14:"
             f"alpha='if(lt(t,2.3),1,max(0,(2.8-t)/0.5))':enable='lt(t,2.8)'")
+
+    # (b) DATA lower-thirds: show the stat being spoken during DATA scenes
+    if scene_metas and narration_segments and vc.get("data_lower_third", True):
+        # Compute scene start times from scene durations
+        # (approximate: use uniform distribution if dur_mult not available)
+        n = len(scene_metas)
+        if total_dur and n > 0:
+            raw_mults = [m.get("dur_mult", 1.0) for m in scene_metas]
+            total_mult = sum(raw_mults)
+            scene_start = 0.0
+            for idx, (meta, seg_text) in enumerate(zip(scene_metas, narration_segments)):
+                sdur = total_dur * (raw_mults[idx] / total_mult)
+                if meta.get("scene_type") == "DATA":
+                    stat = _extract_stat(seg_text)
+                    if stat and len(stat) < 40:
+                        lf = OUT / f"_stat_{tag}_{idx}.txt"
+                        lf.write_text(stat.upper(), encoding="utf-8", newline="\n")
+                        fs_stat = int(w / 18) if w < 1500 else int(w / 30)
+                        t_start = max(0.0, scene_start + 0.3)
+                        t_end = scene_start + sdur - 0.3
+                        en = f"enable='between(t,{t_start:.2f},{t_end:.2f})'"
+                        # Subtle lower-third bar: dark background + white stat text
+                        chain.append(
+                            f"drawbox=x=0:y=h*0.82:w=w:h=h*0.10:"
+                            f"color=black@0.60:t=fill:{en}")
+                        chain.append(
+                            f"drawtext=textfile={lf.name}:fontfile={font}:fontsize={fs_stat}:"
+                            f"fontcolor=white:borderw=2:bordercolor=black:"
+                            f"x=(w-text_w)/2:y=h*0.845:{en}")
+                scene_start += sdur
+
+    # (c) End card
     lines = vc.get("end_card_lines") or []
     if vc.get("end_card") and lines and total_dur and total_dur > 12:
         start = max(0.0, total_dur - 3.4)
@@ -570,7 +781,7 @@ def _overlay_cards(cfg, size, hook_text, total_dur, tag):
 
 
 def finalize(silent_video, voice_path, captions, music, size, out_path, cfg,
-             hook_text=None, total_dur=None):
+             hook_text=None, total_dur=None, scene_metas=None, narration_segments=None):
     # inputs: 0=silent video, 1=voiceover, (2=music if present)
     inputs = ["-i", silent_video.name, "-i", str(voice_path.name)]
     has_music = bool(music)
@@ -587,13 +798,12 @@ def finalize(silent_video, voice_path, captions, music, size, out_path, cfg,
     vchain = []
     if captions and cfg["video"].get("captions"):
         mv = cfg["video"].get("caption_margin_v", 70)   # margin from the bottom
-        # Alignment=2 = bottom-center: captions sit at the bottom of the frame, below
-        # the lower-right avatar figure (which is lifted via avatar.bubble_bottom).
         style = (f"FontName=DejaVu Sans,FontSize=20,Bold=1,PrimaryColour=&H00FFFFFF,"
                  f"OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=1,"
                  f"Alignment=2,MarginV={mv}")
         vchain.append(f"subtitles={captions.name}:force_style='{style}'")
-    vchain += _overlay_cards(cfg, size, hook_text, total_dur, out_path.stem)
+    vchain += _overlay_cards(cfg, size, hook_text, total_dur, out_path.stem,
+                             scene_metas=scene_metas, narration_segments=narration_segments)
     vlabel = "0:v"
     if vchain:
         filters.append(f"[0:v]{','.join(vchain)}[v]")
@@ -617,9 +827,6 @@ def finalize(silent_video, voice_path, captions, music, size, out_path, cfg,
                 "-map", f"[{alabel}]" if alabel == "a" else alabel]
     else:
         cmd += ["-map", "0:v", "-map", alabel]
-    # crf 26 + preset fast: ~35% smaller than crf 23/veryfast with negligible quality loss.
-    # +faststart moves the moov atom to the front so the video starts playing immediately
-    # on socials without downloading the whole file first.
     cmd += ["-c:v", "libx264", "-preset", "fast", "-crf", "26",
             "-c:a", "aac", "-b:a", "128k", "-shortest",
             "-movflags", "+faststart", str(out_path.name)]
@@ -627,7 +834,7 @@ def finalize(silent_video, voice_path, captions, music, size, out_path, cfg,
     return out_path
 
 
-def build_with_avatar_overlay(talking, images, total_dur, size, fps, out_path, cfg):
+def build_with_avatar_overlay(talking, image_results, total_dur, size, fps, out_path, cfg, grade=None):
     """Full-duration ken-burns image background + a NON-circular, soft-feathered
     talking-avatar figure (head & shoulders) in the lower-right that lip-syncs the whole
     voiceover and gently bobs so it reads as a LIVE presenter blended into the scene —
@@ -637,7 +844,7 @@ def build_with_avatar_overlay(talking, images, total_dur, size, fps, out_path, c
     avc = cfg.get("avatar", {})
 
     # 1) background: ken-burns image montage for the WHOLE duration
-    bg = build_clip(images, total_dur, size, fps, OUT / f"_bg_{w}x{h}.mp4")
+    bg = build_clip(image_results, total_dur, size, fps, OUT / f"_bg_{w}x{h}.mp4", grade=grade)
 
     # 2) figure box (portrait head-and-shoulders), sized by frame height
     bh = int(h * float(avc.get("bubble_frac", 0.52)))
@@ -645,8 +852,7 @@ def build_with_avatar_overlay(talking, images, total_dur, size, fps, out_path, c
     bw = int(bh * float(avc.get("bubble_aspect", 0.72)))
     bw -= bw % 2
 
-    # 3) crop a portrait region from the talking head matching the box aspect (wider
-    #    than a tight face close-up, so shoulders show and it looks inclusive, not boxed)
+    # 3) crop a portrait region from the talking head matching the box aspect
     tw, th = _video_dims(talking)
     fz = float(avc.get("face_zoom", 0.92))
     fcx, fcy = float(avc.get("face_cx", 0.5)), float(avc.get("face_cy", 0.42))
@@ -654,15 +860,14 @@ def build_with_avatar_overlay(talking, images, total_dur, size, fps, out_path, c
     ch = int(cw * bh / bw)
     if ch > th:
         ch, cw = th, int(th * bw / bh)
-    cw, ch = min(cw, tw), min(ch, th)        # never crop beyond the source frame
+    cw, ch = min(cw, tw), min(ch, th)
     cx = max(0, min(int(tw * fcx) - cw // 2, tw - cw))
     cy = max(0, min(int(th * fcy) - ch // 2, th - ch))
 
-    # 4) soft-feather alpha so the figure blends into the scene (no circle, no hard box)
+    # 4) soft-feather alpha so the figure blends into the scene
     mask = _feather_mask(bw, bh, float(avc.get("feather", 0.10)))
 
-    # 5) lower-right anchor, lifted off the bottom to leave room for bottom captions,
-    #    with a subtle time-based bob so the figure feels alive and in-motion.
+    # 5) lower-right anchor with subtle sinusoidal bob
     margin = int(h * float(avc.get("bubble_margin", 0.04)))
     bottom = int(h * float(avc.get("bubble_bottom", 0.16)))
     ox, oy = w - bw - margin, h - bh - bottom
@@ -719,36 +924,42 @@ def main():
 
     fps = cfg["video"]["fps"]
 
+    # Detect topic-aware colour grade for this post
+    grade = _get_grade(script)
+    log(f"colour grade: {'topic-specific' if grade != _GRADE_DEFAULT else 'default'}")
+
     # Single-image mode: when visuals.single_image is set, the whole video is just that
     # one image (gentle Ken Burns) + captions + voiceover — no AI scene montage at all.
     single = (cfg.get("visuals", {}) or {}).get("single_image")
     single_path = (ROOT / single) if single else None
     if single_path and single_path.exists():
-        images = [single_path]
+        # Wrap in the (path, meta) tuple format expected by build_clip
+        image_results = [(single_path, {"scene_type": "ESTABLISH", "kb_preset": "pull_out", "dur_mult": 1.0})]
         log(f"single-image mode: {single_path.name} only (no scene montage)")
     else:
-        # Otherwise fetch the scene montage as usual.
-        images = fetch_images(script, cfg)
+        # Fetch the cinematic scene montage with hero image + semantic scene types
+        image_results = fetch_images(script, cfg)
+
+    # Extract scene metas and narration segments for DATA lower-thirds overlay
+    scene_metas = [m for _, m in image_results] if image_results and isinstance(image_results[0], tuple) else []
+    # Segment the narration to match scenes (for DATA lower-third stat extraction)
+    from build_script import _segment_narration
+    narration_segments = _segment_narration(narr_v, len(scene_metas)) if scene_metas else []
 
     # ---- talking avatar over the FULL voiceover (Wav2Lip, in-runner) ----
-    # The avatar bubble lip-syncs the whole video, so we feed the complete voice.
     talking = None
     av = cfg.get("avatar", {})
     if av.get("enabled"):
-        # Prefer a MOVING base clip (real gestures/expressions/body motion) if present;
-        # Wav2Lip lip-syncs onto it. Otherwise use the still image (lips-only motion).
         avatar_img = ROOT / av.get("image", "assets/avatar.png")
         motion = av.get("motion_video")
         motion_path = (ROOT / motion) if motion else None
         if motion_path and motion_path.exists():
             face_src = motion_path
             log(f"avatar: using motion clip {face_src.name} (gestures + lip-sync)")
-            # cover the source clip's tool watermark with the brand logo before lip-sync
             try:
                 face_src = mask_clip_watermark(face_src, cfg)
-            except Exception as e:  # noqa  masking must never break the render
+            except Exception as e:  # noqa
                 log(f"watermark mask failed (using unmasked clip): {e}")
-            # boomerang-loop the short clip so the motion flows continuously (no reset)
             if av.get("seamless_loop", True):
                 face_src = build_seamless_loop(face_src, fps)
         else:
@@ -766,20 +977,23 @@ def main():
         out = OUT / f"silent_{tag}.mp4"
         if talking is not None:
             try:
-                return build_with_avatar_overlay(talking, images, seg_dur, size, fps, out, cfg)
+                return build_with_avatar_overlay(talking, image_results, seg_dur, size, fps, out, cfg, grade=grade)
             except Exception as e:  # noqa  avatar must never break the render
                 log(f"avatar overlay failed -> image montage: {e}")
-        return build_clip(images, seg_dur, size, fps, out)
+        return build_clip(image_results, seg_dur, size, fps, out, grade=grade)
 
     results = {}
     hook = script.get("hook") or ""
     vsize = cfg["video"]["vertical"]
-    vout = finalize(silent_for(vsize, "9x16", dur), voice, captions, music, vsize,
-                    OUT / "video_9x16.mp4", cfg, hook_text=hook, total_dur=dur)
+    vout = finalize(
+        silent_for(vsize, "9x16", dur), voice, captions, music, vsize,
+        OUT / "video_9x16.mp4", cfg,
+        hook_text=hook, total_dur=dur,
+        scene_metas=scene_metas, narration_segments=narration_segments
+    )
     results["vertical"] = str(vout)
 
-    # Story cut: a <=58s trim of the vertical for IG/FB Stories (their publish APIs
-    # reject clips over ~60s). Bonus output — never breaks the render if it fails.
+    # Story cut: a <=58s trim of the vertical for IG/FB Stories
     if cfg.get("platforms", {}).get("also_story", True):
         try:
             results["story"] = str(make_story_cut(vout))
@@ -788,12 +1002,16 @@ def main():
 
     if cfg["video"].get("make_horizontal"):
         hsize = cfg["video"]["horizontal"]
-        # Horizontal cut is YouTube-only -> its own voiceover/captions speak "subscribe".
         narr_h = script.get("narration_yt") or narr_v
         voice_h, dur_h = make_voice(narr_h, cfg, tag="_yt")
         captions_h = make_captions(voice_h, narr_h, dur_h, tag="_yt") if captions_on else None
-        hout = finalize(silent_for(hsize, "16x9", dur_h), voice_h, captions_h, music, hsize,
-                        OUT / "video_16x9.mp4", cfg, hook_text=hook, total_dur=dur_h)
+        narration_segments_h = _segment_narration(narr_h, len(scene_metas)) if scene_metas else []
+        hout = finalize(
+            silent_for(hsize, "16x9", dur_h), voice_h, captions_h, music, hsize,
+            OUT / "video_16x9.mp4", cfg,
+            hook_text=hook, total_dur=dur_h,
+            scene_metas=scene_metas, narration_segments=narration_segments_h
+        )
         results["horizontal"] = str(hout)
 
     out = {

@@ -45,6 +45,136 @@ _TERM_STOP = set(
     "quietly dominating shifts everything nobody secretly using becoming".split()
 )
 
+# ---------------------------------------------------------------------------
+# Topic category detection — drives the visual language per post
+# ---------------------------------------------------------------------------
+# Each category maps to a visual grammar: a set of image-prompt modifiers that
+# produce footage matching the post's world, not generic "AI face" stock tropes.
+TOPIC_VISUAL_PROFILES = {
+    "security": {
+        "signals": ["security", "cyber", "threat", "breach", "attack", "vulnerability",
+                    "risk", "hack", "malware", "ransomware", "firewall", "encryption"],
+        "visual_language": [
+            "dark server room with red warning lights, cinematic surveillance aesthetic",
+            "digital lock and shield hologram, deep shadow, high contrast",
+            "cybersecurity operations center, analysts at screens, dramatic blue light",
+            "abstract data breach visualization, red particle streams on black",
+            "encrypted data tunnel, glowing green matrix-style, documentary style",
+        ],
+        "grade": "eq=contrast=1.18:saturation=1.10:brightness=-0.02:gamma=0.95,"
+                 "colorbalance=rs=0.06:bs=-0.04:rh=0.04:bh=-0.05,"
+                 "vignette=PI/4,unsharp=5:5:0.7:5:5:0.0,noise=alls=4:allf=t",
+    },
+    "healthcare": {
+        "signals": ["healthcare", "health", "medical", "hospital", "patient", "clinical",
+                    "doctor", "diagnosis", "treatment", "pharma", "biotech", "surgery"],
+        "visual_language": [
+            "modern hospital corridor with soft blue light, clean clinical aesthetic",
+            "doctor reviewing AI diagnostic interface, warm professional lighting",
+            "medical data visualization on holographic display, teal and white",
+            "human hands and technology interface, shallow depth of field, editorial",
+            "research laboratory with scientists, cool desaturated documentary style",
+        ],
+        "grade": "eq=contrast=1.10:saturation=0.95:brightness=0.03:gamma=1.02,"
+                 "colorbalance=rs=-0.05:bs=0.07:rh=-0.03:bh=0.04,"
+                 "vignette=PI/6,unsharp=5:5:0.5:5:5:0.0,noise=alls=3:allf=t",
+    },
+    "finance": {
+        "signals": ["finance", "payment", "fintech", "banking", "transaction", "revenue",
+                    "investment", "trading", "stock", "currency", "crypto", "wallet",
+                    "accounting", "invoice", "budget", "financial"],
+        "visual_language": [
+            "trading floor with real-time data screens, warm amber and gold tones",
+            "financial data dashboard with charts, sharp editorial photography",
+            "hands exchanging digital payment, close-up, warm cinematic light",
+            "bank vault or secure server room, deep shadow, gold accent lighting",
+            "global financial network visualization, aerial perspective, warm tones",
+        ],
+        "grade": "eq=contrast=1.15:saturation=1.20:brightness=0.01:gamma=0.98,"
+                 "colorbalance=rs=0.05:bs=-0.06:rh=0.07:bh=-0.04,"
+                 "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0,noise=alls=4:allf=t",
+    },
+    "automation": {
+        "signals": ["automation", "automate", "workflow", "no-code", "nocode",
+                    "pipeline", "zapier", "make.com", "productivity", "process",
+                    "robotic", "rpa", "orchestration"],
+        "visual_language": [
+            "clean modern workspace with multiple monitors showing workflow diagrams",
+            "robotic arm in factory with precision motion, industrial cinematic style",
+            "software interface with connected nodes and automation flows, clean UI",
+            "person at laptop with holographic workflow overlay, editorial style",
+            "time-lapse of automated assembly, dynamic motion, high contrast",
+        ],
+        "grade": "eq=contrast=1.12:saturation=1.18:brightness=0.02:gamma=0.97,"
+                 "colorbalance=rs=-0.03:bs=0.04:rh=0.04:bh=-0.05,"
+                 "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0,noise=alls=5:allf=t",
+    },
+    "llm_model": {
+        "signals": ["llm", "gpt", "claude", "gemini", "model", "language model",
+                    "transformer", "neural network", "inference", "training", "weights",
+                    "parameter", "benchmark", "multimodal"],
+        "visual_language": [
+            "neural network architecture visualization, glowing nodes, deep space background",
+            "GPU server cluster with dramatic lighting, data center cinematic style",
+            "human and AI interface, split-screen documentary, cool blue tones",
+            "abstract language model token flow, particle streams, dark background",
+            "researcher at workstation with model output on screen, warm editorial",
+        ],
+        "grade": "eq=contrast=1.13:saturation=1.24:brightness=0.02:gamma=0.97,"
+                 "colorbalance=rs=-0.04:bs=0.05:rh=0.05:bh=-0.06,"
+                 "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0,noise=alls=5:allf=t",
+    },
+    "general_ai": {
+        "signals": ["ai", "artificial intelligence", "machine learning", "agent",
+                    "chatbot", "openai", "anthropic", "deepmind", "algorithm"],
+        "visual_language": [
+            "futuristic AI research lab with scientists, cinematic documentary style",
+            "human and robot collaboration, warm natural light, editorial photography",
+            "AI chip close-up with dramatic macro photography, teal-orange grade",
+            "city skyline with AI infrastructure overlay, aerial cinematic shot",
+            "person interacting with AI interface, shallow depth of field, warm tones",
+        ],
+        "grade": "eq=contrast=1.13:saturation=1.24:brightness=0.02:gamma=0.97,"
+                 "colorbalance=rs=-0.04:bs=0.05:rh=0.05:bh=-0.06,"
+                 "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0,noise=alls=5:allf=t",
+    },
+}
+
+# Scene type modifiers — applied on top of the topic visual language.
+# Each type shapes the composition and energy of the image prompt.
+SCENE_TYPE_MODIFIERS = {
+    "HOOK":      "extreme close-up, dramatic reveal, maximum visual impact, scroll-stopping",
+    "ESTABLISH": "wide establishing shot, context-setting, world-building, cinematic scope",
+    "EXPLAIN":   "medium shot, clear and readable, documentary style, informative composition",
+    "TENSION":   "high contrast, dramatic shadows, pattern interrupt, visceral energy",
+    "DATA":      "clean data visualization, infographic aesthetic, sharp typography, clarity",
+    "PAYOFF":    "warm resolution, golden hour, cinematic wide, satisfying composition",
+    "CTA":       "bold brand identity, strong typography, clean minimalist, call to action",
+}
+
+# Ken Burns preset tags — passed to generate_video.py via scene metadata.
+# The renderer maps these to specific zoompan expressions.
+SCENE_TYPE_KENBURNS = {
+    "HOOK":      "punch_in",      # hard fast zoom in — maximum energy
+    "ESTABLISH": "pull_out",      # slow pull-out — reveals the world
+    "EXPLAIN":   "pan_right",     # steady pan — clarity and flow
+    "TENSION":   "diagonal",      # fast diagonal push — pattern interrupt
+    "DATA":      "static",        # near-static — let the data breathe
+    "PAYOFF":    "pull_back",     # slow pull-back — resolution
+    "CTA":       "gentle_zoom",   # gentle zoom in — inviting
+}
+
+# Scene duration multipliers relative to the base per-scene duration.
+SCENE_TYPE_DURATION = {
+    "HOOK":      0.60,   # shortest — high energy, fast cut
+    "ESTABLISH": 1.00,   # baseline
+    "EXPLAIN":   1.10,   # slightly longer — comprehension
+    "TENSION":   0.70,   # short — abrupt pattern interrupt
+    "DATA":      1.20,   # longer — let the stat land
+    "PAYOFF":    1.30,   # longest — breathing room
+    "CTA":       1.20,   # longer — let the CTA register
+}
+
 
 def _brandify(term: str) -> str:
     """Turn a word into a hashtag, preserving brand casing (NFT, GameFi, DeFi)."""
@@ -267,15 +397,149 @@ def build_narration(post, cfg):
     return hook, narration, narration_yt
 
 
-def make_scenes(post, cfg):
-    n = cfg["visuals"]["scenes"]
-    suffix = cfg["visuals"]["style_suffix"]
-    kws = keywords(post["title"] + " " + post["body"], n=max(3, n))
-    base = post["title"]
-    prompts = []
+# ---------------------------------------------------------------------------
+# Topic category detection
+# ---------------------------------------------------------------------------
+
+def detect_topic_category(post) -> str:
+    """Detect the dominant topic category for this post. Returns a key from
+    TOPIC_VISUAL_PROFILES. Falls back to 'general_ai' if nothing matches."""
+    text = (post.get("title", "") + " " + post.get("description", "") + " "
+            + (post.get("body", "") or "")[:3000]).lower()
+    best_cat, best_score = "general_ai", 0
+    for cat, profile in TOPIC_VISUAL_PROFILES.items():
+        score = sum(text.count(sig) for sig in profile["signals"])
+        if score > best_score:
+            best_score = score
+            best_cat = cat
+    log(f"topic category: {best_cat} (score={best_score})")
+    return best_cat
+
+
+# ---------------------------------------------------------------------------
+# Cinematic scene generation — the core of the redesign
+# ---------------------------------------------------------------------------
+
+def _has_stat(text: str) -> bool:
+    """True if the text contains a number, percentage, or dollar figure."""
+    return bool(re.search(r"\d[\d,.]*\s*[%$kKmMbB]?|\bper cent\b", text))
+
+
+def _segment_narration(narration: str, n: int) -> list:
+    """Split the narration into n segments proportional to word count.
+    Returns a list of (segment_text, word_count) tuples."""
+    words = narration.split()
+    total = len(words)
+    base = total // n
+    remainder = total % n
+    segments = []
+    idx = 0
     for i in range(n):
-        focus = kws[i % len(kws)] if kws else base
-        prompts.append(f"{base}, theme: {focus}, {suffix}")
+        count = base + (1 if i < remainder else 0)
+        seg = " ".join(words[idx:idx + count])
+        segments.append(seg)
+        idx += count
+    return segments
+
+
+def _classify_scene(i: int, n: int, segment: str, narration: str) -> str:
+    """Classify a scene by its position and content into a semantic type.
+
+    Position-based rules (primary):
+      0         -> HOOK   (always — first impression, scroll-stopper)
+      1         -> ESTABLISH (second scene sets the world)
+      n-2       -> PAYOFF (penultimate — resolution beat)
+      n-1       -> CTA    (last — call to action)
+
+    Content-based rules (override EXPLAIN for middle scenes):
+      ~40% mark -> TENSION (re-hook beat, pattern interrupt)
+      has stat  -> DATA
+      else      -> EXPLAIN
+    """
+    if i == 0:
+        return "HOOK"
+    if i == 1:
+        return "ESTABLISH"
+    if i == n - 1:
+        return "CTA"
+    if i == n - 2:
+        return "PAYOFF"
+    # Middle scenes: check content
+    tension_idx = max(2, int(n * 0.40))
+    if i == tension_idx:
+        return "TENSION"
+    if _has_stat(segment):
+        return "DATA"
+    return "EXPLAIN"
+
+
+def _scene_keywords(segment: str, post_title: str, n_kw: int = 3) -> str:
+    """Extract the most relevant keywords from a narration segment for the prompt."""
+    stop = set("the a an and or of to in for with on is are be this that it as at "
+               "by from your you here now just really very quite also but here's "
+               "that's what's it's don't won't can't isn't aren't we're they're".split())
+    words = re.findall(r"[A-Za-z][A-Za-z0-9\-]{3,}", segment.lower())
+    freq = {}
+    for w in words:
+        if w not in stop:
+            freq[w] = freq.get(w, 0) + 1
+    # Also pull key terms from the post title for grounding
+    title_words = re.findall(r"[A-Za-z][A-Za-z0-9\-]{3,}", post_title.lower())
+    for w in title_words:
+        if w not in stop:
+            freq[w] = freq.get(w, 0) + 0.5  # lower weight than segment words
+    top = [w for w, _ in sorted(freq.items(), key=lambda kv: -kv[1])[:n_kw]]
+    return " ".join(top) if top else post_title.lower()
+
+
+def make_scenes(post, cfg):
+    """Generate cinematic, semantically-typed scene prompts.
+
+    Each scene prompt is built from:
+      1. The topic visual language (category-specific, not generic "AI face")
+      2. The scene type modifier (HOOK / ESTABLISH / EXPLAIN / TENSION / DATA / PAYOFF / CTA)
+      3. Keywords extracted from the narration segment spoken during that scene
+      4. Aspect ratio and quality suffix
+
+    The prompt also embeds metadata (type, kb_preset, duration_mult) so
+    generate_video.py can apply the correct Ken Burns motion and pacing.
+    """
+    n = cfg["visuals"]["scenes"]
+    # Build narration for segmentation (use the vertical/follow cut as reference)
+    hook, narration, _ = build_narration(post, cfg)
+    full_narration = hook + " " + narration
+
+    # Detect topic category and load its visual profile
+    cat = detect_topic_category(post)
+    profile = TOPIC_VISUAL_PROFILES[cat]
+    visual_pool = profile["visual_language"]
+
+    # Segment the narration into n parts
+    segments = _segment_narration(full_narration, n)
+
+    prompts = []
+    for i, segment in enumerate(segments):
+        scene_type = _classify_scene(i, n, segment, full_narration)
+        type_modifier = SCENE_TYPE_MODIFIERS[scene_type]
+        kb_preset = SCENE_TYPE_KENBURNS[scene_type]
+        dur_mult = SCENE_TYPE_DURATION[scene_type]
+
+        # Pick a visual from the topic pool, cycling through them
+        base_visual = visual_pool[i % len(visual_pool)]
+
+        # Extract segment-specific keywords for grounding
+        seg_kws = _scene_keywords(segment, post["title"])
+
+        # Build the full prompt
+        # Format: [base visual], [scene keywords], [type modifier], [quality suffix]
+        prompt = (
+            f"{base_visual}, {seg_kws}, {type_modifier}, "
+            f"photorealistic, ultra detailed, film grain, 9:16, "
+            f"scene_type:{scene_type}|kb:{kb_preset}|dur:{dur_mult:.2f}"
+        )
+        prompts.append(prompt)
+        log(f"scene {i} [{scene_type}] kb={kb_preset} dur={dur_mult:.2f} kws={seg_kws[:40]}")
+
     return prompts
 
 

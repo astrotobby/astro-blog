@@ -74,6 +74,9 @@ visuals:
   scenes: 10                   # ~7.5s per visual over a ~75s video = a fresh visual
                                # hook every 8-15s window (retention rule of thumb)
   model: "flux"
+  # style_suffix is now ONLY used as a fallback for any post that bypasses build_script.make_scenes().
+  # The main cinematic scene logic in build_script.py uses topic-specific visual profiles
+  # (TOPIC_VISUAL_PROFILES) and scene-type modifiers instead of this single global suffix.
   style_suffix: "epic cinematic key art, dramatic volumetric lighting, ultra detailed, vibrant, film grain, professional motion graphic, 9:16"
   width: 1080
   height: 1920
@@ -89,6 +92,7 @@ video:
   music_volume: 0.12
   # ---- Cinematic overlays (drawtext, all free/in-ffmpeg) ----
   hook_card: true                   # burn the hook as a big title card over the first ~2.8s
+  data_lower_third: true            # show extracted stat/number as a lower-third bar on DATA scenes
   end_card: true                    # dimmed CTA card over the last ~3.4s of the video
   end_card_lines:                   # rendered top-to-bottom, auto-sized per aspect
     - "READ THE FULL BREAKDOWN"
