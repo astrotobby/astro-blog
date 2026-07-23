@@ -31,13 +31,13 @@ script:
   # Short, curiosity-driven, clickbait-style hooks that open a loop the viewer has
   # to keep watching (and click through to the blog) to close.
   hook_styles:
-    - "The truth about {topic} that nobody's telling you."
-    - "Stop scrolling — {topic} just changed everything."
-    - "You won't believe what {topic} really means."
-    - "Most people get {topic} dangerously wrong."
-    - "What they're not telling you about {topic}."
-    - "This is why everyone's suddenly talking about {topic}."
-    - "{topic} is about to break the internet — here's why."
+    - "This is the financial secret about {topic} they don't want you to know."
+    - "Stop wasting money on old tech — {topic} is the 2026 game changer."
+    - "I found a way to automate {topic} for free, and it's absolute magic."
+    - "Most creators are failing at {topic} because they're missing this one thing."
+    - "Wait until you see how {topic} just disrupted the entire industry."
+    - "This is why {topic} is the most profitable skill you can learn in 2026."
+    - "I replaced my entire workflow with {topic} and the results are insane."
   # Mid-video PATTERN INTERRUPTS (rotated per post): re-open the curiosity loop at
   # ~40% in — exactly where short-form drop-off peaks. Spoken by the narrator.
   rehooks:
@@ -57,7 +57,7 @@ script:
 # Warm, calm MALE voice to match the male avatar. Alternatives:
 #   en-US-GuyNeural (mature/pro), en-US-AndrewNeural (warm), en-GB-RyanNeural (British)
 voice:
-  name: "en-US-BrianNeural"    # edge-tts fallback voice (used if cloning is off/unavailable)
+  name: "en-US-AndrewNeural"   # Warm, engaging male voice for higher retention
   rate: "+0%"                  # natural pace (was +6%) for a calmer delivery
   pitch: "+0Hz"
   # ---- Cloned voice (free OpenVoice v2) — DISABLED: clone quality from the low-fi
@@ -71,7 +71,7 @@ visuals:
   # When set, the ENTIRE video is just this one image (gentle Ken Burns) + captions +
   # voiceover — no AI scene montage. Empty "" = normal multi-scene montage (current).
   single_image: ""
-  scenes: 10                   # ~7.5s per visual over a ~75s video = a fresh visual
+  scenes: 15                   # ~5s per visual over a ~75s video = faster pacing for retention
                                # hook every 8-15s window (retention rule of thumb)
   model: "flux"
   # style_suffix is now ONLY used as a fallback for any post that bypasses build_script.make_scenes().

@@ -99,11 +99,11 @@ TOPIC_VISUAL_PROFILES = {
                     "pipeline", "zapier", "make.com", "productivity", "process",
                     "robotic", "rpa", "orchestration"],
         "visual_language": [
-            "clean modern workspace with multiple monitors showing workflow diagrams",
-            "robotic arm in factory with precision motion, industrial cinematic style",
-            "software interface with connected nodes and automation flows, clean UI",
-            "person at laptop with holographic workflow overlay, editorial style",
-            "time-lapse of automated assembly, dynamic motion, high contrast",
+            "ultra-modern neon-lit workstation with floating holographic workflow nodes, cybernetic aesthetic",
+            "hyper-realistic robotic hand precisely assembling a glowing AI core, macro cinematic shot",
+            "dynamic visualization of data packets flowing through a crystal-clear glass pipeline, 8k resolution",
+            "futuristic engineer wearing AR glasses interacting with a complex 3D automation grid, volumetric lighting",
+            "stunning bird's-eye view of a fully automated smart city at night, glowing light trails, cinematic drone shot",
         ],
         "grade": "eq=contrast=1.12:saturation=1.18:brightness=0.02:gamma=0.97,"
                  "colorbalance=rs=-0.03:bs=0.04:rh=0.04:bh=-0.05,"
@@ -114,11 +114,11 @@ TOPIC_VISUAL_PROFILES = {
                     "transformer", "neural network", "inference", "training", "weights",
                     "parameter", "benchmark", "multimodal"],
         "visual_language": [
-            "neural network architecture visualization, glowing nodes, deep space background",
-            "GPU server cluster with dramatic lighting, data center cinematic style",
-            "human and AI interface, split-screen documentary, cool blue tones",
-            "abstract language model token flow, particle streams, dark background",
-            "researcher at workstation with model output on screen, warm editorial",
+            "breathtaking visualization of a sentient neural galaxy, billions of glowing connections, deep space epic",
+            "imposing monolith of a supercomputer bathed in ethereal violet light, steam rising, futuristic tech",
+            "ethereal fusion of a human mind and digital code, translucent layers, glowing synapses, masterpiece",
+            "vibrant explosion of digital tokens forming a DNA helix, abstract data art, high energy",
+            "visionary scientist witnessing the birth of an AGI inside a glowing glass chamber, dramatic lighting",
         ],
         "grade": "eq=contrast=1.13:saturation=1.24:brightness=0.02:gamma=0.97,"
                  "colorbalance=rs=-0.04:bs=0.05:rh=0.05:bh=-0.06,"
@@ -143,13 +143,13 @@ TOPIC_VISUAL_PROFILES = {
 # Scene type modifiers — applied on top of the topic visual language.
 # Each type shapes the composition and energy of the image prompt.
 SCENE_TYPE_MODIFIERS = {
-    "HOOK":      "extreme close-up, dramatic reveal, maximum visual impact, scroll-stopping",
-    "ESTABLISH": "wide establishing shot, context-setting, world-building, cinematic scope",
-    "EXPLAIN":   "medium shot, clear and readable, documentary style, informative composition",
-    "TENSION":   "high contrast, dramatic shadows, pattern interrupt, visceral energy",
-    "DATA":      "clean data visualization, infographic aesthetic, sharp typography, clarity",
-    "PAYOFF":    "warm resolution, golden hour, cinematic wide, satisfying composition",
-    "CTA":       "bold brand identity, strong typography, clean minimalist, call to action",
+    "HOOK":      "stunning cinematic reveal, high-speed motion, intense volumetric lighting, 8k masterpiece",
+    "ESTABLISH": "breathtaking wide angle, epic world-building, anamorphic lens flares, cinematic depth",
+    "EXPLAIN":   "crisp editorial photography, shallow depth of field, elegant composition, professional lighting",
+    "TENSION":   "dynamic low angle, sharp shadows, glitch aesthetic, high-energy particle effects",
+    "DATA":      "futuristic holographic display, glowing neon elements, ultra-sharp detail, sci-fi interface",
+    "PAYOFF":    "glorious cinematic resolution, ethereal light rays, expansive vista, awe-inspiring",
+    "CTA":       "sleek minimalist branding, premium typography, bold focus, clean professional finish",
 }
 
 # Ken Burns preset tags — passed to generate_video.py via scene metadata.
