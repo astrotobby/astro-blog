@@ -727,7 +727,7 @@ def _overlay_cards(cfg, size, hook_text, total_dur, tag, scene_metas=None, narra
             f"drawtext=textfile={hk.name}:fontfile={font}:fontsize={fs}:"
             f"fontcolor=white:borderw=3:bordercolor=black:box=1:"
             f"boxcolor=black@0.45:boxborderw=28:line_spacing=14:"
-            f"x=(w-text_w)/2:y=h*0.14:"
+            f"x=(main_w-text_w)/2:y=main_h*0.14:"
             f"alpha='if(lt(t,2.3),1,max(0,(2.8-t)/0.5))':enable='lt(t,2.8)'")
 
     # (b) DATA lower-thirds: show the stat being spoken during DATA scenes
@@ -752,12 +752,12 @@ def _overlay_cards(cfg, size, hook_text, total_dur, tag, scene_metas=None, narra
                         en = f"enable='between(t,{t_start:.2f},{t_end:.2f})'"
                         # Subtle lower-third bar: dark background + white stat text
                         chain.append(
-                            f"drawbox=x=0:y=h*0.82:w=w:h=h*0.10:"
+                            f"drawbox=x=0:y=ih*0.82:w=iw:h=ih*0.10:"
                             f"color=black@0.60:t=fill:{en}")
                         chain.append(
                             f"drawtext=textfile={lf.name}:fontfile={font}:fontsize={fs_stat}:"
                             f"fontcolor=white:borderw=2:bordercolor=black:"
-                            f"x=(w-text_w)/2:y=h*0.845:{en}")
+                            f"x=(main_w-text_w)/2:y=main_h*0.845:{en}")
                 scene_start += sdur
 
     # (c) End card
@@ -776,7 +776,7 @@ def _overlay_cards(cfg, size, hook_text, total_dur, tag, scene_metas=None, narra
             chain.append(
                 f"drawtext=textfile={lf.name}:fontfile={font}:fontsize={fs}:"
                 f"fontcolor={col}:borderw=2:bordercolor=black:"
-                f"x=(w-text_w)/2:y=h*{frac}:{en}")
+                f"x=(main_w-text_w)/2:y=main_h*{frac}:{en}")
     return chain
 
 
