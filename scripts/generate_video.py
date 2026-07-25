@@ -89,7 +89,10 @@ def _is_video_valid(path):
     return path.exists() and path.stat().st_size > 10000
 
 def _pexels_video_search(query, w, h):
-    api_key = env("PEXELS_API_KEY") or "YOUR_API_KEY"
+    api_key = env("PEXELS_API_KEY")
+    if not api_key:
+        log("PEXELS_API_KEY not set; skipping Pexels video search")
+        return None
     url = f"https://api.pexels.com/v1/videos/search?query={urllib.parse.quote(query)}&per_page=10"
     headers = {"Authorization": api_key}
     try:
