@@ -2,16 +2,49 @@
 interface Props {
 	minHeight?: string;
 	margin?: string;
+	slot?: string;
 }
 
-const { minHeight = "90px", margin = "20px auto" } = Astro.props;
+const { minHeight = "90px", margin = "20px auto", slot } = Astro.props;
+
+// Zone IDs for banner placements (728x90 / 300x250 style)
+// We'll use different zones for different slots to maximize fill rate
+const ZONE_MAP: Record<string, string> = {
+  'top': '11189587',      // Great tag
+  'middle1': '10979500',  // Wonderful tag
+  'middle2': '10964339',  // Excited tag (MULTI)
+  'bottom': '11242710',   // Lovely tag
+  'sidebar-top': '11244264' // Excited tag
+};
+
+const currentZone = ZONE_MAP[slot || 'top'] || '11189587';
 ---
 
-<!-- Ad removed as per priority fix #1 -->
-<div class="ad-placeholder" style={`min-height: ${minHeight}; margin: ${margin};`}></div>
+<div class="monetag-banner-slot" data-zone={currentZone} style={`min-height: ${minHeight}; margin: ${margin};`}></div>
+
+<script is:inline define:vars={{ zone: currentZone }}>
+  (function() {
+    var zoneId = zone;
+    var slots = document.querySelectorAll('.monetag-banner-slot[data-zone="' + zoneId + '"]');
+    if (!slots.length) return;
+    
+    var s = document.createElement('script');
+    s.type = 'text/javascript';
+    s.src = '//fe.monetag.com/ads/adsterra.js';
+    s.setAttribute('data-zone-id', zoneId);
+    s.async = true;
+    
+    // Inject into the first matching slot
+    slots[0].appendChild(s);
+  })();
+</script>
 
 <style>
-	.ad-placeholder {
-		display: none;
+	.monetag-banner-slot {
+		min-height: 90px;
+		width: 100%;
+		max-width: 728px;
+		margin: 20px auto;
+		display: block;
 	}
 </style>

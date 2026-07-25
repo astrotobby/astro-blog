@@ -29,6 +29,23 @@ const popular = (await getCollection('blog'))
   .slice(0, limit);
 ---
 <aside class="rd-aside">
+  <!-- Sidebar Ad (Top) -->
+  <div class="rd-widget rd-sidebar-ad">
+    <div id="monetag-sidebar-ad"></div>
+    <script is:inline>
+      (function() {
+        var el = document.getElementById('monetag-sidebar-ad');
+        if (!el) return;
+        var s = document.createElement('script');
+        s.type = 'text/javascript';
+        s.src = '//fe.monetag.com/ads/adsterra.js';
+        s.setAttribute('data-zone-id', '11244264'); // Excited tag
+        s.async = true;
+        el.appendChild(s);
+      })();
+    </script>
+  </div>
+
   <!-- Follow Us -->
   <div class="rd-widget">
     <h2 class="rd-widget-title">Follow Us</h2>

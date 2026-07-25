@@ -91,6 +91,7 @@ const noindex = shouldNoindex(slug);
             <div class="prose">
               {slug && <AdBanner slot="top" />}
               <slot />
+              {slug && <AdBanner slot="middle1" />}
               {slug && <AdBanner slot="bottom" />}
             </div>
           </article>
