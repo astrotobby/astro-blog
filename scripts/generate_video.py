@@ -320,8 +320,11 @@ def main():
     montage = build_clip(scene_assets, dur, cfg["video"]["vertical"], cfg["video"]["fps"], OUT / "montage.mp4")
     finalize(montage, voice, None, None, cfg["video"]["vertical"], OUT / "video_9x16.mp4", cfg, total_dur=dur)
     
+    # Keep platform-specific publishing metadata with the rendered video. The
+    # cross-posting stage depends on these captions, titles, and hashtags.
     out = {
         "post": script["post"],
+        "platform": script["platform"],
         "videos": {"vertical": str(OUT / "video_9x16.mp4")},
         "duration": dur
     }
