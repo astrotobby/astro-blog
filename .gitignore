@@ -26,18 +26,14 @@ pnpm-debug.log*
 # Python cache
 __pycache__/
 *.pyc
+scripts/__pycache__/
 
-# pipeline state
+# pipeline state / render artifacts
 .pipeline/
+Wav2Lip/
 
 # wrangler files
 .wrangler
 .dev.vars*
 !.dev.vars.example
 !.env.example
-
-# blog-to-video local render artifacts (generated; never committed)
-.pipeline/
-Wav2Lip/
-scripts/__pycache__/
-*.pyc
