@@ -1,0 +1,643 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import CpaleadOffers from '../components/CpaleadOffers.astro';
+import { env } from 'cloudflare:workers';
+import { detectDevice, countryName, countryFlag } from '../lib/cpalead';
+import { getBlendedOffers } from '../lib/offers';
+import { ENABLE_OFFERS_PAGE } from '../consts';
+import { fetchShopifyProducts, FALLBACK_PRODUCTS } from '../lib/shopify';
+
+// Page is live when the flag is enabled.
+if (!ENABLE_OFFERS_PAGE) {
+  return new Response('Not Found', {
+    status: 404,
+    headers: { 'X-Robots-Tag': 'noindex' },
+  });
+}
+
+const pageTitle = 'Affiliate Offers — Unlock Digital Products Free';
+const pageDescription =
+  'Complete one free offer to unlock any of our premium digital products — no payment needed. Powered by CPAGrip and CPAlead.';
+
+const SUBID = 'astroblog-unlock';
+
+// Per-visitor signals from Cloudflare headers
+const cf = (Astro.request.headers.get('cf-ipcountry') || '').toUpperCase();
+const visitorCountry =
+  /^[A-Z]{2}$/.test(cf) && !['XX', 'T1', 'A1', 'A2'].includes(cf) ? cf : null;
+const ip = Astro.request.headers.get('cf-connecting-ip');
+const userAgent = Astro.request.headers.get('user-agent');
+const device = detectDevice(userAgent);
+const cpagripPubkey = (env as any).CPAGRIP_PUBKEY ?? null;
+
+// Blended CPAlead + CPAGrip offers — geo/device matched, ranked by value
+const { offers, matchedCountry } = await getBlendedOffers({
+  country: visitorCountry, ip, userAgent, device, limit: 24, subid: SUBID, cpagripPubkey,
+});
+
+// Load digital products (Shopify live or fallback)
+let products = FALLBACK_PRODUCTS;
+try {
+  const live = await fetchShopifyProducts();
+  if (live && live.length > 0) products = live;
+} catch { /* use fallback */ }
+
+const storeBase = 'https://astrotobby.myshopify.com';
+
+// Personalized per visitor — must NOT be shared by the edge cache
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+
+const geoLabel = matchedCountry
+  ? `${countryFlag(matchedCountry)} ${countryName(matchedCountry)}`
+  : '';
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <BaseHead title={pageTitle} description={pageDescription} />
+    <style>:global(body) { margin: 0; padding: 0; }</style>
+  </head>
+  <body>
+    <Header />
+    <main class="aff-page">
+
+      <!-- ═══ HERO ═══ -->
+      <section class="aff-hero">
+        <div class="aff-hero__bg"></div>
+        <div class="aff-hero__content">
+          <span class="aff-eyebrow">Affiliate Offers</span>
+          <h1 class="aff-hero__title">Unlock Premium Products — Free</h1>
+          <p class="aff-hero__sub">
+            Don't want to pay? Complete <strong>1 free offer</strong> below and get instant access to
+            any of our digital products. Powered by CPAGrip &amp; CPAlead.
+          </p>
+          {geoLabel && (
+            <p class="aff-hero__geo" aria-live="polite">
+              📍 Showing offers for <strong>{geoLabel}</strong>
+            </p>
+          )}
+          <div class="aff-hero__stats">
+            <div class="aff-stat"><span class="aff-stat__n">{offers.length}</span><span class="aff-stat__l">Live Offers</span></div>
+            <div class="aff-stat"><span class="aff-stat__n">Free</span><span class="aff-stat__l">To Complete</span></div>
+            <div class="aff-stat"><span class="aff-stat__n">Instant</span><span class="aff-stat__l">Access</span></div>
+          </div>
+          <a href="#how-it-works" class="aff-hero__cta">How It Works ↓</a>
+        </div>
+      </section>
+
+      <!-- ═══ HOW IT WORKS ═══ -->
+      <section class="aff-how" id="how-it-works">
+        <div class="aff-how__inner">
+          <h2 class="aff-how__title">How to Unlock a Product for Free</h2>
+          <div class="aff-how__steps">
+            <div class="aff-step">
+              <div class="aff-step__num">1</div>
+              <div class="aff-step__icon">🎁</div>
+              <h3>Choose a Product</h3>
+              <p>Pick any digital product you want from the list below.</p>
+            </div>
+            <div class="aff-step aff-step--arrow">→</div>
+            <div class="aff-step">
+              <div class="aff-step__num">2</div>
+              <div class="aff-step__icon">✅</div>
+              <h3>Complete 1 Offer</h3>
+              <p>Pick any offer from the wall — sign up, install an app, or claim a bonus.</p>
+            </div>
+            <div class="aff-step aff-step--arrow">→</div>
+            <div class="aff-step">
+              <div class="aff-step__num">3</div>
+              <div class="aff-step__icon">🔓</div>
+              <h3>Get Your Download</h3>
+              <p>Click "I Completed an Offer" to reveal your product access link instantly.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ PRODUCTS TO UNLOCK ═══ -->
+      <section class="aff-products" id="products">
+        <div class="aff-products__inner">
+          <div class="aff-products__header">
+            <span class="aff-eyebrow">Step 1 — Choose a Product</span>
+            <h2>Select a Product to Unlock</h2>
+            <p>Click "Unlock Free" on any product, complete one offer below, then get instant access.</p>
+          </div>
+          <div class="aff-products__grid" id="product-grid">
+            {products.map((p) => {
+              const pdpUrl = `${storeBase}/products/${p.handle}`;
+              const variantId = p.variantId.split('/').pop();
+              const cartUrl = `${storeBase}/cart/${variantId}:1`;
+              return (
+                <div class="aff-product-card" data-handle={p.handle} data-title={p.title} data-url={pdpUrl}>
+                  {p.image && (
+                    <div class="aff-product-card__img">
+                      <img src={p.image} alt={p.title} loading="lazy" />
+                    </div>
+                  )}
+                  <div class="aff-product-card__body">
+                    <span class="aff-product-card__type">{p.productType}</span>
+                    <h3 class="aff-product-card__title">{p.title}</h3>
+                    <p class="aff-product-card__desc">{p.description}</p>
+                    <div class="aff-product-card__footer">
+                      <span class="aff-product-card__price">{p.price}</span>
+                      <div class="aff-product-card__actions">
+                        <button
+                          class="aff-product-card__unlock-btn"
+                          data-handle={p.handle}
+                          data-pdp={pdpUrl}
+                          data-cart={cartUrl}
+                          data-title={p.title}
+                          onclick="selectProduct(this)"
+                        >
+                          🔓 Unlock Free
+                        </button>
+                        <a href={cartUrl} class="aff-product-card__buy-btn" target="_blank" rel="noopener">
+                          Buy {p.price}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ SELECTED PRODUCT BANNER ═══ -->
+      <div class="aff-selected-banner" id="selected-banner" hidden>
+        <div class="aff-selected-banner__inner">
+          <span class="aff-selected-banner__label">Selected for unlock:</span>
+          <strong id="selected-title">—</strong>
+          <button class="aff-selected-banner__clear" onclick="clearProduct()">✕ Change</button>
+        </div>
+      </div>
+
+      <!-- ═══ OFFER WALL ═══ -->
+      <section class="aff-wall" id="offer-wall">
+        <div class="aff-wall__inner">
+          <div class="aff-wall__header">
+            <span class="aff-eyebrow">Step 2 — Complete 1 Offer</span>
+            <h2>Available Offers</h2>
+            <p>
+              Complete any <strong>one offer</strong> below. After completion, click
+              <strong>"I Completed an Offer"</strong> to reveal your product download link.
+            </p>
+          </div>
+          <div class="aff-wall__networks">
+            <span class="aff-net-badge aff-net-badge--cpalead">CPAlead</span>
+            <span class="aff-net-badge aff-net-badge--cpagrip">CPAGrip</span>
+            <span class="aff-net-badge__note">Offers from 2 trusted networks · Updated live</span>
+          </div>
+          <CpaleadOffers offers={offers} subid={SUBID} heading={false} />
+          <p class="aff-disclosure">
+            <strong>Disclosure:</strong> Offers are provided by third-party advertisers via CPAlead and CPAGrip.
+            We earn a commission when you complete an offer, at no extra cost to you. Availability and eligibility
+            (country, device) are set by each advertiser and may change without notice.
+          </p>
+        </div>
+      </section>
+
+      <!-- ═══ COMPLETE OFFER → UNLOCK CTA ═══ -->
+      <section class="aff-unlock-cta" id="unlock-cta">
+        <div class="aff-unlock-cta__inner">
+          <div class="aff-unlock-cta__icon">🎉</div>
+          <h2>Completed an Offer?</h2>
+          <p>Once your offer is confirmed, click below to reveal your free product download link.</p>
+          <button class="aff-unlock-cta__btn" id="unlock-trigger" onclick="openUnlockModal()">
+            I Completed an Offer — Unlock My Product
+          </button>
+          <p class="aff-unlock-cta__note">
+            No product selected yet?
+            <a href="#products">Choose a product above first ↑</a>
+          </p>
+        </div>
+      </section>
+
+      <!-- ═══ UNLOCK MODAL ═══ -->
+      <div class="aff-modal-overlay" id="unlock-modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-heading">
+        <div class="aff-modal">
+          <button class="aff-modal__close" onclick="closeUnlockModal()" aria-label="Close">✕</button>
+
+          <!-- No product selected -->
+          <div class="aff-modal__step" id="modal-step-noproduct">
+            <div class="aff-modal__icon">⚠️</div>
+            <h3 id="modal-heading">Select a Product First</h3>
+            <p>Please go back and choose a product to unlock before proceeding.</p>
+            <button class="aff-modal__btn aff-modal__btn--secondary" onclick="closeUnlockModal(); document.getElementById('products').scrollIntoView({behavior:'smooth'})">
+              Choose a Product
+            </button>
+          </div>
+
+          <!-- Confirm offer completion -->
+          <div class="aff-modal__step" id="modal-step-confirm" hidden>
+            <div class="aff-modal__icon">✅</div>
+            <h3>Confirm Your Offer</h3>
+            <p>Unlocking: <strong id="modal-product-name">—</strong></p>
+            <p class="aff-modal__sub">
+              Please confirm you have fully completed an offer above — not just clicked, but completed all
+              required steps (sign-up, install, or verification).
+            </p>
+            <div class="aff-modal__check-row">
+              <input type="checkbox" id="modal-confirm-check" />
+              <label for="modal-confirm-check">Yes, I have fully completed an offer.</label>
+            </div>
+            <button class="aff-modal__btn aff-modal__btn--primary" onclick="revealProduct()">
+              Reveal My Download Link
+            </button>
+            <button class="aff-modal__btn aff-modal__btn--ghost" onclick="closeUnlockModal()">
+              Not yet — go back
+            </button>
+          </div>
+
+          <!-- Reveal product link -->
+          <div class="aff-modal__step" id="modal-step-reveal" hidden>
+            <div class="aff-modal__icon">🔓</div>
+            <h3>Your Product is Unlocked!</h3>
+            <p>Thank you for completing an offer. Here is your access link for:</p>
+            <p class="aff-modal__product-name" id="modal-reveal-product">—</p>
+            <a class="aff-modal__btn aff-modal__btn--primary" id="modal-access-link" href="#" target="_blank" rel="noopener">
+              Access Your Product →
+            </a>
+            <p class="aff-modal__sub">
+              The link opens the product page on our Shopify store. If you have any issues, <a href="/contact">contact us</a>.
+            </p>
+            <button class="aff-modal__btn aff-modal__btn--ghost" onclick="closeUnlockModal()">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+    <Footer />
+  </body>
+</html>
+
+<script is:inline>
+  var _selectedProduct = null;
+
+  function selectProduct(btn) {
+    var handle = btn.getAttribute('data-handle');
+    var title  = btn.getAttribute('data-title');
+    var pdp    = btn.getAttribute('data-pdp');
+    var cart   = btn.getAttribute('data-cart');
+    _selectedProduct = { handle: handle, title: title, pdp: pdp, cart: cart };
+
+    document.querySelectorAll('.aff-product-card').forEach(function(c) {
+      c.classList.toggle('aff-product-card--selected', c.getAttribute('data-handle') === handle);
+    });
+
+    var banner = document.getElementById('selected-banner');
+    var titleEl = document.getElementById('selected-title');
+    if (banner && titleEl) { titleEl.textContent = title; banner.hidden = false; }
+
+    var wall = document.getElementById('offer-wall');
+    if (wall) wall.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function clearProduct() {
+    _selectedProduct = null;
+    document.querySelectorAll('.aff-product-card').forEach(function(c) {
+      c.classList.remove('aff-product-card--selected');
+    });
+    var banner = document.getElementById('selected-banner');
+    if (banner) banner.hidden = true;
+  }
+
+  function openUnlockModal() {
+    var modal = document.getElementById('unlock-modal');
+    if (!modal) return;
+    ['modal-step-noproduct','modal-step-confirm','modal-step-reveal'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.hidden = true;
+    });
+    if (!_selectedProduct) {
+      var s = document.getElementById('modal-step-noproduct');
+      if (s) s.hidden = false;
+    } else {
+      var s2 = document.getElementById('modal-step-confirm');
+      var nameEl = document.getElementById('modal-product-name');
+      var cb = document.getElementById('modal-confirm-check');
+      if (s2) s2.hidden = false;
+      if (nameEl) nameEl.textContent = _selectedProduct.title;
+      if (cb) cb.checked = false;
+    }
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeUnlockModal() {
+    var modal = document.getElementById('unlock-modal');
+    if (modal) modal.hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  function revealProduct() {
+    var cb = document.getElementById('modal-confirm-check');
+    if (!cb || !cb.checked) {
+      if (cb && cb.parentElement) cb.parentElement.style.color = '#dc2626';
+      return;
+    }
+    if (!_selectedProduct) return;
+    var confirmStep = document.getElementById('modal-step-confirm');
+    var revealStep  = document.getElementById('modal-step-reveal');
+    if (confirmStep) confirmStep.hidden = true;
+    if (revealStep)  revealStep.hidden = false;
+    var revealName = document.getElementById('modal-reveal-product');
+    var accessLink = document.getElementById('modal-access-link');
+    if (revealName) revealName.textContent = _selectedProduct.title;
+    if (accessLink) accessLink.href = _selectedProduct.pdp;
+    try {
+      var unlocked = JSON.parse(sessionStorage.getItem('unlocked_products') || '[]');
+      if (!unlocked.includes(_selectedProduct.handle)) {
+        unlocked.push(_selectedProduct.handle);
+        sessionStorage.setItem('unlocked_products', JSON.stringify(unlocked));
+      }
+    } catch(e) {}
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var overlay = document.getElementById('unlock-modal');
+    if (overlay) {
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeUnlockModal();
+      });
+    }
+
+    // Auto-select product from URL query param ?product=handle
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var preselect = params.get('product');
+      if (preselect) {
+        var btn = document.querySelector('.aff-product-card__unlock-btn[data-handle="' + preselect + '"]');
+        if (btn) {
+          selectProduct(btn);
+          // Scroll to products section first so user sees the selection
+          var productsSection = document.getElementById('products');
+          if (productsSection) productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    } catch(e) {}
+
+    // Restore previously unlocked products from session
+    try {
+      var unlocked = JSON.parse(sessionStorage.getItem('unlocked_products') || '[]');
+      if (unlocked.length > 0) {
+        document.querySelectorAll('.aff-product-card').forEach(function(card) {
+          if (unlocked.includes(card.getAttribute('data-handle'))) {
+            card.classList.add('aff-product-card--unlocked');
+          }
+        });
+      }
+    } catch(e) {}
+  });
+</script>
+
+<style>
+  .aff-page { width: 100%; overflow-x: hidden; }
+  .aff-eyebrow {
+    display: inline-block; font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent, #667eea); margin-bottom: 0.5rem;
+  }
+
+  /* HERO */
+  .aff-hero {
+    position: relative; min-height: 460px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 4rem 2rem; overflow: hidden;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: #fff;
+  }
+  .aff-hero__bg {
+    position: absolute; top: -80px; right: -80px;
+    width: 520px; height: 520px;
+    background: radial-gradient(circle, rgba(102,126,234,0.25) 0%, transparent 70%);
+    border-radius: 50%; animation: heroFloat 7s ease-in-out infinite; pointer-events: none;
+  }
+  @keyframes heroFloat { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-24px) scale(1.04); } }
+  .aff-hero__content { position: relative; z-index: 2; text-align: center; max-width: 820px; }
+  .aff-hero .aff-eyebrow { color: #a5b4fc; }
+  .aff-hero__title {
+    font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 800; line-height: 1.15;
+    margin: 0.25rem 0 1rem;
+    background: linear-gradient(135deg, #fff 40%, #a5b4fc 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .aff-hero__sub { font-size: 1.1rem; opacity: 0.9; line-height: 1.65; margin-bottom: 1rem; max-width: 640px; margin-left: auto; margin-right: auto; }
+  .aff-hero__geo {
+    display: inline-block; margin: 0 0 1.5rem;
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25);
+    padding: 0.35rem 0.85rem; border-radius: 999px; font-size: 0.9rem;
+    backdrop-filter: blur(6px);
+  }
+  .aff-hero__stats { display: flex; justify-content: center; gap: 3rem; flex-wrap: wrap; margin-bottom: 2rem; }
+  .aff-stat { display: flex; flex-direction: column; align-items: center; }
+  .aff-stat__n { font-size: 2.25rem; font-weight: 800; }
+  .aff-stat__l { font-size: 0.85rem; opacity: 0.8; }
+  .aff-hero__cta {
+    display: inline-block;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff; font-weight: 700; font-size: 1rem;
+    padding: 0.85rem 2rem; border-radius: 50px; text-decoration: none;
+    box-shadow: 0 8px 24px rgba(102,126,234,0.45);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .aff-hero__cta:hover { transform: translateY(-3px); box-shadow: 0 14px 32px rgba(102,126,234,0.55); }
+
+  /* HOW IT WORKS */
+  .aff-how { padding: 4rem 2rem; background: #f8f9fc; }
+  .aff-how__inner { max-width: 1000px; margin: 0 auto; }
+  .aff-how__title { font-size: 1.9rem; font-weight: 800; text-align: center; color: #1a1a2e; margin-bottom: 2.5rem; }
+  .aff-how__steps { display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap; }
+  .aff-step {
+    background: #fff; border-radius: 16px; padding: 2rem 1.5rem; text-align: center;
+    flex: 1; min-width: 200px; max-width: 260px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+    border: 1px solid rgba(102,126,234,0.12); position: relative;
+  }
+  .aff-step--arrow { background: none; border: none; box-shadow: none; padding: 0; font-size: 1.8rem; color: #667eea; flex: 0; min-width: auto; }
+  .aff-step__num {
+    position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+    width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff; font-weight: 800; font-size: 0.85rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .aff-step__icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+  .aff-step h3 { font-size: 1.05rem; font-weight: 700; color: #1a1a2e; margin: 0 0 0.5rem; }
+  .aff-step p { font-size: 0.88rem; color: #666; line-height: 1.55; margin: 0; }
+
+  /* PRODUCTS GRID */
+  .aff-products { padding: 4rem 2rem; background: #fff; }
+  .aff-products__inner { max-width: 1300px; margin: 0 auto; }
+  .aff-products__header { text-align: center; margin-bottom: 2.5rem; }
+  .aff-products__header h2 { font-size: 2rem; font-weight: 800; color: #1a1a2e; margin: 0.25rem 0 0.75rem; }
+  .aff-products__header p { font-size: 1rem; color: #666; max-width: 600px; margin: 0 auto; }
+  .aff-products__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+  .aff-product-card {
+    display: flex; flex-direction: column;
+    background: #fff; border: 2px solid rgba(102,126,234,0.12);
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.2s ease;
+  }
+  .aff-product-card:hover { transform: translateY(-6px); box-shadow: 0 16px 36px -10px rgba(102,126,234,0.22); border-color: rgba(102,126,234,0.35); }
+  .aff-product-card--selected { border-color: #667eea !important; box-shadow: 0 0 0 3px rgba(102,126,234,0.25), 0 16px 36px -10px rgba(102,126,234,0.3) !important; }
+  .aff-product-card--unlocked { border-color: #16a34a !important; }
+  .aff-product-card__img { aspect-ratio: 16/9; overflow: hidden; background: #f0f0f5; }
+  .aff-product-card__img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .aff-product-card__body { display: flex; flex-direction: column; gap: 0.6rem; padding: 1.1rem 1.2rem 1.3rem; flex: 1; }
+  .aff-product-card__type {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--accent, #667eea); background: rgba(102,126,234,0.1);
+    padding: 0.2rem 0.55rem; border-radius: 999px; width: fit-content;
+  }
+  .aff-product-card__title { font-size: 0.98rem; font-weight: 700; line-height: 1.35; color: #1a1a2e; margin: 0; }
+  .aff-product-card__desc { font-size: 0.85rem; color: #666; line-height: 1.5; margin: 0; flex: 1; }
+  .aff-product-card__footer {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 0.5rem; padding-top: 0.75rem;
+    border-top: 1px solid rgba(0,0,0,0.06); margin-top: auto; flex-wrap: wrap;
+  }
+  .aff-product-card__price { font-size: 1rem; font-weight: 800; color: #1a1a2e; }
+  .aff-product-card__actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .aff-product-card__unlock-btn {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff; font-weight: 700; font-size: 0.82rem;
+    padding: 0.5rem 0.9rem; border-radius: 999px; border: none; cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease; white-space: nowrap;
+  }
+  .aff-product-card__unlock-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(102,126,234,0.45); }
+  .aff-product-card__buy-btn {
+    display: inline-flex; align-items: center;
+    background: transparent; color: var(--accent, #667eea);
+    font-weight: 600; font-size: 0.82rem;
+    padding: 0.5rem 0.9rem; border-radius: 999px;
+    border: 1.5px solid var(--accent, #667eea);
+    text-decoration: none; white-space: nowrap;
+    transition: background 0.18s ease, color 0.18s ease;
+  }
+  .aff-product-card__buy-btn:hover { background: var(--accent, #667eea); color: #fff; }
+
+  /* SELECTED BANNER */
+  .aff-selected-banner {
+    position: sticky; top: 72px; z-index: 50;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    color: #fff; padding: 0.75rem 2rem;
+    box-shadow: 0 4px 16px rgba(102,126,234,0.35);
+  }
+  .aff-selected-banner__inner { max-width: 1300px; margin: 0 auto; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+  .aff-selected-banner__label { font-size: 0.85rem; opacity: 0.85; }
+  .aff-selected-banner__inner strong { font-size: 0.95rem; font-weight: 700; flex: 1; }
+  .aff-selected-banner__clear {
+    background: rgba(255,255,255,0.2); color: #fff; border: none;
+    font-size: 0.8rem; font-weight: 600; padding: 0.3rem 0.75rem;
+    border-radius: 999px; cursor: pointer; transition: background 0.15s ease;
+  }
+  .aff-selected-banner__clear:hover { background: rgba(255,255,255,0.35); }
+
+  /* OFFER WALL */
+  .aff-wall { padding: 4rem 2rem; background: linear-gradient(135deg, #f5f7fa 0%, #eef0f8 100%); }
+  .aff-wall__inner { max-width: 1400px; margin: 0 auto; }
+  .aff-wall__header { text-align: center; margin-bottom: 2rem; }
+  .aff-wall__header h2 { font-size: 2rem; font-weight: 800; color: #1a1a2e; margin: 0.25rem 0 0.75rem; }
+  .aff-wall__header p { font-size: 1rem; color: #555; max-width: 680px; margin: 0 auto; }
+  .aff-wall__networks { display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  .aff-net-badge { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; padding: 0.3rem 0.8rem; border-radius: 999px; }
+  .aff-net-badge--cpalead { background: rgba(37,99,235,0.9); }
+  .aff-net-badge--cpagrip { background: rgba(219,39,119,0.9); }
+  .aff-net-badge__note { font-size: 0.8rem; color: #888; }
+  .aff-disclosure {
+    margin: 3rem auto 0; max-width: 820px; text-align: center;
+    font-size: 0.82rem; line-height: 1.6; color: #6b7280;
+    background: #fff; border: 1px solid rgba(15,18,34,0.07);
+    border-radius: 12px; padding: 1rem 1.25rem;
+  }
+
+  /* UNLOCK CTA */
+  .aff-unlock-cta { padding: 4rem 2rem; background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%); color: #fff; text-align: center; }
+  .aff-unlock-cta__inner { max-width: 600px; margin: 0 auto; }
+  .aff-unlock-cta__icon { font-size: 3rem; margin-bottom: 1rem; }
+  .aff-unlock-cta h2 { font-size: 2rem; font-weight: 800; margin: 0 0 0.75rem; }
+  .aff-unlock-cta p { font-size: 1rem; opacity: 0.9; line-height: 1.65; margin-bottom: 1.5rem; }
+  .aff-unlock-cta__btn {
+    display: inline-block;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff; font-weight: 800; font-size: 1.05rem;
+    padding: 1rem 2.5rem; border-radius: 50px; border: none; cursor: pointer;
+    box-shadow: 0 8px 28px rgba(102,126,234,0.5);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .aff-unlock-cta__btn:hover { transform: translateY(-3px); box-shadow: 0 14px 36px rgba(102,126,234,0.6); }
+  .aff-unlock-cta__note { font-size: 0.85rem; opacity: 0.7; margin-top: 1.25rem; }
+  .aff-unlock-cta__note a { color: #a5b4fc; text-decoration: underline; }
+
+  /* MODAL */
+  .aff-modal-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(10,10,30,0.75); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+  }
+  .aff-modal {
+    background: #fff; border-radius: 20px; padding: 2.5rem 2rem;
+    max-width: 480px; width: 100%; position: relative;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.3); text-align: center;
+  }
+  .aff-modal__close {
+    position: absolute; top: 1rem; right: 1rem;
+    background: #f0f0f5; border: none; border-radius: 50%;
+    width: 32px; height: 32px; cursor: pointer; font-size: 0.9rem; color: #555;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s ease;
+  }
+  .aff-modal__close:hover { background: #e0e0ea; }
+  .aff-modal__icon { font-size: 3rem; margin-bottom: 0.75rem; }
+  .aff-modal h3 { font-size: 1.5rem; font-weight: 800; color: #1a1a2e; margin: 0 0 0.75rem; }
+  .aff-modal p { font-size: 0.95rem; color: #555; line-height: 1.6; margin-bottom: 1rem; }
+  .aff-modal__sub { font-size: 0.85rem; color: #888; }
+  .aff-modal__product-name { font-weight: 700; color: #1a1a2e; font-size: 1rem; }
+  .aff-modal__check-row {
+    display: flex; align-items: center; gap: 0.6rem;
+    background: #f8f9fc; border-radius: 10px; padding: 0.75rem 1rem;
+    margin: 1rem 0; text-align: left;
+  }
+  .aff-modal__check-row input { width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; }
+  .aff-modal__check-row label { font-size: 0.9rem; color: #444; cursor: pointer; }
+  .aff-modal__btn {
+    display: block; width: 100%; padding: 0.85rem 1.5rem;
+    border-radius: 12px; font-weight: 700; font-size: 0.95rem;
+    cursor: pointer; border: none; margin-bottom: 0.65rem;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    text-decoration: none; text-align: center;
+  }
+  .aff-modal__btn--primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+  .aff-modal__btn--primary:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(102,126,234,0.5); }
+  .aff-modal__btn--secondary { background: #f0f0f5; color: #1a1a2e; }
+  .aff-modal__btn--ghost { background: transparent; color: #888; font-size: 0.85rem; padding: 0.6rem 1rem; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .aff-hero { min-height: 380px; padding: 3rem 1rem; }
+    .aff-hero__stats { gap: 1.5rem; }
+    .aff-stat__n { font-size: 1.8rem; }
+    .aff-how { padding: 3rem 1rem; }
+    .aff-how__steps { flex-direction: column; align-items: center; }
+    .aff-step--arrow { transform: rotate(90deg); }
+    .aff-products { padding: 3rem 1rem; }
+    .aff-products__grid { grid-template-columns: 1fr; }
+    .aff-wall { padding: 3rem 1rem; }
+    .aff-unlock-cta { padding: 3rem 1rem; }
+    .aff-unlock-cta h2 { font-size: 1.6rem; }
+    .aff-unlock-cta__btn { font-size: 0.95rem; padding: 0.85rem 1.75rem; }
+  }
+  @media (max-width: 480px) {
+    .aff-hero__title { font-size: 1.75rem; }
+    .aff-hero__stats { flex-direction: column; gap: 1rem; }
+    .aff-modal { padding: 2rem 1.25rem; }
+  }
+</style>

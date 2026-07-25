@@ -50,10 +50,15 @@ const storeBase = 'https://astrotobby.myshopify.com';
           <p class="sp-card-desc">{product.description}</p>
           <div class="sp-card-footer">
             <a href={pdpUrl} class="sp-link" target="_blank" rel="noopener noreferrer">Learn more</a>
-            <a href={cartUrl} class="sp-btn" target="_blank" rel="noopener noreferrer">
-              Check Out
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </a>
+            <div class="sp-card-btns">
+              <a href={`/affiliate-offers?product=${product.handle}`} class="sp-unlock-btn" title="Complete a free offer to unlock this product">
+                🔓 Free
+              </a>
+              <a href={cartUrl} class="sp-btn" target="_blank" rel="noopener noreferrer">
+                Check Out
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </a>
+            </div>
           </div>
         </article>
       );
@@ -198,6 +203,30 @@ const storeBase = 'https://astrotobby.myshopify.com';
     white-space: nowrap;
   }
   .sp-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+  .sp-card-btns {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  .sp-unlock-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: transparent;
+    color: #16a34a;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    border: 1.5px solid #16a34a;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.18s, color 0.18s;
+  }
+  .sp-unlock-btn:hover { background: #16a34a; color: #fff; }
 
   .sp-store-link { text-align: center; margin-top: 2rem; }
 

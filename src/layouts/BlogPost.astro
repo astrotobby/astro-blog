@@ -53,6 +53,15 @@ const noindex = shouldNoindex(slug);
   </head>
   <body>
     <Header />
+
+    <!-- ═══ TUKO-STYLE: Full-width leaderboard banner BELOW header ═══ -->
+    {slug && (
+      <div class="post-top-banner" aria-label="Advertisement">
+        <span class="post-top-banner__label">Advertisement</span>
+        <AdBanner slot="top" minHeight="90px" margin="0 auto" />
+      </div>
+    )}
+
     <main>
       <div class="rd-layout">
         <div class="rd-main">
@@ -88,11 +97,30 @@ const noindex = shouldNoindex(slug);
               </div>
             )}
 
+            <!-- ═══ TUKO-STYLE: In-article banner AFTER hero image ═══ -->
+            {slug && (
+              <div class="post-in-article-banner" aria-label="Advertisement">
+                <span class="post-banner__label">Advertisement</span>
+                <AdBanner slot="middle1" minHeight="100px" margin="0 auto" />
+              </div>
+            )}
+
             <div class="prose">
-              {slug && <AdBanner slot="top" />}
               <slot />
-              {slug && <AdBanner slot="middle1" />}
-              {slug && <AdBanner slot="bottom" />}
+              <!-- ═══ TUKO-STYLE: Mid-article banner ═══ -->
+              {slug && (
+                <div class="post-mid-banner" aria-label="Advertisement">
+                  <span class="post-banner__label">Advertisement</span>
+                  <AdBanner slot="middle2" minHeight="100px" margin="0 auto" />
+                </div>
+              )}
+              <!-- Bottom of article banner -->
+              {slug && (
+                <div class="post-bottom-banner" aria-label="Advertisement">
+                  <span class="post-banner__label">Advertisement</span>
+                  <AdBanner slot="bottom" minHeight="90px" margin="0 auto" />
+                </div>
+              )}
             </div>
           </article>
         </div>
@@ -120,10 +148,76 @@ const noindex = shouldNoindex(slug);
     <Footer />
 
     <style>
+      /* ── Article title & hero ── */
       .post-title { font-size: clamp(1.9rem, 4vw, 2.6rem); margin: 0 0 0.4rem; }
       .post-hero { margin: 0.5rem 0 1.8rem; border-radius: var(--radius); overflow: hidden; box-shadow: var(--box-shadow); }
       .post-hero img { width: 100%; height: auto; display: block; }
       .last-updated-on { font-style: italic; }
+
+      /* ── Tuko-style: Full-width leaderboard banner below header ── */
+      .post-top-banner {
+        width: 100%;
+        background: var(--bg-primary);
+        border-bottom: 1px solid var(--border-light);
+        padding: 0.5rem 1.5rem 0.75rem;
+        text-align: center;
+      }
+      .post-top-banner__label {
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted, #9ca3af);
+        margin-bottom: 0.35rem;
+      }
+      /* Ensure the top banner's AdBanner fills full width */
+      .post-top-banner :global(.monetag-banner-slot) {
+        max-width: 970px;
+        min-height: 90px;
+      }
+
+      /* ── Shared banner label ── */
+      .post-banner__label {
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted, #9ca3af);
+        margin-bottom: 0.35rem;
+      }
+
+      /* ── Tuko-style: In-article banner after hero image ── */
+      .post-in-article-banner {
+        margin: 0 0 1.75rem;
+        padding: 0.5rem 0 0.75rem;
+        border-top: 1px solid var(--border-light);
+        border-bottom: 1px solid var(--border-light);
+        text-align: center;
+        background: var(--bg-secondary, #f8f9fc);
+        border-radius: var(--radius-sm, 6px);
+      }
+
+      /* ── Mid-article and bottom banners ── */
+      .post-mid-banner,
+      .post-bottom-banner {
+        margin: 2rem 0;
+        padding: 0.5rem 0 0.75rem;
+        border-top: 1px solid var(--border-light);
+        border-bottom: 1px solid var(--border-light);
+        text-align: center;
+        background: var(--bg-secondary, #f8f9fc);
+        border-radius: var(--radius-sm, 6px);
+      }
+
+      /* ── Ensure all in-article banners have proper sizing ── */
+      .post-in-article-banner :global(.monetag-banner-slot),
+      .post-mid-banner :global(.monetag-banner-slot),
+      .post-bottom-banner :global(.monetag-banner-slot) {
+        max-width: 728px;
+        min-height: 100px;
+      }
     </style>
   </body>
 </html>

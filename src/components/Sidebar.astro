@@ -29,8 +29,9 @@ const popular = (await getCollection('blog'))
   .slice(0, limit);
 ---
 <aside class="rd-aside">
-  <!-- Sidebar Ad (Top) -->
+  <!-- Sidebar Ad (Top) — Tuko-style: labeled ad widget -->
   <div class="rd-widget rd-sidebar-ad">
+    <span class="rd-sidebar-ad__label">Advertisement</span>
     <div id="monetag-sidebar-ad"></div>
     <script is:inline>
       (function() {
@@ -70,7 +71,7 @@ const popular = (await getCollection('blog'))
   <!-- Popular Posts -->
   {popular.length > 0 && (
     <div class="rd-widget">
-      <h2 class="rd-widget-title">Popular Posts</h2>
+      <h2 class="rd-widget-title">Latest Posts</h2>
       <div class="rd-poplist">
         {popular.map((post) => (
           <a class="rd-pop" href={`/blog/${post.id}/`}>
@@ -95,4 +96,21 @@ const popular = (await getCollection('blog'))
       </div>
     </div>
   )}
+  <!-- Sidebar Ad (Bottom) — Tuko-style: second ad widget after popular posts -->
+  <div class="rd-widget rd-sidebar-ad rd-sidebar-ad--bottom">
+    <span class="rd-sidebar-ad__label">Advertisement</span>
+    <div id="monetag-sidebar-ad-2"></div>
+    <script is:inline>
+      (function() {
+        var el = document.getElementById('monetag-sidebar-ad-2');
+        if (!el) return;
+        var s = document.createElement('script');
+        s.type = 'text/javascript';
+        s.src = '//fe.monetag.com/ads/adsterra.js';
+        s.setAttribute('data-zone-id', '10964339'); // Excited tag (MULTI)
+        s.async = true;
+        el.appendChild(s);
+      })();
+    </script>
+  </div>
 </aside>
