@@ -25,8 +25,8 @@ export const ENABLE_OFFERS_PAGE = true;   // /affiliate-offers page is live
 // Each zone loads globally on every page (auto-display formats — Monetag decides
 // when to show them). To disable one, delete or comment out its line.
 export const MONETAG_ZONES = [
-  { zone: '11242675', src: 'https://n6wxm.com/vignette.min.js' }, // Vignette (full-screen)
-  { zone: '11242710', src: 'https://nap5k.com/tag.min.js' },      // In-Page Push
+  // { zone: '11242675', src: 'https://n6wxm.com/vignette.min.js' }, // Vignette (full-screen)
+  // { zone: '11242710', src: 'https://nap5k.com/tag.min.js' },      // In-Page Push
 ];
 // Force build: 2026-05-22 04:25:00 UTC
 // Triggering new deployment
