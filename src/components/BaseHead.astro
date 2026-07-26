@@ -94,6 +94,19 @@ const fullTitle =
 <script is:inline>
 	(function () {
 		var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		var io;
+
+		function observeEl(el) {
+			if (reduce || !io) {
+				el.classList.add('is-visible');
+			} else {
+				io.observe(el);
+			}
+		}
+
+		// Expose globally so dynamic injectors (OfferStrip, etc.) can reveal new cards
+		window.__revealObserve = observeEl;
+
 		function boot() {
 			// Inject the aurora gradient canvas behind all content
 			if (!document.querySelector('.aurora-bg')) {
@@ -108,15 +121,29 @@ const fullTitle =
 				els.forEach(function (el) { el.classList.add('is-visible'); });
 				return;
 			}
-			var io = new IntersectionObserver(function (entries) {
+			// Looser rootMargin so cards near the bottom edge are not missed
+			io = new IntersectionObserver(function (entries) {
 				entries.forEach(function (e) {
 					if (e.isIntersecting) {
 						e.target.classList.add('is-visible');
 						io.unobserve(e.target);
 					}
 				});
-			}, { rootMargin: '0px 0px -10% 0px', threshold: 0.08 });
+			// rootMargin extended to 20% below viewport so cards trigger earlier on scroll
+			}, { rootMargin: '0px 0px 20% 0px', threshold: 0 });
 			els.forEach(function (el) { io.observe(el); });
+
+			// Watch for dynamically injected [data-reveal] nodes (e.g. OfferStrip cards)
+			var mo = new MutationObserver(function (mutations) {
+				mutations.forEach(function (m) {
+					m.addedNodes.forEach(function (node) {
+						if (node.nodeType !== 1) return;
+						if (node.hasAttribute('data-reveal')) { observeEl(node); }
+						node.querySelectorAll('[data-reveal]').forEach(observeEl);
+					});
+				});
+			});
+			mo.observe(document.body, { childList: true, subtree: true });
 		}
 		if (document.readyState === 'loading') {
 			document.addEventListener('DOMContentLoaded', boot);

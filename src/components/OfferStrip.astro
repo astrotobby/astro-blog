@@ -64,6 +64,16 @@ const { title = 'Featured Offers', limit = 4, subid = 'astroblog', seeAll = '/of
         })
         .join('');
       strip.hidden = false;
+
+      // Register newly injected cards with the page-level scroll-reveal observer
+      // (the IntersectionObserver in BaseHead only sees elements present at boot time)
+      var newCards = track.querySelectorAll('[data-reveal]');
+      if (typeof window.__revealObserve === 'function') {
+        newCards.forEach(window.__revealObserve);
+      } else {
+        // Fallback: reveal immediately if the observer helper is not yet available
+        newCards.forEach(function(el) { el.classList.add('is-visible'); });
+      }
     }
   })();
 </script>

@@ -280,10 +280,13 @@ button:focus-visible {
   transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
   transition-delay: var(--reveal-delay, 0ms);
   will-change: opacity, transform;
+  /* Prevent invisible cards from intercepting clicks/taps */
+  pointer-events: none;
 }
 [data-reveal].is-visible {
   opacity: 1;
   transform: none;
+  pointer-events: auto;
 }
 
 /* ─── Prose (article reading surface — kept high contrast) ───────────────── */
