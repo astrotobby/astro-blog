@@ -54,7 +54,13 @@ const noindex = shouldNoindex(slug);
   <body>
     <Header />
 
-
+    <!-- ═══ TUKO-STYLE: Inline Leaderboard Banner (Blends with layout) ═══ -->
+    <div class="site-top-ad" aria-label="Advertisement">
+      <span class="ad-label">Advertisement</span>
+      <div class="ad-container">
+        <AdBanner slot="top" minHeight="90px" margin="0 auto" />
+      </div>
+    </div>
 
     <main>
       <div class="rd-layout">
@@ -142,6 +148,32 @@ const noindex = shouldNoindex(slug);
     <Footer />
 
     <style>
+      /* ── Tuko-style: Inline Leaderboard ── */
+      .site-top-ad {
+        width: 100%;
+        background: var(--bg-primary);
+        border-bottom: 1px solid var(--border-light);
+        padding: 0.75rem 1rem;
+        text-align: center;
+      }
+      .site-top-ad .ad-label {
+        display: block;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+      }
+      .site-top-ad .ad-container {
+        max-width: 970px;
+        margin: 0 auto;
+        min-height: 90px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
       /* ── Article title & hero ── */
       .post-title { font-size: clamp(1.9rem, 4vw, 2.6rem); margin: 0 0 0.4rem; }
       .post-hero { margin: 0.5rem 0 1.8rem; border-radius: var(--radius); overflow: hidden; box-shadow: var(--box-shadow); }
