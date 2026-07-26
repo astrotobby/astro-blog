@@ -23,21 +23,18 @@ const uniqueId = `monetag-banner-${currentZone}-${Math.random().toString(36).sub
 
 <div class="monetag-banner-slot" id={uniqueId} data-zone={currentZone} style={`min-height: ${minHeight}; margin: ${margin};`}></div>
 
-<script is:inline define:vars={{ zone: currentZone, elementId: uniqueId }}>
+<script is:inline define:vars={{ zone: currentZone, adElementId: uniqueId }}>
   (function() {
-    var zoneId = zone;
-    var elementId = elementId;
-    var el = document.getElementById(elementId);
-    
+    var el = document.getElementById(adElementId);
     if (!el) return;
-    
+
     // Create and inject the Monetag script
     var s = document.createElement('script');
     s.type = 'text/javascript';
     s.src = '//fe.monetag.com/ads/adsterra.js';
-    s.setAttribute('data-zone-id', zoneId);
+    s.setAttribute('data-zone-id', zone);
     s.async = true;
-    
+
     // Append the script to the container
     el.appendChild(s);
   })();
