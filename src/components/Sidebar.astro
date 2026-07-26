@@ -28,16 +28,21 @@ const popular = (await getCollection('blog'))
   .sort((a, b) => orderKey(b) - orderKey(a))
   .slice(0, limit);
 
-const sidebarAdTopId = `monetag-sidebar-ad-${Math.random().toString(36).substr(2, 9)}`;
-const sidebarAdBottomId = `monetag-sidebar-ad-2-${Math.random().toString(36).substr(2, 9)}`;
 ---
 <aside class="rd-aside">
-  <!-- Sidebar Ad (Top) — Tuko-style: labeled ad widget -->
+  <!-- Sidebar Ad (Top) — zone 11244264 via nap5k.com -->
   <div class="rd-widget rd-sidebar-ad">
     <span class="rd-sidebar-ad__label">Advertisement</span>
     <div class="monetag-sidebar-slot">
-      <ins class="79a7a5e" data-zone="11244264"></ins>
-      <script is:inline type="text/javascript" src="https://fe.monetag.com/ads/adsterra.js" async></script>
+      <script is:inline>
+        (function () {
+          var s = document.createElement('script');
+          s.setAttribute('data-zone', '11244264');
+          s.src = 'https://nap5k.com/tag.min.js';
+          s.async = true;
+          document.body.appendChild(s);
+        })();
+      </script>
     </div>
   </div>
 
@@ -90,12 +95,19 @@ const sidebarAdBottomId = `monetag-sidebar-ad-2-${Math.random().toString(36).sub
       </div>
     </div>
   )}
-  <!-- Sidebar Ad (Bottom) — Tuko-style: second ad widget after popular posts -->
+  <!-- Sidebar Ad (Bottom) — zone 10964339 via nap5k.com -->
   <div class="rd-widget rd-sidebar-ad rd-sidebar-ad--bottom">
     <span class="rd-sidebar-ad__label">Advertisement</span>
     <div class="monetag-sidebar-slot">
-      <ins class="79a7a5e" data-zone="10964339"></ins>
-      <script is:inline type="text/javascript" src="https://fe.monetag.com/ads/adsterra.js" async></script>
+      <script is:inline>
+        (function () {
+          var s = document.createElement('script');
+          s.setAttribute('data-zone', '10964339');
+          s.src = 'https://nap5k.com/tag.min.js';
+          s.async = true;
+          document.body.appendChild(s);
+        })();
+      </script>
     </div>
   </div>
 </aside>

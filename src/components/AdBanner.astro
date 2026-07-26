@@ -18,12 +18,23 @@ const ZONE_MAP: Record<string, string> = {
 };
 
 const currentZone = ZONE_MAP[slot || 'top'] || '11189587';
-const uniqueId = `monetag-banner-${currentZone}-${Math.random().toString(36).substr(2, 9)}`;
 ---
 
 <div class="monetag-banner-slot" style={`min-height: ${minHeight}; margin: ${margin};`}>
-  <ins class="79a7a5e" data-zone={currentZone}></ins>
-  <script is:inline type="text/javascript" src="https://fe.monetag.com/ads/adsterra.js" async></script>
+  <!--
+    Monetag banner ad — zone injected via nap5k.com (Monetag's working CDN).
+    The script reads data-zone from its own element.
+    One <script> per slot so each zone renders independently.
+  -->
+  <script is:inline define:vars={{ zone: currentZone }}>
+    (function () {
+      var s = document.createElement('script');
+      s.setAttribute('data-zone', zone);
+      s.src = 'https://nap5k.com/tag.min.js';
+      s.async = true;
+      document.body.appendChild(s);
+    })();
+  </script>
 </div>
 
 <style>
