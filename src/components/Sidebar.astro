@@ -27,15 +27,18 @@ const popular = (await getCollection('blog'))
   .filter((p) => p.id !== currentId)
   .sort((a, b) => orderKey(b) - orderKey(a))
   .slice(0, limit);
+
+const sidebarAdTopId = `monetag-sidebar-ad-${Math.random().toString(36).substr(2, 9)}`;
+const sidebarAdBottomId = `monetag-sidebar-ad-2-${Math.random().toString(36).substr(2, 9)}`;
 ---
 <aside class="rd-aside">
   <!-- Sidebar Ad (Top) — Tuko-style: labeled ad widget -->
   <div class="rd-widget rd-sidebar-ad">
     <span class="rd-sidebar-ad__label">Advertisement</span>
-    <div id="monetag-sidebar-ad"></div>
-    <script is:inline>
+    <div id={sidebarAdTopId}></div>
+    <script is:inline define:vars={{ elementId: sidebarAdTopId }}>
       (function() {
-        var el = document.getElementById('monetag-sidebar-ad');
+        var el = document.getElementById(elementId);
         if (!el) return;
         var s = document.createElement('script');
         s.type = 'text/javascript';
@@ -99,10 +102,10 @@ const popular = (await getCollection('blog'))
   <!-- Sidebar Ad (Bottom) — Tuko-style: second ad widget after popular posts -->
   <div class="rd-widget rd-sidebar-ad rd-sidebar-ad--bottom">
     <span class="rd-sidebar-ad__label">Advertisement</span>
-    <div id="monetag-sidebar-ad-2"></div>
-    <script is:inline>
+    <div id={sidebarAdBottomId}></div>
+    <script is:inline define:vars={{ elementId: sidebarAdBottomId }}>
       (function() {
-        var el = document.getElementById('monetag-sidebar-ad-2');
+        var el = document.getElementById(elementId);
         if (!el) return;
         var s = document.createElement('script');
         s.type = 'text/javascript';

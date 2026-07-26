@@ -18,24 +18,28 @@ const ZONE_MAP: Record<string, string> = {
 };
 
 const currentZone = ZONE_MAP[slot || 'top'] || '11189587';
+const uniqueId = `monetag-banner-${currentZone}-${Math.random().toString(36).substr(2, 9)}`;
 ---
 
-<div class="monetag-banner-slot" data-zone={currentZone} style={`min-height: ${minHeight}; margin: ${margin};`}></div>
+<div class="monetag-banner-slot" id={uniqueId} data-zone={currentZone} style={`min-height: ${minHeight}; margin: ${margin};`}></div>
 
-<script is:inline define:vars={{ zone: currentZone }}>
+<script is:inline define:vars={{ zone: currentZone, elementId: uniqueId }}>
   (function() {
     var zoneId = zone;
-    var slots = document.querySelectorAll('.monetag-banner-slot[data-zone="' + zoneId + '"]');
-    if (!slots.length) return;
+    var elementId = elementId;
+    var el = document.getElementById(elementId);
     
+    if (!el) return;
+    
+    // Create and inject the Monetag script
     var s = document.createElement('script');
     s.type = 'text/javascript';
     s.src = '//fe.monetag.com/ads/adsterra.js';
     s.setAttribute('data-zone-id', zoneId);
     s.async = true;
     
-    // Inject into the first matching slot
-    slots[0].appendChild(s);
+    // Append the script to the container
+    el.appendChild(s);
   })();
 </script>
 
