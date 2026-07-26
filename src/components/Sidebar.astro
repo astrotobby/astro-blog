@@ -35,21 +35,9 @@ const sidebarAdBottomId = `monetag-sidebar-ad-2-${Math.random().toString(36).sub
   <!-- Sidebar Ad (Top) — Tuko-style: labeled ad widget -->
   <div class="rd-widget rd-sidebar-ad">
     <span class="rd-sidebar-ad__label">Advertisement</span>
-    <div id={sidebarAdTopId}></div>
-    <script is:inline define:vars={{ elementId: sidebarAdTopId }}>
-      (function() {
-        var el = document.getElementById(elementId);
-        if (!el) return;
-        setTimeout(function() {
-          var s = document.createElement('script');
-          s.type = 'text/javascript';
-          s.src = '//fe.monetag.com/ads/adsterra.js';
-          s.setAttribute('data-zone-id', '11244264'); // Excited tag
-          s.async = true;
-          el.appendChild(s);
-        }, 150);
-      })();
-    </script>
+    <div class="monetag-sidebar-slot">
+      <script is:inline type="text/javascript" src="//fe.monetag.com/ads/adsterra.js" data-zone-id="11244264" async></script>
+    </div>
   </div>
 
   <!-- Follow Us -->
@@ -104,20 +92,8 @@ const sidebarAdBottomId = `monetag-sidebar-ad-2-${Math.random().toString(36).sub
   <!-- Sidebar Ad (Bottom) — Tuko-style: second ad widget after popular posts -->
   <div class="rd-widget rd-sidebar-ad rd-sidebar-ad--bottom">
     <span class="rd-sidebar-ad__label">Advertisement</span>
-    <div id={sidebarAdBottomId}></div>
-    <script is:inline define:vars={{ elementId: sidebarAdBottomId }}>
-      (function() {
-        var el = document.getElementById(elementId);
-        if (!el) return;
-        setTimeout(function() {
-          var s = document.createElement('script');
-          s.type = 'text/javascript';
-          s.src = '//fe.monetag.com/ads/adsterra.js';
-          s.setAttribute('data-zone-id', '10964339'); // Excited tag (MULTI)
-          s.async = true;
-          el.appendChild(s);
-        }, 200);
-      })();
-    </script>
+    <div class="monetag-sidebar-slot">
+      <script is:inline type="text/javascript" src="//fe.monetag.com/ads/adsterra.js" data-zone-id="10964339" async></script>
+    </div>
   </div>
 </aside>
