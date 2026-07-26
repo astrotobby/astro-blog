@@ -29,14 +29,16 @@ const uniqueId = `monetag-banner-${currentZone}-${Math.random().toString(36).sub
     if (!el) return;
 
     // Create and inject the Monetag script
-    var s = document.createElement('script');
-    s.type = 'text/javascript';
-    s.src = '//fe.monetag.com/ads/adsterra.js';
-    s.setAttribute('data-zone-id', zone);
-    s.async = true;
-
-    // Append the script to the container
-    el.appendChild(s);
+    // Monetag's adsterra.js expects to be able to find its parent container.
+    // We use a small delay to ensure the DOM is stable and the container is ready.
+    setTimeout(function() {
+      var s = document.createElement('script');
+      s.type = 'text/javascript';
+      s.src = '//fe.monetag.com/ads/adsterra.js';
+      s.setAttribute('data-zone-id', zone);
+      s.async = true;
+      el.appendChild(s);
+    }, 100);
   })();
 </script>
 

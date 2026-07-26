@@ -40,12 +40,14 @@ const sidebarAdBottomId = `monetag-sidebar-ad-2-${Math.random().toString(36).sub
       (function() {
         var el = document.getElementById(elementId);
         if (!el) return;
-        var s = document.createElement('script');
-        s.type = 'text/javascript';
-        s.src = '//fe.monetag.com/ads/adsterra.js';
-        s.setAttribute('data-zone-id', '11244264'); // Excited tag
-        s.async = true;
-        el.appendChild(s);
+        setTimeout(function() {
+          var s = document.createElement('script');
+          s.type = 'text/javascript';
+          s.src = '//fe.monetag.com/ads/adsterra.js';
+          s.setAttribute('data-zone-id', '11244264'); // Excited tag
+          s.async = true;
+          el.appendChild(s);
+        }, 150);
       })();
     </script>
   </div>
@@ -107,12 +109,14 @@ const sidebarAdBottomId = `monetag-sidebar-ad-2-${Math.random().toString(36).sub
       (function() {
         var el = document.getElementById(elementId);
         if (!el) return;
-        var s = document.createElement('script');
-        s.type = 'text/javascript';
-        s.src = '//fe.monetag.com/ads/adsterra.js';
-        s.setAttribute('data-zone-id', '10964339'); // Excited tag (MULTI)
-        s.async = true;
-        el.appendChild(s);
+        setTimeout(function() {
+          var s = document.createElement('script');
+          s.type = 'text/javascript';
+          s.src = '//fe.monetag.com/ads/adsterra.js';
+          s.setAttribute('data-zone-id', '10964339'); // Excited tag (MULTI)
+          s.async = true;
+          el.appendChild(s);
+        }, 200);
       })();
     </script>
   </div>
