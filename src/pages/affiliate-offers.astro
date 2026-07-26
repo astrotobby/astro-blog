@@ -367,7 +367,7 @@ const geoLabel = matchedCountry
       });
     }
 
-    // Auto-select product from URL query param ?product=handle
+    // Auto-select product from URL query param ?product=handle, or default to first product
     try {
       var params = new URLSearchParams(window.location.search);
       var preselect = params.get('product');
@@ -378,6 +378,12 @@ const geoLabel = matchedCountry
           // Scroll to products section first so user sees the selection
           var productsSection = document.getElementById('products');
           if (productsSection) productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } else {
+        // Auto-select the first product if none is already selected
+        var firstBtn = document.querySelector('.aff-product-card__unlock-btn');
+        if (firstBtn && !_selectedProduct) {
+          selectProduct(firstBtn);
         }
       }
     } catch(e) {}
