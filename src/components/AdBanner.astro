@@ -23,11 +23,25 @@ const { minHeight = "90px", margin = "20px auto", slot } = Astro.props;
       </script>
       <script is:inline type="text/javascript" src="https://www.highperformanceformat.com/69653a4377aeaa881f9eb1c36e09704b/invoke.js"></script>
     </>
-  ) : slot === 'middle1' || slot === 'middle2' ? (
-    /* Native Banner for In-Article slots */
+  ) : slot === 'middle1' || slot === 'middle2' || slot === 'blog-grid-mid' ? (
+    /* Native Banner for In-Article and Grid slots */
     <>
       <script async="async" data-cfasync="false" src="https://pl29385882.effectivecpmnetwork.com/9443ced55ad6dc338cd7a9fec5677f94/invoke.js"></script>
       <div id={`container-9443ced55ad6dc338cd7a9fec5677f94-${slot}`}></div>
+    </>
+  ) : slot === 'bottom' ? (
+    /* 728x90 Banner for Bottom Placement */
+    <>
+      <script is:inline type="text/javascript">
+        atOptions = {
+          'key' : '69653a4377aeaa881f9eb1c36e09704b',
+          'format' : 'iframe',
+          'height' : 90,
+          'width' : 728,
+          'params' : {}
+        };
+      </script>
+      <script is:inline type="text/javascript" src="https://www.highperformanceformat.com/69653a4377aeaa881f9eb1c36e09704b/invoke.js"></script>
     </>
   ) : (
     /* Default Native Banner for other slots */
