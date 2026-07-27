@@ -30,12 +30,20 @@ const popular = (await getCollection('blog'))
 
 ---
 <aside class="rd-aside">
-  <!-- Sidebar Ad (Top) — Adsterra Native Banner -->
+  <!-- Sidebar Ad (Top) — Unique 300x250 Banner -->
   <div class="rd-widget rd-sidebar-ad">
     <span class="rd-sidebar-ad__label">Advertisement</span>
     <div class="adsterra-sidebar-slot">
-      <script async="async" data-cfasync="false" src="https://pl29385882.effectivecpmnetwork.com/9443ced55ad6dc338cd7a9fec5677f94/invoke.js"></script>
-      <div id="container-9443ced55ad6dc338cd7a9fec5677f94-sidebar-top"></div>
+      <script is:inline type="text/javascript">
+        atOptions = {
+          'key' : 'f1cac584b80eaf7c7b3dc78c37cd54df',
+          'format' : 'iframe',
+          'height' : 250,
+          'width' : 300,
+          'params' : {}
+        };
+      </script>
+      <script is:inline type="text/javascript" src="//www.highperformanceformat.com/f1cac584b80eaf7c7b3dc78c37cd54df/invoke.js"></script>
     </div>
   </div>
 
@@ -89,7 +97,7 @@ const popular = (await getCollection('blog'))
     </div>
   )}
 
-  <!-- Sidebar Ad (Bottom) — Adsterra Native Banner -->
+  <!-- Sidebar Ad (Bottom) — Native Banner -->
   <div class="rd-widget rd-sidebar-ad rd-sidebar-ad--bottom">
     <span class="rd-sidebar-ad__label">Advertisement</span>
     <div class="adsterra-sidebar-slot">
@@ -98,3 +106,12 @@ const popular = (await getCollection('blog'))
     </div>
   </div>
 </aside>
+
+<style>
+  .adsterra-sidebar-slot {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 250px;
+  }
+</style>
