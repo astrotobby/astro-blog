@@ -87,6 +87,11 @@ const posts = (await getCollection('blog')).sort((a, b) => orderKey(b) - orderKe
         <div class="posts-grid">
           {posts.map((post, i) => (
             <>
+              {i === 3 && (
+                <div class="ad-grid-span">
+                  <AdBanner slot="blog-grid-mid" minHeight="90px" margin="0 auto" />
+                </div>
+              )}
               {i === 6 && (
                 <div class="ad-grid-span">
                   <AdsterraNativeBanner />

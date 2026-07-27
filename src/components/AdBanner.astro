@@ -21,10 +21,16 @@ const { minHeight = "90px", margin = "20px auto", slot } = Astro.props;
           'params' : {}
         };
       </script>
-      <script is:inline type="text/javascript" src="//www.highperformanceformat.com/69653a4377aeaa881f9eb1c36e09704b/invoke.js"></script>
+      <script is:inline type="text/javascript" src="https://www.highperformanceformat.com/69653a4377aeaa881f9eb1c36e09704b/invoke.js"></script>
+    </>
+  ) : slot === 'middle1' || slot === 'middle2' ? (
+    /* Native Banner for In-Article slots */
+    <>
+      <script async="async" data-cfasync="false" src="https://pl29385882.effectivecpmnetwork.com/9443ced55ad6dc338cd7a9fec5677f94/invoke.js"></script>
+      <div id={`container-9443ced55ad6dc338cd7a9fec5677f94-${slot}`}></div>
     </>
   ) : (
-    /* Native Banner for other slots */
+    /* Default Native Banner for other slots */
     <>
       <script async="async" data-cfasync="false" src="https://pl29385882.effectivecpmnetwork.com/9443ced55ad6dc338cd7a9fec5677f94/invoke.js"></script>
       <div id={`container-9443ced55ad6dc338cd7a9fec5677f94-${slot || 'default'}`}></div>
