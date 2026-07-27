@@ -75,7 +75,7 @@ const posts = (await getCollection('blog')).sort((a, b) => orderKey(b) - orderKe
   <body>
     <Header />
     <main>
-      <AdBanner minHeight="90px" margin="0 auto 24px" />
+      <AdBanner slot="top" minHeight="90px" margin="0 auto 24px" />
 
       <section class="page-header glass" data-reveal>
         <span class="badge"><span class="dot"></span> The Archive</span>
