@@ -1,19 +1,16 @@
 ---
-// Monetag loaders — injects each configured zone script on every page.
-// These are auto-display formats (vignette, in-page push); Monetag decides
-// when to show them. Managed from MONETAG_ZONES in consts.ts.
-import { MONETAG_ZONES } from '../consts';
+// Adsterra global ad loaders — injects Popunder and Social Bar scripts on every page.
+// These are auto-display formats; Adsterra decides when to show them.
+// Replaces previous Monetag vignette (zone 11242675) and in-page push (zone 11242710).
+import { ADSTERRA_GLOBAL_UNITS } from '../consts';
 ---
-{MONETAG_ZONES.map((z) => (
-  <script is:inline define:vars={{ zone: z.zone, src: z.src }}>
-    (function (s) {
-      s.dataset.zone = zone;
+{ADSTERRA_GLOBAL_UNITS.map((unit) => (
+  <script is:inline define:vars={{ src: unit.src }}>
+    (function () {
+      var s = document.createElement('script');
       s.src = src;
-    })(
-      [document.documentElement, document.body]
-        .filter(Boolean)
-        .pop()
-        .appendChild(document.createElement('script')),
-    );
+      s.async = true;
+      document.body.appendChild(s);
+    })();
   </script>
 ))}

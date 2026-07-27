@@ -21,13 +21,14 @@ export const ENABLE_CPALEAD = true;       // CPAlead offers enabled
 export const ENABLE_CPAGRIP = true;       // CPAGrip offers enabled
 export const ENABLE_OFFERS_PAGE = true;   // /affiliate-offers page is live
 
-// ─── Monetag ────────────────────────────────────────────────────────────────
-// Each zone loads globally on every page (auto-display formats — Monetag decides
-// when to show them). To disable one, delete or comment out its line.
-export const MONETAG_ZONES = [
-  { zone: '11242675', src: 'https://n6wxm.com/vignette.min.js' }, // Vignette (full-screen)
-  { zone: '11242710', src: 'https://nap5k.com/tag.min.js' },      // In-Page Push
+// ─── Adsterra Global Ad Units ────────────────────────────────────────────────
+// These auto-display formats load globally on every page (Adsterra decides when
+// to show them). Replaces previous Monetag vignette + in-page push zones.
+// - Popunder (ID: 29380103): replaces Monetag vignette/interstitial (zone 11242675)
+// - Social Bar (ID: 29285384): replaces Monetag in-page push (zone 11242710)
+export const ADSTERRA_GLOBAL_UNITS = [
+  { src: 'https://pl29480602.effectivecpmnetwork.com/2f/00/d4/2f00d442ca749f4254cbcdcdfa851714.js' }, // Popunder
+  { src: 'https://pl29385883.effectivecpmnetwork.com/11/db/e0/11dbe0be7216618b728113b9bf654a59.js' }, // Social Bar
 ];
-// Force build: 2026-05-22 04:25:00 UTC
-// Triggering new deployment
-// Build trigger: Sun Jun  7 08:49:54 UTC 2026
+
+// Build trigger: ${new Date().toUTCString()}
