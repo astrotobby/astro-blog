@@ -188,45 +188,4 @@ const today = new Date();
   }
 </style>
 
-<script is:inline>
-  /**
-   * Global Adsterra Empty Box Fix
-   * Checks for ad containers that haven't been filled by the script and hides their parent wrappers.
-   */
-  (function() {
-    function hideEmptyAds() {
-      // 1. Check AdBanner slots (native ones have a div with id starting with container-9443ced5)
-      var nativeContainers = document.querySelectorAll('div[id^="container-9443ced5"]');
-      nativeContainers.forEach(function(el) {
-        // If the container is empty or only contains whitespace, hide the parent slot
-        if (el.innerHTML.trim() === "") {
-          var parent = el.closest('.adsterra-banner-slot') || el.closest('.adsterra-native') || el.closest('.adsterra-sidebar-slot');
-          if (parent) {
-            // Also hide the outer widget if it's in the sidebar
-            var widget = parent.closest('.rd-widget.rd-sidebar-ad') || parent.closest('.post-in-article-banner') || parent.closest('.post-mid-banner') || parent.closest('.post-bottom-banner') || parent.closest('.site-top-ad');
-            if (widget) widget.style.display = 'none';
-            else parent.style.display = 'none';
-          }
-        }
-      });
 
-      // 2. Check AdBanner top slots (iframes)
-      var iframes = document.querySelectorAll('.adsterra-banner-slot iframe');
-      // Iframes are harder to check if they're "empty" without cross-origin issues, 
-      // but we can check if the script even injected anything.
-      var bannerSlots = document.querySelectorAll('.adsterra-banner-slot');
-      bannerSlots.forEach(function(slot) {
-        if (slot.children.length === 0 || (slot.children.length === 1 && slot.querySelector('script'))) {
-          // If it only has a script or is empty after some time, it might be empty
-          // We'll be conservative here to avoid hiding legitimate ads that are just slow
-        }
-      });
-    }
-
-    // Run after a delay to allow scripts to load
-    window.addEventListener('load', function() {
-      setTimeout(hideEmptyAds, 3000); // 3 seconds grace period
-      setTimeout(hideEmptyAds, 6000); // 6 seconds grace period
-    });
-  })();
-</script>
