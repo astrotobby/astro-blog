@@ -28,22 +28,25 @@ const popular = (await getCollection('blog'))
   .sort((a, b) => orderKey(b) - orderKey(a))
   .slice(0, limit);
 
+// Adsterra Keys
+const sidebarIframeKey = 'f1cac584b80eaf7c7b3dc78c37cd54df';
+const nativeKey = '9443ced55ad6dc338cd7a9fec5677f94';
 ---
 <aside class="rd-aside">
   <!-- Sidebar Ad (Top) — Unique 300x250 Banner -->
   <div class="rd-widget rd-sidebar-ad">
     <span class="rd-sidebar-ad__label">Advertisement</span>
     <div class="adsterra-sidebar-slot">
-      <script is:inline type="text/javascript">
+      <script is:inline type="text/javascript" define:vars={{ sidebarIframeKey }}>
         atOptions = {
-          'key' : 'f1cac584b80eaf7c7b3dc78c37cd54df',
+          'key' : sidebarIframeKey,
           'format' : 'iframe',
           'height' : 250,
           'width' : 300,
           'params' : {}
         };
       </script>
-      <script is:inline type="text/javascript" src="https://www.highperformanceformat.com/f1cac584b80eaf7c7b3dc78c37cd54df/invoke.js"></script>
+      <script is:inline type="text/javascript" src={`https://www.highperformanceformat.com/${sidebarIframeKey}/invoke.js`}></script>
     </div>
   </div>
 
@@ -101,8 +104,8 @@ const popular = (await getCollection('blog'))
   <div class="rd-widget rd-sidebar-ad rd-sidebar-ad--bottom">
     <span class="rd-sidebar-ad__label">Advertisement</span>
     <div class="adsterra-sidebar-slot">
-      <script async="async" data-cfasync="false" src="https://pl29385882.effectivecpmnetwork.com/9443ced55ad6dc338cd7a9fec5677f94/invoke.js"></script>
-      <div id="container-9443ced55ad6dc338cd7a9fec5677f94-sidebar-bottom"></div>
+      <div id={`container-${nativeKey}-sidebar-bottom`}></div>
+      <script is:inline async="async" data-cfasync="false" src={`https://pl29385882.effectivecpmnetwork.com/${nativeKey}/invoke.js`}></script>
     </div>
   </div>
 </aside>
@@ -113,5 +116,7 @@ const popular = (await getCollection('blog'))
     justify-content: center;
     align-items: center;
     min-height: 250px;
+    width: 100%;
+    overflow: hidden;
   }
 </style>

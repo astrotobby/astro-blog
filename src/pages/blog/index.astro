@@ -94,7 +94,7 @@ const posts = (await getCollection('blog')).sort((a, b) => orderKey(b) - orderKe
               )}
               {i === 6 && (
                 <div class="ad-grid-span">
-                  <AdsterraNativeBanner />
+                  <AdsterraNativeBanner slot="blog-grid" />
                 </div>
               )}
               <a href={`/blog/${post.id}/`} class="post-card card-glass" data-reveal style={`--reveal-delay:${(i % 3) * 80}ms`}>

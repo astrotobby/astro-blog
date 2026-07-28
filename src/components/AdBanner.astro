@@ -6,60 +6,54 @@ interface Props {
 }
 
 const { minHeight = "90px", margin = "20px auto", slot } = Astro.props;
+
+// Configuration for different slots
+const isIframe = slot === 'top' || slot === 'bottom';
+const isNative = !isIframe;
+
+// Iframe keys
+const iframeKey = '69653a4377aeaa881f9eb1c36e09704b';
+// Native keys - using a unique ID for each slot to prevent conflicts
+const nativeKey = '9443ced55ad6dc338cd7a9fec5677f94';
+const containerId = `container-${nativeKey}-${slot || 'default'}`;
 ---
 
 <div class="adsterra-banner-slot" style={`min-height: ${minHeight}; margin: ${margin};`}>
-  {slot === 'top' ? (
-    /* Unique 728x90 Banner for Top Placement */
-    <>
-      <script is:inline type="text/javascript">
+  {isIframe ? (
+    /* 728x90 Banner for Top/Bottom Placement */
+    <div class="ad-iframe-wrapper">
+      <script is:inline type="text/javascript" define:vars={{ iframeKey }}>
         atOptions = {
-          'key' : '69653a4377aeaa881f9eb1c36e09704b',
+          'key' : iframeKey,
           'format' : 'iframe',
           'height' : 90,
           'width' : 728,
           'params' : {}
         };
       </script>
-      <script is:inline type="text/javascript" src="https://www.highperformanceformat.com/69653a4377aeaa881f9eb1c36e09704b/invoke.js"></script>
-    </>
-  ) : slot === 'middle1' || slot === 'middle2' || slot === 'blog-grid-mid' ? (
-    /* Native Banner for In-Article and Grid slots */
-    <>
-      <script async="async" data-cfasync="false" src="https://pl29385882.effectivecpmnetwork.com/9443ced55ad6dc338cd7a9fec5677f94/invoke.js"></script>
-      <div id={`container-9443ced55ad6dc338cd7a9fec5677f94-${slot}`}></div>
-    </>
-  ) : slot === 'bottom' ? (
-    /* 728x90 Banner for Bottom Placement */
-    <>
-      <script is:inline type="text/javascript">
-        atOptions = {
-          'key' : '69653a4377aeaa881f9eb1c36e09704b',
-          'format' : 'iframe',
-          'height' : 90,
-          'width' : 728,
-          'params' : {}
-        };
-      </script>
-      <script is:inline type="text/javascript" src="https://www.highperformanceformat.com/69653a4377aeaa881f9eb1c36e09704b/invoke.js"></script>
-    </>
+      <script is:inline type="text/javascript" src={`https://www.highperformanceformat.com/${iframeKey}/invoke.js`}></script>
+    </div>
   ) : (
-    /* Default Native Banner for other slots */
-    <>
-      <script async="async" data-cfasync="false" src="https://pl29385882.effectivecpmnetwork.com/9443ced55ad6dc338cd7a9fec5677f94/invoke.js"></script>
-      <div id={`container-9443ced55ad6dc338cd7a9fec5677f94-${slot || 'default'}`}></div>
-    </>
+    /* Native Banner for In-Article and Grid slots */
+    <div class="ad-native-wrapper">
+      <div id={containerId}></div>
+      <script is:inline async="async" data-cfasync="false" src={`https://pl29385882.effectivecpmnetwork.com/${nativeKey}/invoke.js`}></script>
+    </div>
   )}
 </div>
 
 <style>
 	.adsterra-banner-slot {
-		min-height: 90px;
 		width: 100%;
 		max-width: 728px;
-		margin: 20px auto;
 		display: flex;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
 	}
+  .ad-iframe-wrapper, .ad-native-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
 </style>
