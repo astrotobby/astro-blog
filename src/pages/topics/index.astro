@@ -5,6 +5,8 @@ import BaseHead from '../../components/BaseHead.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import Newsletter from '../../components/Newsletter.astro';
+import AdBanner from '../../components/AdBanner.astro';
+import AdsterraNativeBanner from '../../components/AdsterraNativeBanner.astro';
 import { CLUSTERS, postInCluster } from '../../lib/clusters';
 import { SITE_TITLE } from '../../consts';
 
@@ -40,6 +42,7 @@ const description =
   <body>
     <Header />
     <main>
+      <AdBanner slot="top" minHeight="90px" margin="0 auto 24px" />
       <section class="page-header glass" data-reveal>
         <span class="badge"><span class="dot"></span> Topic hubs</span>
         <h1 class="page-title">Browse by <span class="gradient-text">topic</span></h1>
@@ -61,6 +64,8 @@ const description =
           ))}
         </div>
       </section>
+
+      <AdsterraNativeBanner slot="topics-index-bottom" />
 
       <Newsletter />
     </main>

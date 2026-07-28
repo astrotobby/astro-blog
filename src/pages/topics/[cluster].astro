@@ -8,6 +8,8 @@ import FormattedDate from '../../components/FormattedDate.astro';
 import Newsletter from '../../components/Newsletter.astro';
 import InArticleCTA from '../../components/InArticleCTA.astro';
 import ShopifyProducts from '../../components/ShopifyProducts.astro';
+import AdBanner from '../../components/AdBanner.astro';
+import AdsterraNativeBanner from '../../components/AdsterraNativeBanner.astro';
 import { CLUSTERS, postInCluster } from '../../lib/clusters';
 import { displayImage, svgFallback } from '../../lib/postImage';
 
@@ -106,6 +108,7 @@ const faqSchema = {
   <body>
     <Header />
     <main>
+      <AdBanner slot="top" minHeight="90px" margin="0 auto 24px" />
       <section class="hub-header glass" data-reveal>
         <span class="badge"><span class="dot"></span> {cluster.eyebrow} hub</span>
         <h1 class="hub-title">{cluster.name}</h1>
@@ -137,6 +140,8 @@ const faqSchema = {
       </section>
 
       <ShopifyProducts tags={cluster.tags} limit={3} />
+
+      <AdsterraNativeBanner slot="topic-bottom" />
 
       <section class="other-hubs" data-reveal>
         <h2>Explore other topics</h2>
