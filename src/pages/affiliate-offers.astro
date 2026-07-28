@@ -279,7 +279,7 @@ const geoLabel = matchedCountry
 <script is:inline>
   var _selectedProduct = null;
 
-  function selectProduct(btn) {
+  function selectProduct(btn, isAuto) {
     var handle = btn.getAttribute('data-handle');
     var title  = btn.getAttribute('data-title');
     var pdp    = btn.getAttribute('data-pdp');
@@ -294,8 +294,21 @@ const geoLabel = matchedCountry
     var titleEl = document.getElementById('selected-title');
     if (banner && titleEl) { titleEl.textContent = title; banner.hidden = false; }
 
-    var wall = document.getElementById('offer-wall');
-    if (wall) wall.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // When the user manually clicks "Unlock Free", auto-open the best matching offer
+    // and scroll them straight to the final step.
+    if (!isAuto) {
+      var firstOffer = document.querySelector('.cpa-card a.cpa-media');
+      if (firstOffer) {
+        window.open(firstOffer.href, '_blank');
+      }
+      var unlockSection = document.getElementById('unlock-cta');
+      if (unlockSection) {
+        unlockSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } else {
+      var wall = document.getElementById('offer-wall');
+      if (wall) wall.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   function clearProduct() {
@@ -374,7 +387,7 @@ const geoLabel = matchedCountry
       if (preselect) {
         var btn = document.querySelector('.aff-product-card__unlock-btn[data-handle="' + preselect + '"]');
         if (btn) {
-          selectProduct(btn);
+          selectProduct(btn, true);
           // Scroll to products section first so user sees the selection
           var productsSection = document.getElementById('products');
           if (productsSection) productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -383,7 +396,7 @@ const geoLabel = matchedCountry
         // Auto-select the first product if none is already selected
         var firstBtn = document.querySelector('.aff-product-card__unlock-btn');
         if (firstBtn && !_selectedProduct) {
-          selectProduct(firstBtn);
+          selectProduct(firstBtn, true);
         }
       }
     } catch(e) {}
