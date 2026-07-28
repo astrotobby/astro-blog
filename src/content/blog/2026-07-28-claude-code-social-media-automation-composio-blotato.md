@@ -1,7 +1,7 @@
 ---
 date: 2026-07-28
 description: "Learn how to automate social media content posting using Claude Code by integrating with Composio MCP or Blotato API. A complete guide to AI-powered social media management in 2026."
-image: /claude-code-social-media.svg
+image: /claude-code-social-media.jpg
 pubDate: 2026-07-28
 title: "How to Automate Social Media Posting with Claude Code, Composio, and Blotato"
 tags: ["claude code", "social media automation", "composio", "blotato", "ai agents", "mcp"]
