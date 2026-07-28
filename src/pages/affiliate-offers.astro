@@ -537,6 +537,7 @@ const geoLabel = matchedCountry
     color: #fff; padding: 0.75rem 2rem;
     box-shadow: 0 4px 16px rgba(102,126,234,0.35);
   }
+  .aff-selected-banner[hidden] { display: none !important; }
   .aff-selected-banner__inner { max-width: 1300px; margin: 0 auto; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
   .aff-selected-banner__label { font-size: 0.85rem; opacity: 0.85; }
   .aff-selected-banner__inner strong { font-size: 0.95rem; font-weight: 700; flex: 1; }
@@ -589,6 +590,8 @@ const geoLabel = matchedCountry
     background: rgba(10,10,30,0.75); backdrop-filter: blur(6px);
     display: flex; align-items: center; justify-content: center; padding: 1.5rem;
   }
+  /* Ensure the hidden attribute actually hides the overlay (display:flex overrides it otherwise) */
+  .aff-modal-overlay[hidden] { display: none !important; }
   .aff-modal {
     background: #fff; border-radius: 20px; padding: 2.5rem 2rem;
     max-width: 480px; width: 100%; position: relative;

@@ -49,7 +49,7 @@ const networkLabel = (n?: string) => (n === 'cpagrip' ? 'CPAGrip' : 'CPAlead');
 
 <section class="cpa-section" aria-label="Featured offers">
   {heading && (
-    <header class="cpa-header" data-reveal>
+    <header class="cpa-header">
       <p class="cpa-eyebrow">Complete &amp; earn</p>
       <h2 class="cpa-title gradient-text">Featured Offers</h2>
       <p class="cpa-subtitle">Free sign-ups, app installs and rewards — updated live</p>
@@ -64,7 +64,7 @@ const networkLabel = (n?: string) => (n === 'cpagrip' ? 'CPAGrip' : 'CPAlead');
         const href = o.link;
         const geos = o.countries.slice(0, 4).join(', ');
         return (
-          <article class="cpa-card" data-reveal data-title={o.title.toLowerCase()} style={`--reveal-delay:${Math.min(i * 50, 400)}ms`}>
+          <article class="cpa-card" data-title={o.title.toLowerCase()}>
             <a class="cpa-media" href={href} target="_blank" rel="sponsored noopener noreferrer" aria-label={o.title}>
               {o.image
                 ? <img src={o.image} alt={o.title} loading="lazy" decoding="async" width="320" height="200" />
@@ -122,12 +122,6 @@ const networkLabel = (n?: string) => (n === 'cpagrip' ? 'CPAGrip' : 'CPAlead');
     overflow: hidden;
     box-shadow: 0 4px 14px rgba(15, 18, 34, 0.06);
     transition: transform 0.25s ease, box-shadow 0.25s ease;
-    /* Safety net: if the scroll-reveal observer never fires, cards still appear */
-    animation: cpa-card-fallback 0ms 800ms forwards;
-  }
-  @keyframes cpa-card-fallback {
-    from { opacity: 1; transform: none; }
-    to   { opacity: 1; transform: none; }
   }
   .cpa-card:hover {
     transform: translateY(-6px);
