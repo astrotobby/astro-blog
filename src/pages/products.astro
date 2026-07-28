@@ -4,7 +4,7 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import ShopifyProducts from '../components/ShopifyProducts.astro';
 import AdBanner from '../components/AdBanner.astro';
-import AdsterraNativeBanner from '../components/AdsterraNativeBanner.astro';
+
 import { fetchShopifyProducts, FALLBACK_PRODUCTS } from '../lib/shopify';
 
 const pageTitle = "Our Products";
@@ -106,7 +106,7 @@ try {
       </div>
     </section>
 
-    <AdsterraNativeBanner slot="products-bottom" />
+    <AdBanner slot="products-bottom" />
 
     <!-- CTA Section -->
     <section class="cta-section">

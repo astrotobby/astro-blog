@@ -6,7 +6,7 @@ import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import Newsletter from '../../components/Newsletter.astro';
 import AdBanner from '../../components/AdBanner.astro';
-import AdsterraNativeBanner from '../../components/AdsterraNativeBanner.astro';
+
 import { CLUSTERS, postInCluster } from '../../lib/clusters';
 import { SITE_TITLE } from '../../consts';
 
@@ -65,7 +65,7 @@ const description =
         </div>
       </section>
 
-      <AdsterraNativeBanner slot="topics-index-bottom" />
+      <AdBanner slot="topics-index-bottom" />
 
       <Newsletter />
     </main>

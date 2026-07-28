@@ -6,7 +6,7 @@ import Footer from '../../components/Footer.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
 import AdBanner from '../../components/AdBanner.astro';
-import AdsterraNativeBanner from '../../components/AdsterraNativeBanner.astro';
+
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
 import { displayImage, svgFallback } from '../../lib/postImage';
 
@@ -94,7 +94,7 @@ const posts = (await getCollection('blog')).sort((a, b) => orderKey(b) - orderKe
               )}
               {i === 6 && (
                 <div class="ad-grid-span">
-                  <AdsterraNativeBanner slot="blog-grid" />
+                  <AdBanner slot="blog-grid" />
                 </div>
               )}
               <a href={`/blog/${post.id}/`} class="post-card card-glass" data-reveal style={`--reveal-delay:${(i % 3) * 80}ms`}>

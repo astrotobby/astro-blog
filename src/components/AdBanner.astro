@@ -5,53 +5,66 @@ interface Props {
 	slot?: string;
 }
 
-const { minHeight = "90px", margin = "20px auto", slot } = Astro.props;
+const { minHeight, margin = "20px auto", slot } = Astro.props;
 
-// Configuration for different slots
-const isIframe = slot === 'top' || slot === 'bottom';
-const isNative = !isIframe;
+/**
+ * Adsterra Iframe Keys provided by the user:
+ * 1. 728x90 (Leaderboard) - for horizontal content slots
+ * 2. 300x250 (Rectangle) - for sidebar top
+ * 3. 160x600 (Skyscraper) - for sidebar bottom
+ */
+const keys = {
+  leaderboard: '69653a4377aeaa881f9eb1c36e09704b',
+  rectangle: 'f1cac584b80eaf7c7b3dc78c37cd54df',
+  skyscraper: '1b3ede9e9965480f3c9e13de0dc2dc40'
+};
 
-// Iframe keys
-const iframeKey = '69653a4377aeaa881f9eb1c36e09704b';
-// Native keys - using a unique ID for each slot to prevent conflicts
-const nativeKey = '9443ced55ad6dc338cd7a9fec5677f94';
-const containerId = `container-${nativeKey}-${slot || 'default'}`;
+let iframeKey = keys.leaderboard;
+let width = 728;
+let height = 90;
+let defaultMinHeight = "90px";
+
+if (slot === 'sidebar-top') {
+  iframeKey = keys.rectangle;
+  width = 300;
+  height = 250;
+  defaultMinHeight = "250px";
+} else if (slot === 'sidebar-bottom') {
+  iframeKey = keys.skyscraper;
+  width = 160;
+  height = 600;
+  defaultMinHeight = "600px";
+}
+
+const finalMinHeight = minHeight || defaultMinHeight;
+const containerId = `ad-slot-${slot || 'default'}-${Math.floor(Math.random() * 10000)}`;
 ---
 
-<div class="adsterra-banner-slot" style={`min-height: ${minHeight}; margin: ${margin};`}>
-  {isIframe ? (
-    /* 728x90 Banner for Top/Bottom Placement */
-    <div class="ad-iframe-wrapper">
-      <script is:inline type="text/javascript" define:vars={{ iframeKey }}>
-        atOptions = {
-          'key' : iframeKey,
-          'format' : 'iframe',
-          'height' : 90,
-          'width' : 728,
-          'params' : {}
-        };
-      </script>
-      <script is:inline type="text/javascript" src={`https://www.highperformanceformat.com/${iframeKey}/invoke.js`}></script>
-    </div>
-  ) : (
-    /* Native Banner for In-Article and Grid slots */
-    <div class="ad-native-wrapper">
-      <div id={containerId}></div>
-      <script is:inline async="async" data-cfasync="false" src={`https://pl29385882.effectivecpmnetwork.com/${nativeKey}/invoke.js`}></script>
-    </div>
-  )}
+<div class="adsterra-banner-slot" style={`min-height: ${finalMinHeight}; margin: ${margin};`}>
+  <div class="ad-iframe-wrapper" id={containerId}>
+    <script is:inline define:vars={{ iframeKey, width, height }}>
+      // Set the global atOptions for the following invoke.js script
+      window.atOptions = {
+        'key' : iframeKey,
+        'format' : 'iframe',
+        'height' : height,
+        'width' : width,
+        'params' : {}
+      };
+    </script>
+    <script is:inline type="text/javascript" src={`https://www.highperformanceformat.com/${iframeKey}/invoke.js`}></script>
+  </div>
 </div>
 
 <style>
 	.adsterra-banner-slot {
 		width: 100%;
-		max-width: 728px;
 		display: flex;
     justify-content: center;
     align-items: center;
     overflow: hidden;
 	}
-  .ad-iframe-wrapper, .ad-native-wrapper {
+  .ad-iframe-wrapper {
     width: 100%;
     display: flex;
     justify-content: center;
