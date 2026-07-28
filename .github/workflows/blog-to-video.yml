@@ -162,6 +162,8 @@ jobs:
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+          # Primary footage provider plus Pixabay fallback. Both values remain GitHub Actions secrets.
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           SITE_BASE_URL: ${{ secrets.SITE_BASE_URL }}
         run: |

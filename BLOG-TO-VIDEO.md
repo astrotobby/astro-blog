@@ -1,7 +1,7 @@
 # blog-to-video — zero-budget blog → video → social autopilot
 
-Turns every new blog post in your GitHub repo into a captioned, voiced
-motion-graphics video and cross-posts it to YouTube + Facebook + Instagram
+Turns every new blog post in your GitHub repo into a captioned, voiced,
+**footage-driven** video and cross-posts it to YouTube + Facebook + Instagram
 + X + Tumblr + Pinterest + Reddit + TikTok (direct API, no app review needed).
 
 Everything runs **free on GitHub Actions** — your laptop can be off.
@@ -13,12 +13,14 @@ Everything runs **free on GitHub Actions** — your laptop can be off.
 ```
 new commit to /posts  ──►  GitHub Action  ──►  pipeline
                                                1. fetch_post.py   (read the new .md/.mdx)
-                                               2. build_script.py (title + 45s VO script + image prompts)
+                                               2. build_script.py (retention script + scene-specific B-roll briefs)
                                                3. generate_video.py
                                                     • edge-tts        -> voiceover.mp3   (free, no key)
-                                                    • Pollinations    -> scene images    (free, no key)
+                                                    • Pexels          -> ranked primary stock footage
+                                                    • Pixabay         -> ranked fallback footage
+                                                    • Pollinations    -> rare no-footage still fallback
                                                     • faster-whisper  -> captions.srt     (free, local)
-                                                    • ffmpeg          -> video_9x16.mp4 + video_16x9.mp4
+                                                    • FFmpeg          -> finished 9:16 + 16:9 masters
                                                4. crosspost.py
                                                     • YouTube Data API  (direct, instant)
                                                     • direct platform APIs (FB/IG/X/Tumblr/Pinterest/TikTok/Reddit)
@@ -42,9 +44,12 @@ expect magic — some platforms cannot be naively spammed 5×/day.
 | 4 | Tumblr app | Tumblr posting (no review) | https://www.tumblr.com/oauth/apps | free |
 | 5 | X / Twitter app | X posting (free tier, capped) | https://developer.x.com/ | free |
 | 6 | Reddit app (optional) | Reddit posting (off by default) | https://www.reddit.com/prefs/apps | free |
-| 7 | Pixabay (optional) | royalty-free bg music | https://pixabay.com/api/docs/ | free |
+| 7 | Pexels API | primary royalty-free stock footage | https://www.pexels.com/api/documentation/ | free |
+| 8 | Pixabay API | ranked stock-footage fallback | https://pixabay.com/api/docs/ | free |
 
-`edge-tts` and `Pollinations.ai` need **no key at all.**
+`edge-tts` and the still-image fallback need **no key at all**. Pexels is the
+primary provider; Pixabay is only used when the primary query has no suitable,
+unique clip.
 
 **Instagram / Facebook / LinkedIn / Pinterest are deferred** — each needs its own
 developer app + review, which no free tool skips. The pipeline renders the Reels
@@ -91,7 +96,8 @@ REDDIT_CLIENT_ID       # optional (off by default)
 REDDIT_CLIENT_SECRET   # optional
 REDDIT_USERNAME        # optional
 REDDIT_PASSWORD        # optional
-PIXABAY_API_KEY        # optional
+PEXELS_API_KEY         # primary footage search
+PIXABAY_API_KEY        # optional footage fallback
 SITE_BASE_URL          # e.g. https://astrotobby.site  (used for the CTA link)
 ```
 
@@ -139,11 +145,15 @@ Enable each in `config.yaml → platforms.*` (see config for defaults).
 # 1. fetch the most recent post
 python scripts/fetch_post.py --latest
 
-# 2. build the narration script + image prompts
+# 2. build the narration script + scene-specific B-roll briefs
 python scripts/build_script.py .pipeline/post.json
 
-# 3. render the videos (this is the heavy one)
+# 3. render footage-driven vertical and YouTube masters (this is the heavy one)
 python scripts/generate_video.py .pipeline/script.json
+
+# Optional regression and local render checks (no external footage key required)
+python -m unittest scripts/test_video_pipeline.py
+python scripts/test_renderer_smoke.py
 
 # 4. dry-run the cross-poster (no real uploads)
 python scripts/crosspost.py .pipeline/render.json --dry-run
@@ -168,8 +178,10 @@ Telegram message with ✅/❌ per platform and links.
 | `.github/workflows/blog-to-video.yml` | the trigger + cloud runner |
 | `config.yaml` | posts dir, voice, hashtags, subreddits, posting rules |
 | `scripts/fetch_post.py` | finds the new/changed post, parses front-matter |
-| `scripts/build_script.py` | hook + 45s VO script + per-scene image prompts |
-| `scripts/generate_video.py` | edge-tts → Pollinations → whisper → ffmpeg |
+| `scripts/build_script.py` | retention script + semantic, scene-specific B-roll briefs |
+| `scripts/generate_video.py` | edge-tts → Pexels/Pixabay footage ranking → captions/music/overlays → FFmpeg |
+| `scripts/test_video_pipeline.py` | scene-brief, metadata, and attribution regression checks |
+| `scripts/test_renderer_smoke.py` | local FFmpeg smoke test for captions, music ducking, and overlays |
 | `scripts/crosspost.py` | dispatcher: dedup + daily caps over the direct posters |
 | `scripts/platforms.py` | direct API posters (YouTube, Tumblr, Reddit, X) |
 | `scripts/youtube_auth.py` | one-time refresh-token helper |
@@ -191,7 +203,18 @@ Telegram message with ✅/❌ per platform and links.
 - **Daily caps:** X capped to `limits.x_per_day`, Reddit off by default — over the
   cap it's simply not posted that day (see `HONEST-LIMITS.md`).
 - **Missing creds = skipped, not crashed:** set up platforms one at a time.
+- **Footage-first editorial matching:** each narrated beat produces a concrete,
+  visible-subject B-roll brief (for example, `data center servers` rather than
+  `AI future`), with a category-safe fallback rather than generic scenery.
+- **No duplicate stock clips within a render:** ranked candidates are tracked across
+  scenes, which prevents the same clip from being reused as filler.
+- **Pexels-first, Pixabay-second sourcing:** aspect ratio and practical HD resolution
+  are ranked before download. A still is used only when both footage searches fail.
 - **Music auto-ducks** under the voiceover via sidechain compression.
+- **Burned captions and timed visual anchors:** captions, a hook card, data lower
+  thirds, and an end card are rendered into both master formats.
+- **Asset provenance:** the YouTube description receives deduplicated footage credits
+  for clips used in that render, and `render.json` retains source records.
 - **Soft-fail per platform:** one platform erroring never blocks the others; you
   get a per-platform ✅/❌ in Telegram.
 

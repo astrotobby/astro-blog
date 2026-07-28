@@ -140,6 +140,76 @@ TOPIC_VISUAL_PROFILES = {
     },
 }
 
+# Footage-specific search grammar. Stock-footage search engines respond best to a
+# visible subject, action, and setting—not abstract phrases such as "AI disruption".
+# Each profile therefore maps common concepts to concrete B-roll queries and supplies
+# safe fallbacks that deliberately avoid unrelated scenic filler.
+FOOTAGE_BROLL_PROFILES = {
+    "security": {
+        "fallbacks": ("cybersecurity analyst computer", "data center server room", "computer code security"),
+        "matches": (
+            (("breach", "attack", "ransomware", "malware", "threat"), "cybersecurity analyst computer"),
+            (("password", "encryption", "privacy", "authentication"), "secure data lock computer"),
+            (("server", "cloud", "infrastructure"), "data center server room"),
+        ),
+    },
+    "healthcare": {
+        "fallbacks": ("doctor reviewing tablet", "medical research laboratory", "hospital technology"),
+        "matches": (
+            (("doctor", "patient", "clinical", "diagnosis", "treatment"), "doctor reviewing tablet"),
+            (("research", "biotech", "pharma", "laboratory"), "medical research laboratory"),
+            (("hospital", "healthcare"), "modern hospital corridor"),
+        ),
+    },
+    "finance": {
+        "fallbacks": ("financial data dashboard", "business team meeting", "digital payment phone"),
+        "matches": (
+            (("stock", "trading", "market", "investment"), "financial data charts screen"),
+            (("payment", "transaction", "banking", "wallet"), "digital payment phone"),
+            (("revenue", "budget", "invoice", "finance"), "business analytics dashboard"),
+        ),
+    },
+    "automation": {
+        "fallbacks": ("business workflow on computer", "software developer laptop", "automated factory robot"),
+        "matches": (
+            (("workflow", "zapier", "make.com", "orchestration", "pipeline"), "business workflow on computer"),
+            (("robot", "robotic", "rpa", "manufacturing"), "automated factory robot"),
+            (("productivity", "process", "automate"), "office worker using laptop"),
+        ),
+    },
+    "llm_model": {
+        "fallbacks": ("software developer using computer", "data center servers", "computer microchip close up"),
+        "matches": (
+            (("llm", "gpt", "claude", "gemini", "openai", "anthropic", "model", "prompt"), "software developer using computer"),
+            (("training", "inference", "parameter", "benchmark", "compute"), "data center servers"),
+            (("chip", "gpu", "hardware", "semiconductor"), "computer microchip close up"),
+        ),
+    },
+    "general_ai": {
+        "fallbacks": ("software developer laptop", "technology office team", "data center servers"),
+        "matches": (
+            (("agent", "chatbot", "assistant", "automation"), "software developer using laptop"),
+            (("robot", "robotics"), "industrial robot factory"),
+            (("chip", "gpu", "hardware", "server", "cloud"), "data center server room"),
+            (("video", "creator", "content", "editing"), "content creator video editing"),
+        ),
+    },
+}
+
+# Cross-category concepts take priority when an article names a visible object,
+# environment, or real-world application. They directly address the common failure
+# mode where an AI article is illustrated by generic mountains or forests.
+CONCRETE_FOOTAGE_MATCHES = (
+    (("smart thermostat", "smart home", "home automation", "intelligent environment"), "smart home thermostat"),
+    (("industrial iot", "iot sensor", "factory sensor", "predictive maintenance"), "industrial factory automation"),
+    (("supply chain", "warehouse", "logistics", "fulfillment"), "warehouse automation workers"),
+    (("autonomous vehicle", "self-driving", "driverless"), "autonomous car road"),
+    (("wearable", "smartwatch", "fitness tracker"), "smartwatch health technology"),
+    (("renewable energy", "solar", "wind turbine", "power grid"), "renewable energy technology"),
+    (("classroom", "student", "education", "teacher"), "student using laptop classroom"),
+    (("video editing", "content creator", "creator economy"), "content creator video editing"),
+)
+
 # Scene type modifiers — applied on top of the topic visual language.
 # Each type shapes the composition and energy of the image prompt.
 SCENE_TYPE_MODIFIERS = {
@@ -473,6 +543,53 @@ def _classify_scene(i: int, n: int, segment: str, narration: str) -> str:
     return "EXPLAIN"
 
 
+def _metadata_value(value: str, limit: int = 96) -> str:
+    """Keep pipe-delimited scene metadata compact and safe to parse downstream."""
+    return re.sub(r"[|:\n\r]+", " ", (value or "")).strip()[:limit]
+
+
+def _footage_brief(segment: str, category: str, scene_type: str) -> tuple[str, str]:
+    """Return a concrete primary and fallback B-roll query for a narration beat.
+
+    The stock APIs work best with visible people, objects, actions and locations.
+    This deliberately uses category-aware terms rather than falling back to a vague
+    post-title search or decorative landscape footage.
+    """
+    profile = FOOTAGE_BROLL_PROFILES.get(category, FOOTAGE_BROLL_PROFILES["general_ai"])
+    text = (segment or "").lower()
+    for signals, concrete_query in CONCRETE_FOOTAGE_MATCHES:
+        if any(signal in text for signal in signals):
+            fallback = profile["fallbacks"][(len(concrete_query) + len(segment)) % len(profile["fallbacks"])]
+            return _metadata_value(concrete_query), _metadata_value(fallback)
+
+    for signals, query in profile["matches"]:
+        if any(signal in text for signal in signals):
+            break
+    else:
+        query = profile["fallbacks"][0]
+
+    # Variety is useful only after relevance: rotate between equally safe category
+    # fallbacks by scene type when no specific concept is named in the narration.
+    if query == profile["fallbacks"][0] and scene_type in {"ESTABLISH", "PAYOFF"}:
+        query = profile["fallbacks"][1 % len(profile["fallbacks"])]
+    elif query == profile["fallbacks"][0] and scene_type == "CTA":
+        query = profile["fallbacks"][2 % len(profile["fallbacks"])]
+
+    fallback = profile["fallbacks"][(len(query) + len(segment)) % len(profile["fallbacks"])]
+    if fallback == query and len(profile["fallbacks"]) > 1:
+        fallback = profile["fallbacks"][(profile["fallbacks"].index(fallback) + 1) % len(profile["fallbacks"])]
+    return _metadata_value(query), _metadata_value(fallback)
+
+
+def _stat_label(segment: str) -> str:
+    """Extract a short, readable numeric claim for a DATA-scene lower third."""
+    match = re.search(r"[^.!?]{0,36}(?:[$€£]?\\d[\\d,.]*(?:\\s*(?:%|percent|million|billion|[kKmMbB]))?)[^.!?]{0,42}", segment or "")
+    if not match:
+        return ""
+    label = " ".join(match.group(0).split()).strip(" ,;:-")
+    return _metadata_value(label, 72)
+
+
 def _scene_keywords(segment: str, post_title: str, n_kw: int = 3) -> str:
     """Extract the most relevant keywords from a narration segment for the prompt."""
     stop = set("the a an and or of to in for with on is are be this that it as at "
@@ -505,9 +622,10 @@ def make_scenes(post, cfg):
     generate_video.py can apply the correct Ken Burns motion and pacing.
     """
     n = cfg["visuals"]["scenes"]
-    # Build narration for segmentation (use the vertical/follow cut as reference)
-    hook, narration, _ = build_narration(post, cfg)
-    full_narration = hook + " " + narration
+    # Use the actual vertical/follow narration for segmentation. `narration` already
+    # begins with the hook, so prepending it again would make early visual beats track
+    # a duplicated sentence instead of the spoken voiceover.
+    _hook, full_narration, _ = build_narration(post, cfg)
 
     # Detect topic category and load its visual profile
     cat = detect_topic_category(post)
@@ -527,18 +645,23 @@ def make_scenes(post, cfg):
         # Pick a visual from the topic pool, cycling through them
         base_visual = visual_pool[i % len(visual_pool)]
 
-        # Extract segment-specific keywords for grounding
+        # Generate both a scene-specific stock-footage brief and a safe category
+        # fallback. The visual prompt remains available only if all footage sources fail.
         seg_kws = _scene_keywords(segment, post["title"])
+        broll_query, fallback_query = _footage_brief(segment, cat, scene_type)
+        stat = _stat_label(segment) if scene_type == "DATA" else ""
 
-        # Build the full prompt
-        # Format: [base visual], [scene keywords], [type modifier], [quality suffix]
+        # The renderer reads the pipe-delimited metadata; the text before it remains
+        # a usable image-generation prompt for the rare no-footage fallback.
         prompt = (
             f"{base_visual}, {seg_kws}, {type_modifier}, "
             f"photorealistic, ultra detailed, film grain, 9:16, "
             f"scene_type:{scene_type}|kb:{kb_preset}|dur:{dur_mult:.2f}"
+            f"|broll:{broll_query}|fallback:{fallback_query}"
+            + (f"|stat:{stat}" if stat else "")
         )
         prompts.append(prompt)
-        log(f"scene {i} [{scene_type}] kb={kb_preset} dur={dur_mult:.2f} kws={seg_kws[:40]}")
+        log(f"scene {i} [{scene_type}] broll={broll_query!r} fallback={fallback_query!r}")
 
     return prompts
 
