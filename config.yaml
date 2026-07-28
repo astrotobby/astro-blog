@@ -90,14 +90,11 @@ video:
   caption_margin_v: 70              # margin from the BOTTOM (captions are bottom-aligned)
   music: true
   music_volume: 0.12
-  # ---- Cinematic overlays (drawtext, all free/in-ffmpeg) ----
-  hook_card: true                   # burn the hook as a big title card over the first ~2.8s
-  data_lower_third: true            # show extracted stat/number as a lower-third bar on DATA scenes
-  end_card: true                    # dimmed CTA card over the last ~3.4s of the video
-  end_card_lines:                   # rendered top-to-bottom, auto-sized per aspect
-    - "READ THE FULL BREAKDOWN"
-    - "astrotobby.site"
-    - "AI STARTER PACK → /products"
+  # ---- Caption style ----
+  # Captions are word-by-word at the bottom of the video (no box, no background bar).
+  # No text overlays cover the video — captions are the only on-screen text.
+  # The hook_text from the script is now used as the YouTube/Instagram caption text,
+  # not burned into the video as a title card.
 
 # ---- Talking avatar (Wav2Lip, runs inside the GitHub runner — no external Space) ----
 # Needs the HF_TOKEN secret (to download weights) + an avatar image at the path below.

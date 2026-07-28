@@ -1,7 +1,7 @@
 """Local smoke test for the finished-video FFmpeg filter graph.
 
-Creates tiny synthetic inputs and exercises captions, music ducking, a data lower
-third, hook card, and end card without using network footage or external APIs.
+Creates tiny synthetic inputs and exercises word-by-word bottom captions and
+music ducking without using network footage or external APIs.
 
 Run from the repository root:
     python3 scripts/test_renderer_smoke.py
@@ -24,7 +24,6 @@ def main():
     base = OUT / "_smoke_base.mp4"
     voice = OUT / "_smoke_voice.wav"
     music = OUT / "_smoke_music.wav"
-    captions = OUT / "_smoke.srt"
     output = OUT / "_smoke_finished.mp4"
 
     run(["ffmpeg", "-y", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30",
@@ -33,20 +32,28 @@ def main():
          "-t", "4", str(voice)])
     run(["ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=160:sample_rate=44100",
          "-t", "4", str(music)])
-    captions.write_text("1\n00:00:00,100 --> 00:00:02,000\nA concise caption remains readable.\n", encoding="utf-8")
+
+    # Synthetic word-level timings (matching the 4-second synthetic voice)
+    word_timings = [
+        {"text": "A", "start": 0.1, "end": 0.3},
+        {"text": "concise", "start": 0.35, "end": 0.75},
+        {"text": "caption", "start": 0.8, "end": 1.2},
+        {"text": "remains", "start": 1.25, "end": 1.7},
+        {"text": "readable.", "start": 1.75, "end": 2.2},
+    ]
 
     cfg = load_config()
     cfg["video"] = dict(cfg["video"])
     cfg["video"].update({
-        "hook_card": True,
-        "data_lower_third": True,
-        "end_card": True,
+        "hook_card": False,       # no overlays covering the video
+        "data_lower_third": False,
+        "end_card": False,
         "music_volume": 0.08,
         "caption_margin_v": 24,
     })
-    scene_assets = [(None, {"stat": "42% more efficient", "start": 1.0, "end": 2.5})]
-    finalize(base, voice, captions, music, {"w": 640, "h": 360}, output, cfg,
-             scene_assets, "Why this footage-first workflow matters", 4.0)
+    scene_assets = []
+    finalize(base, voice, word_timings, music, {"w": 640, "h": 360}, output, cfg,
+             scene_assets, "", 4.0)
     if not output.exists() or output.stat().st_size < 10_000:
         raise RuntimeError("FFmpeg smoke test did not create a usable output")
     print(f"Renderer smoke test passed: {output}")

@@ -3,13 +3,19 @@
 Pipeline:
   edge-tts             -> voiceover.mp3 / voiceover_yt.mp3
   Pexels + Pixabay     -> semantically matched scene clips
-  faster-whisper       -> optional burned captions
+  faster-whisper       -> word-level timestamps for bottom captions
   FFmpeg               -> finished vertical and horizontal masters
 
 The renderer treats stock-video search as an editorial step.  Every scene carries a
 primary concrete B-roll query and a category-safe fallback from build_script.py;
 this avoids querying every scene with the article title and filling technical videos
 with unrelated landscape footage.
+
+Caption style:
+  - Word-by-word display at the BOTTOM of the video (no box, no background bar).
+  - Each word appears and disappears in sync with the voice using Whisper's
+    word-level timestamps — never a full subtitle segment all at once.
+  - No hook card, data lower-third, or end-card overlay dimming the video.
 """
 import argparse
 import asyncio
@@ -464,8 +470,45 @@ def _srt_timestamp(seconds: float) -> str:
     return f"{hours:02}:{minutes:02}:{seconds:02},{milliseconds:03}"
 
 
+def transcribe_words(audio_path):
+    """Transcribe the voiceover and return word-level timing data.
+
+    Returns a list of dicts: [{"text": "word", "start": 1.23, "end": 1.45}, ...]
+    or None on failure (non-fatal — caller renders without captions).
+    """
+    try:
+        from faster_whisper import WhisperModel
+
+        model_name = env("WHISPER_MODEL") or "base"
+        model = WhisperModel(model_name, device="cpu", compute_type="int8")
+        segments, _info = model.transcribe(str(audio_path), beam_size=4, vad_filter=True,
+                                           word_timestamps=True)
+        words = []
+        for segment in segments:
+            if segment.words:
+                for w in segment.words:
+                    text = w.word.strip()
+                    if text:
+                        words.append({
+                            "text": text,
+                            "start": float(w.start),
+                            "end": float(w.end),
+                        })
+        if words:
+            log(f"word-level transcription: {len(words)} words")
+            return words
+        log("caption model returned no speech segments; continuing without captions")
+    except Exception as exc:
+        log(f"caption generation skipped ({exc})")
+    return None
+
+
 def make_captions(audio_path, tag=""):
-    """Create an SRT from the rendered voice. Failure is non-fatal by design."""
+    """Backwards-compatible: create an SRT from the rendered voice.
+
+    NOTE: the new pipeline uses `transcribe_words` instead for word-by-word
+    captions. This function is kept for any legacy callers.
+    """
     output = OUT / f"captions{tag}.srt"
     output.unlink(missing_ok=True)
     try:
@@ -526,28 +569,6 @@ def _wrap_text(text: str, limit: int) -> str:
     return "\n".join(lines[:3])
 
 
-def _draw_text(text, width, font_size, y, enable=None, box=True, align="center"):
-    safe_text = _ffmpeg_text(_wrap_text(text, 30 if width < 1300 else 44))
-    x = "(w-text_w)/2" if align == "center" else "w*0.07"
-    options = [
-        f"fontfile={FONT_FILE}",
-        f"text='{safe_text}'",
-        "expansion=none",
-        "fontcolor=white",
-        f"fontsize={font_size}",
-        f"x={x}",
-        f"y={y}",
-        "shadowcolor=black@0.9",
-        "shadowx=2",
-        "shadowy=3",
-    ]
-    if box:
-        options += ["box=1", "boxcolor=black@0.55", "boxborderw=22"]
-    if enable:
-        options.append(f"enable='{enable}'")
-    return "drawtext=" + ":".join(options)
-
-
 def _append_filter(filters, source_label, filter_body, target_label):
     filters.append(f"[{source_label}]{filter_body}[{target_label}]")
     return target_label
@@ -578,13 +599,63 @@ def _with_attribution(platform, sources):
     return output
 
 
-def finalize(video_path, voice_path, captions, music, size, out_path, cfg, scene_assets, hook_text, total_duration):
-    """Burn captions and professional overlays, then mix a ducked music bed."""
+def _build_word_caption_filters(words, size):
+    """Build FFmpeg drawtext filters for word-by-word bottom captions.
+
+    Each word is displayed individually at the bottom of the screen, timed
+    to its Whisper word-level start/end.  No background box — just clean
+    white text with a black shadow/outline for readability over any footage.
+    """
+    width, height = size["w"], size["h"]
+    if not words:
+        return []
+
+    # Font size: larger for vertical (9:16) videos, smaller for horizontal
+    font_size = 56 if height > width else 40
+
+    # Position: bottom of the screen with a small margin.
+    # We use an absolute Y position so the caption stays locked at the bottom
+    # regardless of aspect ratio.
+    margin_from_bottom = max(60, height * 0.05)
+    y_expr = f"h-{margin_from_bottom}"
+
+    filters = []
+    for i, word_info in enumerate(words):
+        text = word_info["text"]
+        start = word_info["start"]
+        end = word_info["end"]
+
+        safe_text = _ffmpeg_text(text)
+        enable_expr = f"between(t,{start:.3f},{end:.3f})"
+
+        filter_opts = [
+            f"fontfile={FONT_FILE}",
+            f"text='{safe_text}'",
+            "expansion=none",
+            "fontcolor=white",
+            f"fontsize={font_size}",
+            "x=(w-text_w)/2",
+            f"y={y_expr}",
+            "shadowcolor=black@0.85",
+            "shadowx=2",
+            "shadowy=2",
+            f"enable='{enable_expr}'",
+        ]
+        filters.append("drawtext=" + ":".join(filter_opts))
+
+    return filters
+
+
+def finalize(video_path, voice_path, word_timings, music, size, out_path, cfg, scene_assets, hook_text, total_duration):
+    """Burn word-by-word captions at the bottom of the video, then mix a ducked music bed.
+
+    No text overlays cover the video: no hook card, no data lower-third, no end card.
+    Captions are the ONLY on-screen text and they appear word-by-word at the bottom.
+    """
     inputs = ["-i", str(video_path), "-i", str(voice_path)]
     if music:
         inputs += ["-stream_loop", "-1", "-i", str(music)]
 
-    video_cfg = cfg["video"]
     filters, video_label, label_count = [], "0:v", 0
 
     def add_video_filter(body):
@@ -593,50 +664,15 @@ def finalize(video_path, voice_path, captions, music, size, out_path, cfg, scene
         target = f"v{label_count}"
         video_label = _append_filter(filters, video_label, body, target)
 
-    if captions:
-        font_size = 44 if size["h"] > size["w"] else 32
-        margin = video_cfg.get("caption_margin_v", 70)
-        style = (f"FontName=DejaVu Sans,FontSize={font_size},Bold=1,PrimaryColour=&H00FFFFFF,"
-                 f"OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=1,Alignment=2,MarginV={margin}")
-        add_video_filter(f"subtitles=filename='{_ffmpeg_path(captions)}':force_style='{style}'")
-
-    if video_cfg.get("hook_card") and hook_text:
-        hook_size = 52 if size["h"] > size["w"] else 42
-        add_video_filter(_draw_text(hook_text, size["w"], hook_size, "h*0.18",
-                                    "between(t,0,2.8)", box=True))
-
-    if video_cfg.get("data_lower_third"):
-        for index, (_asset, meta) in enumerate(scene_assets):
-            stat = meta.get("stat")
-            start, end = meta.get("start"), meta.get("end")
-            if not stat or start is None or end is None:
-                continue
-            start = max(0.0, float(start) + 0.25)
-            end = max(start + 0.75, float(end) - 0.18)
-            enable = f"between(t,{start:.3f},{end:.3f})"
-            label_count += 1
-            box_label = f"v{label_count}"
-            y = "h*0.64" if size["h"] > size["w"] else "h*0.68"
-            filters.append(f"[{video_label}]drawbox=x=iw*0.06:y={y.replace('h*', 'ih*')}:w=iw*0.88:h=ih*0.13:color=black@0.62:t=fill:enable='{enable}'[{box_label}]")
-            video_label = box_label
-            add_video_filter(_draw_text(stat, size["w"], 31 if size["h"] > size["w"] else 25,
-                                        "h*0.68" if size["h"] > size["w"] else "h*0.715",
-                                        enable, box=False, align="left"))
-
-    if video_cfg.get("end_card"):
-        start = max(0.0, total_duration - 3.4)
-        enable = f"between(t,{start:.3f},{total_duration:.3f})"
-        label_count += 1
-        dim_label = f"v{label_count}"
-        filters.append(f"[{video_label}]drawbox=x=0:y=0:w=iw:h=ih:color=black@0.68:t=fill:enable='{enable}'[{dim_label}]")
-        video_label = dim_label
-        end_lines = "\n".join(video_cfg.get("end_card_lines") or ["READ THE FULL BREAKDOWN"])
-        add_video_filter(_draw_text(end_lines, size["w"], 43 if size["h"] > size["w"] else 35,
-                                    "(h-text_h)/2", enable, box=False))
+    # Word-by-word bottom captions (no box, no background, just clean text)
+    if word_timings:
+        word_filters = _build_word_caption_filters(word_timings, size)
+        for wf in word_filters:
+            add_video_filter(wf)
 
     audio_label = "1:a"
     if music:
-        volume = video_cfg.get("music_volume", 0.1)
+        volume = cfg.get("video", {}).get("music_volume", 0.1)
         filters.append(f"[2:a]volume={volume}[bg]")
         filters.append("[bg][1:a]sidechaincompress=threshold=0.03:ratio=8:attack=5:release=300[duck]")
         filters.append("[1:a][duck]amix=inputs=2:duration=first:dropout_transition=2[aout]")
@@ -660,14 +696,15 @@ def finalize(video_path, voice_path, captions, music, size, out_path, cfg, scene
 def render_variant(name, narration, script, cfg, scene_assets, music):
     tag = "" if name == "vertical" else "_yt"
     voice, duration = make_voice(narration, cfg, tag)
-    captions = make_captions(voice, tag) if cfg["video"].get("captions") else None
+    # Use word-level transcription instead of SRT-based captions
+    word_timings = transcribe_words(voice) if cfg["video"].get("captions") else None
     size = cfg["video"][name]
     montage = OUT / f"montage_{name}.mp4"
     final_path = OUT / ("video_9x16.mp4" if name == "vertical" else "video_16x9.mp4")
     build_clip(scene_assets, duration, size, cfg["video"]["fps"], montage)
-    finalize(montage, voice, captions, music, size, final_path, cfg, scene_assets,
+    finalize(montage, voice, word_timings, music, size, final_path, cfg, scene_assets,
              script.get("hook"), duration)
-    return final_path, duration, captions
+    return final_path, duration, word_timings
 
 
 def main():
@@ -680,7 +717,7 @@ def main():
     vertical_assets, vertical_sources = fetch_scene_assets(script, cfg, "vertical")
     music = choose_music(script) if cfg["video"].get("music") else None
 
-    vertical, vertical_duration, _vertical_captions = render_variant(
+    vertical, vertical_duration, _vertical_words = render_variant(
         "vertical", script["narration"], script, cfg, vertical_assets, music)
     videos = {"vertical": str(vertical)}
     asset_sources = {"vertical": vertical_sources}
@@ -688,7 +725,7 @@ def main():
 
     if cfg["video"].get("make_horizontal"):
         horizontal_assets, horizontal_sources = fetch_scene_assets(script, cfg, "horizontal")
-        horizontal, horizontal_duration, _horizontal_captions = render_variant(
+        horizontal, horizontal_duration, _horizontal_words = render_variant(
             "horizontal", script.get("narration_yt") or script["narration"], script,
             cfg, horizontal_assets, music)
         videos["horizontal"] = str(horizontal)
