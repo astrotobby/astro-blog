@@ -158,5 +158,5 @@ const fullTitle =
 	})();
 </script>
 
-<!-- Monetag (vignette) — loads on every page -->
-<MonetagAds />
+<!-- Monetag (vignette) — loads on every page except high-conversion ones -->
+{!noindex && <MonetagAds />}

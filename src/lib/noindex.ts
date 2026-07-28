@@ -28,7 +28,15 @@ export const FORCE_NOINDEX: string[] = [];
 
 export function shouldNoindex(slug: string): boolean {
   if (!slug) return false;
+  // High-conversion / Transactional pages (we want these indexed, but maybe no ads)
+  const isHighConversion = ['products', 'affiliate-offers', 'checkout', 'thank-you'].some(s => slug.includes(s));
+  
   if (FORCE_INDEX.includes(slug)) return false;
   if (FORCE_NOINDEX.includes(slug)) return true;
+  
+  // For the sake of the MonetagAds gating, we return true for high-conversion pages
+  // so they don't get intrusive popunders/social-bars.
+  if (isHighConversion) return true;
+
   return AUTONEWS_SLUG.test(slug);
 }

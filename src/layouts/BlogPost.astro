@@ -104,8 +104,39 @@ const noindex = shouldNoindex(slug);
               </div>
             )}
 
-            <div class="prose">
+            <div class="prose" id="article-prose">
               <slot />
+              
+              <!-- ═══ High-Viewability Ad Insertion (Client-side) ═══ -->
+              {slug && (
+                <template id="in-article-ad-template">
+                  <div class="post-in-article-banner post-in-article-banner--dynamic" aria-label="Advertisement">
+                    <span class="post-banner__label">Advertisement</span>
+                    <AdBanner slot="middle-high" minHeight="100px" margin="0 auto" />
+                  </div>
+                </template>
+                <script is:inline>
+                  (function() {
+                    function insertAd() {
+                      const prose = document.getElementById('article-prose');
+                      if (!prose) return;
+                      const paragraphs = prose.querySelectorAll('p');
+                      // Insert after 3rd paragraph if there are at least 5 paragraphs
+                      if (paragraphs.length >= 5) {
+                        const template = document.getElementById('in-article-ad-template');
+                        if (template) {
+                          const adNode = template.content.cloneNode(true);
+                          paragraphs[2].insertAdjacentElement('afterend', adNode.firstElementChild);
+                        }
+                      }
+                    }
+                    if (document.readyState === 'loading') {
+                      document.addEventListener('DOMContentLoaded', insertAd);
+                    } else { insertAd(); }
+                  })();
+                </script>
+              )}
+
               <!-- ═══ TUKO-STYLE: Mid-article banner ═══ -->
               {slug && (
                 <div class="post-mid-banner" aria-label="Advertisement">

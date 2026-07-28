@@ -88,13 +88,19 @@ const posts = (await getCollection('blog')).sort((a, b) => orderKey(b) - orderKe
           {posts.map((post, i) => (
             <>
               {i === 3 && (
-                <div class="ad-grid-span">
-                  <AdBanner slot="blog-grid-mid" minHeight="90px" margin="0 auto" />
+                <div class="ad-grid-span" style="margin: 1.5rem 0;">
+                  <div class="glass" style="padding: 1.5rem; text-align: center;">
+                    <span class="ad-label" style="display: block; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.75rem;">Advertisement</span>
+                    <AdBanner slot="blog-grid-mid" minHeight="90px" margin="0 auto" />
+                  </div>
                 </div>
               )}
               {i === 6 && (
-                <div class="ad-grid-span">
-                  <AdBanner slot="blog-grid" />
+                <div class="ad-grid-span" style="margin: 1.5rem 0;">
+                  <div class="glass" style="padding: 1.5rem; text-align: center;">
+                    <span class="ad-label" style="display: block; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.75rem;">Advertisement</span>
+                    <AdBanner slot="blog-grid" minHeight="90px" margin="0 auto" />
+                  </div>
                 </div>
               )}
               <a href={`/blog/${post.id}/`} class="post-card card-glass" data-reveal style={`--reveal-delay:${(i % 3) * 80}ms`}>

@@ -40,8 +40,8 @@ const finalMinHeight = minHeight || defaultMinHeight;
 const containerId = `ad-slot-${slot || 'default'}-${Math.floor(Math.random() * 10000)}`;
 ---
 
-<div class="adsterra-banner-slot" style={`min-height: ${finalMinHeight}; margin: ${margin};`}>
-  <div class="ad-iframe-wrapper" id={containerId}>
+<div class="adsterra-banner-slot" style={`min-height: ${finalMinHeight}; margin: ${margin}; aspect-ratio: ${width}/${height};`}>
+  <div class="ad-iframe-wrapper" id={containerId} style={`width: ${width}px; height: ${height}px;`}>
     <script is:inline define:vars={{ iframeKey, width, height }}>
       // Set the global atOptions for the following invoke.js script
       window.atOptions = {
@@ -59,14 +59,17 @@ const containerId = `ad-slot-${slot || 'default'}-${Math.floor(Math.random() * 1
 <style>
 	.adsterra-banner-slot {
 		width: 100%;
+    max-width: 100%;
 		display: flex;
     justify-content: center;
     align-items: center;
     overflow: hidden;
+    background: rgba(0,0,0,0.02); /* Subtle placeholder */
 	}
   .ad-iframe-wrapper {
-    width: 100%;
+    max-width: 100%;
     display: flex;
     justify-content: center;
+    align-items: center;
   }
 </style>

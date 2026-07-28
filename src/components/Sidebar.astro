@@ -88,7 +88,7 @@ const popular = (await getCollection('blog'))
   )}
 
   <!-- Sidebar Ad (Bottom) — Skyscraper 160x600 Banner -->
-  <div class="rd-widget rd-sidebar-ad rd-sidebar-ad--bottom">
+  <div class="rd-widget rd-sidebar-ad rd-sidebar-ad--bottom sticky-ad">
     <span class="rd-sidebar-ad__label">Advertisement</span>
     <AdBanner slot="sidebar-bottom" margin="0 auto" />
   </div>
@@ -102,5 +102,14 @@ const popular = (await getCollection('blog'))
     min-height: 250px;
     width: 100%;
     overflow: hidden;
+  }
+  /* ── Sticky Sidebar Ad ── */
+  .sticky-ad {
+    position: sticky;
+    top: 120px; /* Stay below the header/nav when scrolling */
+    z-index: 10;
+  }
+  @media (max-width: 980px) {
+    .sticky-ad { position: static; }
   }
 </style>
