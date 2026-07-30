@@ -546,8 +546,14 @@ def choose_music(script):
 
 
 def _ffmpeg_text(text: str) -> str:
-    """Escape text for the drawtext filter while preserving explicit line breaks."""
-    return (text.replace("\\", r"\\").replace("'", r"\'").replace(":", r"\:")
+    """Escape text for the drawtext filter while preserving explicit line breaks.
+
+    Uses \x27 hex escape for apostrophes because FFmpeg's filter parser
+    does not handle \' escaping inside single-quoted option values — it
+    breaks out of the quote context and treats the next token as a filter
+    name (e.g. ``No such filter: '0'``).
+    """
+    return (text.replace("\\", r"\\").replace("'", r"\x27").replace(":", r"\:")
                 .replace("\n", r"\n"))
 
 
@@ -626,11 +632,14 @@ def _build_word_caption_filters(words, size):
         end = word_info["end"]
 
         safe_text = _ffmpeg_text(text)
-        enable_expr = f"between(t,{start:.3f},{end:.3f})"
+        # Escape commas in the enable expression — FFmpeg treats commas as
+        # filter-chain separators inside -filter_complex, so ``between(t,1.0,2.0)``
+        # without escaping is parsed as three separate arguments.
+        enable_expr = f"between(t\\,{start:.3f}\\,{end:.3f})"
 
         filter_opts = [
             f"fontfile={FONT_FILE}",
-            f"text='{safe_text}'",
+            f"text={safe_text}",
             "expansion=none",
             "fontcolor=white",
             f"fontsize={font_size}",
@@ -639,7 +648,7 @@ def _build_word_caption_filters(words, size):
             "shadowcolor=black@0.85",
             "shadowx=2",
             "shadowy=2",
-            f"enable='{enable_expr}'",
+            f"enable={enable_expr}",
         ]
         filters.append("drawtext=" + ":".join(filter_opts))
 
