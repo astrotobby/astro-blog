@@ -548,13 +548,21 @@ def choose_music(script):
 def _ffmpeg_text(text: str) -> str:
     """Escape text for the drawtext filter while preserving explicit line breaks.
 
-    Uses \x27 hex escape for apostrophes because FFmpeg's filter parser
-    does not handle \' escaping inside single-quoted option values — it
-    breaks out of the quote context and treats the next token as a filter
-    name (e.g. ``No such filter: '0'``).
+    Every special character that FFmpeg's ``-filter_complex`` parser treats
+    as a structural delimiter must be escaped:
+
+    * ``\`` → ``\\``  (backslash itself, first)
+    * ``'`` → ``\x27`` (apostrophe — \' breaks out of single-quote context)
+    * ``:`` → ``\:``  (option separator)
+    * ``,`` → ``\,``  (filter-chain separator inside -filter_complex)
+    * ``\n`` → ``\n`` (literal newline in the rendered caption)
+
+    The order matters: backslash must be escaped first, otherwise the
+    inserted ``\`` characters from later replacements would themselves be
+    re-escaped.
     """
     return (text.replace("\\", r"\\").replace("'", r"\x27").replace(":", r"\:")
-                .replace("\n", r"\n"))
+                .replace(",", r"\,").replace("\n", r"\n"))
 
 
 def _ffmpeg_path(path: Path) -> str:
