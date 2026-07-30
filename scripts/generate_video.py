@@ -616,7 +616,7 @@ def _build_word_caption_filters(words, size):
     # Position: bottom of the screen with a small margin.
     # We use an absolute Y position so the caption stays locked at the bottom
     # regardless of aspect ratio.
-    margin_from_bottom = max(60, height * 0.05)
+    margin_from_bottom = int(max(60, height * 0.05))
     y_expr = f"h-{margin_from_bottom}"
 
     filters = []
