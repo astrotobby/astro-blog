@@ -62,7 +62,8 @@ voice:
   pitch: "+0Hz"
   # ---- Authorized cloned voice (OpenVoice v2) ----
   clone: true
-  reference_url: "https://youtu.be/5jOagO2w4_0"
+  reference_url: ""
+  reference_path: "assets/voice_reference/authorized_reference.mp3"
   clone_speed: 1.08
 
 # ---- Visuals (free AI image sources: HF FLUX/SDXL -> Picsum -> gradient) ----

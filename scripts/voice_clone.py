@@ -5,8 +5,8 @@ back to edge-tts so the pipeline NEVER breaks over voice cloning).
 
 Pipeline: MeloTTS speaks the text in a base voice, then OpenVoice's tone-color
 converter recolours it to the target voice. The target voice "fingerprint" (speaker embedding) is extracted ONCE from the configured
-reference video or audio source and cached in .pipeline/state under a reference-specific key.
-The production config keeps cloning disabled until the owner confirms authorization.
+reference video or audio source and cached in .pipeline/private_voice under a reference-specific key.
+The production config enables cloning only after the owner has supplied and authorized the reference.
 """
 import glob
 import hashlib
@@ -31,7 +31,9 @@ def _log(m):
 
 def _state_dir():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    d = os.path.join(here, ".pipeline", "state")
+    # Voice samples and speaker embeddings are sensitive; keep them outside the
+    # generic pipeline cache and remove them at the end of each CI job.
+    d = os.path.join(here, ".pipeline", "private_voice")
     os.makedirs(d, exist_ok=True)
     return d
 

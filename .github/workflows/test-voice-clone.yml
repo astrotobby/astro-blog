@@ -31,8 +31,24 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: bash scripts/setup_openvoice.sh
+      - name: Decrypt authorized voice reference
+        env:
+          VOICE_REFERENCE_KEY: ${{ secrets.VOICE_REFERENCE_KEY }}
+        run: |
+          test -n "$VOICE_REFERENCE_KEY"
+          test -f assets/voice_reference/authorized_reference.mp3.enc
+          mkdir -p .pipeline/private_voice
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+            -in assets/voice_reference/authorized_reference.mp3.enc \
+            -out .pipeline/private_voice/authorized_reference.mp3 \
+            -pass env:VOICE_REFERENCE_KEY
+          chmod 600 .pipeline/private_voice/authorized_reference.mp3
+
       - name: Generate cloned sample
-        run: python scripts/voice_clone.py "${{ github.event.inputs.text }}" cloned_sample.wav || true
+        run: python scripts/voice_clone.py "${{ github.event.inputs.text }}" cloned_sample.wav
+      - name: Remove private voice material
+        if: always()
+        run: rm -rf .pipeline/private_voice
       - name: Upload cloned sample
         if: always()
         uses: actions/upload-artifact@v4
@@ -40,5 +56,4 @@ jobs:
           name: cloned-voice-sample
           path: |
             cloned_sample.wav
-            .pipeline/state/voice_ref.wav
-          if-no-files-found: warn
+          if-no-files-found: error

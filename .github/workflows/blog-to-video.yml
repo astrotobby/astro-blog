@@ -95,6 +95,25 @@ jobs:
             echo "Reference voice cloning is disabled; using configured TTS voice."
           fi
 
+      - name: Decrypt authorized voice reference
+        if: ${{ hashFiles('config.yaml') != '' }}
+        env:
+          VOICE_REFERENCE_KEY: ${{ secrets.VOICE_REFERENCE_KEY }}
+        run: |
+          if grep -qE '^\s+clone:\s+true\s*$' config.yaml; then
+            test -n "$VOICE_REFERENCE_KEY"
+            test -f assets/voice_reference/authorized_reference.mp3.enc
+            mkdir -p .pipeline/private_voice
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+              -in assets/voice_reference/authorized_reference.mp3.enc \
+              -out .pipeline/private_voice/authorized_reference.mp3 \
+              -pass env:VOICE_REFERENCE_KEY
+            chmod 600 .pipeline/private_voice/authorized_reference.mp3
+            echo "authorized voice reference decrypted for this job"
+          else
+            echo "reference voice cloning disabled"
+          fi
+
       # Talking-avatar (Wav2Lip) — non-fatal: if it fails, the pipeline still
       # renders the image montage (the avatar code sees no checkpoint and falls back).
       - name: Set up Wav2Lip avatar
@@ -210,6 +229,10 @@ jobs:
           else
             python scripts/run_pipeline.py --latest $FORCE $UNSKIP
           fi
+
+      - name: Remove private voice material
+        if: always()
+        run: rm -rf .pipeline/private_voice
 
       # if: always() so this still runs (and the ledger is still persisted) even
       # if the pipeline step above failed or a post errored out — the only case
