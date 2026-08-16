@@ -63,7 +63,7 @@ voice:
   # ---- Authorized cloned voice (OpenVoice v2) ----
   clone: true
   reference_url: ""
-  reference_path: "assets/voice_reference/authorized_reference.mp3"
+  reference_path: ".pipeline/private_voice/authorized_reference.mp3"
   clone_speed: 1.08
 
 # ---- Visuals (free AI image sources: HF FLUX/SDXL -> Picsum -> gradient) ----
