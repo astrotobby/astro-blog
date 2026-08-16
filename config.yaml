@@ -87,7 +87,8 @@ video:
   horizontal: { w: 1920, h: 1080 } # YouTube main
   make_horizontal: true
   captions: true                    # burn-in subtitles (huge for retention)
-  caption_margin_v: 70              # margin from the BOTTOM (captions are bottom-aligned)
+  caption_margin_v: 220             # vertical safe zone above Reels/TikTok UI chrome
+  caption_margin_h: 70              # horizontal lower-third margin
   music: true
   music_volume: 0.12
   # ---- Caption style ----

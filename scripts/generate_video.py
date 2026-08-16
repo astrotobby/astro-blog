@@ -685,7 +685,7 @@ def _with_attribution(platform, sources):
     return output
 
 
-def _build_word_caption_filters(words, size):
+def _build_word_caption_filters(words, size, cfg=None):
     """Build FFmpeg drawtext filters for word-by-word bottom captions.
 
     Each word is displayed individually at the bottom of the screen, timed
@@ -699,10 +699,14 @@ def _build_word_caption_filters(words, size):
     # Font size: larger for vertical (9:16) videos, smaller for horizontal
     font_size = 56 if height > width else 40
 
-    # Position: bottom of the screen with a small margin.
-    # We use an absolute Y position so the caption stays locked at the bottom
-    # regardless of aspect ratio.
-    margin_from_bottom = int(max(60, height * 0.05))
+    # Keep vertical captions above TikTok/Reels/Facebook UI chrome. Horizontal
+    # captions stay in a conventional lower-third position.
+    video_cfg = (cfg or {}).get("video", {})
+    if height > width:
+        margin_from_bottom = int(video_cfg.get("caption_margin_v", max(180, height * 0.12)))
+    else:
+        margin_from_bottom = int(video_cfg.get("caption_margin_h", max(60, height * 0.05)))
+    margin_from_bottom = min(max(48, margin_from_bottom), max(48, height - 48))
     y_expr = f"h-{margin_from_bottom}"
 
     filters = []
@@ -728,6 +732,8 @@ def _build_word_caption_filters(words, size):
             "shadowcolor=black@0.85",
             "shadowx=2",
             "shadowy=2",
+            "borderw=2",
+            "bordercolor=black@0.75",
             f"enable={enable_expr}",
         ]
         filters.append("drawtext=" + ":".join(filter_opts))
@@ -755,7 +761,7 @@ def finalize(video_path, voice_path, word_timings, music, size, out_path, cfg, s
 
     # Word-by-word bottom captions (no box, no background, just clean text)
     if word_timings:
-        word_filters = _build_word_caption_filters(word_timings, size)
+        word_filters = _build_word_caption_filters(word_timings, size, cfg)
         for wf in word_filters:
             add_video_filter(wf)
 

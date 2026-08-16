@@ -200,6 +200,8 @@ FOOTAGE_BROLL_PROFILES = {
 # environment, or real-world application. They directly address the common failure
 # mode where an AI article is illustrated by generic mountains or forests.
 CONCRETE_FOOTAGE_MATCHES = (
+    (("veo", "kling", "runway", "luma", "sora", "ai video", "video generator", "text to video", "rendering", "rendered video"), "AI video generation interface"),
+    (("price", "pricing", "cost", "cents per second", "subscription", "credits", "budget"), "digital invoice video production pricing"),
     (("smart thermostat", "smart home", "home automation", "intelligent environment"), "smart home thermostat"),
     (("industrial iot", "iot sensor", "factory sensor", "predictive maintenance"), "industrial factory automation"),
     (("supply chain", "warehouse", "logistics", "fulfillment"), "warehouse automation workers"),
