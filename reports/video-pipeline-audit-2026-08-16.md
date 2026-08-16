@@ -29,9 +29,11 @@ Local Python compilation, YAML parsing, the new offline regression tests, and th
 
 The Rumble path was not live-tested against the account because that would create a real external post. The implementation is designed to fail closed with a screenshot and an actionable error when Rumble presents a CAPTCHA, changed selector, rejected login, missing required field, or no post-submit confirmation. Rumble’s own support documentation also distinguishes upload visibility from later processing/encoding, so the pipeline now reports “submitted for processing” rather than claiming that the video is already publicly discoverable.[1] [2]
 
-## Remaining authorization gate
+## Voice rollout status
 
-The reference video URL is configured, but `voice.clone` remains `false`. Before enabling the clone path, the channel owner must confirm that they own the voice or have explicit permission to reproduce it. Once confirmed, the isolated `test-voice-clone.yml` workflow can generate a sample artifact for listening before production cloning is enabled.
+The channel owner confirmed permission to reproduce the supplied voice and provided an MP3 reference. The MP3 is stored only as an AES-256-CBC encrypted repository asset; the decryption key is a GitHub Actions secret named `VOICE_REFERENCE_KEY`. CI decrypts the reference into a private per-job directory, generates the speaker embedding, and removes the plaintext reference and embedding before state persistence and artifact upload.
+
+The isolated voice workflow completed successfully. It produced a 5.36-second mono WAV, and speech-to-text confirmed the requested sample sentence was intelligible. A production-style dry run also reached the cloned voice path and logged an authorized cloned voiceover of 84.1 seconds before the job was cancelled during the long full-video export. No platform post was published by that dry run. The production flag is enabled for future renders; a final full-length export can be allowed to run normally when a new production post is ready.
 
 ## References
 
