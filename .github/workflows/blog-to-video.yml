@@ -182,6 +182,8 @@ jobs:
         run: |
           FORCE=""
           if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE="--force"; fi
+          DRY=""
+          if [ "${{ github.event.inputs.mode }}" = "dry" ]; then DRY="--dry-run"; fi
           UNSKIP=""
           if [ "${{ github.event.inputs.unskip }}" = "true" ]; then UNSKIP="--unskip"; fi
           if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "schedule" ]; then
@@ -200,11 +202,11 @@ jobs:
           elif [ "${{ github.event.inputs.prime }}" = "true" ]; then
             python scripts/run_pipeline.py --prime
           elif [ -n "${{ github.event.inputs.file }}" ]; then
-            python scripts/run_pipeline.py --changed "${{ github.event.inputs.file }}" $FORCE $UNSKIP
+            python scripts/run_pipeline.py --changed "${{ github.event.inputs.file }}" $DRY $FORCE $UNSKIP
           elif [ "${{ github.event.inputs.sweep }}" = "true" ]; then
-            python scripts/run_pipeline.py --sweep $FORCE $UNSKIP
+            python scripts/run_pipeline.py --sweep $DRY $FORCE $UNSKIP
           elif [ "${{ github.event.inputs.mode }}" = "dry" ]; then
-            python scripts/run_pipeline.py --latest --dry-run $FORCE
+            python scripts/run_pipeline.py --latest $DRY $FORCE
           else
             python scripts/run_pipeline.py --latest $FORCE $UNSKIP
           fi
