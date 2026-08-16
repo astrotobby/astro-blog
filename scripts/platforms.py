@@ -579,6 +579,10 @@ _RB_VIS_LABEL = {"public": 'label[for="visibility_public"]',
                  "private": 'label[for="visibility_private"]'}
 _RB_RIGHTS_LABEL = 'label[for="crights"]'   # also the step-2 "we're on rights" signal
 _RB_TERMS_LABEL = 'label[for="cterms"]'
+_RB_STEP1_SUBMIT = ['#submitForm', 'button:has-text("Upload")',
+                    'button:has-text("Continue")', 'input[type="submit"]']
+_RB_FINAL_SUBMIT = ['#submitForm2', 'button:has-text("Submit")',
+                    'button:has-text("Publish")', 'button:has-text("Upload")']
 
 
 def _rb_fill(page, selectors, value, timeout=15000):
@@ -604,6 +608,27 @@ def _rb_click(page, selectors, timeout=15000):
         except Exception:  # noqa
             continue
     return False
+
+
+def _rb_visible(page, selector):
+    try:
+        return page.locator(selector).first.is_visible()
+    except Exception:  # noqa
+        return False
+
+
+def _rb_checked(page, selector):
+    try:
+        return bool(page.locator(selector).first.is_checked())
+    except Exception:  # noqa
+        return False
+
+
+def _rb_body_text(page):
+    try:
+        return page.locator("body").inner_text(timeout=3000).lower()
+    except Exception:  # noqa
+        return ""
 
 
 def post_rumble(render, cfg, dry):
@@ -635,6 +660,9 @@ def post_rumble(render, cfg, dry):
     except Exception as e:  # noqa
         return {"ok": False, "error": f"playwright not installed: {e}"}
 
+    browser = None
+    ctx = None
+    page = None
     try:
         with sync_playwright() as pw:
             browser = pw.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -655,12 +683,12 @@ def post_rumble(render, cfg, dry):
             _rb_fill(page, _RB_PASS, env("RUMBLE_PASSWORD"))
             _rb_click(page, _RB_LOGIN_BTN)
             page.wait_for_timeout(6000)   # let the session cookie settle
-            # A still-visible password field == login was rejected/challenged.
-            for sel in _RB_PASS:
-                if page.query_selector(sel):
-                    page.screenshot(path=shot)
-                    return {"ok": False, "error": "rumble: login failed/challenged "
-                            "(check creds, disable 2FA, or CAPTCHA on CI IP)"}
+            # A still-visible password field means login was rejected or challenged.
+            # Hidden password inputs remain in the DOM on several Rumble layouts.
+            if any(_rb_visible(page, sel) for sel in _RB_PASS):
+                page.screenshot(path=shot)
+                return {"ok": False, "error": "rumble: login failed/challenged "
+                        "(check creds, disable 2FA, or CAPTCHA on CI IP)"}
 
             # ---- 2) open the upload form + attach the file (starts the upload) ----
             page.goto(RUMBLE_UPLOAD_URL, wait_until="domcontentloaded")
@@ -715,7 +743,7 @@ def post_rumble(render, cfg, dry):
                 # only (re)click step-1 submit while the rights step isn't up yet
                 if not page.locator(_RB_RIGHTS_LABEL).is_visible():
                     try:
-                        page.click("#submitForm", timeout=4000)
+                        _rb_click(page, _RB_STEP1_SUBMIT, timeout=4000)
                     except Exception:  # noqa
                         pass
                 try:
@@ -729,32 +757,74 @@ def post_rumble(render, cfg, dry):
                 return {"ok": False, "error": "rumble: never reached the rights/terms step "
                         "(upload still processing or #submitForm changed)"}
 
-            # ---- 7) accept the two required rights/terms boxes via their labels ----
-            for lab in (_RB_RIGHTS_LABEL, _RB_TERMS_LABEL):
+            # ---- 7) accept and verify the two required rights/terms boxes ----
+            for lab, input_sel in ((_RB_RIGHTS_LABEL, "#crights"),
+                                   (_RB_TERMS_LABEL, "#cterms")):
                 try:
-                    page.click(lab, timeout=5000)
+                    if not _rb_checked(page, input_sel):
+                        page.click(lab, timeout=5000)
                 except Exception:  # noqa
                     pass
+            if not all(_rb_checked(page, selector) for selector in ("#crights", "#cterms")):
+                page.screenshot(path=shot)
+                return {"ok": False, "error": "rumble: rights/terms were not accepted"}
 
-            # ---- 8) step 2 submit ("Submit") -> publishes ----
+            # ---- 8) step 2 submit ("Submit") -> accepted for processing/publication ----
             try:
-                page.click("#submitForm2", timeout=10000)
+                if not _rb_click(page, _RB_FINAL_SUBMIT, timeout=10000):
+                    raise RuntimeError("no final publish control matched")
             except Exception:  # noqa
                 page.screenshot(path=shot)
-                return {"ok": False, "error": "rumble: final submit (#submitForm2) failed"}
-            page.wait_for_timeout(10000)        # let the publish request complete
+                return {"ok": False, "error": "rumble: final publish control failed"}
+
+            # A click is not proof of success. Rumble may keep the form open while
+            # processing, redirect to Content, or show an inline error. Poll for a
+            # redirect/confirmation and fail loudly when neither appears.
+            confirmed = False
+            confirmation = ""
+            for _ in range(20):  # up to ~60 seconds for the submit request/toast
+                current_url = page.url.lower()
+                body = _rb_body_text(page)
+                if any(marker in body for marker in (
+                        "video has been uploaded", "upload successful", "successfully uploaded",
+                        "video is processing", "processing your video", "video submitted")):
+                    confirmed = True
+                    confirmation = "Rumble confirmed the upload; encoding/public availability may follow."
+                    break
+                if ("/account/content" in current_url or "/video/" in current_url
+                        or (current_url != RUMBLE_UPLOAD_URL and "upload.php" not in current_url
+                            and "login" not in current_url)):
+                    confirmed = True
+                    confirmation = "Rumble redirected after submission; verify encoding/public status in Content."
+                    break
+                if any(token in body for token in (
+                        "upload failed", "could not upload", "something went wrong",
+                        "required field", "invalid category", "unable to upload")):
+                    break
+                page.wait_for_timeout(3000)
+            if not confirmed:
+                page.screenshot(path=shot)
+                return {"ok": False, "error": "rumble: submit produced no upload confirmation "
+                        "(see rumble_fail artifact; no success was recorded)"}
             final = page.url
-            ctx.close()
-            browser.close()
             return {"ok": True, "url": final,
-                    "note": f"uploaded via browser automation "
-                            f"(visibility={visibility}, category={primary_category})"}
+                    "status": "submitted_for_processing",
+                    "note": f"Rumble accepted the upload via browser automation "
+                            f"(visibility={visibility}, category={primary_category}); {confirmation}"}
     except Exception as e:  # noqa
         try:
-            page.screenshot(path=shot)  # noqa
+            if page:
+                page.screenshot(path=shot)  # noqa
         except Exception:  # noqa
             pass
         return {"ok": False, "error": str(e)[:300]}
+    finally:
+        for resource in (ctx, browser):
+            try:
+                if resource:
+                    resource.close()
+            except Exception:  # noqa
+                pass
 
 
 # --------------------------------------------------------------------------

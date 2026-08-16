@@ -4,6 +4,7 @@ gTTS>=2.5.0               # fallback voice if edge endpoint blocks the runner IP
 huggingface_hub>=0.23.0  # downloads the Wav2Lip weights in setup_wav2lip.sh
 faster-whisper==1.0.3     # local caption timing (CPU ok)
 requests==2.32.3
+yt-dlp>=2025.1.0         # fetch configured YouTube reference audio when voice cloning is authorized
 PyYAML==6.0.2
 python-frontmatter==1.1.0 # parse blog post front-matter
 markdown-it-py==3.0.0     # strip markdown -> plain text for the script

@@ -4,19 +4,25 @@ synthesize(text, out_path, cfg) -> out_path on success, else None (caller falls
 back to edge-tts so the pipeline NEVER breaks over voice cloning).
 
 Pipeline: MeloTTS speaks the text in a base voice, then OpenVoice's tone-color
-converter recolours it to the target voice. The target voice "fingerprint" (speaker
-embedding) is extracted ONCE from the Drive samples and cached in .pipeline/state.
+converter recolours it to the target voice. The target voice "fingerprint" (speaker embedding) is extracted ONCE from the configured
+reference video or audio source and cached in .pipeline/state under a reference-specific key.
+The production config keeps cloning disabled until the owner confirms authorization.
 """
 import glob
+import hashlib
 import os
+import shutil
 import subprocess
 import sys
+from pathlib import Path
+
+from common import env
 
 # Imports of heavy libs happen INSIDE functions so importing this module is safe
 # even when OpenVoice/MeloTTS aren't installed.
 
-CKPT = "checkpoints_v2"
-FOLDER_ID = "1uxnpGUy38Mqc8snwsnzVC6uHMO9ps4W0"   # user's Drive voice-samples folder (public)
+ROOT = Path(__file__).resolve().parents[1]
+CKPT = str(ROOT / "checkpoints_v2")
 
 
 def _log(m):
@@ -30,25 +36,88 @@ def _state_dir():
     return d
 
 
-def _download_samples(dest):
-    """Pull the public Drive folder of voice clips (no auth needed)."""
-    os.makedirs(dest, exist_ok=True)
-    if glob.glob(os.path.join(dest, "*")):
-        return dest
+def _voice_cfg(cfg):
+    return ((cfg or {}).get("voice") or {})
+
+
+def _reference_key(cfg):
+    voice = _voice_cfg(cfg)
+    ref = env("VOICE_REFERENCE_URL") or voice.get("reference_url") or voice.get("reference_path")
+    return hashlib.sha256(str(ref or "legacy").encode("utf-8")).hexdigest()[:16]
+
+
+def _download_reference_video(destination, reference):
+    """Download a single reference video/audio source without logging credentials."""
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists() and destination.stat().st_size > 2048:
+        return destination
+    if not reference:
+        return None
     try:
-        import gdown
-        gdown.download_folder(
-            f"https://drive.google.com/drive/folders/{FOLDER_ID}",
-            output=dest, quiet=False, use_cookies=False)
-    except Exception as e:  # noqa
-        _log(f"sample download failed: {e}")
+        if str(reference).startswith(("http://", "https://")) and ("youtube.com" in reference or "youtu.be" in reference):
+            import yt_dlp
+            template = str(destination.with_suffix(".%(ext)s"))
+            opts = {
+                "format": "bestaudio[ext=m4a]/bestaudio/best",
+                "outtmpl": template,
+                "noplaylist": True,
+                "quiet": True,
+                "no_warnings": True,
+                "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "wav",
+                                    "preferredquality": "192"}],
+            }
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                ydl.download([reference])
+            generated = destination.with_suffix(".wav")
+            return generated if generated.exists() else None
+        if str(reference).startswith(("http://", "https://")):
+            import requests
+            response = requests.get(reference, timeout=120, stream=True)
+            response.raise_for_status()
+            with destination.open("wb") as handle:
+                for chunk in response.iter_content(chunk_size=1024 * 128):
+                    if chunk:
+                        handle.write(chunk)
+            return destination
+        path = Path(reference).expanduser()
+        if path.exists():
+            shutil.copy2(path, destination)
+            return destination
+    except Exception as exc:  # noqa
+        _log(f"reference download failed: {exc}")
+    return None
+
+
+def _download_samples(dest, cfg):
+    """Materialize the configured reference source into a local sample directory."""
+    os.makedirs(dest, exist_ok=True)
+    voice = _voice_cfg(cfg)
+    reference = env("VOICE_REFERENCE_URL") or voice.get("reference_url") or voice.get("reference_path")
+    if reference:
+        target = os.path.join(dest, "reference_source")
+        downloaded = _download_reference_video(target, reference)
+        if downloaded:
+            return dest
+        _log("configured voice reference could not be downloaded")
+    # A Drive folder may still be used only when explicitly configured by the owner.
+    folder_id = voice.get("reference_folder_id")
+    if folder_id:
+        try:
+            import gdown
+            gdown.download_folder(
+                f"https://drive.google.com/drive/folders/{folder_id}",
+                output=dest, quiet=False, use_cookies=False)
+        except Exception as exc:  # noqa
+            _log(f"sample folder download failed: {exc}")
     return dest
 
 
 def _reference_wavs(sample_dir):
-    """Transcode each Drive clip (3gp/AMR) to a clean mono wav; return the list."""
+    """Transcode every reference clip to clean mono WAV files."""
     clips = sorted(glob.glob(os.path.join(sample_dir, "*")))
-    clips = [c for c in clips if os.path.isfile(c) and not c.lower().endswith(".wav")]
+    clips = [c for c in clips if os.path.isfile(c)
+             and not os.path.basename(c).startswith("_c")]
     wavs = []
     for i, c in enumerate(clips):
         w = os.path.join(sample_dir, f"_c{i}.wav")
@@ -81,18 +150,16 @@ def _get_converter(device):
     return conv
 
 
-def _target_se(device, converter):
-    """Load cached target speaker embedding, or build it from the Drive samples.
-    Uses converter.extract_se directly (no Silero/whisper VAD — that dependency is
-    broken in OpenVoice's se_extractor)."""
+def _target_se(device, converter, cfg):
+    """Load or build the target embedding for the configured reference source."""
     import torch
-    se_path = os.path.join(_state_dir(), "voice_se.pth")
+    se_path = os.path.join(_state_dir(), f"voice_se_{_reference_key(cfg)}.pth")
     if os.path.exists(se_path):
         try:
             return torch.load(se_path, map_location=device)
         except Exception:  # noqa
             pass
-    samples = _download_samples(os.path.join(_state_dir(), "voice_samples"))
+    samples = _download_samples(os.path.join(_state_dir(), "voice_samples"), cfg)
     wavs = _reference_wavs(samples)
     if not wavs:
         _log("no usable reference clips")
@@ -111,7 +178,7 @@ def synthesize(text, out_path, cfg=None):
         import torch
         device = "cuda" if torch.cuda.is_available() else "cpu"
         converter = _get_converter(device)
-        tgt_se = _target_se(device, converter)
+        tgt_se = _target_se(device, converter, cfg)
         if tgt_se is None:
             _log("no target speaker embedding -> fallback")
             return None
@@ -141,9 +208,11 @@ def synthesize(text, out_path, cfg=None):
 
 
 if __name__ == "__main__":
+    from common import load_config
+
     txt = sys.argv[1] if len(sys.argv) > 1 else \
         "Here's what nobody tells you about AI agents in 2026. This is my cloned voice."
     out = sys.argv[2] if len(sys.argv) > 2 else "cloned_sample.wav"
-    r = synthesize(txt, out, {})
+    r = synthesize(txt, out, load_config())
     print("RESULT:", r or "FAILED")
     sys.exit(0 if r else 1)

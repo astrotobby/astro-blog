@@ -82,6 +82,19 @@ jobs:
         continue-on-error: true
         run: python -m playwright install --with-deps chromium
 
+      # Optional authorized reference voice. Kept off until config.yaml sets
+      # voice.clone: true after the owner confirms permission to reuse the voice.
+      - name: Set up reference voice cloning
+        if: ${{ hashFiles('config.yaml') != '' }}
+        continue-on-error: true
+        run: |
+          if grep -qE '^\s+clone:\s+true\s*$' config.yaml; then
+            python -m pip install --quiet yt-dlp
+            bash scripts/setup_openvoice.sh
+          else
+            echo "Reference voice cloning is disabled; using configured TTS voice."
+          fi
+
       # Talking-avatar (Wav2Lip) — non-fatal: if it fails, the pipeline still
       # renders the image montage (the avatar code sees no checkpoint and falls back).
       - name: Set up Wav2Lip avatar

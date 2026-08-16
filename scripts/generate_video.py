@@ -37,6 +37,9 @@ FONT_FILE = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 MUSIC_EXTENSIONS = {".mp3", ".m4a", ".wav", ".ogg", ".flac"}
 FOOTAGE_CACHE_FILE = STATE / "footage_search_cache.json"
 FOOTAGE_CACHE_TTL_SECONDS = 24 * 60 * 60
+FOOTAGE_HISTORY_FILE = STATE / "footage_history.json"
+FOOTAGE_HISTORY_DAYS = 30
+FOOTAGE_HISTORY_LIMIT = 240
 _search_cache = None
 
 
@@ -86,6 +89,39 @@ def _cache_put(provider, query, target_w, target_h, candidates):
         log(f"footage search cache write skipped: {exc}")
 
 
+def _load_footage_history():
+    """Load recent clip IDs used by prior posts; history is non-secret state."""
+    try:
+        raw = json.loads(FOOTAGE_HISTORY_FILE.read_text(encoding="utf-8"))
+        items = raw.get("items", []) if isinstance(raw, dict) else []
+    except (OSError, ValueError, json.JSONDecodeError):
+        items = []
+    cutoff = time.time() - FOOTAGE_HISTORY_DAYS * 24 * 60 * 60
+    return [item for item in items
+            if isinstance(item, dict) and item.get("id")
+            and float(item.get("used_at", 0)) >= cutoff]
+
+
+def _save_footage_history(items):
+    """Persist a bounded recency list so the next post can avoid visual repeats."""
+    deduped = []
+    seen = set()
+    for item in sorted(items, key=lambda value: float(value.get("used_at", 0)), reverse=True):
+        clip_id = item.get("id")
+        if not clip_id or clip_id in seen:
+            continue
+        seen.add(clip_id)
+        deduped.append(item)
+        if len(deduped) >= FOOTAGE_HISTORY_LIMIT:
+            break
+    try:
+        FOOTAGE_HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        FOOTAGE_HISTORY_FILE.write_text(
+            json.dumps({"items": deduped}, ensure_ascii=False), encoding="utf-8")
+    except OSError as exc:
+        log(f"footage history write skipped: {exc}")
+
+
 def run(cmd, **kw):
     log("$ " + " ".join(str(c) for c in cmd))
     subprocess.run(cmd, check=True, **kw)
@@ -119,9 +155,23 @@ def _gtts_fallback(text, out_path):
 
 def make_voice(narration, cfg, tag=""):
     voice_cfg = cfg["voice"]
+    if voice_cfg.get("clone"):
+        clone_out = OUT / f"voiceover{tag}.wav"
+        clone_out.unlink(missing_ok=True)
+        try:
+            from voice_clone import synthesize
+            result = synthesize(narration, str(clone_out), cfg)
+            if result and clone_out.exists() and clone_out.stat().st_size > 1024:
+                duration = ffprobe_duration(clone_out)
+                if duration > 0.25:
+                    log(f"authorized cloned voiceover {duration:.1f}s -> {clone_out.name}")
+                    return clone_out, duration
+            log("voice clone unavailable; falling back to configured TTS voice")
+        except Exception as exc:  # noqa
+            log(f"voice clone failed ({exc}); falling back to configured TTS voice")
+
     out = OUT / f"voiceover{tag}.mp3"
-    if out.exists():
-        out.unlink()
+    out.unlink(missing_ok=True)
     try:
         asyncio.run(_tts(narration, voice_cfg["name"], voice_cfg["rate"],
                          voice_cfg["pitch"], out))
@@ -307,8 +357,9 @@ def _download_candidate(candidate, destination: Path) -> bool:
         return False
 
 
-def _fetch_video_asset(index, meta, target_w, target_h, used_clips, variant):
-    """Download the first unique ranked clip for the scene's real narration brief."""
+def _fetch_video_asset(index, meta, target_w, target_h, used_clips, used_creators,
+                       recent_ids, variant):
+    """Download a relevant clip while avoiding exact, contributor, and recent repeats."""
     destination = OUT / f"scene_{index:02d}_{variant}.mp4"
     destination.unlink(missing_ok=True)
     queries = [query for query in (meta.get("broll"), meta.get("fallback")) if query]
@@ -316,11 +367,21 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, variant):
         candidates = _pexels_video_search(query, target_w, target_h)
         candidates.extend(_pixabay_video_search(query, target_w, target_h))
         candidates.sort(key=lambda item: item["score"], reverse=True)
-        for candidate in candidates:
-            if candidate["id"] in used_clips:
-                continue
+        # Prefer a fresh contributor and a clip not used by the last several posts.
+        # If the providers return too few candidates, the second pass relaxes only
+        # the recency/contributor constraints, while still preventing same-scene reuse.
+        fresh = [candidate for candidate in candidates
+                 if candidate.get("id") not in used_clips
+                 and candidate.get("id") not in recent_ids
+                 and candidate.get("creator") not in used_creators]
+        relaxed = [candidate for candidate in candidates
+                   if candidate.get("id") not in used_clips]
+        for candidate in fresh + [item for item in relaxed if item not in fresh]:
             if _download_candidate(candidate, destination):
-                used_clips.add(candidate["id"])
+                clip_id = candidate["id"]
+                used_clips.add(clip_id)
+                if candidate.get("creator"):
+                    used_creators.add(candidate["creator"])
                 provenance = {key: candidate[key] for key in ("id", "provider", "creator", "source_url", "query")}
                 provenance["scene"] = index
                 provenance["variant"] = variant
@@ -330,9 +391,11 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, variant):
     return None, None
 
 
-def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips, variant):
+def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
+                 used_creators, recent_ids, variant):
     meta = _parse_scene_meta(prompt)
-    video_asset, provenance = _fetch_video_asset(index, meta, target_w, target_h, used_clips, variant)
+    video_asset, provenance = _fetch_video_asset(
+        index, meta, target_w, target_h, used_clips, used_creators, recent_ids, variant)
     if video_asset:
         return video_asset, meta, provenance
 
@@ -365,19 +428,28 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
 
 
 def fetch_scene_assets(script, cfg, variant):
-    """Fetch format-specific assets so vertical and horizontal masters both frame well."""
+    """Fetch format-specific assets while maintaining cross-post visual variety."""
     target_size = cfg["video"][variant]
     target_w, target_h = target_size["w"], target_size["h"]
     post = script["post"]
-    used_clips, assets, provenance = set(), [], []
+    used_clips, used_creators = set(), set()
+    history = _load_footage_history()
+    recent_ids = {item["id"] for item in history}
+    assets, provenance = [], []
     for index, prompt in enumerate(script["scene_prompts"]):
         asset, meta, source = _fetch_scene(
             index, prompt, target_w, target_h, post["slug"],
-            post.get("image_url") if index == 0 else None, used_clips, variant,
+            post.get("image_url") if index == 0 else None, used_clips,
+            used_creators, recent_ids, variant,
         )
         assets.append((asset, meta))
         if source:
             provenance.append(source)
+            recent_ids.add(source["id"])
+            history.append({"id": source["id"], "provider": source.get("provider"),
+                            "creator": source.get("creator"), "slug": post["slug"],
+                            "used_at": time.time()})
+    _save_footage_history(history)
     return assets, provenance
 
 

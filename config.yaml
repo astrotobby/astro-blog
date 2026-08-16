@@ -60,19 +60,19 @@ voice:
   name: "en-US-AndrewNeural"   # Warm, engaging male voice for higher retention
   rate: "+0%"                  # natural pace (was +6%) for a calmer delivery
   pitch: "+0Hz"
-  # ---- Cloned voice (free OpenVoice v2) — DISABLED: clone quality from the low-fi
-  # phone samples wasn't good enough; reverted to the edge-tts voice above. Flip to
-  # true (with cleaner reference recordings) to re-enable. ----
+  # ---- Cloned voice (OpenVoice v2). Keep disabled until the authorized reference
+  # voice is configured and validated on a sample render. ----
   clone: false
-  clone_speed: 1.12
+  reference_url: "https://youtu.be/5jOagO2w4_0"
+  clone_speed: 1.08
 
 # ---- Visuals (free AI image sources: HF FLUX/SDXL -> Picsum -> gradient) ----
 visuals:
   # When set, the ENTIRE video is just this one image (gentle Ken Burns) + captions +
   # voiceover — no AI scene montage. Empty "" = normal multi-scene montage (current).
   single_image: ""
-  scenes: 15                   # ~5s per visual over a ~75s video = faster pacing for retention
-                               # hook every 8-15s window (retention rule of thumb)
+  scenes: 10                   # ~7–10s per visual over a ~75s video; fewer, stronger beats
+                               # keep the reference video's deliberate explanatory rhythm
   model: "flux"
   # style_suffix is now ONLY used as a fallback for any post that bypasses build_script.make_scenes().
   # The main cinematic scene logic in build_script.py uses topic-specific visual profiles

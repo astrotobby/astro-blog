@@ -245,6 +245,18 @@ SCENE_TYPE_DURATION = {
     "CTA":       1.20,   # longer — let the CTA register
 }
 
+# Search modifiers change the visual grammar even when the subject is similar.
+# This prevents ten scenes from becoming ten near-identical medium shots of a laptop.
+SCENE_SHOT_VARIANTS = {
+    "HOOK": "dramatic close-up, fast movement",
+    "ESTABLISH": "wide establishing shot, visible environment",
+    "EXPLAIN": "over-the-shoulder action, hands interacting with technology",
+    "TENSION": "dynamic angle, motion blur, high-energy action",
+    "DATA": "crisp screen close-up, readable interface detail",
+    "PAYOFF": "human collaboration, confident medium shot",
+    "CTA": "clean premium desk shot, deliberate hand movement",
+}
+
 
 def _brandify(term: str) -> str:
     """Turn a word into a hashtag, preserving brand casing (NFT, GameFi, DeFi)."""
@@ -649,6 +661,9 @@ def make_scenes(post, cfg):
         # fallback. The visual prompt remains available only if all footage sources fail.
         seg_kws = _scene_keywords(segment, post["title"])
         broll_query, fallback_query = _footage_brief(segment, cat, scene_type)
+        shot_variant = SCENE_SHOT_VARIANTS.get(scene_type, "editorial action shot")
+        broll_query = _metadata_value(f"{broll_query} {shot_variant}")
+        fallback_query = _metadata_value(f"{fallback_query} {shot_variant}")
         stat = _stat_label(segment) if scene_type == "DATA" else ""
 
         # The renderer reads the pipe-delimited metadata; the text before it remains
