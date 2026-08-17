@@ -184,16 +184,40 @@ def synthesize(text, out_path, cfg=None):
         if tgt_se is None:
             _log("no target speaker embedding -> fallback")
             return None
-        # base TTS with MeloTTS (English)
+        # Use MeloTTS's neutral English base speaker. OpenVoice's converter
+        # transfers tone colour from the authorized reference; selecting a
+        # neutral base avoids baking an American or British accent into the
+        # phoneme/prosody pass before conversion.
         from melo.api import TTS
-        speed = float(((cfg or {}).get("voice", {}) or {}).get("clone_speed", 1.0))
+        voice_cfg = _voice_cfg(cfg)
+        speed = float(voice_cfg.get("clone_speed", 1.0))
+        base_speaker = str(voice_cfg.get("clone_base_speaker", "EN-Default"))
         tts = TTS(language="EN", device=device)
         spk2id = tts.hps.data.spk2id   # HParams: supports [] and 'in', not .get()
-        spk_id = spk2id["EN-US"] if "EN-US" in spk2id else list(spk2id.values())[0]
+        if base_speaker not in spk2id:
+            raise RuntimeError(
+                f"requested clone base speaker {base_speaker!r} is unavailable; "
+                "refusing to substitute an unintended accent"
+            )
+        spk_id = spk2id[base_speaker]
         base_wav = os.path.join(_state_dir(), "_base.wav")
         tts.tts_to_file(text, spk_id, base_wav, speed=speed)
-        # recolour to the target voice
-        src_se = torch.load(f"{CKPT}/base_speakers/ses/en-us.pth", map_location=device)
+        # Recolour to the target voice using the matching neutral base embedding.
+        # The explicit mapping prevents the previous hard-coded EN-US embedding.
+        base_embedding_names = {
+            "EN-Default": "en-default.pth",
+            "EN-US": "en-us.pth",
+            "EN-BR": "en-br.pth",
+            "EN_INDIA": "en-india.pth",
+            "EN-AU": "en-au.pth",
+        }
+        embedding_name = base_embedding_names.get(base_speaker)
+        if not embedding_name:
+            raise RuntimeError(f"no base embedding is configured for {base_speaker!r}")
+        embedding_path = os.path.join(CKPT, "base_speakers", "ses", embedding_name)
+        if not os.path.exists(embedding_path):
+            raise RuntimeError(f"base speaker embedding is missing: {embedding_path}")
+        src_se = torch.load(embedding_path, map_location=device)
         raw = os.path.join(_state_dir(), "_clone_raw.wav")
         converter.convert(audio_src_path=base_wav, src_se=src_se, tgt_se=tgt_se,
                           output_path=raw, message="@AstroTobby")

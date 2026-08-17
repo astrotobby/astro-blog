@@ -166,8 +166,17 @@ def make_voice(narration, cfg, tag=""):
                 if duration > 0.25:
                     log(f"authorized cloned voiceover {duration:.1f}s -> {clone_out.name}")
                     return clone_out, duration
+            if voice_cfg.get("clone_required", True):
+                raise RuntimeError(
+                    "cloned voice synthesis did not produce valid audio; "
+                    "refusing to use a different accent"
+                )
             log("voice clone unavailable; falling back to configured TTS voice")
         except Exception as exc:  # noqa
+            if voice_cfg.get("clone_required", True):
+                raise RuntimeError(
+                    f"cloned voice synthesis failed; refusing stock-voice fallback: {exc}"
+                ) from exc
             log(f"voice clone failed ({exc}); falling back to configured TTS voice")
 
     out = OUT / f"voiceover{tag}.mp3"

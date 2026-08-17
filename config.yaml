@@ -62,6 +62,8 @@ voice:
   pitch: "+0Hz"
   # ---- Authorized cloned voice (OpenVoice v2) ----
   clone: true
+  clone_required: true         # never substitute an American, UK, or gTTS voice
+  clone_base_speaker: "EN-Default"  # neutral base before authorized tone-color conversion
   reference_url: ""
   reference_path: ".pipeline/private_voice/authorized_reference.mp3"
   clone_speed: 1.08
@@ -146,6 +148,7 @@ platforms:
   also_story: true
   youtube:
     enabled: true
+    set_custom_thumbnail: false  # publish without an automatically assigned thumbnail
     also_short: false          # true only if <=3 posts/day
     category_id: "22"          # People & Blogs; 27=Education, 28=Tech
     privacy: "public"
