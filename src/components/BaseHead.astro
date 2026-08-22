@@ -47,6 +47,8 @@ const fullTitle =
 <link rel="icon" href="/favicon.ico" />
 <link rel="sitemap" href="/sitemap.xml" />
 <meta name="generator" content={Astro.generator} />
+<meta name="theme-color" content="#0b1020" />
+<meta name="color-scheme" content="dark light" />
 
 <!-- Performance Optimizations -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -80,13 +82,16 @@ const fullTitle =
 
 <!-- Open Graph / Facebook -->
 <meta property="og:type" content={ogType} />
+<meta property="og:site_name" content={SITE_TITLE} />
+<meta property="og:locale" content="en_US" />
 <meta property="og:url" content={Astro.url} />
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
 <meta property="og:image" content={ogImage} />
 
 <!-- Twitter -->
-<meta property="twitter:card" content="summary_large_image" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:site" content="@AstroTobby" />
 <meta property="twitter:url" content={Astro.url} />
 <meta property="twitter:title" content={title} />
 <meta property="twitter:description" content={description} />
