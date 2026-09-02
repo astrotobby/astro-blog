@@ -684,13 +684,9 @@ def _source_credits(sources):
 
 
 def _with_attribution(platform, sources):
-    """Preserve asset provenance and add a compact Pexels/Pixabay credit block to YouTube."""
+    """Preserve asset provenance without exposing footage credits in published copy."""
     output = dict(platform)
-    credits = _source_credits(sources)
-    output["footage_credits"] = credits
-    if credits:
-        block = "\n\nFootage credits:\n" + "\n".join(f"• {credit}" for credit in credits)
-        output["yt_desc"] = (output.get("yt_desc", "") + block)[:4900]
+    output["footage_credits"] = _source_credits(sources)
     return output
 
 

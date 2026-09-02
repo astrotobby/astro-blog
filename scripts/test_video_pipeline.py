@@ -131,18 +131,19 @@ class FootageBriefTests(unittest.TestCase):
         self.assertEqual(fetch.call_args_list[0].args[2:4], (1920, 1080))
         self.assertEqual(fetch.call_args_list[0].args[-1], "horizontal")
 
-    def test_youtube_description_includes_distinct_asset_credits(self):
+    def test_youtube_description_excludes_asset_credits(self):
         platform = {"yt_desc": "Read the full post."}
         sources = [
             {"id": "pexels:1", "provider": "Pexels", "creator": "Ava", "source_url": "https://pexels.test/1"},
             {"id": "pexels:1", "provider": "Pexels", "creator": "Ava", "source_url": "https://pexels.test/1"},
             {"id": "pixabay:2", "provider": "Pixabay", "creator": "Ben", "source_url": "https://pixabay.test/2"},
         ]
-        credited = generate_video._with_attribution(platform, sources)
-        self.assertEqual(len(credited["footage_credits"]), 2)
-        self.assertIn("Footage credits:", credited["yt_desc"])
-        self.assertIn("Pexels: Ava", credited["yt_desc"])
-        self.assertIn("Pixabay: Ben", credited["yt_desc"])
+        result = generate_video._with_attribution(platform, sources)
+        self.assertEqual(len(result["footage_credits"]), 2)
+        self.assertEqual(result["yt_desc"], platform["yt_desc"])
+        self.assertNotIn("Footage credits:", result["yt_desc"])
+        self.assertNotIn("Pexels: Ava", result["yt_desc"])
+        self.assertNotIn("Pixabay: Ben", result["yt_desc"])
 
 
 if __name__ == "__main__":
