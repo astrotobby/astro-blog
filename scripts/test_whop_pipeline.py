@@ -43,11 +43,13 @@ class WhopPipelineTests(unittest.TestCase):
             self.assertFalse(store.put_once("k", {"ok": False}))
             self.assertEqual(store.load()["items"]["k"]["ok"], True)
 
-    def test_submission_packet_requires_public_post_urls(self):
-        clips = [ClipSpec(0, 30, "youtube", caption="Caption", source_asset_hash="h", post_url="https://youtube.com/shorts/x")]
+    def test_submission_packet_requires_manual_posting(self):
+        clips = [ClipSpec(0, 30, "youtube", caption="Caption", source_asset_hash="h")]
         packet = build_submission_packet(self.campaign, clips)
-        self.assertEqual(packet["status"], "ready_for_manual_whop_submission")
-        self.assertTrue(packet["checklist"]["public_post_urls_present"])
+        self.assertEqual(packet["status"], "ready_for_manual_posting")
+        self.assertEqual(packet["posting_mode"], "manual")
+        self.assertFalse(packet["checklist"]["public_post_urls_present"])
+        self.assertTrue(packet["checklist"]["manual_posting_required"])
         self.assertTrue(packet["checklist"]["manual_whop_submission_required"])
 
 

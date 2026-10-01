@@ -212,11 +212,13 @@ class StateStore:
 
 def build_submission_packet(campaign: Campaign, clips: Iterable[ClipSpec], selected_score: dict[str, Any] | None = None) -> dict[str, Any]:
     clip_list = [asdict(c) | {"duration": round(c.duration, 3), "clip_key": c.key} for c in clips]
-    return {"status": "ready_for_manual_whop_submission", "generated_at": now_iso(),
+    return {"status": "ready_for_manual_posting", "generated_at": now_iso(),
+            "posting_mode": "manual",
             "campaign": asdict(campaign), "selection": selected_score or {}, "clips": clip_list,
             "checklist": {"campaign_rules_captured": bool(campaign.requirements),
                           "source_materials_captured": bool(campaign.source_material_urls),
-                          "public_post_urls_present": all(bool(c["post_url"]) for c in clip_list),
+                          "public_post_urls_present": all(bool(c["post_url"]) for c in clip_list) if clip_list else False,
+                          "manual_posting_required": True,
                           "manual_whop_submission_required": True}}
 
 

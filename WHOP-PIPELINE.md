@@ -9,7 +9,8 @@ The repository now includes `scripts/whop_pipeline.py`, a provider-agnostic safe
 - Explainable campaign scoring based on platform overlap, creator fit, payout, budget, and rule/material completeness.
 - Clip validation against source duration, minimum/maximum duration, allowed platform, captions, and non-overlap.
 - Atomic JSON state with `put_once()` idempotency keys.
-- Manual Whop submission packet generation with a rules/materials/public-post checklist.
+- Manual-posting packet generation with a rules/materials checklist and optional post-URL fields.
+- An explicit `posting_mode: manual` contract; this core never publishes to social platforms.
 - Unit tests covering the safety layer.
 
 ## Run the validator
@@ -31,14 +32,28 @@ The Make scenario should call this core (or an equivalent hosted endpoint) after
 2. Material download/transcript extraction.
 3. Clip planning.
 
-The publisher adapter must write `output_url`, `post_url`, and an explicit status of `PUBLISHED`, `DRAFT`, `FAILED`, or `SKIPPED` before the packet is generated. A draft/inbox result must never be reported as a public post.
+The posting stage is intentionally **manual**. The automation must stop after rendering and QC. It must return the final clip file URL, caption, hashtags, campaign link, and rules checklist. The user posts the clip manually and then adds the public post URL to Whop.
+
+The packet uses:
+
+```json
+{
+  "status": "ready_for_manual_posting",
+  "posting_mode": "manual",
+  "checklist": {
+    "manual_posting_required": true,
+    "manual_whop_submission_required": true
+  }
+}
+```
+
+No social publisher credentials are needed for this mode. `post_url` remains empty until the user posts the clip. A future publisher must not be added without changing this contract explicitly.
 
 ## Still required for live operation
 
 - A Whop campaign discovery source/API or a permitted public discovery adapter.
 - Rotated Supadata and Bookoly credentials stored in secure Make credentials, not inline HTTP headers.
 - A real rendering adapter with polling and media QC.
-- Authorized social publisher credentials for at least one campaign-approved platform.
 - A hosted execution endpoint or GitHub Actions trigger for Make to call the script.
 
-The existing Make scenario remains inactive while those live dependencies are unresolved; the new core is safe to test with fixtures and dry-run publishing.
+The existing Make scenario remains inactive while those live dependencies are unresolved; the new core is safe to test with fixtures. The intended live flow ends at **manual social posting**, followed by **manual Whop submission**.
