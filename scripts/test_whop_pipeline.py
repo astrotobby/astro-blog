@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from whop_pipeline import Campaign, ClipSpec, StateStore, build_submission_packet, score_campaign, validate_clips
+from whop_pipeline import Campaign, ClipSpec, StateStore, build_submission_packet, notify_packet, score_campaign, validate_clips
 
 
 class WhopPipelineTests(unittest.TestCase):
@@ -51,6 +51,15 @@ class WhopPipelineTests(unittest.TestCase):
         self.assertFalse(packet["checklist"]["public_post_urls_present"])
         self.assertTrue(packet["checklist"]["manual_posting_required"])
         self.assertTrue(packet["checklist"]["manual_whop_submission_required"])
+
+    def test_notification_is_opt_in_and_dry_run_is_network_free(self):
+        clips = [ClipSpec(0, 30, "youtube", caption="Caption", source_asset_hash="h")]
+        packet = build_submission_packet(self.campaign, clips)
+        result = notify_packet(packet, "telegram", packet_url="/tmp/packet.json", dry_run=True)
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["dry_run"])
+        self.assertIn("manual posting", result["text"])
+        self.assertIn("no social platform was published to", result["text"])
 
 
 if __name__ == "__main__":

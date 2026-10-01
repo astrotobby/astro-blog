@@ -11,6 +11,7 @@ The repository now includes `scripts/whop_pipeline.py`, a provider-agnostic safe
 - Atomic JSON state with `put_once()` idempotency keys.
 - Manual-posting packet generation with a rules/materials checklist and optional post-URL fields.
 - An explicit `posting_mode: manual` contract; this core never publishes to social platforms.
+- Opt-in Telegram or Discord readiness notifications; notifications are disabled by default.
 - Unit tests covering the safety layer.
 
 ## Run the validator
@@ -21,6 +22,17 @@ python scripts/whop_pipeline.py campaign.json clips.json \
   --state .pipeline/state/whop.json \
   --output .pipeline/whop-submission.json
 ```
+
+To send a Telegram alert after packet creation:
+
+```bash
+export TELEGRAM_BOT_TOKEN="..."
+export TELEGRAM_CHAT_ID="..."
+python scripts/whop_pipeline.py campaign.json clips.json --source-duration 180 \
+  --notify-provider telegram
+```
+
+For Discord, set `DISCORD_WEBHOOK_URL` and use `--notify-provider discord`. An explicit `--notify-webhook-url` can be used instead of the environment variable. To inspect the exact alert without network access, add `--notify-dry-run`. The alert says the packet is ready, includes the campaign link and clip count, and explicitly states that no social platform was published to.
 
 `campaign.json` must include a `campaign_id`, `title`, HTTPS `campaign_url`, allowed platforms, and any known requirements/material URLs. `clips.json` may be an array or `{ "clips": [...] }`.
 

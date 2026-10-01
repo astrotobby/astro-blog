@@ -10,7 +10,9 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import sys
+from urllib.request import Request, urlopen
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -222,6 +224,49 @@ def build_submission_packet(campaign: Campaign, clips: Iterable[ClipSpec], selec
                           "manual_whop_submission_required": True}}
 
 
+def notification_text(packet: dict[str, Any], packet_url: str = "") -> str:
+    campaign = packet["campaign"]
+    lines = [
+        "🎬 Clip packet ready for manual posting",
+        f"Campaign: {campaign['title']}",
+        f"Clips: {len(packet['clips'])}",
+        f"Campaign link: {campaign['campaign_url']}",
+        "Posting: MANUAL — no social platform was published to",
+        "Whop submission: MANUAL after you post",
+    ]
+    if packet_url:
+        lines.append(f"Packet: {packet_url}")
+    return "\n".join(lines)
+
+
+def notify_packet(packet: dict[str, Any], provider: str, webhook_url: str = "",
+                  packet_url: str = "", dry_run: bool = False) -> dict[str, Any]:
+    """Send an explicit opt-in alert; never runs unless --notify-provider is supplied."""
+    provider = provider.lower().strip()
+    text = notification_text(packet, packet_url)
+    if dry_run:
+        return {"ok": True, "provider": provider, "dry_run": True, "text": text}
+    if provider == "discord":
+        url = webhook_url or os.environ.get("DISCORD_WEBHOOK_URL", "")
+        payload = {"content": text}
+    elif provider == "telegram":
+        token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+        url = webhook_url or (f"https://api.telegram.org/bot{token}/sendMessage" if token and chat_id else "")
+        payload = {"chat_id": chat_id, "text": text, "disable_web_page_preview": True}
+    else:
+        raise ValueError("notify provider must be telegram or discord")
+    if not url:
+        raise ValueError(f"missing {provider} notification credentials or webhook URL")
+    request = Request(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urlopen(request, timeout=20) as response:
+            body = response.read().decode("utf-8", errors="replace")
+        return {"ok": True, "provider": provider, "response": body[:500]}
+    except Exception as exc:
+        return {"ok": False, "provider": provider, "error": str(exc)}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate a campaign and clip plan; emit a submission packet.")
     parser.add_argument("campaign_json", type=Path)
@@ -229,6 +274,9 @@ def main() -> int:
     parser.add_argument("--source-duration", type=float, required=True)
     parser.add_argument("--state", type=Path, default=Path(".pipeline/state/whop.json"))
     parser.add_argument("--output", type=Path, default=Path(".pipeline/whop-submission.json"))
+    parser.add_argument("--notify-provider", choices=["telegram", "discord"], help="send an alert after packet creation")
+    parser.add_argument("--notify-webhook-url", default="", help="optional provider webhook URL; otherwise use environment credentials")
+    parser.add_argument("--notify-dry-run", action="store_true", help="render notification payload without network access")
     args = parser.parse_args()
     campaign = Campaign.from_dict(json.loads(args.campaign_json.read_text(encoding="utf-8")))
     clips_raw = json.loads(args.clips_json.read_text(encoding="utf-8"))
@@ -239,7 +287,13 @@ def main() -> int:
     packet = build_submission_packet(campaign, clips)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(packet, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(json.dumps({"ok": True, "clips": len(clips), "output": str(args.output)}))
+    notification = None
+    if args.notify_provider:
+        notification = notify_packet(packet, args.notify_provider, args.notify_webhook_url,
+                                      str(args.output), args.notify_dry_run)
+        if not notification.get("ok"):
+            raise RuntimeError(f"notification failed: {notification.get('error', 'unknown error')}")
+    print(json.dumps({"ok": True, "clips": len(clips), "output": str(args.output), "notification": notification}))
     return 0
 
 
