@@ -22,6 +22,7 @@ import asyncio
 import datetime as dt
 import hashlib
 import json
+import os
 import re
 import subprocess
 import time
@@ -153,31 +154,69 @@ def _gtts_fallback(text, out_path):
     gTTS(text).save(str(out_path))
 
 
+def _clone_required(voice_cfg) -> bool:
+    """config voice.clone_required, overridable for local/dev runs with
+    VOICE_CLONE_REQUIRED=0|1 (CI leaves it unset, so config wins there)."""
+    override = os.environ.get("VOICE_CLONE_REQUIRED", "").strip().lower()
+    if override in ("0", "false", "no", "off"):
+        return False
+    if override in ("1", "true", "yes", "on"):
+        return True
+    return bool(voice_cfg.get("clone_required", True))
+
+
+def _clone_preflight(cfg):
+    """Return a human-readable reason the cloned voice can't run, or None if OK.
+    Lets us fail (or fall back) with an actionable message instead of a bare
+    'No module named torch' from deep inside OpenVoice."""
+    import importlib.util
+    missing = [m for m in ("torch", "openvoice", "melo")
+               if importlib.util.find_spec(m) is None]
+    if missing:
+        return ("voice-clone dependencies not installed (missing: " + ", ".join(missing)
+                + "). In CI these come from scripts/setup_openvoice.sh; locally run that "
+                "script or set VOICE_CLONE_REQUIRED=0 to use the edge-tts voice.")
+    voice = cfg.get("voice") or {}
+    ref = os.environ.get("VOICE_REFERENCE_URL") or voice.get("reference_url") or voice.get("reference_path")
+    if not ref:
+        return "no voice reference configured (voice.reference_path / VOICE_REFERENCE_URL)."
+    if not str(ref).startswith(("http://", "https://")):
+        ref_path = Path(ref) if Path(ref).is_absolute() else ROOT / ref
+        if not ref_path.exists():
+            return (f"voice reference '{ref}' not found. In CI it is decrypted by the "
+                    "'Decrypt authorized voice reference' step; locally set "
+                    "VOICE_CLONE_REQUIRED=0 to use the edge-tts voice.")
+    return None
+
+
 def make_voice(narration, cfg, tag=""):
     voice_cfg = cfg["voice"]
     if voice_cfg.get("clone"):
-        clone_out = OUT / f"voiceover{tag}.wav"
-        clone_out.unlink(missing_ok=True)
-        try:
-            from voice_clone import synthesize
-            result = synthesize(narration, str(clone_out), cfg)
-            if result and clone_out.exists() and clone_out.stat().st_size > 1024:
-                duration = ffprobe_duration(clone_out)
-                if duration > 0.25:
-                    log(f"authorized cloned voiceover {duration:.1f}s -> {clone_out.name}")
-                    return clone_out, duration
-            if voice_cfg.get("clone_required", True):
-                raise RuntimeError(
-                    "cloned voice synthesis did not produce valid audio; "
-                    "refusing to use a different accent"
-                )
-            log("voice clone unavailable; falling back to configured TTS voice")
-        except Exception as exc:  # noqa
-            if voice_cfg.get("clone_required", True):
-                raise RuntimeError(
-                    f"cloned voice synthesis failed; refusing stock-voice fallback: {exc}"
-                ) from exc
-            log(f"voice clone failed ({exc}); falling back to configured TTS voice")
+        required = _clone_required(voice_cfg)
+        problem = _clone_preflight(cfg)
+        if problem:
+            if required:
+                raise RuntimeError(f"cloned voice required but unavailable: {problem}")
+            log(f"voice clone unavailable ({problem}); falling back to configured TTS voice")
+        else:
+            clone_out = OUT / f"voiceover{tag}.wav"
+            clone_out.unlink(missing_ok=True)
+            try:
+                from voice_clone import synthesize
+                result = synthesize(narration, str(clone_out), cfg)
+                if result and clone_out.exists() and clone_out.stat().st_size > 1024:
+                    duration = ffprobe_duration(clone_out)
+                    if duration > 0.25:
+                        log(f"authorized cloned voiceover {duration:.1f}s -> {clone_out.name}")
+                        return clone_out, duration
+                raise RuntimeError("cloned voice synthesis did not produce valid audio")
+            except Exception as exc:  # noqa
+                if required:
+                    raise RuntimeError(
+                        f"cloned voice synthesis failed and voice.clone_required is true "
+                        f"(refusing stock-voice fallback): {exc}"
+                    ) from exc
+                log(f"voice clone failed ({exc}); falling back to configured TTS voice")
 
     out = OUT / f"voiceover{tag}.mp3"
     out.unlink(missing_ok=True)

@@ -7,7 +7,7 @@ adds several posts, each is rendered + cross-posted in turn — none are dropped
 Usage:
   python scripts/run_pipeline.py --latest
   python scripts/run_pipeline.py --changed file1 file2 ...
-  python scripts/run_pipeline.py --latest --dry-run
+  python scripts/run_pipeline.py --latest --dry-run   # no uploads, no Telegram
 """
 import argparse
 import re
@@ -119,7 +119,7 @@ def _prepare_run(posts, force):
     import datetime as dt
     import pathlib
 
-    from fetch_post import parse
+    from fetch_post import PostParseError, parse
     if force:
         return posts[:MAX_POSTS_PER_RUN]
     cfg = load_config()
@@ -128,6 +128,9 @@ def _prepare_run(posts, force):
     for pf in posts:
         try:
             title = parse(pathlib.Path(pf), cfg)["title"]
+        except PostParseError as e:
+            _mark_bad_post(led, pf, e)
+            continue
         except Exception as e:  # noqa
             log(f"dedup-check: could not parse {pf} ({e}); keeping it in the run")
             keep.append(pf)
@@ -149,8 +152,30 @@ def _prepare_run(posts, force):
     return keep[:MAX_POSTS_PER_RUN]
 
 
+def _mark_bad_post(led, post_file, err):
+    """Record a post with unparseable front-matter in the ledger so the sweep stops
+    retrying it every run. Editing the file (fixing the YAML) does NOT clear this —
+    run with --unskip-bad (or delete the ledger entry) after fixing it."""
+    import datetime as dt
+    import pathlib
+    slug = _astro_slug(pathlib.Path(post_file).stem)
+    log(f"skip '{post_file}': bad front-matter -> recorded in ledger, not retried ({err})")
+    led[slug] = {"ts": dt.datetime.now(dt.timezone.utc).isoformat(),
+                 "skipped_bad_frontmatter": str(err)[:300]}
+
+
+class BadPost(Exception):
+    """fetch_post reported malformed front-matter for this post."""
+
+
 def process_one(post_file, dry, force=False):
-    step([S / "fetch_post.py", "--file", post_file])
+    try:
+        step([S / "fetch_post.py", "--file", post_file])
+    except subprocess.CalledProcessError as e:
+        from fetch_post import EXIT_BAD_FRONTMATTER
+        if e.returncode == EXIT_BAD_FRONTMATTER:
+            raise BadPost(f"bad front-matter in {post_file}") from e
+        raise
     step([S / "build_script.py", PIPE / "post.json"])
     step([S / "generate_video.py", PIPE / "script.json"])
     cross = [S / "crosspost.py", PIPE / "render.json"]
@@ -159,6 +184,9 @@ def process_one(post_file, dry, force=False):
     if force:
         cross += ["--force"]
     step(cross)
+    if dry:
+        log("dry-run: skipping notify.py (no Telegram message sent)")
+        return
     try:
         step([S / "notify.py", PIPE / "results.json"])
     except Exception as e:  # noqa
@@ -181,6 +209,18 @@ def unskip_duplicates():
     log(f"unskip: {len(bad)} entry(ies) removed")
 
 
+def unskip_bad_frontmatter():
+    """Forget posts recorded as skipped for bad front-matter (after fixing them)."""
+    led = load_ledger()
+    bad = [s for s, e in led.items() if e.get("skipped_bad_frontmatter")]
+    for s in bad:
+        del led[s]
+        log(f"unskip-bad: removed '{s}'")
+    if bad:
+        save_ledger(led)
+    log(f"unskip-bad: {len(bad)} entry(ies) removed")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--latest", action="store_true")
@@ -193,11 +233,15 @@ def main():
     ap.add_argument("--prime", action="store_true",
                     help="baseline: mark all current posts as done WITHOUT posting (run once)")
     ap.add_argument("--unskip", action="store_true",
-                    help="repair ledger first: forget skipped-as-duplicate entries")
+                    help="repair ledger first: forget skipped-as-duplicate AND bad-front-matter entries")
+    ap.add_argument("--unskip-bad", action="store_true",
+                    help="repair ledger first: forget posts skipped for bad front-matter")
     args = ap.parse_args()
 
     if args.unskip:
         unskip_duplicates()
+    if args.unskip or args.unskip_bad:
+        unskip_bad_frontmatter()
 
     if args.prime:
         prime_ledger()
@@ -217,17 +261,27 @@ def main():
         return
 
     log(f"{len(posts)} post(s) went live this run")
-    failures = 0
+    failures = skipped = 0
     for i, pf in enumerate(posts, 1):
         log(f"=== post {i}/{len(posts)}: {pf} ===")
         try:
             process_one(pf, args.dry_run, args.force)
+        except BadPost as e:
+            skipped += 1
+            if not args.dry_run:
+                led = load_ledger()
+                _mark_bad_post(led, pf, e)
+                save_ledger(led)
         except Exception as e:  # noqa
             failures += 1
             log(f"post failed (continuing with the rest): {e}")
 
-    if failures:
-        raise SystemExit(f"{failures}/{len(posts)} post(s) failed")
+    attempted = len(posts) - skipped
+    log(f"summary: {attempted - failures} ok, {failures} failed, {skipped} skipped (bad front-matter)")
+    # Fail the job only when every post we actually attempted failed (likely an
+    # infra problem). One bad post must not turn every scheduled run red.
+    if attempted and failures == attempted:
+        raise SystemExit(f"{failures}/{attempted} post(s) failed")
 
 
 if __name__ == "__main__":

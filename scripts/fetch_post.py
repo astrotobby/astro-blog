@@ -16,6 +16,14 @@ from common import ROOT, git_added_times, load_config, log, write_json
 
 md = MarkdownIt()
 
+# Exit code used when a post's front-matter can't be parsed. run_pipeline treats
+# this as "bad content -> skip + record in ledger", not as an infra failure.
+EXIT_BAD_FRONTMATTER = 3
+
+
+class PostParseError(ValueError):
+    """A post's YAML front-matter is malformed (e.g. an unclosed quote)."""
+
 
 def _sort_key(files, posts_dir):
     """Order files by real publish time (git history), not filesystem mtime —
@@ -62,7 +70,13 @@ def pick_latest(cfg) -> pathlib.Path:
 
 
 def parse(path: pathlib.Path, cfg) -> dict:
-    fm = frontmatter.load(path)
+    try:
+        fm = frontmatter.load(path)
+    except (OSError, UnicodeError):
+        raise
+    except Exception as exc:  # yaml.YAMLError / scanner / parser errors
+        msg = " ".join(str(exc).split())
+        raise PostParseError(f"invalid front-matter in {path.name}: {msg}") from exc
     keys = cfg["frontmatter"]
     body = strip_md(fm.content)
     title = fm.get(keys["title"]) or path.stem.replace("-", " ").title()
@@ -145,7 +159,11 @@ def main():
     else:
         path = pick_latest(cfg)
 
-    post = parse(path, cfg)
+    try:
+        post = parse(path, cfg)
+    except PostParseError as exc:
+        log(f"SKIP (bad front-matter): {exc}")
+        raise SystemExit(EXIT_BAD_FRONTMATTER)
     log(f"post: {post['title']}  ({post['url']})")
     write_json("post.json", post)
 

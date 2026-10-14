@@ -57,9 +57,12 @@ and saves them as Action artifacts so you can hand-upload those four meanwhile.
 
 ### B. Install locally (only needed to test before pushing)
 
+**Use Python 3.11** (same as the GitHub Action). Newer versions (3.13+) fail to
+install some pinned deps such as `Pillow==10.4.0`.
+
 ```powershell
 # from the project root
-python -m venv .venv
+py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements-blog2video.txt
 # FFmpeg (Windows):
@@ -68,8 +71,9 @@ winget install Gyan.FFmpeg
 
 ### C. Put the project in (or next to) your blog repo
 
-This pipeline assumes your posts live in a folder like `posts/` or `src/content/blog/`.
-Set the path in `config.yaml` (`posts_dir`). Copy the `scripts/`, `config.yaml`,
+This repo's posts live in `src/content/blog/` (`config.yaml → posts_dir`), and the
+workflow triggers on pushes touching `src/content/blog/**`. If you move posts, update
+both `posts_dir` and the workflow's `paths:` filter. Copy the `scripts/`, `config.yaml`,
 `requirements-blog2video.txt` and `.github/workflows/blog-to-video.yml` into your blog repo root.
 
 ### D. Add GitHub repo secrets
@@ -96,6 +100,15 @@ REDDIT_CLIENT_ID       # optional (off by default)
 REDDIT_CLIENT_SECRET   # optional
 REDDIT_USERNAME        # optional
 REDDIT_PASSWORD        # optional
+FACEBOOK_PAGE_ID       # optional
+FACEBOOK_PAGE_TOKEN    # optional
+INSTAGRAM_USER_ID      # optional (Instagram Business Account ID)
+INSTAGRAM_TOKEN        # optional (long-lived token; auto-refreshed in CI)
+THREADS_USER_ID        # optional
+THREADS_ACCESS_TOKEN   # optional
+TIKTOK_CLIENT_KEY      # optional
+TIKTOK_CLIENT_SECRET   # optional
+TIKTOK_REFRESH_TOKEN   # optional (seed; rotated + cached in CI)
 PEXELS_API_KEY         # primary footage search
 PIXABAY_API_KEY        # optional footage fallback
 SITE_BASE_URL          # e.g. https://astrotobby.site  (used for the CTA link)
@@ -155,6 +168,14 @@ python scripts/generate_video.py .pipeline/script.json
 python -m unittest scripts/test_video_pipeline.py
 python scripts/test_renderer_smoke.py
 
+# Cloned voice: CI decrypts the private reference + installs OpenVoice. Locally,
+# without those, either run scripts/setup_openvoice.sh + provide the reference, or
+# use the stock edge-tts voice for testing:
+#   $env:VOICE_CLONE_REQUIRED="0"    (PowerShell)  /  export VOICE_CLONE_REQUIRED=0
+
+# Whole pipeline, no uploads and no Telegram message:
+python scripts/run_pipeline.py --latest --dry-run
+
 # 4. dry-run the cross-poster (no real uploads)
 python scripts/crosspost.py .pipeline/render.json --dry-run
 
@@ -166,7 +187,7 @@ Outputs land in `.pipeline/` and `.pipeline/out/`.
 
 ## 4. Go live
 
-Push a new post to `posts/`. Watch **Actions** tab. Within ~5–8 min you get a
+Push a new post to `src/content/blog/`. Watch **Actions** tab. Within ~5–8 min you get a
 Telegram message with ✅/❌ per platform and links.
 
 ---
@@ -257,3 +278,10 @@ That's it — every future post renders with a gesturing, expressive, lip-synced
 fully automatically and free.
 
 See `HONEST-LIMITS.md` and `TROUBLESHOOTING.md`.
+
+### Malformed posts
+If a post's front-matter is invalid YAML (e.g. an unclosed quote), the pipeline
+logs `SKIP (bad front-matter)`, records it in the ledger as
+`skipped_bad_frontmatter`, and carries on with the other posts — the run no longer
+fails. After fixing the file, run the workflow manually with `unskip: true`, or locally with
+`python scripts/run_pipeline.py --sweep --unskip-bad` to let it be picked up again.
