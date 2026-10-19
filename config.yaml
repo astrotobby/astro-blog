@@ -63,13 +63,14 @@ script:
 voice:
   provider: "elevenlabs"
   elevenlabs:
-    # Shortlist (swap voice_id to change the narrator; ELEVENLABS_VOICE_ID secret overrides):
-    #   Brian  nPczCjzI2devNBz1zQrb  deep, confident narrator (default)
-    #   Adam   pNInz6obpgDQGcFmaJgB  deep, dramatic
-    #   Daniel onwK4e9ZLuTAKqWW03F9  British, authoritative newsreader
-    #   George JBFqnCBsd6RMkjVDRZzb  warm British storyteller
-    #   Liam   TX3LPaxmHKxFdv7VOQHJ  young, energetic
-    voice_id: "nPczCjzI2devNBz1zQrb"
+    # Young-adult male narrators (20s). Swap voice_id to change; the
+    # ELEVENLABS_VOICE_ID repo secret overrides this without a commit.
+    #   Liam    TX3LPaxmHKxFdv7VOQHJ  young American, energetic creator voice (default)
+    #   Will    bIHbv24MWmeRgasZH58o  young American, relaxed and friendly
+    #   Charlie IKne3meq5aSn9XLyUdCD  young Australian, confident and natural
+    #   Harry   SOYHLrjzK2X1ezoPC6cr  young American, intense and animated
+    #   Brian   nPczCjzI2devNBz1zQrb  deep, mature narrator (previous default)
+    voice_id: "TX3LPaxmHKxFdv7VOQHJ"
     model_id: "eleven_multilingual_v2"
     stability: 0.42          # lower = more expressive delivery
     similarity_boost: 0.80
