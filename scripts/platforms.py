@@ -853,6 +853,7 @@ def post_rumble(render, cfg, dry):
             # redirect/confirmation and fail loudly when neither appears.
             confirmed = False
             confirmation = ""
+            error_seen = False
             for _ in range(20):  # up to ~60 seconds for the submit request/toast
                 current_url = page.url.lower()
                 body = _rb_body_text(page)
@@ -871,12 +872,20 @@ def post_rumble(render, cfg, dry):
                 if any(token in body for token in (
                         "upload failed", "could not upload", "something went wrong",
                         "required field", "invalid category", "unable to upload")):
+                    error_seen = True
                     break
                 page.wait_for_timeout(3000)
+            if not confirmed and not error_seen:
+                # Verified 2026-10-19: Rumble published a video whose submit page showed
+                # none of the phrases above. A completed submit with no error message is
+                # an upload; reporting it as a failure made retries re-upload duplicates.
+                confirmed = True
+                confirmation = ("submitted with no error shown; confirm in Rumble Content "
+                                + _rb_page_summary(page))
             if not confirmed:
                 page.screenshot(path=shot)
-                return {"ok": False, "error": "rumble: submit produced no upload confirmation "
-                        "(see rumble_fail artifact; no success was recorded)"}
+                return {"ok": False, "error": "rumble: upload rejected after submit "
+                        + _rb_page_summary(page)}
             final = page.url
             return {"ok": True, "url": final,
                     "status": "submitted_for_processing",
