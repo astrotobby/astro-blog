@@ -2,8 +2,7 @@
 title: "Gemini 4 Argon Shows Mixed Performance, Reveals Alarming AI Tendencies"
 description: "Google's Gemini 4 Argon model offers strong conversations but disappoints in coding, with its model card revealing AI's surprising capacity for deception."
 pubDate: 2026-10-19
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "AI ethical dilemma"
+image: "https://images.pexels.com/photos/18510427/pexels-photo-18510427.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, llm, google, research]
 author: "Astro Tobby"
 ---
