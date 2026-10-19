@@ -1,9 +1,9 @@
 """Render footage-driven social and YouTube videos from a generated blog script.
 
 Pipeline:
-  edge-tts             -> voiceover.mp3 / voiceover_yt.mp3
-  Pexels + Pixabay     -> semantically matched scene clips
-  faster-whisper       -> word-level timestamps for bottom captions
+  ElevenLabs           -> voiceover + exact word timings (edge-tts / clone fallback)
+  Pexels + Pixabay     -> semantically matched scene clips (two angles per scene)
+  faster-whisper       -> word timings only when the voice provider gives none
   FFmpeg               -> finished vertical and horizontal masters
 
 The renderer treats stock-video search as an editorial step.  Every scene carries a
@@ -11,17 +11,21 @@ primary concrete B-roll query and a category-safe fallback from build_script.py;
 this avoids querying every scene with the article title and filling technical videos
 with unrelated landscape footage.
 
-Caption style:
-  - Word-by-word display at the BOTTOM of the video (no box, no background bar).
-  - Each word appears and disappears in sync with the voice using Whisper's
-    word-level timestamps — never a full subtitle segment all at once.
-  - No hook card, data lower-third, or end-card overlay dimming the video.
+Edit:
+  - Scene cuts land on the word where each scene's narration begins, and long
+    scenes are broken into ~2.6s shots with camera moves (push, pull, pan, rise).
+  - One colour grade per post (topic-specific from build_script.py), film grain
+    and vignette, applied once over the whole montage.
+  - Captions are animated 1-3 word karaoke punches (Anton, active word in yellow),
+    burned in with libass. No hook card, lower third, or end card.
+  - Audio: mastered voice, EQ-scooped music bed ducked under it, -14 LUFS output.
 """
 import argparse
 import asyncio
 import datetime as dt
 import hashlib
 import json
+import os
 import re
 import subprocess
 import time
@@ -33,7 +37,6 @@ import requests
 from common import OUT, ROOT, STATE, env, load_config, log, read_json, write_json
 
 
-FONT_FILE = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 MUSIC_EXTENSIONS = {".mp3", ".m4a", ".wav", ".ogg", ".flac"}
 FOOTAGE_CACHE_FILE = STATE / "footage_search_cache.json"
 FOOTAGE_CACHE_TTL_SECONDS = 24 * 60 * 60
@@ -154,6 +157,28 @@ def _gtts_fallback(text, out_path):
 
 
 def make_voice(narration, cfg, tag=""):
+    """Return (audio_path, duration, word_timings_or_None, provider)."""
+    voice_cfg = cfg["voice"]
+    if voice_cfg.get("provider", "elevenlabs") == "elevenlabs":
+        eleven_out = OUT / f"voiceover{tag}_11labs.mp3"
+        eleven_out.unlink(missing_ok=True)
+        try:
+            from tts_elevenlabs import synthesize as eleven_synthesize
+            result = eleven_synthesize(narration, str(eleven_out), cfg)
+        except Exception as exc:  # noqa
+            log(f"ElevenLabs voice failed ({exc})")
+            result = None
+        if result:
+            duration = ffprobe_duration(eleven_out)
+            if duration > 0.25:
+                log(f"ElevenLabs voiceover {duration:.1f}s -> {eleven_out.name}")
+                return eleven_out, duration, result[1] or None, "elevenlabs"
+        log("ElevenLabs unavailable; falling back to the next configured voice")
+    path, duration, provider = _make_voice_fallback(narration, cfg, tag)
+    return path, duration, None, provider
+
+
+def _make_voice_fallback(narration, cfg, tag=""):
     voice_cfg = cfg["voice"]
     if voice_cfg.get("clone"):
         clone_out = OUT / f"voiceover{tag}.wav"
@@ -165,7 +190,7 @@ def make_voice(narration, cfg, tag=""):
                 duration = ffprobe_duration(clone_out)
                 if duration > 0.25:
                     log(f"authorized cloned voiceover {duration:.1f}s -> {clone_out.name}")
-                    return clone_out, duration
+                    return clone_out, duration, "clone"
             if voice_cfg.get("clone_required", True):
                 raise RuntimeError(
                     "cloned voice synthesis did not produce valid audio; "
@@ -191,7 +216,7 @@ def make_voice(narration, cfg, tag=""):
         _gtts_fallback(narration, out)
     duration = ffprobe_duration(out)
     log(f"voiceover {duration:.1f}s -> {out.name}")
-    return out, duration
+    return out, duration, "edge-tts"
 
 
 # ---------- 2. Footage sourcing ----------
@@ -385,7 +410,8 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, used_creator
                  and candidate.get("creator") not in used_creators]
         relaxed = [candidate for candidate in candidates
                    if candidate.get("id") not in used_clips]
-        for candidate in fresh + [item for item in relaxed if item not in fresh]:
+        ordered = fresh + [item for item in relaxed if item not in fresh]
+        for position, candidate in enumerate(ordered):
             if _download_candidate(candidate, destination):
                 clip_id = candidate["id"]
                 used_clips.add(clip_id)
@@ -395,6 +421,21 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, used_creator
                 provenance["scene"] = index
                 provenance["variant"] = variant
                 log(f"scene {index} [{variant}] -> {candidate['provider']} footage for {query!r}")
+                # A second angle on the same idea lets long scenes cut between shots
+                # instead of sitting on one clip for 6+ seconds.
+                meta["alt"], meta["alt_source"] = None, None
+                alt_destination = OUT / f"scene_{index:02d}_{variant}_b.mp4"
+                alt_destination.unlink(missing_ok=True)
+                for alt in ordered[position + 1:position + 4]:
+                    if alt["id"] in used_clips:
+                        continue
+                    if _download_candidate(alt, alt_destination):
+                        used_clips.add(alt["id"])
+                        alt_prov = {key: alt[key] for key in ("id", "provider", "creator", "source_url", "query")}
+                        alt_prov["scene"] = index
+                        alt_prov["variant"] = variant
+                        meta["alt"], meta["alt_source"] = alt_destination, alt_prov
+                        break
                 return destination, provenance
     log(f"scene {index}: no suitable stock clip for {queries!r}; using image fallback")
     return None, None
@@ -423,13 +464,16 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
     seed = int(hashlib.sha256(f"{slug}:{index}:{variant}".encode()).hexdigest()[:8], 16) % 100000
     url = ("https://image.pollinations.ai/prompt/" + urllib.parse.quote(clean_prompt)
            + f"?width={target_w}&height={target_h}&nologo=true&model=flux&seed={seed}")
-    try:
-        response = requests.get(url, timeout=75)
-        if response.status_code == 200:
-            destination.write_bytes(response.content)
-            return destination, meta, None
-    except Exception as exc:
-        log(f"image fallback failed: {exc}")
+    for attempt in range(3):
+        try:
+            response = requests.get(url, timeout=75)
+            if response.status_code == 200 and len(response.content) > 20000:
+                destination.write_bytes(response.content)
+                return destination, meta, None
+            log(f"image fallback HTTP {response.status_code} (attempt {attempt + 1})")
+        except Exception as exc:
+            log(f"image fallback failed: {exc}")
+        time.sleep(6 * (attempt + 1))  # the free endpoint rate-limits bursts
 
     run(["ffmpeg", "-y", "-f", "lavfi", "-i", f"color=c=black:s={target_w}x{target_h}",
          "-frames:v", "1", "-update", "1", str(destination)])
@@ -452,11 +496,13 @@ def fetch_scene_assets(script, cfg, variant):
             used_creators, recent_ids, variant,
         )
         assets.append((asset, meta))
-        if source:
-            provenance.append(source)
-            recent_ids.add(source["id"])
-            history.append({"id": source["id"], "provider": source.get("provider"),
-                            "creator": source.get("creator"), "slug": post["slug"],
+        for item in (source, (meta or {}).get("alt_source")):
+            if not item:
+                continue
+            provenance.append(item)
+            recent_ids.add(item["id"])
+            history.append({"id": item["id"], "provider": item.get("provider"),
+                            "creator": item.get("creator"), "slug": post["slug"],
                             "used_at": time.time()})
     _save_footage_history(history)
     return assets, provenance
@@ -464,80 +510,141 @@ def fetch_scene_assets(script, cfg, variant):
 
 # ---------- 3. Scene assembly ----------
 
-def build_clip(scene_assets, total_duration, size, fps, out_path, grade=None):
-    """Create a paced montage, with every scene assigned timestamps for overlays."""
+def scene_windows(words, narration, count, total_duration):
+    """Start/end seconds for each scene, locked to when its words are spoken.
+
+    build_script.py splits the narration into `count` equal word-count segments and
+    writes one footage brief per segment. Cutting at the moment the first word of
+    each segment is voiced keeps every clip on screen while its idea is being said.
+    Without timings (rare) the cuts fall back to an even split.
+    """
+    if count <= 0:
+        return []
+    script_words = (narration or "").split()
+    total_words = len(script_words)
+    if not words or not total_words:
+        step = total_duration / count
+        return [(i * step, (i + 1) * step) for i in range(count)]
+    base, remainder = divmod(total_words, count)
+    starts, index = [], 0
+    for i in range(count):
+        starts.append(index)
+        index += base + (1 if i < remainder else 0)
+    times = [0.0]
+    for k in starts[1:]:
+        mapped = min(len(words) - 1, int(round(k * len(words) / total_words)))
+        # Cut a beat before the word lands; it reads as intentional editing.
+        times.append(max(times[-1] + 0.8, words[mapped]["start"] - 0.08))
+    times.append(total_duration)
+    windows = []
+    for i in range(count):
+        start, end = times[i], max(times[i + 1], times[i] + 0.5)
+        windows.append((start, min(end, total_duration)))
+    return windows
+
+
+MOTIONS = ("push_in", "pan_right", "pull_out", "pan_left", "rise", "push_in_slow")
+
+
+def _motion_filter(kind, width, height, duration):
+    """Camera move for one shot: smooth push/pull via per-frame scale, or a pan."""
+    d = max(duration, 0.2)
+    p = f"min(t/{d:.3f}\\,1)"
+    if kind in ("push_in", "pull_out", "punch", "push_in_slow"):
+        z0, z1 = {"push_in": (1.04, 1.14), "pull_out": (1.16, 1.04),
+                  "punch": (1.24, 1.08), "push_in_slow": (1.02, 1.08)}[kind]
+        zoom = f"({z0}+({z1 - z0:.3f})*{p})"
+        return (f"scale=w='trunc({width}*{zoom}/2)*2':h='trunc({height}*{zoom}/2)*2':"
+                f"force_original_aspect_ratio=increase:eval=frame:flags=bicubic,"
+                f"crop={width}:{height}")
+    over_w, over_h = int(width * 1.12) // 2 * 2, int(height * 1.12) // 2 * 2
+    x, y = "(in_w-out_w)/2", "(in_h-out_h)/2"
+    if kind == "pan_right":
+        x = f"(in_w-out_w)*{p}"
+    elif kind == "pan_left":
+        x = f"(in_w-out_w)*(1-{p})"
+    elif kind == "rise":
+        y = f"(in_h-out_h)*(1-{p})"
+    return (f"scale={over_w}:{over_h}:force_original_aspect_ratio=increase:flags=bicubic,"
+            f"crop={width}:{height}:x='{x}':y='{y}'")
+
+
+def _plan_shots(scene_assets, windows, fps, cfg, total_frames):
+    """Break each scene into ~1.7-3s shots so the edit never stalls on one clip."""
+    shot_seconds = float(cfg.get("video", {}).get("shot_seconds", 2.6))
+    shots = []
+    for index, ((asset, meta), (start, end)) in enumerate(zip(scene_assets, windows)):
+        target = 1.7 if meta.get("scene_type") == "HOOK" else shot_seconds
+        pieces = max(1, int(round((end - start) / target)))
+        step = (end - start) / pieces
+        for j in range(pieces):
+            source = asset
+            if j % 2 == 1 and meta.get("alt") and Path(meta["alt"]).exists():
+                source = Path(meta["alt"])
+            if index == 0 and j == 0:
+                motion = "punch"
+            else:
+                motion = MOTIONS[(index * 2 + j) % len(MOTIONS)]
+            shots.append({"scene": index, "shot": j, "asset": source, "motion": motion,
+                          "start": start + j * step, "end": start + (j + 1) * step})
+    # Frame-exact boundaries so the montage length never drifts from the voice.
+    for shot in shots:
+        shot["f0"] = int(round(shot["start"] * fps))
+    for current, following in zip(shots, shots[1:]):
+        current["frames"] = max(1, following["f0"] - current["f0"])
+    if shots:
+        shots[-1]["frames"] = max(1, total_frames - shots[-1]["f0"])
+    return shots
+
+
+def _encode_args(fps):
+    return ["-r", str(fps), "-pix_fmt", "yuv420p", "-an", "-c:v", "libx264",
+            "-preset", "veryfast", "-crf", "16"]
+
+
+def build_clip(scene_assets, windows, size, fps, out_path, cfg=None, total_duration=None):
+    """Cut a montage whose shots change on the beat of the narration."""
     width, height = size["w"], size["h"]
-    count = len(scene_assets)
-    if not count:
+    if not scene_assets:
         raise RuntimeError("No scene assets were created")
+    total_duration = total_duration or windows[-1][1]
+    total_frames = int(round(total_duration * fps))
+    shots = _plan_shots(scene_assets, windows, fps, cfg or {}, total_frames)
 
-    raw_multipliers = [meta.get("dur_mult", 1.0) for _, meta in scene_assets]
-    total_multiplier = sum(raw_multipliers) or 1.0
-    scene_durations = [max(1.0, total_duration * mult / total_multiplier)
-                       for mult in raw_multipliers]
-    # Normalise after minimum-duration clamping so the cut tracks the narration.
-    duration_scale = total_duration / max(sum(scene_durations), 0.01)
-    scene_durations = [duration * duration_scale for duration in scene_durations]
-
-    cursor = 0.0
-    for (_, meta), duration in zip(scene_assets, scene_durations):
-        meta["start"] = cursor
-        meta["end"] = cursor + duration
-        cursor += duration
-
-    transition_duration = 0.45 if count > 1 else 0.0
     segment_files = []
-    for index, ((asset, _meta), scene_duration) in enumerate(zip(scene_assets, scene_durations)):
-        segment = OUT / f"_seg_{width}x{height}_{index:02d}.mp4"
-        segment_duration = scene_duration + transition_duration
+    for number, shot in enumerate(shots):
+        asset, frames = shot["asset"], shot["frames"]
+        seconds = frames / fps
+        segment = OUT / f"_shot_{width}x{height}_{number:03d}.mp4"
         if asset.suffix.lower() == ".mp4":
             source_duration = ffprobe_duration(asset)
-            video_filter = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1"
-            if grade:
-                video_filter += f",{grade}"
-            cmd = ["ffmpeg", "-y"]
-            if source_duration > segment_duration + 0.3:
-                available = max(source_duration - segment_duration, 0.01)
-                offset = (index * 1.618) % available
+            cmd = ["ffmpeg", "-y", "-v", "error"]
+            if source_duration > seconds + 0.3:
+                available = max(source_duration - seconds - 0.1, 0.01)
+                offset = (shot["scene"] * 1.618 + shot["shot"] * 2.35) % available
                 cmd += ["-ss", f"{offset:.3f}", "-i", str(asset)]
             else:
                 cmd += ["-stream_loop", "-1", "-i", str(asset)]
-            cmd += ["-t", f"{segment_duration:.3f}", "-vf", video_filter,
-                    "-r", str(fps), "-pix_fmt", "yuv420p", "-an", str(segment)]
-            run(cmd)
+            video_filter = (f"fps={fps},{_motion_filter(shot['motion'], width, height, seconds)},"
+                            f"setsar=1,format=yuv420p")
+            run(cmd + ["-vf", video_filter, "-frames:v", str(frames), *_encode_args(fps), str(segment)])
         else:
-            frames = max(1, int(segment_duration * fps))
-            ken_burns = "z='min(1.05+0.0005*on,1.2)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
-            video_filter = (f"scale={width}:{height}:force_original_aspect_ratio=increase,"
-                            f"crop={width}:{height},setsar=1,zoompan={ken_burns}:"
-                            f"d={frames}:s={width}x{height}:fps={fps}")
-            if grade:
-                video_filter += f",{grade}"
-            video_filter += ",format=yuv420p"
-            run(["ffmpeg", "-y", "-loop", "1", "-i", str(asset), "-t", f"{segment_duration:.3f}",
-                 "-vf", video_filter, "-r", str(fps), "-pix_fmt", "yuv420p", "-an", str(segment)])
-        segment_files.append((segment, scene_duration))
+            zoom = ("z='min(1.04+0.0009*on,1.18)'" if shot["shot"] % 2 == 0
+                    else "z='max(1.18-0.0009*on,1.04)'")
+            video_filter = (f"scale={width * 2}:{height * 2}:force_original_aspect_ratio=increase,"
+                            f"crop={width * 2}:{height * 2},setsar=1,zoompan={zoom}:"
+                            f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={frames}:"
+                            f"s={width}x{height}:fps={fps},format=yuv420p")
+            run(["ffmpeg", "-y", "-v", "error", "-loop", "1", "-i", str(asset), "-vf", video_filter,
+                 "-frames:v", str(frames), *_encode_args(fps), str(segment)])
+        segment_files.append(segment)
 
-    if count == 1:
-        run(["ffmpeg", "-y", "-i", str(segment_files[0][0]), "-t", f"{total_duration:.3f}",
-             "-c", "copy", str(out_path)])
-        return out_path
-
-    inputs = []
-    for segment, _ in segment_files:
-        inputs += ["-i", str(segment)]
-    filter_chain, previous = [], "0:v"
-    offset = 0.0
-    for index in range(1, count):
-        label = f"x{index}" if index < count - 1 else "vout"
-        offset += scene_durations[index - 1]
-        filter_chain.append(
-            f"[{previous}][{index}:v]xfade=transition=fade:duration={transition_duration}:"
-            f"offset={offset:.3f}[{label}]"
-        )
-        previous = label
-    run(["ffmpeg", "-y", *inputs, "-filter_complex", ";".join(filter_chain), "-map", "[vout]",
-         "-c:v", "libx264", "-preset", "fast", "-crf", "22", "-pix_fmt", "yuv420p", str(out_path)])
+    concat_list = OUT / f"_concat_{width}x{height}.txt"
+    concat_list.write_text("".join(f"file '{seg.resolve().as_posix()}'\n" for seg in segment_files),
+                           encoding="utf-8")
+    run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(concat_list),
+         "-c", "copy", str(out_path)])
+    log(f"montage {width}x{height}: {len(shots)} shots over {len(scene_assets)} scenes")
     return out_path
 
 
@@ -561,14 +668,26 @@ def transcribe_words(audio_path):
         from faster_whisper import WhisperModel
 
         model_name = env("WHISPER_MODEL") or "base"
+        import numpy as np
+
         model = WhisperModel(model_name, device="cpu", compute_type="int8")
-        segments, _info = model.transcribe(str(audio_path), beam_size=4, vad_filter=True,
+        # Decode with the system FFmpeg rather than PyAV so a PyAV/FFmpeg version
+        # mismatch can't silently drop the captions.
+        pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", str(audio_path), "-f", "s16le",
+                              "-ac", "1", "-ar", "16000", "-"], capture_output=True, check=True).stdout
+        audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
+        segments, _info = model.transcribe(audio, beam_size=4, vad_filter=True,
                                            word_timestamps=True)
         words = []
         for segment in segments:
             if segment.words:
                 for w in segment.words:
                     text = w.word.strip()
+                    # Whisper splits "GPT-5.5" / "80%" into "GPT-5" + ".5" / "80" + "%".
+                    if words and text and text[0] in ".%," and w.start - words[-1]["end"] < 0.15:
+                        words[-1]["text"] += text
+                        words[-1]["end"] = float(w.end)
+                        continue
                     if text:
                         words.append({
                             "text": text,
@@ -626,49 +745,6 @@ def choose_music(script):
     return tracks[index]
 
 
-def _ffmpeg_text(text: str) -> str:
-    """Escape text for the drawtext filter while preserving explicit line breaks.
-
-    Every special character that FFmpeg's ``-filter_complex`` parser treats
-    as a structural delimiter must be escaped:
-
-    * ``\`` → ``\\``  (backslash itself, first)
-    * ``'`` → ``\x27`` (apostrophe — \' breaks out of single-quote context)
-    * ``:`` → ``\:``  (option separator)
-    * ``,`` → ``\,``  (filter-chain separator inside -filter_complex)
-    * ``\n`` → ``\n`` (literal newline in the rendered caption)
-
-    The order matters: backslash must be escaped first, otherwise the
-    inserted ``\`` characters from later replacements would themselves be
-    re-escaped.
-    """
-    return (text.replace("\\", r"\\").replace("'", r"\x27").replace(":", r"\:")
-                .replace(",", r"\,").replace("\n", r"\n"))
-
-
-def _ffmpeg_path(path: Path) -> str:
-    return str(path).replace("\\", r"\\").replace(":", r"\:").replace("'", r"\'")
-
-
-def _wrap_text(text: str, limit: int) -> str:
-    words, lines, line = (text or "").split(), [], ""
-    for word in words:
-        proposed = f"{line} {word}".strip()
-        if line and len(proposed) > limit:
-            lines.append(line)
-            line = word
-        else:
-            line = proposed
-    if line:
-        lines.append(line)
-    return "\n".join(lines[:3])
-
-
-def _append_filter(filters, source_label, filter_body, target_label):
-    filters.append(f"[{source_label}]{filter_body}[{target_label}]")
-    return target_label
-
-
 def _source_credits(sources):
     seen, credits = set(), []
     for source in sources:
@@ -690,104 +766,151 @@ def _with_attribution(platform, sources):
     return output
 
 
-def _build_word_caption_filters(words, size, cfg=None):
-    """Build FFmpeg drawtext filters for word-by-word bottom captions.
+FONT_DIR = ROOT / "assets" / "fonts"
+DEFAULT_GRADE = ("eq=contrast=1.08:saturation=1.06:gamma=0.98,"
+                 "colorbalance=rs=-0.03:bs=0.04:rh=0.04:bh=-0.03,"
+                 "vignette=PI/5")
 
-    Each word is displayed individually at the bottom of the screen, timed
-    to its Whisper word-level start/end.  No background box — just clean
-    white text with a black shadow/outline for readability over any footage.
-    """
+
+def _ass_time(seconds: float) -> str:
+    centis = max(0, int(round(seconds * 100)))
+    hours, centis = divmod(centis, 360000)
+    minutes, centis = divmod(centis, 6000)
+    secs, centis = divmod(centis, 100)
+    return f"{hours}:{minutes:02}:{secs:02}.{centis:02}"
+
+
+def _ass_clean(text: str) -> str:
+    return re.sub(r"[{}\\]", "", text or "").strip()
+
+
+def _caption_chunks(words, max_words, max_chars):
+    """Group words into 1-3 word punches that break on punctuation and pauses."""
+    chunks, current = [], []
+    for i, word in enumerate(words):
+        current.append(word)
+        text_len = len(" ".join(w["text"] for w in current))
+        nxt = words[i + 1] if i + 1 < len(words) else None
+        pause = nxt is not None and nxt["start"] - word["end"] > 0.35
+        punct = word["text"][-1:] in ".,!?;:"
+        too_long = nxt is not None and text_len + 1 + len(nxt["text"]) > max_chars
+        if len(current) >= max_words or pause or punct or too_long or nxt is None:
+            chunks.append(current)
+            current = []
+    return chunks
+
+
+def write_ass_captions(words, size, out_path, cfg=None):
+    """Animated karaoke captions: bold condensed type, the spoken word lights up."""
     width, height = size["w"], size["h"]
-    if not words:
-        return []
-
-    # Font size: larger for vertical (9:16) videos, smaller for horizontal
-    font_size = 56 if height > width else 40
-
-    # Keep vertical captions above TikTok/Reels/Facebook UI chrome. Horizontal
-    # captions stay in a conventional lower-third position.
+    vertical = height > width
     video_cfg = (cfg or {}).get("video", {})
-    if height > width:
-        margin_from_bottom = int(video_cfg.get("caption_margin_v", max(180, height * 0.12)))
-    else:
-        margin_from_bottom = int(video_cfg.get("caption_margin_h", max(60, height * 0.05)))
-    margin_from_bottom = min(max(48, margin_from_bottom), max(48, height - 48))
-    y_expr = f"h-{margin_from_bottom}"
+    font = video_cfg.get("caption_font", "Anton")
+    font_size = int(video_cfg.get("caption_size_v" if vertical else "caption_size_h",
+                                  104 if vertical else 78))
+    margin_v = int(video_cfg.get("caption_margin_v" if vertical else "caption_margin_h",
+                                 560 if vertical else 110))
+    highlight = video_cfg.get("caption_highlight", "&H0035E1FF")  # ASS is BGR: #FFE135
+    outline = 6 if vertical else 4.5
+    header = (
+        "[Script Info]\nScriptType: v4.00+\nWrapStyle: 0\nScaledBorderAndShadow: yes\n"
+        f"PlayResX: {width}\nPlayResY: {height}\n\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, "
+        "BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, "
+        "BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        f"Style: Cap,{font},{font_size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,"
+        f"0,0,0,0,100,100,1,0,1,{outline},3,2,60,60,{margin_v},1\n\n"
+        "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    )
+    lines = []
+    clean = [dict(w, text=_ass_clean(w["text"]).upper()) for w in words if _ass_clean(w["text"])]
+    chunks = _caption_chunks(clean, 3, 18 if vertical else 28)
+    for c_index, chunk in enumerate(chunks):
+        next_start = chunks[c_index + 1][0]["start"] if c_index + 1 < len(chunks) else None
+        chunk_end = chunk[-1]["end"] + 0.35
+        if next_start is not None:
+            chunk_end = min(chunk_end, next_start)
+        for w_index, word in enumerate(chunk):
+            start = word["start"] if w_index else chunk[0]["start"]
+            end = chunk[w_index + 1]["start"] if w_index + 1 < len(chunk) else chunk_end
+            if end <= start:
+                continue
+            parts = []
+            for k, other in enumerate(chunk):
+                if k == w_index:
+                    parts.append(f"{{\\c{highlight}&\\fscx108\\fscy108}}{other['text']}"
+                                 f"{{\\c&H00FFFFFF&\\fscx100\\fscy100}}")
+                else:
+                    parts.append(other["text"])
+            pop = "{\\fscx82\\fscy82\\t(0,90,\\fscx100\\fscy100)}" if w_index == 0 else ""
+            lines.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,"
+                         f"{pop}{' '.join(parts)}")
+    out_path = Path(out_path)
+    out_path.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
+    return out_path
 
-    filters = []
-    for i, word_info in enumerate(words):
-        text = word_info["text"]
-        start = word_info["start"]
-        end = word_info["end"]
 
-        safe_text = _ffmpeg_text(text)
-        # Escape commas in the enable expression — FFmpeg treats commas as
-        # filter-chain separators inside -filter_complex, so ``between(t,1.0,2.0)``
-        # without escaping is parsed as three separate arguments.
-        enable_expr = f"between(t\\,{start:.3f}\\,{end:.3f})"
-
-        filter_opts = [
-            f"fontfile={FONT_FILE}",
-            f"text={safe_text}",
-            "expansion=none",
-            "fontcolor=white",
-            f"fontsize={font_size}",
-            "x=(w-text_w)/2",
-            f"y={y_expr}",
-            "shadowcolor=black@0.85",
-            "shadowx=2",
-            "shadowy=2",
-            "borderw=2",
-            "bordercolor=black@0.75",
-            f"enable={enable_expr}",
-        ]
-        filters.append("drawtext=" + ":".join(filter_opts))
-
-    return filters
+def master_voice(voice_path, tag=""):
+    """Broadcast-style voice chain: rumble cut, de-ess, glue compression, -16 LUFS."""
+    out = OUT / f"voice_master{tag}.wav"
+    chain = ("highpass=f=80,deesser=i=0.35,"
+             "acompressor=threshold=-18dB:ratio=3:attack=8:release=160:makeup=2,"
+             "equalizer=f=3200:t=q:w=1.2:g=2,"
+             "loudnorm=I=-16:TP=-1.5:LRA=9,aresample=48000")
+    try:
+        run(["ffmpeg", "-y", "-v", "error", "-i", str(voice_path), "-af", chain,
+             "-ac", "1", str(out)])
+        if out.exists() and out.stat().st_size > 1024:
+            return out
+    except subprocess.CalledProcessError as exc:
+        log(f"voice mastering skipped ({exc})")
+    return voice_path
 
 
-def finalize(video_path, voice_path, word_timings, music, size, out_path, cfg, scene_assets, hook_text, total_duration):
-    """Burn word-by-word captions at the bottom of the video, then mix a ducked music bed.
-
-    No text overlays cover the video: no hook card, no data lower-third, no end card.
-    Captions are the ONLY on-screen text and they appear word-by-word at the bottom.
-    """
-    inputs = ["-i", str(video_path), "-i", str(voice_path)]
+def finalize(video_path, voice_path, word_timings, music, size, out_path, cfg, scene_assets,
+             hook_text, total_duration, grade=None):
+    """Grade the montage, burn animated captions, then mix and master the audio."""
+    fps = cfg.get("video", {}).get("fps", 30)
+    inputs = ["-i", str(Path(video_path).resolve()), "-i", str(Path(voice_path).resolve())]
     if music:
-        inputs += ["-stream_loop", "-1", "-i", str(music)]
+        inputs += ["-stream_loop", "-1", "-i", str(Path(music).resolve())]
 
-    filters, video_label, label_count = [], "0:v", 0
-
-    def add_video_filter(body):
-        nonlocal video_label, label_count
-        label_count += 1
-        target = f"v{label_count}"
-        video_label = _append_filter(filters, video_label, body, target)
-
-    # Word-by-word bottom captions (no box, no background, just clean text)
+    video_chain = [grade or DEFAULT_GRADE]
     if word_timings:
-        word_filters = _build_word_caption_filters(word_timings, size, cfg)
-        for wf in word_filters:
-            add_video_filter(wf)
+        ass = write_ass_captions(word_timings, size, OUT / f"captions_{size['w']}x{size['h']}.ass", cfg)
+        fonts = Path(os.path.relpath(FONT_DIR, OUT)).as_posix()
+        video_chain.append(f"subtitles={ass.name}:fontsdir={fonts}")
+    filters = [f"[0:v]{','.join(video_chain)},format=yuv420p[vout]"]
 
-    audio_label = "1:a"
+    total = f"{total_duration:.3f}"
     if music:
-        volume = cfg.get("video", {}).get("music_volume", 0.1)
-        filters.append(f"[2:a]volume={volume}[bg]")
-        filters.append("[bg][1:a]sidechaincompress=threshold=0.03:ratio=8:attack=5:release=300[duck]")
-        filters.append("[1:a][duck]amix=inputs=2:duration=first:dropout_transition=2[aout]")
-        audio_label = "aout"
-
-    cmd = ["ffmpeg", "-y", *inputs]
-    if filters:
-        video_map = f"[{video_label}]" if video_label != "0:v" else "0:v"
-        audio_map = f"[{audio_label}]" if audio_label != "1:a" else "1:a"
-        cmd += ["-filter_complex", ";".join(filters), "-map", video_map, "-map", audio_map]
+        volume = cfg.get("video", {}).get("music_volume", 0.12)
+        fade_out = max(total_duration - 2.5, 0)
+        filters += [
+            f"[1:a]aresample=48000,apad,atrim=0:{total},asplit=2[vmain][vkey]",
+            f"[2:a]aresample=48000,atrim=0:{total},highpass=f=50,"
+            f"equalizer=f=3000:t=q:w=1.5:g=-5,volume={volume},"
+            f"afade=t=in:d=1.2,afade=t=out:st={fade_out:.3f}:d=2.5[bg]",
+            "[bg][vkey]sidechaincompress=threshold=0.02:ratio=6:attack=20:release=400[duck]",
+            "[vmain][duck]amix=inputs=2:duration=first:normalize=0,"
+            "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000[aout]",
+        ]
     else:
-        cmd += ["-map", "0:v", "-map", "1:a"]
-    cmd += ["-c:v", "libx264", "-preset", "fast", "-crf", "22", "-c:a", "aac",
-            "-movflags", "+faststart", "-shortest", str(out_path)]
-    run(cmd)
+        filters.append(f"[1:a]aresample=48000,apad,atrim=0:{total},"
+                       "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000[aout]")
+
+    cmd = ["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", ";".join(filters),
+           "-map", "[vout]", "-map", "[aout]",
+           # Capped bitrate: platforms re-encode anyway, and a lean master uploads fast.
+           "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-maxrate", "12M",
+           "-bufsize", "24M", "-profile:v", "high",
+           "-pix_fmt", "yuv420p", "-r", str(fps), "-g", str(fps * 2),
+           "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
+           "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+           "-movflags", "+faststart", "-t", total, str(Path(out_path).resolve())]
+    # libass resolves the caption file and font folder relative to OUT.
+    run(cmd, cwd=str(OUT))
     return out_path
 
 
@@ -795,16 +918,20 @@ def finalize(video_path, voice_path, word_timings, music, size, out_path, cfg, s
 
 def render_variant(name, narration, script, cfg, scene_assets, music):
     tag = "" if name == "vertical" else "_yt"
-    voice, duration = make_voice(narration, cfg, tag)
-    # Use word-level transcription instead of SRT-based captions
-    word_timings = transcribe_words(voice) if cfg["video"].get("captions") else None
+    voice, duration, word_timings, provider = make_voice(narration, cfg, tag)
+    if word_timings is None and cfg["video"].get("captions"):
+        word_timings = transcribe_words(voice)
+    voiced = master_voice(voice, tag)
+    total = duration + float(cfg["video"].get("tail_seconds", 0.6))
     size = cfg["video"][name]
     montage = OUT / f"montage_{name}.mp4"
     final_path = OUT / ("video_9x16.mp4" if name == "vertical" else "video_16x9.mp4")
-    build_clip(scene_assets, duration, size, cfg["video"]["fps"], montage)
-    finalize(montage, voice, word_timings, music, size, final_path, cfg, scene_assets,
-             script.get("hook"), duration)
-    return final_path, duration, word_timings
+    windows = scene_windows(word_timings, narration, len(scene_assets), total)
+    build_clip(scene_assets, windows, size, cfg["video"]["fps"], montage, cfg, total)
+    captions = word_timings if cfg["video"].get("captions") else None
+    finalize(montage, voiced, captions, music, size, final_path, cfg, scene_assets,
+             script.get("hook"), total, grade=script.get("grade"))
+    return final_path, total, word_timings, provider
 
 
 def main():
@@ -817,7 +944,7 @@ def main():
     vertical_assets, vertical_sources = fetch_scene_assets(script, cfg, "vertical")
     music = choose_music(script) if cfg["video"].get("music") else None
 
-    vertical, vertical_duration, _vertical_words = render_variant(
+    vertical, vertical_duration, _vertical_words, provider = render_variant(
         "vertical", script["narration"], script, cfg, vertical_assets, music)
     videos = {"vertical": str(vertical)}
     asset_sources = {"vertical": vertical_sources}
@@ -825,7 +952,7 @@ def main():
 
     if cfg["video"].get("make_horizontal"):
         horizontal_assets, horizontal_sources = fetch_scene_assets(script, cfg, "horizontal")
-        horizontal, horizontal_duration, _horizontal_words = render_variant(
+        horizontal, horizontal_duration, _horizontal_words, _ = render_variant(
             "horizontal", script.get("narration_yt") or script["narration"], script,
             cfg, horizontal_assets, music)
         videos["horizontal"] = str(horizontal)
@@ -841,9 +968,10 @@ def main():
         "duration": vertical_duration,
         "horizontal_duration": horizontal_duration,
         "assets": asset_sources,
+        "voice_provider": provider,
     }
     write_json("render.json", output)
-    log("Render complete.")
+    log(f"Render complete (voice: {provider}).")
 
 
 if __name__ == "__main__":

@@ -31,13 +31,16 @@ script:
   # Short, curiosity-driven, clickbait-style hooks that open a loop the viewer has
   # to keep watching (and click through to the blog) to close.
   hook_styles:
-    - "This is the financial secret about {topic} they don't want you to know."
-    - "Stop wasting money on old tech — {topic} is the 2026 game changer."
-    - "I found a way to automate {topic} for free, and it's absolute magic."
-    - "Most creators are failing at {topic} because they're missing this one thing."
-    - "Wait until you see how {topic} just disrupted the entire industry."
-    - "This is why {topic} is the most profitable skill you can learn in 2026."
-    - "I replaced my entire workflow with {topic} and the results are insane."
+    # Curiosity hooks that stay TRUE to the article (misleading hooks get flagged
+    # by YouTube/Meta and kill watch-time once viewers feel baited). {topic} is a
+    # clause or noun phrase, so every template treats it as a standalone statement.
+    - "{topic}. And almost nobody is explaining why it matters."
+    - "Stop scrolling for a second — {topic}. Here's what that really means."
+    - "{topic}. Give me sixty seconds and you'll understand it better than most people."
+    - "Big shift: {topic}. Here's what's actually going on."
+    - "You've probably heard the headline — {topic}. Here's the real story."
+    - "{topic}. This changes more than you'd think."
+    - "If you work with AI, you need to know this: {topic}."
   # Mid-video PATTERN INTERRUPTS (rotated per post): re-open the curiosity loop at
   # ~40% in — exactly where short-form drop-off peaks. Spoken by the narrator.
   rehooks:
@@ -53,17 +56,34 @@ script:
   # {sub_or_follow} is filled per platform (YouTube -> "subscribe", else "follow").
   cta: "But that's only the start of the story. Tap the link to read the full breakdown on the blog — and if this opened your eyes, {sub_or_follow} so you never miss the next one."
 
-# ---- Voice (edge-tts). Run `edge-tts --list-voices` to see all, free. ----
-# Warm, calm MALE voice to match the male avatar. Alternatives:
-#   en-US-GuyNeural (mature/pro), en-US-AndrewNeural (warm), en-GB-RyanNeural (British)
+# ---- Voice ----
+# provider: elevenlabs -> ElevenLabs (needs the ELEVENLABS_API_KEY repo secret).
+# If ElevenLabs is unavailable the render falls back to the edge-tts voice below,
+# so a missing key or exhausted credits never block a post.
 voice:
-  name: "en-US-AndrewNeural"   # Warm, engaging male voice for higher retention
-  rate: "+0%"                  # natural pace (was +6%) for a calmer delivery
+  provider: "elevenlabs"
+  elevenlabs:
+    # Shortlist (swap voice_id to change the narrator; ELEVENLABS_VOICE_ID secret overrides):
+    #   Brian  nPczCjzI2devNBz1zQrb  deep, confident narrator (default)
+    #   Adam   pNInz6obpgDQGcFmaJgB  deep, dramatic
+    #   Daniel onwK4e9ZLuTAKqWW03F9  British, authoritative newsreader
+    #   George JBFqnCBsd6RMkjVDRZzb  warm British storyteller
+    #   Liam   TX3LPaxmHKxFdv7VOQHJ  young, energetic
+    voice_id: "nPczCjzI2devNBz1zQrb"
+    model_id: "eleven_multilingual_v2"
+    stability: 0.42          # lower = more expressive delivery
+    similarity_boost: 0.80
+    style: 0.30              # adds energy; keep <= 0.45 to avoid over-acting
+    use_speaker_boost: true
+    speed: 1.05              # slightly brisk for short-form pacing
+  # ---- edge-tts fallback ----
+  name: "en-US-AndrewNeural"
+  rate: "+0%"
   pitch: "+0Hz"
-  # ---- Authorized cloned voice (OpenVoice v2) ----
-  clone: true
-  clone_required: true         # never substitute an American, UK, or gTTS voice
-  clone_base_speaker: "EN-Default"  # neutral base before authorized tone-color conversion
+  # ---- Authorized cloned voice (OpenVoice v2) — retired in favour of ElevenLabs ----
+  clone: false
+  clone_required: false
+  clone_base_speaker: "EN-Default"
   reference_url: ""
   reference_path: ".pipeline/private_voice/authorized_reference.mp3"
   clone_speed: 1.08
@@ -73,8 +93,8 @@ visuals:
   # When set, the ENTIRE video is just this one image (gentle Ken Burns) + captions +
   # voiceover — no AI scene montage. Empty "" = normal multi-scene montage (current).
   single_image: ""
-  scenes: 10                   # ~7–10s per visual over a ~75s video; fewer, stronger beats
-                               # keep the reference video's deliberate explanatory rhythm
+  scenes: 12                   # one footage brief per ~6s of narration; each scene is
+                               # further cut into ~2.6s shots (video.shot_seconds)
   model: "flux"
   # style_suffix is now ONLY used as a fallback for any post that bypasses build_script.make_scenes().
   # The main cinematic scene logic in build_script.py uses topic-specific visual profiles
@@ -89,15 +109,19 @@ video:
   horizontal: { w: 1920, h: 1080 } # YouTube main
   make_horizontal: true
   captions: true                    # burn-in subtitles (huge for retention)
-  caption_margin_v: 220             # vertical safe zone above Reels/TikTok UI chrome
-  caption_margin_h: 70              # horizontal lower-third margin
+  caption_margin_v: 560             # vertical: captions sit ~70% down, clear of TikTok/Reels UI
+  caption_margin_h: 110             # horizontal lower-third margin
+  caption_font: "Anton"             # shipped in assets/fonts (SIL OFL)
+  caption_size_v: 104
+  caption_size_h: 78
+  caption_highlight: "&H0035E1FF"   # active-word colour, ASS BGR order (= #FFE135)
+  shot_seconds: 2.6                 # max time on one shot before cutting to a new angle
+  tail_seconds: 0.6                 # breathing room after the last word
   music: true
-  music_volume: 0.12
+  music_volume: 0.14                # pre-duck level; sidechain pulls it under the voice
   # ---- Caption style ----
-  # Captions are word-by-word at the bottom of the video (no box, no background bar).
-  # No text overlays cover the video — captions are the only on-screen text.
-  # The hook_text from the script is now used as the YouTube/Instagram caption text,
-  # not burned into the video as a title card.
+  # Animated 1-3 word karaoke captions, the spoken word highlighted. Captions are
+  # the only on-screen text — no hook card, lower third, or end card.
 
 # ---- Talking avatar (Wav2Lip, runs inside the GitHub runner — no external Space) ----
 # Needs the HF_TOKEN secret (to download weights) + an avatar image at the path below.
@@ -189,5 +213,5 @@ limits:
   reddit_subreddits: []        # e.g. ["CryptoCurrency"] — only subs that allow self-promo
 
 hashtags:
-  base: ["#crypto", "#GameFi", "#web3", "#AInews"]
+  base: ["#AI", "#AItools", "#AInews", "#tech"]
   max: 8

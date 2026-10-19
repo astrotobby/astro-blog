@@ -1,11 +1,13 @@
 """Stage 2: turn the post into a narration script + per-scene image prompts.
 
-Extractive + template based (no paid LLM needed). If ANTHROPIC_API_KEY is set
-it will optionally polish the hook, but it is NOT required.
+Extractive + template based (no paid LLM needed). If ANTHROPIC_API_KEY is set,
+Claude rewrites the extractive draft into a spoken voiceover script (same facts,
+same hook, re-hook and mid-CTA); any failure keeps the extractive draft.
 
 Usage: python scripts/build_script.py .pipeline/post.json
 """
 import argparse
+import hashlib
 import re
 
 from common import load_config, log, read_json, write_json
@@ -61,9 +63,9 @@ TOPIC_VISUAL_PROFILES = {
             "abstract data breach visualization, red particle streams on black",
             "encrypted data tunnel, glowing green matrix-style, documentary style",
         ],
-        "grade": "eq=contrast=1.18:saturation=1.10:brightness=-0.02:gamma=0.95,"
+        "grade": "eq=contrast=1.10:saturation=1.04:brightness=-0.02:gamma=0.95,"
                  "colorbalance=rs=0.06:bs=-0.04:rh=0.04:bh=-0.05,"
-                 "vignette=PI/4,unsharp=5:5:0.7:5:5:0.0,noise=alls=4:allf=t",
+                 "vignette=PI/4,unsharp=5:5:0.7:5:5:0.0",
     },
     "healthcare": {
         "signals": ["healthcare", "health", "medical", "hospital", "patient", "clinical",
@@ -77,7 +79,7 @@ TOPIC_VISUAL_PROFILES = {
         ],
         "grade": "eq=contrast=1.10:saturation=0.95:brightness=0.03:gamma=1.02,"
                  "colorbalance=rs=-0.05:bs=0.07:rh=-0.03:bh=0.04,"
-                 "vignette=PI/6,unsharp=5:5:0.5:5:5:0.0,noise=alls=3:allf=t",
+                 "vignette=PI/6,unsharp=5:5:0.5:5:5:0.0",
     },
     "finance": {
         "signals": ["finance", "payment", "fintech", "banking", "transaction", "revenue",
@@ -90,9 +92,9 @@ TOPIC_VISUAL_PROFILES = {
             "bank vault or secure server room, deep shadow, gold accent lighting",
             "global financial network visualization, aerial perspective, warm tones",
         ],
-        "grade": "eq=contrast=1.15:saturation=1.20:brightness=0.01:gamma=0.98,"
+        "grade": "eq=contrast=1.08:saturation=1.10:brightness=0.01:gamma=0.98,"
                  "colorbalance=rs=0.05:bs=-0.06:rh=0.07:bh=-0.04,"
-                 "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0,noise=alls=4:allf=t",
+                 "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0",
     },
     "automation": {
         "signals": ["automation", "automate", "workflow", "no-code", "nocode",
@@ -105,9 +107,9 @@ TOPIC_VISUAL_PROFILES = {
             "futuristic engineer wearing AR glasses interacting with a complex 3D automation grid, volumetric lighting",
             "stunning bird's-eye view of a fully automated smart city at night, glowing light trails, cinematic drone shot",
         ],
-        "grade": "eq=contrast=1.12:saturation=1.18:brightness=0.02:gamma=0.97,"
+        "grade": "eq=contrast=1.12:saturation=1.08:brightness=0.02:gamma=0.97,"
                  "colorbalance=rs=-0.03:bs=0.04:rh=0.04:bh=-0.05,"
-                 "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0,noise=alls=5:allf=t",
+                 "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0",
     },
     "llm_model": {
         "signals": ["llm", "gpt", "claude", "gemini", "model", "language model",
@@ -120,9 +122,9 @@ TOPIC_VISUAL_PROFILES = {
             "vibrant explosion of digital tokens forming a DNA helix, abstract data art, high energy",
             "visionary scientist witnessing the birth of an AGI inside a glowing glass chamber, dramatic lighting",
         ],
-        "grade": "eq=contrast=1.13:saturation=1.24:brightness=0.02:gamma=0.97,"
+        "grade": "eq=contrast=1.08:saturation=1.10:brightness=0.02:gamma=0.97,"
                  "colorbalance=rs=-0.04:bs=0.05:rh=0.05:bh=-0.06,"
-                 "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0,noise=alls=5:allf=t",
+                 "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0",
     },
     "general_ai": {
         "signals": ["ai", "artificial intelligence", "machine learning", "agent",
@@ -134,9 +136,9 @@ TOPIC_VISUAL_PROFILES = {
             "city skyline with AI infrastructure overlay, aerial cinematic shot",
             "person interacting with AI interface, shallow depth of field, warm tones",
         ],
-        "grade": "eq=contrast=1.13:saturation=1.24:brightness=0.02:gamma=0.97,"
+        "grade": "eq=contrast=1.08:saturation=1.10:brightness=0.02:gamma=0.97,"
                  "colorbalance=rs=-0.04:bs=0.05:rh=0.05:bh=-0.06,"
-                 "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0,noise=alls=5:allf=t",
+                 "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0",
     },
 }
 
@@ -210,6 +212,17 @@ CONCRETE_FOOTAGE_MATCHES = (
     (("renewable energy", "solar", "wind turbine", "power grid"), "renewable energy technology"),
     (("classroom", "student", "education", "teacher"), "student using laptop classroom"),
     (("video editing", "content creator", "creator economy"), "content creator video editing"),
+)
+
+# Visually distinct, still on-topic subjects used when a post keeps naming the same
+# concept. Without this a 12-scene AI story can request "software developer laptop"
+# ten times and the whole video looks like one shot.
+FOOTAGE_VARIETY_POOL = (
+    "programmer typing code close up", "data center server racks", "computer microchip macro",
+    "engineers looking at monitors", "team meeting modern office", "person using smartphone app",
+    "robotic arm factory", "analytics dashboard screen", "city skyline night timelapse",
+    "hands typing keyboard", "startup team whiteboard", "circuit board close up",
+    "woman working on laptop cafe", "network cables server room", "presentation in conference room",
 )
 
 # Scene type modifiers — applied on top of the topic visual language.
@@ -425,7 +438,7 @@ def build_narration(post, cfg):
     budget = int(target * wpm / 60)  # total words
 
     topic = clean_topic(post["title"])
-    seed = hash(post["slug"])
+    seed = int(hashlib.sha256(post["slug"].encode("utf-8")).hexdigest()[:8], 16)
     hook_tpl = sc["hook_styles"][seed % len(sc["hook_styles"])]
     hook = hook_tpl.format(topic=topic)
     hook = hook[0].upper() + hook[1:] if hook else hook  # capitalise sentence start
@@ -623,7 +636,7 @@ def _scene_keywords(segment: str, post_title: str, n_kw: int = 3) -> str:
     return " ".join(top) if top else post_title.lower()
 
 
-def make_scenes(post, cfg):
+def make_scenes(post, cfg, narration=None):
     """Generate cinematic, semantically-typed scene prompts.
 
     Each scene prompt is built from:
@@ -639,7 +652,7 @@ def make_scenes(post, cfg):
     # Use the actual vertical/follow narration for segmentation. `narration` already
     # begins with the hook, so prepending it again would make early visual beats track
     # a duplicated sentence instead of the spoken voiceover.
-    _hook, full_narration, _ = build_narration(post, cfg)
+    full_narration = narration or build_narration(post, cfg)[1]
 
     # Detect topic category and load its visual profile
     cat = detect_topic_category(post)
@@ -649,7 +662,7 @@ def make_scenes(post, cfg):
     # Segment the narration into n parts
     segments = _segment_narration(full_narration, n)
 
-    prompts = []
+    prompts, used_queries = [], set()
     for i, segment in enumerate(segments):
         scene_type = _classify_scene(i, n, segment, full_narration)
         type_modifier = SCENE_TYPE_MODIFIERS[scene_type]
@@ -663,6 +676,13 @@ def make_scenes(post, cfg):
         # fallback. The visual prompt remains available only if all footage sources fail.
         seg_kws = _scene_keywords(segment, post["title"])
         broll_query, fallback_query = _footage_brief(segment, cat, scene_type)
+        if broll_query in used_queries:
+            profile_pool = FOOTAGE_BROLL_PROFILES.get(cat, FOOTAGE_BROLL_PROFILES["general_ai"])["fallbacks"]
+            pool = [q for q in (*profile_pool, *FOOTAGE_VARIETY_POOL) if q not in used_queries]
+            if pool:
+                fallback_query = broll_query
+                broll_query = pool[(i * 7) % len(pool)]
+        used_queries.add(broll_query)
         shot_variant = SCENE_SHOT_VARIANTS.get(scene_type, "editorial action shot")
         broll_query = _metadata_value(f"{broll_query} {shot_variant}")
         fallback_query = _metadata_value(f"{fallback_query} {shot_variant}")
@@ -681,6 +701,68 @@ def make_scenes(post, cfg):
         log(f"scene {i} [{scene_type}] broll={broll_query!r} fallback={fallback_query!r}")
 
     return prompts
+
+
+REWRITE_SYSTEM = """You write voiceover scripts for short vertical videos that promote blog articles.
+The script is read aloud by a single narrator, so it must sound like natural speech:
+short sentences, active voice, contractions, one idea per sentence, a clear arc from
+the hook to the payoff. Use only facts stated in the article; never invent numbers,
+names, quotes or claims. No markdown, lists, emojis, hashtags, URLs or stage
+directions. Output the script text only."""
+
+
+def rewrite_narration(post, cfg, hook):
+    """Have Claude turn the article into a spoken script. Returns None on any failure."""
+    import os
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return None
+    sc = cfg["script"]
+    words = int(sc["target_seconds"] * sc["words_per_minute"] / 60)
+    cta_words = len(sc["cta"].split())
+    budget = max(60, words - cta_words)
+    rehooks = sc.get("rehooks") or []
+    seed = int(hashlib.sha256(post["slug"].encode("utf-8")).hexdigest()[:8], 16)
+    rehook = rehooks[seed % len(rehooks)] if rehooks else ""
+    mid_cta = sc.get("mid_cta", "")
+    article = (post.get("body") or "")[:14000]
+    prompt = (
+        f"Article title: {post['title']}\n"
+        f"Article summary: {post.get('description', '')}\n\n"
+        f"<article>\n{article}\n</article>\n\n"
+        f"Write a voiceover script of about {budget} words.\n"
+        f"- The first sentence must be exactly: {hook}\n"
+        f"- Around 40% of the way in, include this line verbatim: {rehook}\n"
+        f"- Around 65% of the way in, include this line verbatim: {mid_cta}\n"
+        "- End on the article's most useful takeaway. Do not add a closing call to action; "
+        "one is appended automatically."
+    )
+    try:
+        import anthropic
+        client = anthropic.Anthropic()
+        response = client.beta.messages.create(
+            model=cfg.get("script", {}).get("rewrite_model", "claude-opus-5-5"),
+            max_tokens=16000,
+            system=REWRITE_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            betas=["server-side-fallback-2026-07-01"],
+            fallbacks="default",
+            output_config={"effort": "medium"},
+        )
+        if response.stop_reason in ("refusal", "max_tokens"):
+            log(f"narration rewrite stopped ({response.stop_reason}); keeping extractive script")
+            return None
+        text = " ".join(b.text for b in response.content if b.type == "text")
+    except Exception as exc:  # noqa
+        log(f"narration rewrite skipped ({exc})")
+        return None
+    text = " ".join(text.split())
+    count = len(text.split())
+    if (not text.startswith(hook[:24]) or not (0.6 * budget <= count <= 1.35 * budget)
+            or re.search(r"https?://|[#*_`]", text)):
+        log(f"narration rewrite rejected ({count} words); keeping extractive script")
+        return None
+    log(f"narration rewritten by Claude: {count} words")
+    return text
 
 
 def platform_text(post, cfg):
@@ -713,7 +795,13 @@ def main():
     post = read_json(args.post_json)
 
     hook, narration, narration_yt = build_narration(post, cfg)
-    scenes = make_scenes(post, cfg)
+    spoken = rewrite_narration(post, cfg, hook)
+    if spoken:
+        cta = cfg["script"]["cta"]
+        narration = f"{spoken} {cta.format(sub_or_follow='follow')}"
+        narration_yt = f"{spoken} {cta.format(sub_or_follow='subscribe')}"
+    scenes = make_scenes(post, cfg, narration)
+    category = detect_topic_category(post)
     ptext = platform_text(post, cfg)
 
     out = {
@@ -722,6 +810,8 @@ def main():
         "narration": narration,          # vertical cut (TikTok/IG/FB/X) -> "follow"
         "narration_yt": narration_yt,    # horizontal cut (YouTube) -> "subscribe"
         "scene_prompts": scenes,
+        "topic_category": category,
+        "grade": TOPIC_VISUAL_PROFILES[category]["grade"],
         "platform": ptext,
         "est_words": len(narration.split()),
     }

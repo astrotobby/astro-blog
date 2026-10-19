@@ -146,5 +146,36 @@ class FootageBriefTests(unittest.TestCase):
         self.assertNotIn("Pixabay: Ben", result["yt_desc"])
 
 
+class VoiceAndEditTimingTests(unittest.TestCase):
+    def test_elevenlabs_alignment_becomes_word_timings(self):
+        import tts_elevenlabs
+        alignment = {
+            "characters": list("Hi there."),
+            "character_start_times_seconds": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+            "character_end_times_seconds": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+        }
+        words = tts_elevenlabs.alignment_to_words(alignment)
+        self.assertEqual([w["text"] for w in words], ["Hi", "there."])
+        self.assertEqual((words[1]["start"], words[1]["end"]), (0.3, 0.9))
+
+    def test_scene_cuts_follow_spoken_words(self):
+        narration = "one two three four five six seven eight"
+        words = [{"text": t, "start": i * 1.0, "end": i * 1.0 + 0.8}
+                 for i, t in enumerate(narration.split())]
+        windows = generate_video.scene_windows(words, narration, 4, 8.5)
+        self.assertEqual(len(windows), 4)
+        self.assertEqual(windows[0][0], 0.0)
+        # Scene 2 starts on word 3 ("three", spoken at 2.0s), a beat early.
+        self.assertAlmostEqual(windows[1][0], 1.92, places=2)
+        self.assertEqual(windows[-1][1], 8.5)
+
+    def test_captions_break_on_punctuation_and_cap_length(self):
+        words = [{"text": t, "start": i * 0.3, "end": i * 0.3 + 0.25}
+                 for i, t in enumerate("THIS IS BIG. AGENTS NOW RUN REAL WORK".split())]
+        chunks = generate_video._caption_chunks(words, 3, 18)
+        self.assertEqual([" ".join(w["text"] for w in c) for c in chunks],
+                         ["THIS IS BIG.", "AGENTS NOW RUN", "REAL WORK"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -59,7 +59,7 @@ concurrency:
 jobs:
   render-and-post:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120  # multi-shot edit + two masters per post; up to 3 posts per run
     steps:
       - uses: actions/checkout@v4
         with:
@@ -194,6 +194,11 @@ jobs:
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+          # Narration voice (ElevenLabs). Missing key -> free edge-tts fallback.
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+          # Optional: Claude rewrites the extractive draft into a spoken script.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # Primary footage provider plus Pixabay fallback. Both values remain GitHub Actions secrets.
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
@@ -237,7 +242,7 @@ jobs:
       # if: always() so this still runs (and the ledger is still persisted) even
       # if the pipeline step above failed or a post errored out — the only case
       # it can't run is a hard timeout-cancellation of the whole job, which the
-      # per-run post cap (MAX_POSTS_PER_RUN in run_pipeline.py) + the 60-minute
+      # per-run post cap (MAX_POSTS_PER_RUN in run_pipeline.py) + the 120-minute
       # budget above are sized to avoid in normal operation.
       - name: Save pipeline state
         if: always()
