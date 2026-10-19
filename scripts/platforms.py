@@ -9,7 +9,7 @@ DEFERRED (need platform app review): Instagram, Facebook, LinkedIn
 — see HONEST-LIMITS.md. The workflow saves the rendered Reels as artifacts so
 you can hand-upload those until their apps are approved.
 """
-from common import (OUT, env, ig_token, log, save_tiktok_refresh,
+from common import (OUT, STATE, cached_token, env, ig_token, log, save_tiktok_refresh,
                     tiktok_refresh_token)
 
 
@@ -196,7 +196,7 @@ def _host_public_url(video_path, slug):
 # token. Video must be a PUBLIC url (hosted above). 3-step: container -> wait -> publish.
 # --------------------------------------------------------------------------
 def post_threads(render, cfg, dry):
-    if not _has("THREADS_USER_ID", "THREADS_ACCESS_TOKEN"):
+    if not (env("THREADS_USER_ID") and cached_token("threads_token.txt", "THREADS_ACCESS_TOKEN")):
         return {"ok": False, "skipped": "no creds"}
     if dry:
         return {"ok": True, "dry": True}
@@ -205,7 +205,7 @@ def post_threads(render, cfg, dry):
 
         import requests
         uid = env("THREADS_USER_ID")
-        token = env("THREADS_ACCESS_TOKEN")
+        token = cached_token("threads_token.txt", "THREADS_ACCESS_TOKEN")
         p = render["platform"]
         video = render["videos"].get("vertical") or render["videos"]["horizontal"]
         video_url = _host_public_url(video, render["post"]["slug"])
@@ -657,19 +657,56 @@ def _rb_page_summary(page):
     return f"[url={page.url} title={title!r} text={_rb_body_text(page)[:160]!r}]"
 
 
+RUMBLE_ROLLING_STATE = STATE / "rumble_state.enc"
+
+
+def _rb_box():
+    """Secret box keyed from the RUMBLE_STORAGE_STATE secret. The rolling session in
+    the Actions cache is a full login, so it is never stored in plain text there."""
+    import hashlib
+
+    from nacl.secret import SecretBox
+    seed = env("RUMBLE_STORAGE_STATE")
+    return SecretBox(hashlib.sha256(("rumble-rolling:" + seed).encode()).digest()) if seed else None
+
+
 def _rb_session_file():
-    """Write the RUMBLE_STORAGE_STATE secret (base64 Playwright storage state) to disk."""
+    """Write the freshest saved Rumble session to disk for Playwright.
+
+    Prefers the rolling session saved by the last successful upload (cookies Rumble
+    refreshed during that visit), so regular posting keeps the login alive. Falls
+    back to the RUMBLE_STORAGE_STATE secret (base64 Playwright storage state).
+    """
     import base64
     raw = env("RUMBLE_STORAGE_STATE")
     if not raw:
         return None
+    path = OUT / "_rumble_state.json"
     try:
-        path = OUT / "_rumble_state.json"
+        box = _rb_box()
+        if box and RUMBLE_ROLLING_STATE.exists():
+            path.write_bytes(box.decrypt(RUMBLE_ROLLING_STATE.read_bytes()))
+            return str(path)
+    except Exception as exc:  # noqa - stale/rotated key: use the secret instead
+        log(f"rumble: rolling session unusable ({exc.__class__.__name__}); using the secret")
+    try:
         path.write_bytes(base64.b64decode(raw))
         return str(path)
     except Exception as exc:  # noqa
         log(f"rumble: RUMBLE_STORAGE_STATE could not be decoded ({exc}); logging in instead")
         return None
+
+
+def _rb_save_rolling(ctx):
+    """Store the session Rumble just refreshed, encrypted, for the next run."""
+    try:
+        import json
+        box = _rb_box()
+        if box:
+            RUMBLE_ROLLING_STATE.write_bytes(box.encrypt(json.dumps(ctx.storage_state()).encode()))
+            log("rumble: refreshed session saved for the next run")
+    except Exception as exc:  # noqa
+        log(f"rumble: could not save the refreshed session ({exc.__class__.__name__})")
 
 
 def _rb_attach_file(page, video):
@@ -887,6 +924,7 @@ def post_rumble(render, cfg, dry):
                 return {"ok": False, "error": "rumble: upload rejected after submit "
                         + _rb_page_summary(page)}
             final = page.url
+            _rb_save_rolling(ctx)
             return {"ok": True, "url": final,
                     "status": "submitted_for_processing",
                     "note": f"Rumble accepted the upload via browser automation "
@@ -914,7 +952,7 @@ def post_rumble(render, cfg, dry):
 # Requires: PINTEREST_ACCESS_TOKEN, PINTEREST_BOARD_ID
 # --------------------------------------------------------------------------
 def post_pinterest(render, cfg, dry):
-    if not _has("PINTEREST_ACCESS_TOKEN", "PINTEREST_BOARD_ID"):
+    if not (env("PINTEREST_BOARD_ID") and cached_token("pinterest_token.txt", "PINTEREST_ACCESS_TOKEN")):
         return {"ok": False, "skipped": "no creds"}
     post = render["post"]
     image_url = post.get("image_url", "")
@@ -924,7 +962,7 @@ def post_pinterest(render, cfg, dry):
         return {"ok": True, "dry": True, "url": f"(dry) pin for {post['slug']}"}
     try:
         import requests
-        token = env("PINTEREST_ACCESS_TOKEN")
+        token = cached_token("pinterest_token.txt", "PINTEREST_ACCESS_TOKEN")
         board_id = env("PINTEREST_BOARD_ID")
         p = render["platform"]
         note = p.get("caption") or post["description"]

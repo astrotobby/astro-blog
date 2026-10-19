@@ -141,6 +141,17 @@ def tiktok_refresh_token() -> str:
     return env("TIKTOK_REFRESH_TOKEN")
 
 
+def cached_token(filename: str, secret: str) -> str:
+    """A token rolled by refresh_social_tokens.py (STATE/<filename>) if present,
+    else the seed secret. Same pattern as ig_token()."""
+    p = STATE / filename
+    if p.exists():
+        t = p.read_text(encoding="utf-8").strip()
+        if t:
+            return t
+    return env(secret)
+
+
 def save_tiktok_refresh(tok: str) -> None:
     """TikTok rotates the refresh token on each use — persist the newest so the
     chain survives forever (cache is restored every run)."""

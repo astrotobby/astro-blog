@@ -4,6 +4,7 @@ gTTS>=2.5.0               # fallback voice if edge endpoint blocks the runner IP
 huggingface_hub>=0.23.0  # downloads the Wav2Lip weights in setup_wav2lip.sh
 faster-whisper==1.0.3     # local caption timing (CPU ok)
 requests==2.32.3
+PyNaCl>=1.5.0             # encrypts the rolling Rumble session in the Actions cache
 anthropic>=1.0,<2          # optional Claude narration rewrite (only used when ANTHROPIC_API_KEY is set)
 yt-dlp>=2025.1.0         # fetch configured YouTube reference audio when voice cloning is authorized
 PyYAML==6.0.2
