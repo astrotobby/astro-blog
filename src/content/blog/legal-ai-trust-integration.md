@@ -2,8 +2,7 @@
 title: "Thomson Reuters Outlines Trust and Integration for Legal AI"
 description: "Thomson Reuters, in an OpenAI video, details how integrating AI with tools like GPT enterprise and CoCounsel Legal builds trust and efficiency for legal professionals."
 pubDate: 2026-10-19
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "legal AI trust"
+image: "https://images.pexels.com/photos/6077297/pexels-photo-6077297.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, llm, openai, tech-news]
 author: "Astro Tobby"
 ---

@@ -2,8 +2,7 @@
 title: "OpenAI Unveils New ChatGPT Voice with Real-time Intelligence"
 description: "OpenAI has introduced a new, more intelligent ChatGPT voice model powered by GPT Live, offering bidirectional conversation and real-time translation capabilities."
 pubDate: 2026-10-19
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "conversational ai assistant interface"
+image: "https://images.pexels.com/photos/16027824/pexels-photo-16027824.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, llm, openai, tech-news]
 author: "Astro Tobby"
 ---
