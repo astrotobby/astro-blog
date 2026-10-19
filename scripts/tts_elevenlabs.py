@@ -19,7 +19,7 @@ from common import env, log
 
 API = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/with-timestamps"
 DEFAULTS = {
-    "voice_id": "TX3LPaxmHKxFdv7VOQHJ",   # "Liam" — young, energetic narrator
+    "voice_id": "bIHbv24MWmeRgasZH58o",   # "Will" — young, relaxed and friendly narrator
     "model_id": "eleven_multilingual_v2",
     "stability": 0.42,
     "similarity_boost": 0.80,

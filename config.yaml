@@ -65,12 +65,12 @@ voice:
   elevenlabs:
     # Young-adult male narrators (20s). Swap voice_id to change; the
     # ELEVENLABS_VOICE_ID repo secret overrides this without a commit.
-    #   Liam    TX3LPaxmHKxFdv7VOQHJ  young American, energetic creator voice (default)
-    #   Will    bIHbv24MWmeRgasZH58o  young American, relaxed and friendly
+    #   Liam    TX3LPaxmHKxFdv7VOQHJ  young American, energetic creator voice
+    #   Will    bIHbv24MWmeRgasZH58o  young American, relaxed and friendly (default)
     #   Charlie IKne3meq5aSn9XLyUdCD  young Australian, confident and natural
     #   Harry   SOYHLrjzK2X1ezoPC6cr  young American, intense and animated
     #   Brian   nPczCjzI2devNBz1zQrb  deep, mature narrator (previous default)
-    voice_id: "TX3LPaxmHKxFdv7VOQHJ"
+    voice_id: "bIHbv24MWmeRgasZH58o"
     model_id: "eleven_multilingual_v2"
     stability: 0.42          # lower = more expressive delivery
     similarity_boost: 0.80
