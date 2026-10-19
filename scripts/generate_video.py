@@ -934,6 +934,26 @@ def render_variant(name, narration, script, cfg, scene_assets, music):
     return final_path, total, word_timings, provider
 
 
+STORY_MAX_SECONDS = 58.0
+
+
+def make_story_cut(vertical, duration):
+    """Instagram/Facebook Stories reject clips over 60s; trim the vertical master
+    to 58s with a short picture and sound fade so the cut doesn't end mid-word abruptly."""
+    if duration <= STORY_MAX_SECONDS:
+        return vertical
+    out = OUT / "video_story.mp4"
+    fade_start = STORY_MAX_SECONDS - 1.2
+    run(["ffmpeg", "-y", "-v", "error", "-i", str(vertical), "-t", f"{STORY_MAX_SECONDS}",
+         "-vf", f"fade=t=out:st={fade_start}:d=1.2",
+         "-af", f"afade=t=out:st={fade_start}:d=1.2",
+         "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-maxrate", "12M",
+         "-bufsize", "24M", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
+         "-movflags", "+faststart", str(out)])
+    log(f"story cut {STORY_MAX_SECONDS:.0f}s -> {out.name}")
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("script_json")
@@ -946,7 +966,7 @@ def main():
 
     vertical, vertical_duration, _vertical_words, provider = render_variant(
         "vertical", script["narration"], script, cfg, vertical_assets, music)
-    videos = {"vertical": str(vertical)}
+    videos = {"vertical": str(vertical), "story": str(make_story_cut(vertical, vertical_duration))}
     asset_sources = {"vertical": vertical_sources}
     youtube_sources = vertical_sources
 

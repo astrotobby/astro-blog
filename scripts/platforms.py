@@ -491,6 +491,10 @@ def post_twitter(render, cfg, dry):
 # rendered video is pushed to the user's TikTok inbox; they tap "Post" in the app
 # (caption is added there). Tokens auto-refresh (rotating) via the state cache.
 # --------------------------------------------------------------------------
+TIKTOK_SINGLE_CHUNK_MAX = 64 * 1024 * 1024
+TIKTOK_CHUNK = 10 * 1024 * 1024
+
+
 def post_tiktok(render, cfg, dry):
     ck, cs = env("TIKTOK_CLIENT_KEY"), env("TIKTOK_CLIENT_SECRET")
     refresh = tiktok_refresh_token()
@@ -518,27 +522,36 @@ def post_tiktok(render, cfg, dry):
         # 2) init an inbox (draft) upload via direct FILE_UPLOAD (no domain verify)
         video = render["videos"].get("vertical") or render["videos"]["horizontal"]
         size = os.path.getsize(video)
+        # TikTok accepts a single chunk only up to 64MB; bigger files must be split
+        # into 5-64MB chunks, with the remainder folded into the last chunk.
+        chunk = size if size <= TIKTOK_SINGLE_CHUNK_MAX else TIKTOK_CHUNK
+        count = max(1, size // chunk)
         init = requests.post(
             "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/",
             headers={"Authorization": f"Bearer {access}",
                      "Content-Type": "application/json"},
             json={"source_info": {"source": "FILE_UPLOAD", "video_size": size,
-                                  "chunk_size": size, "total_chunk_count": 1}},
+                                  "chunk_size": chunk, "total_chunk_count": count}},
             timeout=60).json()
         data = init.get("data") or {}
         upload_url = data.get("upload_url")
         if not upload_url:
             return {"ok": False, "error": "tiktok init: " + str(init)[:200]}
 
-        # 3) upload the bytes (single chunk; our videos are well under 64MB)
+        # 3) upload the bytes chunk by chunk
         with open(video, "rb") as f:
-            blob = f.read()
-        put = requests.put(upload_url, data=blob, timeout=300, headers={
-            "Content-Type": "video/mp4",
-            "Content-Length": str(size),
-            "Content-Range": f"bytes 0-{size - 1}/{size}"})
-        if put.status_code not in (200, 201, 206):
-            return {"ok": False, "error": f"tiktok upload HTTP {put.status_code}: {put.text[:160]}"}
+            for index in range(count):
+                start = index * chunk
+                end = size - 1 if index == count - 1 else start + chunk - 1
+                f.seek(start)
+                blob = f.read(end - start + 1)
+                put = requests.put(upload_url, data=blob, timeout=300, headers={
+                    "Content-Type": "video/mp4",
+                    "Content-Length": str(len(blob)),
+                    "Content-Range": f"bytes {start}-{end}/{size}"})
+                if put.status_code not in (200, 201, 206):
+                    return {"ok": False, "error": f"tiktok upload chunk {index + 1}/{count} "
+                                                  f"HTTP {put.status_code}: {put.text[:160]}"}
         return {"ok": True, "url": "https://www.tiktok.com/",
                 "note": "sent to TikTok inbox/drafts — tap Post in the app",
                 "publish_id": data.get("publish_id")}
@@ -635,8 +648,43 @@ def _rb_body_text(page):
         return ""
 
 
+def _rb_page_summary(page):
+    """Title, URL and a slice of visible text, so a failed run explains what it saw."""
+    try:
+        title = page.title()
+    except Exception:  # noqa
+        title = "?"
+    return f"[url={page.url} title={title!r} text={_rb_body_text(page)[:160]!r}]"
+
+
+def _rb_session_file():
+    """Write the RUMBLE_STORAGE_STATE secret (base64 Playwright storage state) to disk."""
+    import base64
+    raw = env("RUMBLE_STORAGE_STATE")
+    if not raw:
+        return None
+    try:
+        path = OUT / "_rumble_state.json"
+        path.write_bytes(base64.b64decode(raw))
+        return str(path)
+    except Exception as exc:  # noqa
+        log(f"rumble: RUMBLE_STORAGE_STATE could not be decoded ({exc}); logging in instead")
+        return None
+
+
+def _rb_attach_file(page, video):
+    for sel in _RB_FILE:
+        try:
+            page.set_input_files(sel, video, timeout=15000)
+            return True
+        except Exception:  # noqa
+            continue
+    return False
+
+
 def post_rumble(render, cfg, dry):
-    if not _has("RUMBLE_EMAIL", "RUMBLE_PASSWORD"):
+    session_file = None if dry else _rb_session_file()
+    if not (session_file or _has("RUMBLE_EMAIL", "RUMBLE_PASSWORD")):
         return {"ok": False, "skipped": "no creds"}
     if dry:
         return {"ok": True, "dry": True}
@@ -670,44 +718,63 @@ def post_rumble(render, cfg, dry):
     try:
         with sync_playwright() as pw:
             browser = pw.chromium.launch(headless=True, args=["--no-sandbox"])
-            ctx = browser.new_context(
-                viewport={"width": 1366, "height": 900},
-                user_agent=("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                            "AppleWebKit/537.36 (KHTML, like Gecko) "
-                            "Chrome/124.0 Safari/537.36"))
+            context_args = {
+                "viewport": {"width": 1366, "height": 900},
+                "user_agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                               "AppleWebKit/537.36 (KHTML, like Gecko) "
+                               "Chrome/124.0 Safari/537.36")}
+            if session_file:
+                # Reuse the owner's saved, already-logged-in session (made once with
+                # scripts/rumble_session.py), so the login form isn't needed at all.
+                context_args["storage_state"] = session_file
+            ctx = browser.new_context(**context_args)
             page = ctx.new_page()
             page.set_default_timeout(30000)
 
-            # ---- 1) log in ----
-            page.goto(RUMBLE_LOGIN_URL, wait_until="domcontentloaded")
-            if not _rb_fill(page, _RB_USER, env("RUMBLE_EMAIL")):
-                page.screenshot(path=shot)
-                return {"ok": False, "error": "rumble: username field not found "
-                        "(login page changed or CAPTCHA challenge)"}
-            _rb_fill(page, _RB_PASS, env("RUMBLE_PASSWORD"))
-            _rb_click(page, _RB_LOGIN_BTN)
-            page.wait_for_timeout(6000)   # let the session cookie settle
-            # A still-visible password field means login was rejected or challenged.
-            # Hidden password inputs remain in the DOM on several Rumble layouts.
-            if any(_rb_visible(page, sel) for sel in _RB_PASS):
-                page.screenshot(path=shot)
-                return {"ok": False, "error": "rumble: login failed/challenged "
-                        "(check creds, disable 2FA, or CAPTCHA on CI IP)"}
-
-            # ---- 2) open the upload form + attach the file (starts the upload) ----
-            page.goto(RUMBLE_UPLOAD_URL, wait_until="domcontentloaded")
+            # ---- 1) try the upload form straight away with the saved session ----
             file_set = False
-            for sel in _RB_FILE:
+            if session_file:
+                page.goto(RUMBLE_UPLOAD_URL, wait_until="domcontentloaded")
+                file_set = _rb_attach_file(page, video)
+                if not file_set:
+                    log("rumble: saved session did not reach the upload form "
+                        f"(expired?) {_rb_page_summary(page)}")
+
+            # ---- 2) otherwise log in with email/password ----
+            if not file_set:
+                if not _has("RUMBLE_EMAIL", "RUMBLE_PASSWORD"):
+                    page.screenshot(path=shot)
+                    return {"ok": False, "error": "rumble: saved session expired and no "
+                            "RUMBLE_EMAIL/RUMBLE_PASSWORD to fall back on"}
+                page.goto(RUMBLE_LOGIN_URL, wait_until="domcontentloaded")
+                # The auth page is a client-side app; give it time to render the form.
                 try:
-                    page.set_input_files(sel, video, timeout=15000)
-                    file_set = True
-                    break
+                    page.wait_for_load_state("networkidle", timeout=20000)
                 except Exception:  # noqa
-                    continue
+                    pass
+                if not _rb_fill(page, _RB_USER, env("RUMBLE_EMAIL"), timeout=20000):
+                    page.screenshot(path=shot)
+                    return {"ok": False, "error": "rumble: login form not shown to the CI "
+                            "browser (bot check or page error) " + _rb_page_summary(page)
+                            + " -> add the RUMBLE_STORAGE_STATE secret (scripts/rumble_session.py)"}
+                _rb_fill(page, _RB_PASS, env("RUMBLE_PASSWORD"))
+                _rb_click(page, _RB_LOGIN_BTN)
+                page.wait_for_timeout(6000)   # let the session cookie settle
+                # A still-visible password field means login was rejected or challenged.
+                # Hidden password inputs remain in the DOM on several Rumble layouts.
+                if any(_rb_visible(page, sel) for sel in _RB_PASS):
+                    page.screenshot(path=shot)
+                    return {"ok": False, "error": "rumble: login failed/challenged "
+                            "(check creds, disable 2FA, or use RUMBLE_STORAGE_STATE) "
+                            + _rb_page_summary(page)}
+
+                # open the upload form + attach the file (starts the upload)
+                page.goto(RUMBLE_UPLOAD_URL, wait_until="domcontentloaded")
+                file_set = _rb_attach_file(page, video)
             if not file_set:
                 page.screenshot(path=shot)
                 return {"ok": False, "error": "rumble: file input not found "
-                        "(not logged in, or upload page changed)"}
+                        "(not logged in, or upload page changed) " + _rb_page_summary(page)}
 
             # ---- 3) details: title + description (fillable while the upload runs) ----
             if not _rb_fill(page, _RB_TITLE, title):

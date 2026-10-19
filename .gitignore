@@ -37,3 +37,6 @@ Wav2Lip/
 .dev.vars*
 !.dev.vars.example
 !.env.example
+
+# Rumble saved-session export (scripts/rumble_session.py) - never commit
+scripts/rumble_session.b64
