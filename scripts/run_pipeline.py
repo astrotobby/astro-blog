@@ -132,9 +132,11 @@ def _prepare_run(posts, force):
             log(f"dedup-check: could not parse {pf} ({e}); keeping it in the run")
             keep.append(pf)
             continue
-        dup_of = find_duplicate_title(title, led)
+        slug = _astro_slug(pathlib.Path(pf).stem)
+        # A post always "matches" its own ledger entry; that's a retry of failed
+        # destinations (crosspost handles it), not a republish under a new slug.
+        dup_of = find_duplicate_title(title, {k: v for k, v in led.items() if k != slug})
         if dup_of:
-            slug = _astro_slug(pathlib.Path(pf).stem)
             log(f"skip '{pf}': title matches already-posted '{dup_of}' "
                 f"(likely a republish of the same story) -> not rendering/posting")
             led[slug] = {"title_key": normalize_title(title),
