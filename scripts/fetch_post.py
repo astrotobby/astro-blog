@@ -48,6 +48,8 @@ def strip_md(text: str) -> str:
     # questions Is AEO replacing SEO?". Drop heading text entirely — narration
     # should be built from prose, not from section labels.
     html = re.sub(r"<h[1-6][^>]*>.*?</h[1-6]>", " ", html, flags=re.S | re.I)
+    # YouTube-sourced posts end with an embed and a source credit; neither is narration.
+    html = re.sub(r'<p class="video-credit">.*?</p>', " ", html, flags=re.S | re.I)
     plain = re.sub(r"<[^>]+>", " ", html)
     return re.sub(r"\s+", " ", plain).strip()
 
