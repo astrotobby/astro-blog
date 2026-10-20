@@ -36,7 +36,7 @@ def main():
     p = STATE / "ig_token.txt"
     # A cached token dies with its session (e.g. a password change). When the seed secret
     # is replaced, drop the cache so the new token takes over.
-    seed = os.environ.get("INSTAGRAM_TOKEN", "")
+    seed = os.environ.get("INSTAGRAM_TOKEN", "").strip()
     seed_path = STATE / "ig_seed.txt"
     fp = hashlib.sha256(seed.encode()).hexdigest()[:16] if seed else ""
     if fp and fp != (seed_path.read_text(encoding="utf-8").strip() if seed_path.exists() else ""):
@@ -44,7 +44,7 @@ def main():
         seed_path.write_text(fp + "\n", encoding="utf-8")
         print("[ig-refresh] new INSTAGRAM_TOKEN seed; cached token discarded")
     cur = (p.read_text(encoding="utf-8").strip() if p.exists() else "") \
-        or os.environ.get("INSTAGRAM_TOKEN", "")
+        or os.environ.get("INSTAGRAM_TOKEN", "").strip()
     if not cur:
         print("[ig-refresh] no token to refresh (no cache, no INSTAGRAM_TOKEN seed)")
         return

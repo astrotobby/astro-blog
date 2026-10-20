@@ -36,7 +36,7 @@ def _call(url, params=None, data=None, headers=None):
 def _cached(filename, secret):
     p = STATE / filename
     t = p.read_text(encoding="utf-8").strip() if p.exists() else ""
-    return t or os.environ.get(secret, "")
+    return t or os.environ.get(secret, "").strip()
 
 
 def _err(r):
@@ -57,7 +57,7 @@ def check_instagram():
 
 
 def check_facebook():
-    tok = os.environ.get("FACEBOOK_PAGE_TOKEN", "")
+    tok = os.environ.get("FACEBOOK_PAGE_TOKEN", "").strip()
     if not tok:
         return None
     r = _call("https://graph.facebook.com/v21.0/me", {"fields": "id,name", "access_token": tok})

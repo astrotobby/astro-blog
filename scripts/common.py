@@ -173,7 +173,7 @@ def load_config() -> dict:
 
 
 def env(key: str, default: str = "") -> str:
-    return os.environ.get(key, default)
+    return os.environ.get(key, default).strip()
 
 
 def load_dotenv() -> None:
