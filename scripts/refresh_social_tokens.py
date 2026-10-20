@@ -9,6 +9,7 @@ reaches its expiry. Platforms without credentials are skipped. Stdlib only.
   PINTEREST_APP_ID + PINTEREST_APP_SECRET); Pinterest may also rotate the refresh token.
 """
 import base64
+import hashlib
 import json
 import os
 import pathlib
@@ -57,6 +58,17 @@ def refresh_threads():
 
 
 def refresh_pinterest():
+    # A refreshed token keeps the scopes of its original grant, so when the seed secret is
+    # replaced (e.g. re-authorized with more scopes) the cached tokens must be dropped.
+    seed = os.environ.get("PINTEREST_REFRESH_TOKEN", "")
+    seed_path = STATE / "pinterest_seed.txt"
+    fingerprint = hashlib.sha256(seed.encode()).hexdigest()[:16] if seed else ""
+    stored = seed_path.read_text(encoding="utf-8").strip() if seed_path.exists() else ""
+    if fingerprint and fingerprint != stored:
+        for name in ("pinterest_token.txt", "pinterest_refresh.txt"):
+            (STATE / name).unlink(missing_ok=True)
+        seed_path.write_text(fingerprint + "\n", encoding="utf-8")
+        print("[pinterest] new seed secret; cached tokens discarded")
     refresh = _current("pinterest_refresh.txt", "PINTEREST_REFRESH_TOKEN")
     app_id, app_secret = os.environ.get("PINTEREST_APP_ID"), os.environ.get("PINTEREST_APP_SECRET")
     if not (refresh and app_id and app_secret):
