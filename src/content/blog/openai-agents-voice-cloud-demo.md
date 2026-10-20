@@ -2,8 +2,7 @@
 title: "OpenAI Unveils Agentic AI, Voice Model, and Cloud Tools"
 description: "OpenAI demonstrates its persistent AI agents, customizable cloud environments, advanced voice model, and AI-powered game generation in a creative cooking show setting."
 pubDate: 2026-10-20
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "ai assistant cooking kitchen"
+image: "https://images.pexels.com/photos/9028881/pexels-photo-9028881.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, ai-agents, llm, openai]
 author: "Astro Tobby"
 ---
