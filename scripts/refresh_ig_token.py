@@ -7,6 +7,7 @@ on the first run), calls ig_refresh_token (extends ~60 days), writes the new tok
 back. The state dir is cached across runs and the daily schedule keeps it warm, so
 the chain never breaks.
 """
+import hashlib
 import json
 import os
 import pathlib
@@ -33,6 +34,15 @@ def _get(url, params):
 
 def main():
     p = STATE / "ig_token.txt"
+    # A cached token dies with its session (e.g. a password change). When the seed secret
+    # is replaced, drop the cache so the new token takes over.
+    seed = os.environ.get("INSTAGRAM_TOKEN", "")
+    seed_path = STATE / "ig_seed.txt"
+    fp = hashlib.sha256(seed.encode()).hexdigest()[:16] if seed else ""
+    if fp and fp != (seed_path.read_text(encoding="utf-8").strip() if seed_path.exists() else ""):
+        p.unlink(missing_ok=True)
+        seed_path.write_text(fp + "\n", encoding="utf-8")
+        print("[ig-refresh] new INSTAGRAM_TOKEN seed; cached token discarded")
     cur = (p.read_text(encoding="utf-8").strip() if p.exists() else "") \
         or os.environ.get("INSTAGRAM_TOKEN", "")
     if not cur:

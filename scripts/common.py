@@ -123,11 +123,19 @@ def ig_token() -> str:
     (STATE/ig_token.txt) if present, else the INSTAGRAM_TOKEN secret (the seed).
     The daily refresh job rolls ig_token.txt so the token never expires."""
     p = STATE / "ig_token.txt"
+    seed = env("INSTAGRAM_TOKEN")
+    seed_path = STATE / "ig_seed.txt"
+    if seed:
+        import hashlib
+        fp = hashlib.sha256(seed.encode()).hexdigest()[:16]
+        stored = seed_path.read_text(encoding="utf-8").strip() if seed_path.exists() else ""
+        if fp != stored:   # secret replaced (e.g. after a password change): it wins
+            return seed
     if p.exists():
         t = p.read_text(encoding="utf-8").strip()
         if t:
             return t
-    return env("INSTAGRAM_TOKEN")
+    return seed
 
 
 def tiktok_refresh_token() -> str:
