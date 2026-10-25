@@ -182,10 +182,12 @@ influencer:
   punch_in: 1.22                   # 2nd appearance of a look = tighter "jump-cut" framing
   push_in: 0.045                   # slow push-in over each on-camera shot
   handheld_px: 7                   # subtle handheld drift (0 = locked-off tripod)
-  # LTX-2 (free Hugging Face Space) animates his head, face and hands AND lip-syncs
-  # each on-camera segment, which looks far more human than Wav2Lip on a still. Uses
-  # the HF_TOKEN quota; segments past the quota fall back to Wav2Lip automatically.
-  ltx: true
+  # LTX-2 (Hugging Face Space) animates his head, face and hands AND lip-syncs each
+  # on-camera segment. Each segment costs ~170 s of ZeroGPU time; a free HF account gets
+  # only a few minutes a day, so this stays off and the free quota goes to the one-time
+  # moving clips (scripts/gen_influencer_motion.py). Turn on with HF PRO. Segments past
+  # the quota fall back to Wav2Lip on the look's moving clip automatically.
+  ltx: false
   ltx_max_segments: 8              # per cut; the vertical cut gets first claim on quota
 
 # ---- Posting rules / anti-ban caps (see HONEST-LIMITS.md) ----

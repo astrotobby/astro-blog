@@ -32,20 +32,28 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install generator deps
-        run: pip install "gradio_client>=2.0" pillow pyyaml
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          pip install "gradio_client>=2.0" pillow pyyaml edge-tts
       - name: Generate missing looks
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python scripts/gen_influencer_looks.py
+      # One-time moving base clip per look, so Wav2Lip fallbacks still gesture and nod.
+      - name: Generate missing motion clips
+        continue-on-error: true
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python scripts/gen_influencer_motion.py
       - name: Commit new looks
         run: |
-          git add assets/influencer/*.png
+          git add -A assets/influencer
           if git diff --cached --quiet; then
             echo "no new looks"
           else
             git -c user.name="github-actions[bot]" \
                 -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-                commit -m "Add generated influencer looks [skip ci]"
+                commit -m "Add generated influencer looks and motion clips [skip ci]"
             git push
           fi
 
