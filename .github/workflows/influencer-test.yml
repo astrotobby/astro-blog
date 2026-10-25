@@ -85,17 +85,20 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: bash scripts/setup_wav2lip.sh
+      # Output goes to .pipeline/kokoro.log, published with the render (logs need a login).
       - name: Set up Kokoro voice
         continue-on-error: true
-        run: bash scripts/setup_kokoro.sh
+        run: |
+          mkdir -p .pipeline/out
+          set -o pipefail
+          bash scripts/setup_kokoro.sh 2>&1 | tee .pipeline/kokoro.log
       # Short samples of the free fallback voices, published with the test render.
       - name: Kokoro voice samples
         continue-on-error: true
         run: |
-          mkdir -p .pipeline/out
           echo "Here's what nobody is telling you about AI agents this year. It's honestly one of the biggest shifts I've seen, and if you get it early, you win." > /tmp/sample.txt
           for v in am_michael am_puck am_fenrir; do
-            .venv-kokoro/bin/python scripts/kokoro_cli.py /tmp/sample.txt ".pipeline/out/kokoro_${v}.wav" "$v" 1.05
+            .venv-kokoro/bin/python scripts/kokoro_cli.py /tmp/sample.txt ".pipeline/out/kokoro_${v}.wav" "$v" 1.05 2>&1 | tee -a .pipeline/kokoro.log
           done
       - name: Render one post (no posting)
         env:
@@ -125,7 +128,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          FILES=$(ls .pipeline/out/video_*.mp4 .pipeline/out/kokoro_*.wav .pipeline/render.log 2>/dev/null || true)
+          FILES=$(ls .pipeline/out/video_*.mp4 .pipeline/out/kokoro_*.wav .pipeline/render.log .pipeline/kokoro.log 2>/dev/null || true)
           [ -z "$FILES" ] && { echo "nothing to publish"; exit 0; }
           TAG="influencer-test-${{ github.run_id }}"
           gh release create "$TAG" --prerelease --target "${{ github.sha }}" \

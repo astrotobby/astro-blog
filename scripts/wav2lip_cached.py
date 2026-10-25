@@ -4,7 +4,8 @@ Face detection (S3FD on CPU) is the slow part of lip-syncing a MOVING base clip:
 on every frame, every render, although the influencer's base clips never change. This
 wrapper runs Wav2Lip's own inference.py but swaps its face_detect() for one that saves
 the per-frame face boxes to assets/influencer/facecache/<key>.npy and reuses them.
-The key is the face video's bytes plus the box options, so any change re-detects.
+The key is the source clip (via a <face>.key sidecar, else the face file's bytes) plus
+the box options, so any change re-detects.
 
   (cwd = Wav2Lip/)  python wav2lip_cached.py <inference.py args>
   (cwd = Wav2Lip/)  python wav2lip_cached.py --warm-only <inference.py args>
@@ -24,7 +25,11 @@ CACHE_DIR = Path(__file__).resolve().parents[1] / "assets" / "influencer" / "fac
 def _key(inf):
     a = inf.args
     opts = repr((list(a.pads), bool(a.nosmooth), a.resize_factor, list(a.crop), bool(a.rotate)))
-    return hashlib.sha256(Path(a.face).read_bytes() + opts.encode()).hexdigest()[:24]
+    # A <face>.key sidecar (written by influencer._face_source) identifies the source
+    # clip and preprocessing; re-encoded bytes vary between runs, so prefer it.
+    sidecar = Path(a.face + ".key")
+    source = sidecar.read_bytes() if sidecar.exists() else Path(a.face).read_bytes()
+    return hashlib.sha256(source + opts.encode()).hexdigest()[:24]
 
 
 def _cached_face_detect(inf, original):

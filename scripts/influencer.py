@@ -160,6 +160,14 @@ def plan_timeline(dur, looks, cfg, slug, words=None):
 
 
 # ---------- 3. lip-sync ----------
+def _write_face_key(face, clip, recipe):
+    """Sidecar <face>.key read by wav2lip_cached.py: the face-box cache is keyed on the
+    committed clip and this recipe, not on the re-encoded file, whose bytes differ from
+    run to run although its frames (and so the face boxes) are the same."""
+    digest = hashlib.sha256(clip.read_bytes() + recipe.encode()).hexdigest()
+    face.with_name(face.name + ".key").write_text(digest, encoding="utf-8")
+
+
 def _face_source(lk, fps):
     """What Wav2Lip lip-syncs for a look: a short seamless boomerang of its motion
     clip (gestures keep flowing across loops), or the still image."""
@@ -172,11 +180,13 @@ def _face_source(lk, fps):
                   "[0:v]scale=540:-2,split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1[v]",
                   "-map", "[v]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
                   "-pix_fmt", "yuv420p", bounce.name], cwd=OUT)
+            _write_face_key(bounce, lk["clip"], f"boomerang|540|{fps}")
             return bounce
         except Exception as e:  # noqa
             log(f"look {lk['id']}: boomerang failed ({e}); using raw clip")
             _run(["ffmpeg", "-y", "-i", str(lk["clip"]), "-an", "-r", str(fps),
                   "-vf", "scale=540:-2", "-pix_fmt", "yuv420p", src.name], cwd=OUT)
+            _write_face_key(src, lk["clip"], f"raw|540|{fps}")
             return src
     return lk["image"]
 
