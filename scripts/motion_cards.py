@@ -71,23 +71,33 @@ def find_stat(text):
     return raw, unit, claim
 
 
-def key_points(body, n=3):
-    """Up to n short takeaways from the post's H2/H3 headings."""
-    points = []
-    for line in (body or "").splitlines():
-        m = re.match(r"^#{2,3}\s+(.+)$", line.strip())
-        if not m:
-            continue
-        text = re.sub(r"[*_`#\[\]]|\(http\S+\)", "", m.group(1)).strip(" :?.")
-        text = re.sub(r"^\d+[.)]\s*", "", text)
-        if not text or SKIP_HEADINGS.match(text) or text in points:
-            continue
-        if len(text) > 44:
-            text = text[:44].rsplit(" ", 1)[0] + "…"
-        points.append(text)
-        if len(points) == n:
-            break
-    return points if len(points) == n else []
+def key_points(markdown, n=3):
+    """The post's first n section headings (H2, else H3) as short points."""
+    for level in ("##", "###"):
+        points = []
+        for line in (markdown or "").splitlines():
+            m = re.match(rf"^{level}\s+(.+)$", line.strip())
+            if not m:
+                continue
+            text = re.sub(r"[*_`#\[\]]|\(http\S+\)|[^\x00- ‐-‿]", "", m.group(1))
+            text = re.sub(r"\s*\([^)]*\)", "", text)          # drop "(…)" asides
+            text = re.sub(r"^\d+[.)]\s*", "", " ".join(text.split())).strip(" :?.")
+            if not text or SKIP_HEADINGS.match(text) or text in points:
+                continue
+            if len(text) > 44:
+                text = text[:44].rsplit(" ", 1)[0] + "…"
+            points.append(text)
+            if len(points) == n:
+                return points
+    return []
+
+
+def _post_markdown(post):
+    """Raw markdown of the post (headings intact); post['body'] is plain text."""
+    path = ROOT / (post.get("file") or "")
+    if post.get("file") and path.is_file():
+        return path.read_text(encoding="utf-8", errors="replace")
+    return post.get("body", "")
 
 
 # ---------- 2. compositions ----------
@@ -135,11 +145,11 @@ def _clip(inner, cls="", style="", duration=CARD_SECONDS):
 def stat_html(card_id, w, h, value, unit, claim, brand):
     vertical = h > w
     s = w / 1080 if vertical else h / 1080           # scale relative to 1080 short side
-    top = int(h * (0.20 if vertical else 0.16))
+    top = int(h * (0.24 if vertical else 0.16))
     digits = value.lstrip("$€£").replace(",", "")
     prefix = value[:len(value) - len(value.lstrip("$€£"))]
     decimals = len(digits.split(".")[1]) if "." in digits else 0
-    num_size = int((300 if len(value + unit) <= 5 else 230) * s)
+    num_size = int((340 if len(value + unit) <= 5 else 260) * s)
     body = _clip(
         f'<div class="glow" style="width:{int(900*s)}px;height:{int(900*s)}px;left:50%;top:{int(top+150*s)}px;'
         f'margin-left:-{int(450*s)}px;opacity:.35" id="glow"></div>'
@@ -148,7 +158,7 @@ def stat_html(card_id, w, h, value, unit, claim, brand):
         f'<div class="num" id="num" style="font-size:{num_size}px;margin-top:{int(30*s)}px">'
         f'{html.escape(prefix)}<span id="val">0</span>{html.escape(unit)}</div>'
         f'<div class="bar" id="bar" style="width:{int(260*s)}px;margin:{int(36*s)}px auto 0"></div>'
-        f'<div class="claim" id="claim" style="font-size:{int(54*s)}px;margin-top:{int(40*s)}px">'
+        f'<div class="claim" id="claim" style="font-size:{int(60*s)}px;margin-top:{int(44*s)}px">'
         f'{html.escape(claim)}</div></div>'
         f'<div class="brand" style="font-size:{int(26*s)}px;left:0;right:0;text-align:center;'
         f'top:{int(top - 90*s)}px">{html.escape(brand)}</div>',
@@ -173,17 +183,17 @@ document.getElementById("val").textContent = fmt(0);
 def points_html(card_id, w, h, points, brand):
     vertical = h > w
     s = w / 1080 if vertical else h / 1080
-    top = int(h * (0.18 if vertical else 0.14))
+    top = int(h * (0.22 if vertical else 0.14))
     items = "".join(
-        f'<div class="item" id="p{i}" style="font-size:{int(54*s)}px;margin-top:{int(44*s)}px">'
-        f'<span class="dot" style="width:{int(78*s)}px;height:{int(78*s)}px;font-size:{int(44*s)}px">{i + 1}</span>'
+        f'<div class="item" id="p{i}" style="font-size:{int(68*s)}px;margin-top:{int(60*s)}px">'
+        f'<span class="dot" style="width:{int(96*s)}px;height:{int(96*s)}px;font-size:{int(54*s)}px">{i + 1}</span>'
         f'<span>{html.escape(p)}</span></div>' for i, p in enumerate(points))
     body = _clip(
         f'<div class="glow" style="width:{int(800*s)}px;height:{int(800*s)}px;left:-{int(200*s)}px;'
         f'top:{int(top)}px;opacity:.3" id="glow"></div>'
         f'<div style="position:absolute;left:{int(90*s)}px;right:{int(90*s)}px;top:{top}px">'
         f'<div class="brand" style="position:static;font-size:{int(26*s)}px">{html.escape(brand)}</div>'
-        f'<div class="kicker" id="kick" style="font-size:{int(40*s)}px;margin-top:{int(24*s)}px">Key takeaways</div>'
+        f'<div class="kicker" id="kick" style="font-size:{int(46*s)}px;margin-top:{int(24*s)}px">The breakdown</div>'
         f'<div class="bar" id="bar" style="width:{int(220*s)}px;margin-top:{int(24*s)}px"></div>'
         f'{items}</div>',
         style="position:absolute;inset:0")
@@ -244,10 +254,12 @@ def apply_cards(script, cfg, assets, variant):
                 page = stat_html(f"stat{i}", w, h, *stat, brand)
                 stats_left -= 1
         elif kind == "PAYOFF" and mc.get("key_points", True):
-            points = key_points(script["post"].get("body", ""))
+            points = key_points(_post_markdown(script["post"]))
             if points:
                 page = points_html(f"points{i}", w, h, points, brand)
         if page is None:
+            if kind in ("DATA", "PAYOFF"):
+                log(f"motion cards: scene {i} [{kind}] has no usable stat/headings -> stock clip")
             continue
         card = render_card(f"{variant}_{i}", page, OUT / f"card_{variant}_{i:02d}.mp4")
         if card:
