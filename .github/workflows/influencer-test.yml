@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install generator deps
-        run: pip install gradio_client pillow pyyaml
+        run: pip install "gradio_client>=2.0" pillow pyyaml
       - name: Generate missing looks
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -87,6 +87,22 @@ jobs:
             python scripts/build_script.py .pipeline/post.json
             python scripts/generate_video.py .pipeline/script.json
           } 2>&1 | tee .pipeline/render.log
+      # A pre-release gives the test videos a link that plays without signing in.
+      # Marked as a test so it is never mistaken for a published video.
+      # On failure it still publishes render.log, so the error is readable without a login.
+      - name: Publish test render as a pre-release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FILES=$(ls .pipeline/out/video_*.mp4 .pipeline/render.log 2>/dev/null || true)
+          [ -z "$FILES" ] && { echo "nothing to publish"; exit 0; }
+          TAG="influencer-test-${{ github.run_id }}"
+          gh release create "$TAG" --prerelease --target "${{ github.sha }}" \
+            --title "Influencer test render ${{ github.run_id }} (not published)" \
+            --notes "Test render from the influencer-test workflow. Not posted to any platform." \
+            $FILES
+
       - name: Upload test render
         if: always()
         uses: actions/upload-artifact@v4

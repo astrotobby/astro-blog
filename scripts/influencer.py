@@ -194,19 +194,100 @@ def _unsynced(face_src, offset, seg_dur, fps, out):
     return out
 
 
+LTX_SPACE = "multimodalart/ltx2-audio-to-video"
+LTX_PROMPT = ("A confident, charismatic man talks directly to the camera like a social media "
+              "influencer explaining something exciting. Natural expressive hand gestures, "
+              "small head nods and tilts, eyebrow raises, blinking, a slight smile, subtle "
+              "body movement. Lips perfectly in sync with the speech. Static camera, "
+              "photorealistic, natural skin.")
+LTX_NEGATIVE = ("low quality, worst quality, deformed, distorted, blurry face, extra fingers, "
+                "frozen face, robotic, stiff, text, watermark")
+
+
+class _LtxQuotaError(RuntimeError):
+    pass
+
+
+def _ltx_client():
+    """Client for the free LTX-2 audio-to-video Space (ZeroGPU), or None."""
+    import os
+    try:
+        from gradio_client import Client
+        return Client(LTX_SPACE, token=os.environ.get("HF_TOKEN") or None, verbose=False)
+    except Exception as e:  # noqa  Space down / gradio_client missing
+        log(f"ltx: Space unavailable ({str(e)[:160]})")
+        return None
+
+
+def _ltx_segment(client, image, audio, seg_dur, out):
+    """One A-roll segment as a real talking video: LTX-2 animates the look's still
+    (head, face, hands) and lip-syncs it to this slice of the narration."""
+    from gradio_client import handle_file
+    try:
+        video, _seed = client.predict(handle_file(str(image)), handle_file(str(audio)),
+                                      LTX_PROMPT, LTX_NEGATIVE,
+                                      min(12.0, max(1.0, round(seg_dur + 0.2, 1))), -1,
+                                      api_name="/generate")
+    except Exception as e:  # noqa
+        msg = str(e)
+        if "quota" in msg.lower() or "limit" in msg.lower():
+            raise _LtxQuotaError(msg) from e
+        raise
+    path = video.get("video", video) if isinstance(video, dict) else video
+    _run(["ffmpeg", "-y", "-v", "error", "-i", str(path), "-t", f"{seg_dur:.3f}", "-an",
+          "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p",
+          out.name], cwd=OUT)
+    return out
+
+
+def _render_ltx(plans, voices, cfg):
+    """Try LTX-2 for every A-roll segment, vertical cut first (it reaches the most
+    platforms), up to influencer.ltx_max_segments. Stops at the first quota error;
+    whatever is left falls back to Wav2Lip. Returns {(tag, i): clip}."""
+    inf = cfg.get("influencer", {})
+    budget = int(inf.get("ltx_max_segments", 12))
+    if not inf.get("ltx") or budget <= 0:
+        return {}
+    client = _ltx_client()
+    if client is None:
+        return {}
+    done = {}
+    order = sorted(plans, key=lambda t: t != "vertical")
+    for tag in order:
+        for i, s in enumerate(plans[tag]):
+            if s["kind"] != "A" or not s["look"].get("image") or len(done) >= budget:
+                continue
+            seg_dur = s["t1"] - s["t0"]
+            audio = OUT / f"_ltx_{tag}_{i:02d}.wav"
+            _run(["ffmpeg", "-y", "-v", "error", "-ss", f"{s['t0']:.3f}", "-t", f"{seg_dur:.3f}",
+                  "-i", str(voices[tag]), "-ac", "1", "-ar", "44100", audio.name], cwd=OUT)
+            try:
+                done[(tag, i)] = _ltx_segment(client, s["look"]["image"], audio, seg_dur,
+                                              OUT / f"_talk_{tag}_{i:02d}.mp4")
+                log(f"ltx: {tag}/{i} ({s['look']['id']}, {seg_dur:.1f}s) talking video")
+            except _LtxQuotaError as e:
+                log(f"ltx: quota reached after {len(done)} segments ({str(e)[:120]})")
+                return done
+            except Exception as e:  # noqa  one bad segment -> Wav2Lip for that one
+                log(f"ltx: {tag}/{i} failed ({str(e)[:160]})")
+    return done
+
+
 def render_talking(plans, voices, cfg, fps):
-    """Lip-sync every A-roll segment of every cut. `plans` = {tag: timeline},
-    `voices` = {tag: voiceover path}. Groups segments by look and runs Wav2Lip ONCE
-    per look over the concatenated audio slices (face detection runs once per look,
-    not per segment), then cuts the result back apart. Returns {(tag, i): clip}."""
+    """Make every A-roll segment of every cut talk. `plans` = {tag: timeline},
+    `voices` = {tag: voiceover path}. LTX-2 (influencer.ltx) animates the whole
+    presenter per segment when the free quota allows. Remaining segments are grouped
+    by look and Wav2Lip runs ONCE per look over the concatenated audio slices (face
+    detection runs once per look, not per segment), then the result is cut back
+    apart. Returns {(tag, i): clip}."""
     from avatar_lipsync import generate_talking_head
+    talking = _render_ltx(plans, voices, cfg)
     by_look = {}
     for tag, segs in plans.items():
         for i, s in enumerate(segs):
-            if s["kind"] == "A":
+            if s["kind"] == "A" and (tag, i) not in talking:
                 by_look.setdefault(s["look"]["id"], (s["look"], []))[1].append((tag, i, s))
 
-    talking = {}
     for lid, (lk, items) in by_look.items():
         face_src = _face_source(lk, fps)
         # concat this look's audio slices -> one wav
