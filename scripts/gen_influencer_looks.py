@@ -44,7 +44,7 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     ref = OUT / "_influencer_ref.jpg"
     Image.open(ROOT / "assets" / "avatar.png").convert("RGB").crop(REF_CROP).save(ref, quality=90)
-    client = Client(SPACE, hf_token=os.environ.get("HF_TOKEN") or None)
+    client = Client(SPACE, token=os.environ.get("HF_TOKEN") or None)
     failed = []
     for lk in todo:
         prompt = KEEP + " ".join(lk["prompt"].split()) + STYLE
