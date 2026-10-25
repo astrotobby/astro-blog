@@ -436,3 +436,25 @@ def compose(montage, voice, words, total, size, fps, cfg, slug, tag, out):
     n_a = sum(1 for s in segs if s["kind"] == "A")
     log(f"influencer cut {w}x{h}: {n_a} on-camera + {len(segs) - n_a} b-roll -> {out.name}")
     return out
+
+
+# ---------- one-time setup ----------
+def warm_face_cache(cfg):
+    """Detect and cache the face boxes of every look's moving clip (committed under
+    assets/influencer/facecache), so renders lip-sync without re-running detection.
+    Builds each face source exactly as render_talking() does, so the cache keys match."""
+    from avatar_lipsync import warm_face_cache as warm
+    fps = cfg["video"]["fps"]
+    for lk in load_looks(cfg):
+        if lk.get("clip"):
+            ok = warm(_face_source(lk, fps))
+            log(f"facecache {lk['id']}: {'ready' if ok else 'not cached'}")
+
+
+if __name__ == "__main__":
+    import sys
+    from common import load_config
+    if sys.argv[1:] == ["--warm-face-cache"]:
+        warm_face_cache(load_config())
+    else:
+        sys.exit("usage: python scripts/influencer.py --warm-face-cache")

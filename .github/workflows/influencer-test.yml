@@ -25,7 +25,7 @@ concurrency:
 jobs:
   looks:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120   # first face-cache warm-up detects ~7 clips on CPU; later runs skip it
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -45,6 +45,15 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python scripts/gen_influencer_motion.py
+      # Face detection on the moving clips is the slow part of lip-sync. Detect once per
+      # clip and commit the boxes (assets/influencer/facecache) so renders skip it.
+      - name: Set up Wav2Lip
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: bash scripts/setup_wav2lip.sh
+      - name: Warm the face cache
+        continue-on-error: true
+        run: python scripts/influencer.py --warm-face-cache
       - name: Commit new looks
         run: |
           git add -A assets/influencer
@@ -53,7 +62,7 @@ jobs:
           else
             git -c user.name="github-actions[bot]" \
                 -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-                commit -m "Add generated influencer looks and motion clips [skip ci]"
+                commit -m "Add generated influencer looks, motion clips and face cache [skip ci]"
             git push
           fi
 

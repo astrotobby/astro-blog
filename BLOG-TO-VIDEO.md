@@ -244,6 +244,12 @@ Looks are listed in `assets/influencer/looks.yaml`; a look turns on as soon as i
 from the avatar, and `assets/influencer/README.md` explains adding looks by hand. Set
 `influencer.enabled: false` to go back to the plain montage.
 
+**Render speed:** lip-syncing a moving clip needs his face located in every frame, which
+is slow on the runner's CPU. `scripts/wav2lip_cached.py` saves those face boxes per clip
+in `assets/influencer/facecache/` and reuses them, so only a new or changed clip pays
+for detection. After adding a clip, run `python scripts/influencer.py --warm-face-cache`
+(the `influencer-test` workflow does this) and commit the new `.npy` files.
+
 **Testing:** pushes to the `feat/ai-influencer` branch run the `influencer-test`
 workflow. It generates missing looks, renders the newest post, and uploads the videos
 as the `influencer-test-render` artifact. It never posts anywhere.
