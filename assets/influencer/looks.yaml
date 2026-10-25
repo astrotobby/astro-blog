@@ -1,0 +1,93 @@
+# AI influencer look library — the SAME man (assets/avatar.png) in different
+# outfits/locations. The pipeline rotates through every look whose `clip` or `image`
+# exists; entries without files are skipped, so add looks one at a time.
+#
+#   clip:    short (5-10s) talking/gesturing clip, head-and-torso, mouth visible.
+#            Best: lip-sync + gestures. Wav2Lip syncs the mouth to each video's VO.
+#   image:   still of the look. Used if there's no clip (animated still + lip-sync).
+#   face_cx / face_cy: face centre in the frame (0-1), for framing and punch-ins.
+#   prompt:  how the look was / should be generated FROM assets/avatar.png, so the
+#            identity stays consistent. Use the "consistency lock" in README.md.
+
+looks:
+  - id: studio_suit
+    location: studio
+    outfit: "charcoal pinstripe three-piece suit, black tie"
+    clip: assets/avatar_motion.mp4
+    image: assets/avatar.png
+    face_cx: 0.5
+    face_cy: 0.42
+
+  - id: private_jet
+    location: private_jet
+    outfit: "fitted black crew-neck tee, gold watch"
+    clip: assets/influencer/private_jet.mp4
+    image: assets/influencer/private_jet.png
+    face_cx: 0.5
+    face_cy: 0.24
+    prompt: >-
+      Change the scene to the cabin of a luxury private jet: cream leather seats, wood
+      trim, oval windows with soft daylight. He wears a fitted black crew-neck t-shirt
+      and a gold watch.
+
+  - id: fine_dining
+    location: restaurant
+    outfit: "open-collar black shirt, tailored charcoal blazer"
+    clip: assets/influencer/fine_dining.mp4
+    image: assets/influencer/fine_dining.png
+    face_cx: 0.5
+    face_cy: 0.30
+    prompt: >-
+      Change the scene to an upscale Michelin-star restaurant at night: warm
+      candlelight, white tablecloth, wine glasses, blurred chandeliers. He wears an
+      open-collar black shirt under a tailored charcoal blazer.
+
+  - id: penthouse_bedroom
+    location: bedroom
+    outfit: "black silk button-up shirt, open collar"
+    clip: assets/influencer/penthouse_bedroom.mp4
+    image: assets/influencer/penthouse_bedroom.png
+    face_cx: 0.5
+    face_cy: 0.25
+    prompt: >-
+      Change the scene: sitting on the edge of a king bed in a classic luxury penthouse bedroom, tufted
+      velvet headboard, marble nightstands, warm bedside lamps, floor-to-ceiling
+      windows with a night city view. Wearing a black silk button-up shirt with an
+      open collar that fits his broad chest and arms.
+
+  - id: lamborghini
+    location: supercar
+    outfit: "white fitted polo, aviator sunglasses pushed up on head"
+    clip: assets/influencer/lamborghini.mp4
+    image: assets/influencer/lamborghini.png
+    face_cx: 0.5
+    face_cy: 0.25
+    prompt: >-
+      Change the scene: standing and leaning against the side of a matte green Lamborghini Revuelto
+      with the scissor door open, upscale marina at sunset, palm trees and yachts
+      softly blurred behind. Wearing a white fitted polo that shows muscular arms and
+      chest, aviator sunglasses pushed up on his head.
+
+  - id: ferrari
+    location: supercar_ferrari
+    outfit: "black leather racer jacket over a white tee"
+    clip: assets/influencer/ferrari.mp4
+    image: assets/influencer/ferrari.png
+    face_cx: 0.5
+    face_cy: 0.25
+    prompt: >-
+      Change the scene: sitting in the driver's seat of a red Ferrari SF90 with the door open, tan
+      leather interior, parked in a modern luxury glass-walled garage with soft
+      overhead lighting. Wearing a black leather racer jacket over a white tee.
+
+  - id: cybertruck
+    location: cybertruck
+    outfit: "grey athletic zip hoodie, sleeves pushed up"
+    clip: assets/influencer/cybertruck.mp4
+    image: assets/influencer/cybertruck.png
+    face_cx: 0.5
+    face_cy: 0.25
+    prompt: >-
+      Change the scene: standing beside a stainless-steel Tesla Cybertruck on a desert highway at golden
+      hour, long shadows, cinematic. Wearing a fitted grey athletic zip hoodie with
+      sleeves pushed up showing muscular forearms, smart watch.

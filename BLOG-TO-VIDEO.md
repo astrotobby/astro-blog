@@ -225,6 +225,29 @@ Telegram message with ✅/❌ per platform and links.
 
 ---
 
+## AI influencer presenter (`influencer:` in config.yaml)
+
+Every video can be presented by **one consistent AI influencer**: the man in
+`assets/avatar.png`, in rotating outfits and locations (studio, private jet, fine
+dining, penthouse, Lamborghini, Ferrari, Cybertruck).
+
+- The stock-footage montage is built as usual, then `scripts/influencer.py` cuts
+  **full-screen on-camera segments** into it at the end of spoken words. The footage
+  between them stays as B-roll. Each video opens and closes on camera.
+- Each on-camera segment switches to the **next look**, so the outfit and location change
+  inside the video. Looks rotate per post, so consecutive videos open differently.
+- He is lip-synced with Wav2Lip (one run per look), with handheld drift, a slow push-in
+  and wide/punch-in jump cuts. Without Wav2Lip the stills are shown unsynced.
+
+Looks are listed in `assets/influencer/looks.yaml`; a look turns on as soon as its
+`.png` and/or `.mp4` exists. `scripts/gen_influencer_looks.py` generates missing stills
+from the avatar, and `assets/influencer/README.md` explains adding looks by hand. Set
+`influencer.enabled: false` to go back to the plain montage.
+
+**Testing:** pushes to the `feat/ai-influencer` branch run the `influencer-test`
+workflow. It generates missing looks, renders the newest post, and uploads the videos
+as the `influencer-test-render` artifact. It never posts anywhere.
+
 ## Living avatar — gestures, expressions, real lip-sync (free, one-time setup)
 
 Wav2Lip only moves the **mouth**. To get hand gestures, head movement and facial

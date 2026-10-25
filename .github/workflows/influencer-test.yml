@@ -1,0 +1,101 @@
+name: influencer-test
+
+# Test bench for the AI influencer presenter. Runs on pushes to feat/ai-influencer:
+#   1. looks  - generates any missing look stills (assets/influencer/looks.yaml) and
+#               commits them back to the branch
+#   2. render - renders ONE post end to end (script, voice, footage, presenter with
+#               Wav2Lip lip-sync, captions, music) and uploads the videos as an artifact.
+# It never posts anywhere: crosspost.py is not run and no platform secrets are passed.
+on:
+  push:
+    branches: [feat/ai-influencer]
+  workflow_dispatch:
+    inputs:
+      file:
+        description: "post to render (repo-relative path); empty = newest post"
+        default: ""
+
+permissions:
+  contents: write   # commit generated look stills back to the branch
+
+concurrency:
+  group: influencer-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  looks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install generator deps
+        run: pip install gradio_client pillow pyyaml
+      - name: Generate missing looks
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python scripts/gen_influencer_looks.py
+      - name: Commit new looks
+        run: |
+          git add assets/influencer/*.png
+          if git diff --cached --quiet; then
+            echo "no new looks"
+          else
+            git -c user.name="github-actions[bot]" \
+                -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                commit -m "Add generated influencer looks [skip ci]"
+            git push
+          fi
+
+  render:
+    needs: looks
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}   # includes the looks committed by the previous job
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install Python deps
+        run: pip install -r requirements-blog2video.txt
+      - name: Set up Wav2Lip
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: bash scripts/setup_wav2lip.sh
+      - name: Render one post (no posting)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          SITE_BASE_URL: ${{ secrets.SITE_BASE_URL }}
+        run: |
+          POST="${{ github.event.inputs.file }}"
+          if [ -z "$POST" ]; then POST=$(ls src/content/blog/*.md | sort | tail -1); fi
+          echo "rendering $POST"
+          set -o pipefail
+          {
+            python scripts/fetch_post.py --file "$POST"
+            python scripts/build_script.py .pipeline/post.json
+            python scripts/generate_video.py .pipeline/script.json
+          } 2>&1 | tee .pipeline/render.log
+      - name: Upload test render
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: influencer-test-render
+          path: |
+            .pipeline/out/video_*.mp4
+            .pipeline/out/presented_*.mp4
+            .pipeline/render.json
+            .pipeline/render.log
+          if-no-files-found: ignore
+          retention-days: 7

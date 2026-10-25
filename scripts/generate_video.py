@@ -928,6 +928,16 @@ def render_variant(name, narration, script, cfg, scene_assets, music):
     final_path = OUT / ("video_9x16.mp4" if name == "vertical" else "video_16x9.mp4")
     windows = scene_windows(word_timings, narration, len(scene_assets), total)
     build_clip(scene_assets, windows, size, cfg["video"]["fps"], montage, cfg, total)
+    if cfg.get("influencer", {}).get("enabled"):
+        # The AI presenter cuts in over the montage; the stock footage stays as B-roll.
+        try:
+            from influencer import compose
+            presented = compose(montage, voice, word_timings, total, size, cfg["video"]["fps"],
+                                cfg, script["post"]["slug"], name,
+                                OUT / f"presented_{name}.mp4")
+            montage = presented or montage
+        except Exception as exc:  # noqa  the presenter must never break the render
+            log(f"influencer cut failed -> plain montage: {exc}")
     captions = word_timings if cfg["video"].get("captions") else None
     finalize(montage, voiced, captions, music, size, final_path, cfg, scene_assets,
              script.get("hook"), total, grade=script.get("grade"))

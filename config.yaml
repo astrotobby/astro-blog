@@ -165,6 +165,24 @@ avatar:
   face_cx: 0.5                     # face centre X (0=left, 1=right)
   face_cy: 0.48                    # face centre Y (0=top, 1=bottom)
 
+# ---- AI influencer presenter (scripts/influencer.py) ----
+# ONE consistent person (the assets/avatar.png identity) in rotating outfits/locations.
+# Full-screen, lip-synced ON-CAMERA segments cut into the stock-footage montage, which
+# stays as the B-roll. Opens and closes on camera; each on-camera segment switches to
+# the next look. Looks live in assets/influencer/looks.yaml; a look whose image/clip is
+# missing is skipped (scripts/gen_influencer_looks.py generates missing stills).
+# Wav2Lip settings (timeout) come from the avatar: section above.
+influencer:
+  enabled: true
+  looks_file: "assets/influencer/looks.yaml"
+  looks_per_video: 3               # outfit/location changes per video (if that many exist)
+  aroll_seconds: [4.0, 7.0]        # on-camera segment length range
+  broll_seconds: [3.5, 6.0]        # b-roll segment length range
+  min_segment: 2.5                 # never leave a shorter sliver at the end
+  punch_in: 1.22                   # 2nd appearance of a look = tighter "jump-cut" framing
+  push_in: 0.045                   # slow push-in over each on-camera shot
+  handheld_px: 7                   # subtle handheld drift (0 = locked-off tripod)
+
 # ---- Posting rules / anti-ban caps (see HONEST-LIMITS.md) ----
 platforms:
   # Also cross-post each video to Instagram + Facebook STORIES (uses a <=58s trimmed

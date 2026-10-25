@@ -1,7 +1,7 @@
 """Talking-avatar lip-sync via Wav2Lip, run INSIDE the GitHub runner — no external
 Space, no timeouts/quotas. Wav2Lip is installed by scripts/setup_wav2lip.sh.
 
-generate_talking_head(avatar_image, voice_audio, cfg) -> talking-head mp4, or None
+generate_talking_head(avatar_image, voice_audio, cfg, out_name=...) -> talking-head mp4, or None
 (so generate_video falls back to the image montage and the render never breaks).
 """
 import subprocess
@@ -11,14 +11,14 @@ from common import OUT, ROOT, log
 WAV2LIP_DIR = ROOT / "Wav2Lip"
 
 
-def generate_talking_head(avatar_path, audio_path, cfg):
+def generate_talking_head(avatar_path, audio_path, cfg, out_name="talking_head.mp4"):
     av = cfg.get("avatar", {})
     ckpt = WAV2LIP_DIR / "checkpoints" / "wav2lip_gan.pth"
     if not ckpt.exists():
         log(f"avatar: Wav2Lip not set up ({ckpt} missing) -> motion-graphics fallback")
         return None
 
-    out = OUT / "talking_head.mp4"
+    out = OUT / out_name
     if out.exists():
         out.unlink()
     # A moving base clip (.mp4/.mov/...) is lip-synced frame-by-frame and auto-looped
