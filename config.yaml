@@ -58,7 +58,7 @@ script:
 
 # ---- Voice ----
 # provider: elevenlabs -> ElevenLabs (needs the ELEVENLABS_API_KEY repo secret).
-# If ElevenLabs is unavailable the render falls back to the edge-tts voice below,
+# If ElevenLabs is unavailable the render falls back to Kokoro, then edge-tts,
 # so a missing key or exhausted credits never block a post.
 voice:
   provider: "elevenlabs"
@@ -77,7 +77,15 @@ voice:
     style: 0.30              # adds energy; keep <= 0.45 to avoid over-acting
     use_speaker_boost: true
     speed: 1.05              # slightly brisk for short-form pacing
-  # ---- edge-tts fallback ----
+  # ---- Kokoro fallback (free, open-source, no quota) ----
+  # Used whenever ElevenLabs fails (credits exhausted, key missing). Runs on the runner
+  # CPU from .venv-kokoro (scripts/setup_kokoro.sh). Young American male voices:
+  #   am_michael (warm, closest to Will), am_puck (lively), am_fenrir (deeper)
+  kokoro:
+    enabled: true
+    voice: "am_michael"
+    speed: 1.05
+  # ---- edge-tts fallback (if Kokoro is unavailable too) ----
   name: "en-US-AndrewNeural"
   rate: "+0%"
   pitch: "+0Hz"

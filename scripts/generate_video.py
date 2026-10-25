@@ -174,6 +174,20 @@ def make_voice(narration, cfg, tag=""):
                 log(f"ElevenLabs voiceover {duration:.1f}s -> {eleven_out.name}")
                 return eleven_out, duration, result[1] or None, "elevenlabs"
         log("ElevenLabs unavailable; falling back to the next configured voice")
+    if (voice_cfg.get("kokoro") or {}).get("enabled"):
+        # Free, no-quota neural voice; captions get word timings from transcription.
+        try:
+            from tts_kokoro import synthesize as kokoro_synthesize
+            kokoro_out = kokoro_synthesize(narration, OUT / f"voiceover{tag}_kokoro.wav", cfg)
+        except Exception as exc:  # noqa
+            log(f"Kokoro voice failed ({exc})")
+            kokoro_out = None
+        if kokoro_out:
+            duration = ffprobe_duration(kokoro_out)
+            if duration > 0.25:
+                log(f"Kokoro voiceover {duration:.1f}s -> {kokoro_out.name}")
+                return kokoro_out, duration, None, "kokoro"
+        log("Kokoro unavailable; falling back to edge-tts")
     path, duration, provider = _make_voice_fallback(narration, cfg, tag)
     return path, duration, None, provider
 

@@ -122,6 +122,11 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: bash scripts/setup_wav2lip.sh
 
+      # Free Kokoro voice in its own virtualenv: the narration fallback when ElevenLabs
+      # is out of credits. Non-fatal: without it the pipeline falls back to edge-tts.
+      - name: Set up Kokoro voice
+        continue-on-error: true
+        run: bash scripts/setup_kokoro.sh
 
       # Persist dedup ledger + per-platform daily caps across runs.
       # restore-keys pulls the most recent prior state; a unique key saves a new one.

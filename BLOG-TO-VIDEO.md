@@ -15,7 +15,7 @@ new commit to /posts  ──►  GitHub Action  ──►  pipeline
                                                1. fetch_post.py   (read the new .md/.mdx)
                                                2. build_script.py (retention script + scene-specific B-roll briefs)
                                                3. generate_video.py
-                                                    • ElevenLabs      -> voiceover + word timings (edge-tts fallback)
+                                                    • ElevenLabs      -> voiceover + word timings (Kokoro, then edge-tts fallback)
                                                     • Pexels          -> ranked primary stock footage
                                                     • Pixabay         -> ranked fallback footage
                                                     • Pollinations    -> rare no-footage still fallback
@@ -99,7 +99,7 @@ REDDIT_USERNAME        # optional
 REDDIT_PASSWORD        # optional
 PEXELS_API_KEY         # primary footage search
 PIXABAY_API_KEY        # optional footage fallback
-ELEVENLABS_API_KEY     # narration voice (falls back to free edge-tts if missing)
+ELEVENLABS_API_KEY     # narration voice (falls back to free Kokoro, then edge-tts)
 ELEVENLABS_VOICE_ID    # optional: override config.yaml voice.elevenlabs.voice_id
 ANTHROPIC_API_KEY      # optional: Claude rewrites the narration into a spoken script
 SITE_BASE_URL          # e.g. https://astrotobby.site  (used for the CTA link)
@@ -185,6 +185,7 @@ Telegram message with ✅/❌ per platform and links.
 | `scripts/build_script.py` | retention script + semantic, scene-specific B-roll briefs |
 | `scripts/generate_video.py` | ElevenLabs voice → Pexels/Pixabay footage (2 angles/scene) → word-synced shot cuts → grade → karaoke captions → mastered mix |
 | `scripts/tts_elevenlabs.py` | ElevenLabs `/with-timestamps` TTS → audio + word timings |
+| `scripts/tts_kokoro.py` | Free Kokoro-82M fallback voice (isolated `.venv-kokoro`, built by `setup_kokoro.sh`) when ElevenLabs is out of credits |
 | `scripts/test_video_pipeline.py` | scene-brief, metadata, and attribution regression checks |
 | `scripts/test_renderer_smoke.py` | local FFmpeg smoke test for captions, music ducking, and overlays |
 | `scripts/crosspost.py` | dispatcher: dedup + daily caps over the direct posters |
