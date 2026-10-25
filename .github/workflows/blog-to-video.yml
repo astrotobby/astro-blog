@@ -128,6 +128,15 @@ jobs:
         continue-on-error: true
         run: bash scripts/setup_kokoro.sh
 
+      # HyperFrames (Node 22 + headless Chrome) renders the animated stat / key-point
+      # scenes. Non-fatal: without it those scenes keep their stock clips.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Set up HyperFrames
+        continue-on-error: true
+        run: bash scripts/setup_hyperframes.sh
+
       # Persist dedup ledger + per-platform daily caps across runs.
       # restore-keys pulls the most recent prior state; a unique key saves a new one.
       # Split into explicit restore/save (rather than the combined actions/cache@v4)

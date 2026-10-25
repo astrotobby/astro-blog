@@ -198,6 +198,16 @@ influencer:
   ltx: false
   ltx_max_segments: 8              # per cut; the vertical cut gets first claim on quota
 
+# ---- Animated stat / key-point scenes (scripts/motion_cards.py, HyperFrames) ----
+# The post's own facts as branded motion graphics in place of a few stock clips:
+# DATA scenes -> a counting-up stat card; the PAYOFF scene -> three key takeaways
+# from the post's headings. Needs scripts/setup_hyperframes.sh (Node 22 + Chrome).
+motion_cards:
+  enabled: true
+  max_stat_cards: 2
+  key_points: true
+  brand: "astrotobby"
+
 # ---- Posting rules / anti-ban caps (see HONEST-LIMITS.md) ----
 platforms:
   # Also cross-post each video to Instagram + Facebook STORIES (uses a <=58s trimmed

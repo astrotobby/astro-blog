@@ -8,7 +8,7 @@ set -euo pipefail
 
 python -m venv .venv-kokoro
 echo "[kokoro] installing torch (CPU build)..."
-.venv-kokoro/bin/pip install --quiet torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+.venv-kokoro/bin/pip install --quiet torch==2.7.1 --index-url https://download.pytorch.org/whl/cpu
 echo "[kokoro] installing kokoro..."
 .venv-kokoro/bin/pip install --quiet "kokoro>=0.9.4" soundfile
 

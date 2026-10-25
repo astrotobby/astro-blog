@@ -100,6 +100,20 @@ jobs:
           for v in am_michael am_puck am_fenrir; do
             .venv-kokoro/bin/python scripts/kokoro_cli.py /tmp/sample.txt ".pipeline/out/kokoro_${v}.wav" "$v" 1.05 2>&1 | tee -a .pipeline/kokoro.log
           done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Set up HyperFrames
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          bash scripts/setup_hyperframes.sh 2>&1 | tee .pipeline/hyperframes.log
+      # Stand-alone demo cards (9:16 and 16:9), published with the test render.
+      - name: Motion card samples
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python scripts/motion_cards.py --sample 2>&1 | tee -a .pipeline/hyperframes.log
       - name: Render one post (no posting)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -128,7 +142,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          FILES=$(ls .pipeline/out/video_*.mp4 .pipeline/out/kokoro_*.wav .pipeline/render.log .pipeline/kokoro.log 2>/dev/null || true)
+          FILES=$(ls .pipeline/out/video_*.mp4 .pipeline/out/kokoro_*.wav .pipeline/out/sample_*.mp4 \
+                     .pipeline/out/card_*.mp4 .pipeline/render.log .pipeline/kokoro.log \
+                     .pipeline/hyperframes.log 2>/dev/null || true)
           [ -z "$FILES" ] && { echo "nothing to publish"; exit 0; }
           TAG="influencer-test-${{ github.run_id }}"
           gh release create "$TAG" --prerelease --target "${{ github.sha }}" \
