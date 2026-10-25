@@ -10,7 +10,10 @@ python -m venv .venv-kokoro
 echo "[kokoro] installing torch (CPU build)..."
 .venv-kokoro/bin/pip install --quiet torch==2.7.1 --index-url https://download.pytorch.org/whl/cpu
 echo "[kokoro] installing kokoro..."
-.venv-kokoro/bin/pip install --quiet "kokoro>=0.9.4" soundfile
+# Pinned, known-good spaCy stack: a newer spaCy/preshed release fails to load the
+# en_core_web_sm tokenizer ("OverflowError ... _flush_specials").
+.venv-kokoro/bin/pip install --quiet "kokoro>=0.9.4" soundfile   spacy==3.8.4 thinc==8.3.4 numpy==1.26.4 preshed==3.0.9 cymem==2.0.11   "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
+.venv-kokoro/bin/pip list 2>/dev/null | grep -iE "^(kokoro|misaki|spacy|thinc|numpy|preshed|cymem|torch|transformers) " || true
 
 # Warm-up: downloads the model weights and the English G2P data once per job.
 echo "Kokoro voice is ready." > /tmp/kokoro_warmup.txt

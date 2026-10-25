@@ -7,7 +7,7 @@ set -euo pipefail
 
 mkdir -p .hyperframes
 cd .hyperframes
-[ -f package.json ] || npm init -y >/dev/null
+[ -f package.json ] || echo '{"name": "hf-cards", "private": true}' > package.json
 echo "[hyperframes] installing CLI..."
 npm install --no-audit --no-fund hyperframes@0.8.198
 npx hyperframes --version || true
