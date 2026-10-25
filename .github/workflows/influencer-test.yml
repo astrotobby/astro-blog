@@ -81,6 +81,7 @@ jobs:
           POST="${{ github.event.inputs.file }}"
           if [ -z "$POST" ]; then POST=$(ls src/content/blog/*.md | sort | tail -1); fi
           echo "rendering $POST"
+          mkdir -p .pipeline
           set -o pipefail
           {
             python scripts/fetch_post.py --file "$POST"
