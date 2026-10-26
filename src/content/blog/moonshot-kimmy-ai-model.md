@@ -2,8 +2,7 @@
 title: "Moonshot AI's Kimmy K3.1 Open Model Surprises Experts"
 description: "A new open-weight AI model from China, Kimmy K3.1, is performing at frontier levels on benchmarks, raising questions amid distillation claims."
 pubDate: 2026-10-26
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "neural network enigma"
+image: "https://images.pexels.com/photos/17483871/pexels-photo-17483871.png?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, llm, tech-news, research]
 author: "Astro Tobby"
 ---
