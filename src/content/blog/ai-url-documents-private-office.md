@@ -2,8 +2,7 @@
 title: "AI-Enabled Office Suite Stores Entire Documents in URLs"
 description: "Paul Ford's AI-enabled Tiny Little Office stores documents in URLs for enhanced privacy and ephemerality, challenging conventional data storage and cloud services."
 pubDate: 2026-10-27
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "url data privacy"
+image: "https://images.pexels.com/photos/270408/pexels-photo-270408.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, tech-news, coding, llm]
 author: "Astro Tobby"
 ---
