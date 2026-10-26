@@ -2,8 +2,7 @@
 title: "Sullivan & Cromwell Custom Builds AI Legal Tools With Codex"
 description: "Law firm Sullivan & Cromwell custom-builds AI applications using OpenAI's Codex to accelerate legal analysis and draft sophisticated client documents."
 pubDate: 2026-10-27
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "legal AI tools"
+image: "https://images.pexels.com/photos/16027824/pexels-photo-16027824.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, llm, coding, tech-news]
 author: "Astro Tobby"
 ---
