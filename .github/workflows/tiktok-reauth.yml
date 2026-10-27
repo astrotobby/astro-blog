@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       code:
-        description: "OAuth code from https://astrotobby.site/tiktok/callback?code=..."
+        description: "Paste the whole https://astrotobby.site/tiktok/callback?code=... URL (or just the code)"
         required: true
 
 permissions:
@@ -23,8 +23,10 @@ jobs:
   exchange:
     runs-on: ubuntu-latest
     steps:
-      - name: Mask code
-        run: echo "::add-mask::${{ inputs.code }}"
+      - name: Mask input
+        env:
+          CODE: ${{ inputs.code }}
+        run: echo "::add-mask::$CODE"
       - name: Restore pipeline state
         uses: actions/cache@v4
         with:
@@ -42,10 +44,13 @@ jobs:
         run: |
           import json, os, pathlib, urllib.parse, urllib.request
           state = pathlib.Path(".pipeline/state"); state.mkdir(parents=True, exist_ok=True)
+          raw = os.environ["CODE"].strip()
+          if raw.startswith("http"):   # whole callback URL pasted: take its ?code=
+              raw = urllib.parse.parse_qs(urllib.parse.urlsplit(raw).query).get("code", [""])[0]
           body = urllib.parse.urlencode({
               "client_key": os.environ["TIKTOK_CLIENT_KEY"].strip(),
               "client_secret": os.environ["TIKTOK_CLIENT_SECRET"].strip(),
-              "code": urllib.parse.unquote(os.environ["CODE"].strip()),
+              "code": urllib.parse.unquote(raw),
               "grant_type": "authorization_code",
               "redirect_uri": os.environ["REDIRECT"].strip()}).encode()
           req = urllib.request.Request("https://open.tiktokapis.com/v2/oauth/token/", data=body,
