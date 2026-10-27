@@ -15,7 +15,7 @@ new commit to /posts  ──►  GitHub Action  ──►  pipeline
                                                1. fetch_post.py   (read the new .md/.mdx)
                                                2. build_script.py (retention script + scene-specific B-roll briefs)
                                                3. generate_video.py
-                                                    • ElevenLabs      -> voiceover + word timings (edge-tts fallback)
+                                                    • ElevenLabs      -> voiceover + word timings (Kokoro, then edge-tts fallback)
                                                     • Pexels          -> ranked primary stock footage
                                                     • Pixabay         -> ranked fallback footage
                                                     • Pollinations    -> rare no-footage still fallback
@@ -99,7 +99,7 @@ REDDIT_USERNAME        # optional
 REDDIT_PASSWORD        # optional
 PEXELS_API_KEY         # primary footage search
 PIXABAY_API_KEY        # optional footage fallback
-ELEVENLABS_API_KEY     # narration voice (falls back to free edge-tts if missing)
+ELEVENLABS_API_KEY     # narration voice (falls back to free Kokoro, then edge-tts)
 ELEVENLABS_VOICE_ID    # optional: override config.yaml voice.elevenlabs.voice_id
 ANTHROPIC_API_KEY      # optional: Claude rewrites the narration into a spoken script
 SITE_BASE_URL          # e.g. https://astrotobby.site  (used for the CTA link)
@@ -185,6 +185,7 @@ Telegram message with ✅/❌ per platform and links.
 | `scripts/build_script.py` | retention script + semantic, scene-specific B-roll briefs |
 | `scripts/generate_video.py` | ElevenLabs voice → Pexels/Pixabay footage (2 angles/scene) → word-synced shot cuts → grade → karaoke captions → mastered mix |
 | `scripts/tts_elevenlabs.py` | ElevenLabs `/with-timestamps` TTS → audio + word timings |
+| `scripts/tts_kokoro.py` | Free Kokoro-82M fallback voice (isolated `.venv-kokoro`, built by `setup_kokoro.sh`) when ElevenLabs is out of credits |
 | `scripts/test_video_pipeline.py` | scene-brief, metadata, and attribution regression checks |
 | `scripts/test_renderer_smoke.py` | local FFmpeg smoke test for captions, music ducking, and overlays |
 | `scripts/crosspost.py` | dispatcher: dedup + daily caps over the direct posters |
@@ -224,6 +225,35 @@ Telegram message with ✅/❌ per platform and links.
   get a per-platform ✅/❌ in Telegram.
 
 ---
+
+## AI influencer presenter (`influencer:` in config.yaml)
+
+Every video can be presented by **one consistent AI influencer**: the man in
+`assets/avatar.png`, in rotating outfits and locations (studio, private jet, fine
+dining, penthouse, Lamborghini, Ferrari, Cybertruck).
+
+- The stock-footage montage is built as usual, then `scripts/influencer.py` cuts
+  **full-screen on-camera segments** into it at the end of spoken words. The footage
+  between them stays as B-roll. Each video opens and closes on camera.
+- Each on-camera segment switches to the **next look**, so the outfit and location change
+  inside the video. Looks rotate per post, so consecutive videos open differently.
+- He is lip-synced with Wav2Lip (one run per look), with handheld drift, a slow push-in
+  and wide/punch-in jump cuts. Without Wav2Lip the stills are shown unsynced.
+
+Looks are listed in `assets/influencer/looks.yaml`; a look turns on as soon as its
+`.png` and/or `.mp4` exists. `scripts/gen_influencer_looks.py` generates missing stills
+from the avatar, and `assets/influencer/README.md` explains adding looks by hand. Set
+`influencer.enabled: false` to go back to the plain montage.
+
+**Render speed:** lip-syncing a moving clip needs his face located in every frame, which
+is slow on the runner's CPU. `scripts/wav2lip_cached.py` saves those face boxes per clip
+in `assets/influencer/facecache/` and reuses them, so only a new or changed clip pays
+for detection. After adding a clip, run `python scripts/influencer.py --warm-face-cache`
+(the `influencer-test` workflow does this) and commit the new `.npy` files.
+
+**Testing:** pushes to the `feat/ai-influencer` branch run the `influencer-test`
+workflow. It generates missing looks, renders the newest post, and uploads the videos
+as the `influencer-test-render` artifact. It never posts anywhere.
 
 ## Living avatar — gestures, expressions, real lip-sync (free, one-time setup)
 

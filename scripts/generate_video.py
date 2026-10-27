@@ -174,6 +174,20 @@ def make_voice(narration, cfg, tag=""):
                 log(f"ElevenLabs voiceover {duration:.1f}s -> {eleven_out.name}")
                 return eleven_out, duration, result[1] or None, "elevenlabs"
         log("ElevenLabs unavailable; falling back to the next configured voice")
+    if (voice_cfg.get("kokoro") or {}).get("enabled"):
+        # Free, no-quota neural voice; captions get word timings from transcription.
+        try:
+            from tts_kokoro import synthesize as kokoro_synthesize
+            kokoro_out = kokoro_synthesize(narration, OUT / f"voiceover{tag}_kokoro.wav", cfg)
+        except Exception as exc:  # noqa
+            log(f"Kokoro voice failed ({exc})")
+            kokoro_out = None
+        if kokoro_out:
+            duration = ffprobe_duration(kokoro_out)
+            if duration > 0.25:
+                log(f"Kokoro voiceover {duration:.1f}s -> {kokoro_out.name}")
+                return kokoro_out, duration, None, "kokoro"
+        log("Kokoro unavailable; falling back to edge-tts")
     path, duration, provider = _make_voice_fallback(narration, cfg, tag)
     return path, duration, None, provider
 
@@ -576,6 +590,11 @@ def _plan_shots(scene_assets, windows, fps, cfg, total_frames):
     for index, ((asset, meta), (start, end)) in enumerate(zip(scene_assets, windows)):
         target = 1.7 if meta.get("scene_type") == "HOOK" else shot_seconds
         pieces = max(1, int(round((end - start) / target)))
+        if meta.get("card"):
+            # A motion card is one continuous animation: never split, offset or swapped.
+            shots.append({"scene": index, "shot": 0, "asset": asset, "motion": "push_in_slow",
+                          "card": True, "start": start, "end": end})
+            continue
         step = (end - start) / pieces
         for j in range(pieces):
             source = asset
@@ -619,13 +638,16 @@ def build_clip(scene_assets, windows, size, fps, out_path, cfg=None, total_durat
         if asset.suffix.lower() == ".mp4":
             source_duration = ffprobe_duration(asset)
             cmd = ["ffmpeg", "-y", "-v", "error"]
-            if source_duration > seconds + 0.3:
+            if shot.get("card"):
+                cmd += ["-i", str(asset)]          # play from frame 0; tpad holds the end
+            elif source_duration > seconds + 0.3:
                 available = max(source_duration - seconds - 0.1, 0.01)
                 offset = (shot["scene"] * 1.618 + shot["shot"] * 2.35) % available
                 cmd += ["-ss", f"{offset:.3f}", "-i", str(asset)]
             else:
                 cmd += ["-stream_loop", "-1", "-i", str(asset)]
-            video_filter = (f"fps={fps},{_motion_filter(shot['motion'], width, height, seconds)},"
+            hold = "tpad=stop_mode=clone:stop_duration=30," if shot.get("card") else ""
+            video_filter = (f"{hold}fps={fps},{_motion_filter(shot['motion'], width, height, seconds)},"
                             f"setsar=1,format=yuv420p")
             run(cmd + ["-vf", video_filter, "-frames:v", str(frames), *_encode_args(fps), str(segment)])
         else:
@@ -928,6 +950,16 @@ def render_variant(name, narration, script, cfg, scene_assets, music):
     final_path = OUT / ("video_9x16.mp4" if name == "vertical" else "video_16x9.mp4")
     windows = scene_windows(word_timings, narration, len(scene_assets), total)
     build_clip(scene_assets, windows, size, cfg["video"]["fps"], montage, cfg, total)
+    if cfg.get("influencer", {}).get("enabled"):
+        # The AI presenter cuts in over the montage; the stock footage stays as B-roll.
+        try:
+            from influencer import compose
+            presented = compose(montage, voice, word_timings, total, size, cfg["video"]["fps"],
+                                cfg, script["post"]["slug"], name,
+                                OUT / f"presented_{name}.mp4")
+            montage = presented or montage
+        except Exception as exc:  # noqa  the presenter must never break the render
+            log(f"influencer cut failed -> plain montage: {exc}")
     captions = word_timings if cfg["video"].get("captions") else None
     finalize(montage, voiced, captions, music, size, final_path, cfg, scene_assets,
              script.get("hook"), total, grade=script.get("grade"))
@@ -954,6 +986,18 @@ def make_story_cut(vertical, duration):
     return out
 
 
+def _with_motion_cards(script, cfg, assets, variant):
+    """Swap a few scenes for HyperFrames stat/key-point cards (motion_cards.py)."""
+    if not cfg.get("motion_cards", {}).get("enabled"):
+        return assets
+    try:
+        from motion_cards import apply_cards
+        return apply_cards(script, cfg, assets, variant)
+    except Exception as exc:  # noqa  cards must never break the render
+        log(f"motion cards skipped ({exc})")
+        return assets
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("script_json")
@@ -962,6 +1006,7 @@ def main():
     script = read_json(args.script_json)
 
     vertical_assets, vertical_sources = fetch_scene_assets(script, cfg, "vertical")
+    vertical_assets = _with_motion_cards(script, cfg, vertical_assets, "vertical")
     music = choose_music(script) if cfg["video"].get("music") else None
 
     vertical, vertical_duration, _vertical_words, provider = render_variant(
@@ -972,6 +1017,7 @@ def main():
 
     if cfg["video"].get("make_horizontal"):
         horizontal_assets, horizontal_sources = fetch_scene_assets(script, cfg, "horizontal")
+        horizontal_assets = _with_motion_cards(script, cfg, horizontal_assets, "horizontal")
         horizontal, horizontal_duration, _horizontal_words, _ = render_variant(
             "horizontal", script.get("narration_yt") or script["narration"], script,
             cfg, horizontal_assets, music)

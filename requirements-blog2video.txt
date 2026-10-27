@@ -11,6 +11,7 @@ PyYAML==6.0.2
 python-frontmatter==1.1.0 # parse blog post front-matter
 markdown-it-py==3.0.0     # strip markdown -> plain text for the script
 Pillow==10.4.0            # image sizing for ffmpeg scenes
+gradio_client>=2.0        # AI influencer: free LTX-2 talking video + look stills (HF Spaces)
 
 # --- YouTube direct upload ---
 google-api-python-client==2.143.0

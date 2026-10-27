@@ -1,0 +1,166 @@
+name: influencer-test
+
+# Test bench for the AI influencer presenter. Runs on pushes to feat/ai-influencer:
+#   1. looks  - generates any missing look stills (assets/influencer/looks.yaml) and
+#               commits them back to the branch
+#   2. render - renders ONE post end to end (script, voice, footage, presenter with
+#               Wav2Lip lip-sync, captions, music) and uploads the videos as an artifact.
+# It never posts anywhere: crosspost.py is not run and no platform secrets are passed.
+on:
+  push:
+    branches: [feat/ai-influencer]
+  workflow_dispatch:
+    inputs:
+      file:
+        description: "post to render (repo-relative path); empty = newest post"
+        default: ""
+
+permissions:
+  contents: write   # commit generated look stills back to the branch
+
+concurrency:
+  group: influencer-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  looks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120   # first face-cache warm-up detects ~7 clips on CPU; later runs skip it
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install generator deps
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          pip install "gradio_client>=2.0" pillow pyyaml edge-tts
+      - name: Generate missing looks
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python scripts/gen_influencer_looks.py
+      # One-time moving base clip per look, so Wav2Lip fallbacks still gesture and nod.
+      - name: Generate missing motion clips
+        continue-on-error: true
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python scripts/gen_influencer_motion.py
+      # Face detection on the moving clips is the slow part of lip-sync. Detect once per
+      # clip and commit the boxes (assets/influencer/facecache) so renders skip it.
+      - name: Set up Wav2Lip
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: bash scripts/setup_wav2lip.sh
+      - name: Warm the face cache
+        continue-on-error: true
+        run: python scripts/influencer.py --warm-face-cache
+      - name: Commit new looks
+        run: |
+          git add -A assets/influencer
+          if git diff --cached --quiet; then
+            echo "no new looks"
+          else
+            git -c user.name="github-actions[bot]" \
+                -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                commit -m "Add generated influencer looks, motion clips and face cache [skip ci]"
+            git push
+          fi
+
+  render:
+    needs: looks
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}   # includes the looks committed by the previous job
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install Python deps
+        run: pip install -r requirements-blog2video.txt
+      - name: Set up Wav2Lip
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: bash scripts/setup_wav2lip.sh
+      # Output goes to .pipeline/kokoro.log, published with the render (logs need a login).
+      - name: Set up Kokoro voice
+        continue-on-error: true
+        run: |
+          mkdir -p .pipeline/out
+          set -o pipefail
+          bash scripts/setup_kokoro.sh 2>&1 | tee .pipeline/kokoro.log
+      # Short samples of the free fallback voices, published with the test render.
+      - name: Kokoro voice samples
+        continue-on-error: true
+        run: |
+          echo "Here's what nobody is telling you about AI agents this year. It's honestly one of the biggest shifts I've seen, and if you get it early, you win." > /tmp/sample.txt
+          for v in am_michael am_puck am_fenrir; do
+            .venv-kokoro/bin/python scripts/kokoro_cli.py /tmp/sample.txt ".pipeline/out/kokoro_${v}.wav" "$v" 1.05 2>&1 | tee -a .pipeline/kokoro.log
+          done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Set up HyperFrames
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          bash scripts/setup_hyperframes.sh 2>&1 | tee .pipeline/hyperframes.log
+      # Stand-alone demo cards (9:16 and 16:9), published with the test render.
+      - name: Motion card samples
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python scripts/motion_cards.py --sample 2>&1 | tee -a .pipeline/hyperframes.log
+      - name: Render one post (no posting)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          SITE_BASE_URL: ${{ secrets.SITE_BASE_URL }}
+        run: |
+          POST="${{ github.event.inputs.file }}"
+          if [ -z "$POST" ]; then POST=$(ls src/content/blog/*.md | sort | tail -1); fi
+          echo "rendering $POST"
+          mkdir -p .pipeline
+          set -o pipefail
+          {
+            python scripts/fetch_post.py --file "$POST"
+            python scripts/build_script.py .pipeline/post.json
+            python scripts/generate_video.py .pipeline/script.json
+          } 2>&1 | tee .pipeline/render.log
+      # A pre-release gives the test videos a link that plays without signing in.
+      # Marked as a test so it is never mistaken for a published video.
+      # On failure it still publishes render.log, so the error is readable without a login.
+      - name: Publish test render as a pre-release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FILES=$(ls .pipeline/out/video_*.mp4 .pipeline/out/kokoro_*.wav .pipeline/out/sample_*.mp4 \
+                     .pipeline/out/card_*.mp4 .pipeline/render.log .pipeline/kokoro.log \
+                     .pipeline/hyperframes.log 2>/dev/null || true)
+          [ -z "$FILES" ] && { echo "nothing to publish"; exit 0; }
+          TAG="influencer-test-${{ github.run_id }}"
+          gh release create "$TAG" --prerelease --target "${{ github.sha }}" \
+            --title "Influencer test render ${{ github.run_id }} (not published)" \
+            --notes "Test render from the influencer-test workflow. Not posted to any platform." \
+            $FILES
+
+      - name: Upload test render
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: influencer-test-render
+          path: |
+            .pipeline/out/video_*.mp4
+            .pipeline/out/presented_*.mp4
+            .pipeline/render.json
+            .pipeline/render.log
+          if-no-files-found: ignore
+          retention-days: 7

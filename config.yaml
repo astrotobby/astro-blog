@@ -58,7 +58,7 @@ script:
 
 # ---- Voice ----
 # provider: elevenlabs -> ElevenLabs (needs the ELEVENLABS_API_KEY repo secret).
-# If ElevenLabs is unavailable the render falls back to the edge-tts voice below,
+# If ElevenLabs is unavailable the render falls back to Kokoro, then edge-tts,
 # so a missing key or exhausted credits never block a post.
 voice:
   provider: "elevenlabs"
@@ -77,7 +77,15 @@ voice:
     style: 0.30              # adds energy; keep <= 0.45 to avoid over-acting
     use_speaker_boost: true
     speed: 1.05              # slightly brisk for short-form pacing
-  # ---- edge-tts fallback ----
+  # ---- Kokoro fallback (free, open-source, no quota) ----
+  # Used whenever ElevenLabs fails (credits exhausted, key missing). Runs on the runner
+  # CPU from .venv-kokoro (scripts/setup_kokoro.sh). Young American male voices:
+  #   am_michael (warm, closest to Will), am_puck (lively), am_fenrir (deeper)
+  kokoro:
+    enabled: true
+    voice: "am_michael"
+    speed: 1.05
+  # ---- edge-tts fallback (if Kokoro is unavailable too) ----
   name: "en-US-AndrewNeural"
   rate: "+0%"
   pitch: "+0Hz"
@@ -164,6 +172,41 @@ avatar:
   face_zoom: 0.98                  # crop width as fraction of the shorter dimension
   face_cx: 0.5                     # face centre X (0=left, 1=right)
   face_cy: 0.48                    # face centre Y (0=top, 1=bottom)
+
+# ---- AI influencer presenter (scripts/influencer.py) ----
+# ONE consistent person (the assets/avatar.png identity) in rotating outfits/locations.
+# Full-screen, lip-synced ON-CAMERA segments cut into the stock-footage montage, which
+# stays as the B-roll. Opens and closes on camera; each on-camera segment switches to
+# the next look. Looks live in assets/influencer/looks.yaml; a look whose image/clip is
+# missing is skipped (scripts/gen_influencer_looks.py generates missing stills).
+# Wav2Lip settings (timeout) come from the avatar: section above.
+influencer:
+  enabled: true
+  looks_file: "assets/influencer/looks.yaml"
+  looks_per_video: 3               # outfit/location changes per video (if that many exist)
+  aroll_seconds: [4.0, 7.0]        # on-camera segment length range
+  broll_seconds: [3.5, 6.0]        # b-roll segment length range
+  min_segment: 2.5                 # never leave a shorter sliver at the end
+  punch_in: 1.22                   # 2nd appearance of a look = tighter "jump-cut" framing
+  push_in: 0.045                   # slow push-in over each on-camera shot
+  handheld_px: 7                   # subtle handheld drift (0 = locked-off tripod)
+  # LTX-2 (Hugging Face Space) animates his head, face and hands AND lip-syncs each
+  # on-camera segment. Each segment costs ~170 s of ZeroGPU time; a free HF account gets
+  # only a few minutes a day, so this stays off and the free quota goes to the one-time
+  # moving clips (scripts/gen_influencer_motion.py). Turn on with HF PRO. Segments past
+  # the quota fall back to Wav2Lip on the look's moving clip automatically.
+  ltx: false
+  ltx_max_segments: 8              # per cut; the vertical cut gets first claim on quota
+
+# ---- Animated stat / key-point scenes (scripts/motion_cards.py, HyperFrames) ----
+# The post's own facts as branded motion graphics in place of a few stock clips:
+# DATA scenes -> a counting-up stat card; the PAYOFF scene -> three key takeaways
+# from the post's headings. Needs scripts/setup_hyperframes.sh (Node 22 + Chrome).
+motion_cards:
+  enabled: true
+  max_stat_cards: 2
+  key_points: true
+  brand: "astrotobby"
 
 # ---- Posting rules / anti-ban caps (see HONEST-LIMITS.md) ----
 platforms:
