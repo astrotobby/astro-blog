@@ -53,6 +53,9 @@ def main():
     ap.add_argument("render_json")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--force", action="store_true", help="ignore dedup ledger")
+    ap.add_argument("--only", default="",
+                    help="comma list (e.g. tiktok): post ONLY to these destinations, "
+                         "reposting them; every other destination is left untouched")
     args = ap.parse_args()
     cfg = load_config()
     render = read_json(args.render_json)
@@ -63,7 +66,13 @@ def main():
     ledger = load_ledger()
     prior = ledger.get(post["slug"])
     prior_results = (prior or {}).get("results") or {}
-    if prior and prior.get("hash") == chash and not args.dry_run and not args.force:
+    only = {p.strip() for p in args.only.split(",") if p.strip()}
+    if only:
+        # Every destination not listed counts as already done; listed ones repost.
+        global _prior_ok
+        _prior_ok = lambda _prior, _chash, key, _dry, _force: key not in only  # noqa: E731
+        log(f"--only {sorted(only)}: other destinations are skipped and keep their results")
+    if prior and prior.get("hash") == chash and not args.dry_run and not args.force and not only:
         retryable = any(
             isinstance(result, dict) and result.get("error")
             for result in prior_results.values())
@@ -75,7 +84,8 @@ def main():
         log(f"retrying failed destinations for '{post['slug']}' without reposting prior successes")
 
     state = _load_counts()
-    results = dict(prior_results) if prior and prior.get("hash") == chash and not args.force else {}
+    results = (dict(prior_results) if prior and prior.get("hash") == chash
+               and (not args.force or only) else {})
     enabled = set(cfg["platforms"].get("direct", []))
 
     # ----- YouTube (own module: handles main + optional Short) -----

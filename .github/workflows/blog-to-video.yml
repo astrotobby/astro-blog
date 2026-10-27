@@ -45,6 +45,9 @@ on:
       file:
         description: "render THIS post only (repo-relative path, e.g. src/content/blog/x.md)"
         default: ""
+      only:
+        description: "post ONLY to these destinations, e.g. tiktok (reposts them; others untouched)"
+        default: ""
 
 permissions:
   contents: write   # needed to publish the video as a Release asset (public URL for Threads)
@@ -244,7 +247,9 @@ jobs:
           elif [ "${{ github.event.inputs.prime }}" = "true" ]; then
             python scripts/run_pipeline.py --prime
           elif [ -n "${{ github.event.inputs.file }}" ]; then
-            python scripts/run_pipeline.py --changed "${{ github.event.inputs.file }}" $DRY $FORCE $UNSKIP
+            ONLY=""
+            if [ -n "${{ github.event.inputs.only }}" ]; then ONLY="--only ${{ github.event.inputs.only }}"; fi
+            python scripts/run_pipeline.py --changed "${{ github.event.inputs.file }}" $DRY $FORCE $UNSKIP $ONLY
           elif [ "${{ github.event.inputs.sweep }}" = "true" ]; then
             python scripts/run_pipeline.py --sweep $DRY $FORCE $UNSKIP
           elif [ "${{ github.event.inputs.mode }}" = "dry" ]; then

@@ -151,14 +151,16 @@ def _prepare_run(posts, force):
     return keep[:MAX_POSTS_PER_RUN]
 
 
-def process_one(post_file, dry, force=False):
+def process_one(post_file, dry, force=False, only=""):
     step([S / "fetch_post.py", "--file", post_file])
     step([S / "build_script.py", PIPE / "post.json"])
     step([S / "generate_video.py", PIPE / "script.json"])
     cross = [S / "crosspost.py", PIPE / "render.json"]
     if dry:
         cross += ["--dry-run"]
-    if force:
+    if only:
+        cross += ["--only", only]     # repost just these; other destinations untouched
+    elif force:
         cross += ["--force"]
     step(cross)
     try:
@@ -196,6 +198,9 @@ def main():
                     help="baseline: mark all current posts as done WITHOUT posting (run once)")
     ap.add_argument("--unskip", action="store_true",
                     help="repair ledger first: forget skipped-as-duplicate entries")
+    ap.add_argument("--only", default="",
+                    help="comma list (e.g. tiktok): re-render the post(s) and post ONLY "
+                         "to these destinations, even if already posted")
     args = ap.parse_args()
 
     if args.unskip:
@@ -213,7 +218,7 @@ def main():
         log("no new posts to process — exiting cleanly")
         return
 
-    posts = _prepare_run(posts, args.force)
+    posts = _prepare_run(posts, args.force or bool(args.only))
     if not posts:
         log("nothing left to process after dedup — exiting cleanly")
         return
@@ -223,7 +228,7 @@ def main():
     for i, pf in enumerate(posts, 1):
         log(f"=== post {i}/{len(posts)}: {pf} ===")
         try:
-            process_one(pf, args.dry_run, args.force)
+            process_one(pf, args.dry_run, args.force, args.only)
         except Exception as e:  # noqa
             failures += 1
             log(f"post failed (continuing with the rest): {e}")
