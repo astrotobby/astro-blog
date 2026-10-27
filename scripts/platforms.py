@@ -1033,7 +1033,42 @@ def post_rumble(render, cfg, dry):
 # for personal use with your own access token (standard OAuth flow).
 # Requires: PINTEREST_ACCESS_TOKEN, PINTEREST_BOARD_ID
 # --------------------------------------------------------------------------
+def _pinterest_via_make(body, dry):
+    """Create the pin through a Make.com webhook scenario (Make's Pinterest app has
+    production access, unlike our app while it is on Trial access)."""
+    hook = env("MAKE_PINTEREST_WEBHOOK")
+    if not hook:
+        return {"ok": False, "skipped": "no MAKE_PINTEREST_WEBHOOK"}
+    if dry:
+        return {"ok": True, "dry": True, "url": "(dry) pin via Make"}
+    try:
+        import requests
+        r = requests.post(hook, json=body, timeout=120)
+        try:
+            pin_id = str((r.json() or {}).get("id") or "")
+        except ValueError:
+            pin_id = ""
+        if r.status_code < 300 and pin_id.isdigit():
+            return {"ok": True, "url": f"https://www.pinterest.com/pin/{pin_id}/"}
+        return {"ok": False, "error": f"make bridge HTTP {r.status_code}: {r.text[:200]}"}
+    except Exception as e:  # noqa
+        return {"ok": False, "error": f"make bridge: {e}"}
+
+
 def post_pinterest(render, cfg, dry):
+    via = (cfg["platforms"].get("pinterest") or {}).get("via", "api")
+    if via == "make":
+        post = render["post"]
+        if not post.get("image_url"):
+            return {"ok": False, "error": "post has no image_url; set 'image' in frontmatter"}
+        note = render["platform"].get("caption") or post["description"]
+        return _pinterest_via_make({
+            "board_id": env("PINTEREST_BOARD_ID"),
+            "title": post["title"][:100],
+            "description": " ".join(w for w in note.split() if not w.startswith("#"))[:500],
+            "link": post["url"],
+            "image_url": post["image_url"],
+        }, dry)
     if not (env("PINTEREST_BOARD_ID") and cached_token("pinterest_token.txt", "PINTEREST_ACCESS_TOKEN")):
         return {"ok": False, "skipped": "no creds"}
     post = render["post"]

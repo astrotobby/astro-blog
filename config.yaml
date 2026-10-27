@@ -248,6 +248,10 @@ platforms:
   # Get board_id: open your board on Pinterest, the ID is in the URL (last numeric segment).
   pinterest:
     board_id: ""   # override with PINTEREST_BOARD_ID secret; leave blank to use only the secret
+    # "make": post through the Make.com webhook in the MAKE_PINTEREST_WEBHOOK secret
+    # (our app is on Trial access, which cannot create public pins). Switch back to
+    # "api" once developers.pinterest.com grants Standard access.
+    via: "make"
 
   # TikTok: "direct" publishes with the caption (audited app + video.publish scope,
   # granted via the tiktok-reauth workflow); "inbox" sends drafts to post by hand.
