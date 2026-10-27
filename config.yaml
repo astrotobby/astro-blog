@@ -248,6 +248,15 @@ platforms:
   pinterest:
     board_id: ""   # override with PINTEREST_BOARD_ID secret; leave blank to use only the secret
 
+  # TikTok: "direct" publishes with the caption (audited app + video.publish scope,
+  # granted via the tiktok-reauth workflow); "inbox" sends drafts to post by hand.
+  # A refused direct post falls back to the inbox automatically.
+  tiktok:
+    mode: "direct"
+    privacy: "PUBLIC_TO_EVERYONE"   # used if the account allows it, else the first option
+    ai_generated: true              # TikTok "AI-generated content" label (AI presenter)
+    cover_ms: 1500                  # cover frame, ms into the video
+
 tumblr:
   blog: ""                 # your blog host, e.g. "astrotobby.tumblr.com" (TUMBLR_BLOG also works)
 limits:

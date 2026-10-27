@@ -487,12 +487,96 @@ def post_twitter(render, cfg, dry):
 
 
 # --------------------------------------------------------------------------
-# TikTok — Content Posting API, DRAFT/INBOX mode (no app review needed). The
-# rendered video is pushed to the user's TikTok inbox; they tap "Post" in the app
-# (caption is added there). Tokens auto-refresh (rotating) via the state cache.
+# TikTok — Content Posting API. mode "direct" (platforms.tiktok.mode) publishes the
+# video with its caption (needs the audited app + video.publish scope); if TikTok
+# refuses a direct post, it falls back to DRAFT/INBOX mode, where the video lands in
+# the user's TikTok inbox to post by hand. Tokens auto-refresh (rotating) via the
+# state cache.
 # --------------------------------------------------------------------------
 TIKTOK_SINGLE_CHUNK_MAX = 64 * 1024 * 1024
 TIKTOK_CHUNK = 10 * 1024 * 1024
+TIKTOK_API = "https://open.tiktokapis.com/v2"
+
+
+def _tiktok_upload(requests, upload_url, video, size, chunk, count):
+    """PUT the video bytes in chunks. Returns an error string, or None on success."""
+    with open(video, "rb") as f:
+        for index in range(count):
+            start = index * chunk
+            end = size - 1 if index == count - 1 else start + chunk - 1
+            f.seek(start)
+            blob = f.read(end - start + 1)
+            put = requests.put(upload_url, data=blob, timeout=300, headers={
+                "Content-Type": "video/mp4",
+                "Content-Length": str(len(blob)),
+                "Content-Range": f"bytes {start}-{end}/{size}"})
+            if put.status_code not in (200, 201, 206):
+                return (f"tiktok upload chunk {index + 1}/{count} "
+                        f"HTTP {put.status_code}: {put.text[:160]}")
+    return None
+
+
+def _tiktok_caption(render, limit=2200):
+    """Feed caption: the 'link in bio' variant (TikTok captions can't hold links)."""
+    p = render["platform"]
+    text = p.get("tiktok_caption") or p.get("ig_caption") or p.get("caption", "")
+    return text[:limit]
+
+
+def _tiktok_direct(requests, auth, render, cfg, video, source):
+    """Direct Post: creator check -> init with post_info -> upload -> poll status.
+    Returns a result dict, or None when TikTok refuses direct posting (caller then
+    falls back to the inbox)."""
+    import time
+    tcfg = (cfg.get("platforms") or {}).get("tiktok") or {}
+    info = requests.post(f"{TIKTOK_API}/post/publish/creator_info/query/",
+                         headers=auth, json={}, timeout=60).json()
+    creator = info.get("data") or {}
+    options = creator.get("privacy_level_options") or []
+    if not options:
+        log(f"tiktok: direct post unavailable ({str(info.get('error'))[:160]}) -> inbox")
+        return None
+    wanted = tcfg.get("privacy", "PUBLIC_TO_EVERYONE")
+    privacy = wanted if wanted in options else options[0]
+    if privacy != wanted:
+        log(f"tiktok: {wanted} not allowed for this app/account (options {options}); "
+            f"posting as {privacy}")
+    init = requests.post(f"{TIKTOK_API}/post/publish/video/init/", headers=auth, json={
+        "post_info": {
+            "title": _tiktok_caption(render),
+            "privacy_level": privacy,
+            "disable_comment": bool(creator.get("comment_disabled")),
+            "disable_duet": bool(creator.get("duet_disabled")),
+            "disable_stitch": bool(creator.get("stitch_disabled")),
+            "video_cover_timestamp_ms": int(tcfg.get("cover_ms", 1500)),
+            "is_aigc": bool(tcfg.get("ai_generated", True)),   # AI presenter label
+        },
+        "source_info": source}, timeout=60).json()
+    data = init.get("data") or {}
+    if not data.get("upload_url"):
+        log(f"tiktok: direct init refused ({str(init.get('error'))[:160]}) -> inbox")
+        return None
+    err = _tiktok_upload(requests, data["upload_url"], video, source["video_size"],
+                         source["chunk_size"], source["total_chunk_count"])
+    if err:
+        return {"ok": False, "error": err}
+    publish_id, status = data.get("publish_id"), {}
+    for _ in range(40):                       # TikTok processes for up to a few minutes
+        time.sleep(15)
+        status = (requests.post(f"{TIKTOK_API}/post/publish/status/fetch/", headers=auth,
+                                json={"publish_id": publish_id}, timeout=60).json()
+                  .get("data") or {})
+        if status.get("status") in ("PUBLISH_COMPLETE", "FAILED"):
+            break
+    if status.get("status") == "FAILED":
+        return {"ok": False, "error": f"tiktok publish failed: {status.get('fail_reason')}"}
+    ids = status.get("publicaly_available_post_id") or []
+    user = creator.get("creator_username")
+    url = (f"https://www.tiktok.com/@{user}/video/{ids[0]}" if ids and user
+           else "https://www.tiktok.com/")
+    return {"ok": True, "url": url, "publish_id": publish_id, "privacy": privacy,
+            "note": "" if status.get("status") == "PUBLISH_COMPLETE"
+            else f"still processing ({status.get('status')})"}
 
 
 def post_tiktok(render, cfg, dry):
@@ -519,39 +603,34 @@ def post_tiktok(render, cfg, dry):
         if tr.get("refresh_token"):
             save_tiktok_refresh(tr["refresh_token"])    # persist the rotated token
 
-        # 2) init an inbox (draft) upload via direct FILE_UPLOAD (no domain verify)
         video = render["videos"].get("vertical") or render["videos"]["horizontal"]
         size = os.path.getsize(video)
         # TikTok accepts a single chunk only up to 64MB; bigger files must be split
         # into 5-64MB chunks, with the remainder folded into the last chunk.
         chunk = size if size <= TIKTOK_SINGLE_CHUNK_MAX else TIKTOK_CHUNK
         count = max(1, size // chunk)
-        init = requests.post(
-            "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/",
-            headers={"Authorization": f"Bearer {access}",
-                     "Content-Type": "application/json"},
-            json={"source_info": {"source": "FILE_UPLOAD", "video_size": size,
-                                  "chunk_size": chunk, "total_chunk_count": count}},
-            timeout=60).json()
+        source = {"source": "FILE_UPLOAD", "video_size": size,
+                  "chunk_size": chunk, "total_chunk_count": count}
+        auth = {"Authorization": f"Bearer {access}",
+                "Content-Type": "application/json; charset=UTF-8"}
+
+        # 2) Direct Post when enabled; TikTok refusing it falls through to the inbox
+        mode = ((cfg.get("platforms") or {}).get("tiktok") or {}).get("mode", "inbox")
+        if mode == "direct":
+            direct = _tiktok_direct(requests, auth, render, cfg, video, source)
+            if direct is not None:
+                return direct
+
+        # 3) inbox (draft) upload via direct FILE_UPLOAD (no domain verify)
+        init = requests.post(f"{TIKTOK_API}/post/publish/inbox/video/init/", headers=auth,
+                             json={"source_info": source}, timeout=60).json()
         data = init.get("data") or {}
         upload_url = data.get("upload_url")
         if not upload_url:
             return {"ok": False, "error": "tiktok init: " + str(init)[:200]}
-
-        # 3) upload the bytes chunk by chunk
-        with open(video, "rb") as f:
-            for index in range(count):
-                start = index * chunk
-                end = size - 1 if index == count - 1 else start + chunk - 1
-                f.seek(start)
-                blob = f.read(end - start + 1)
-                put = requests.put(upload_url, data=blob, timeout=300, headers={
-                    "Content-Type": "video/mp4",
-                    "Content-Length": str(len(blob)),
-                    "Content-Range": f"bytes {start}-{end}/{size}"})
-                if put.status_code not in (200, 201, 206):
-                    return {"ok": False, "error": f"tiktok upload chunk {index + 1}/{count} "
-                                                  f"HTTP {put.status_code}: {put.text[:160]}"}
+        err = _tiktok_upload(requests, upload_url, video, size, chunk, count)
+        if err:
+            return {"ok": False, "error": err}
         return {"ok": True, "url": "https://www.tiktok.com/",
                 "note": "sent to TikTok inbox/drafts — tap Post in the app",
                 "publish_id": data.get("publish_id")}

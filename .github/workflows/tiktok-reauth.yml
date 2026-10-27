@@ -1,0 +1,75 @@
+name: tiktok-reauth
+
+# One-time (or whenever scopes change): exchange a TikTok OAuth code for a refresh
+# token with Direct Post scope and store it in the shared pipeline state cache, where
+# the pipeline keeps rotating it. The client secret never leaves GitHub; the code is
+# single-use and expires in minutes. Get the code from the redirect after approving
+# the authorize URL (scope user.info.basic,video.publish,video.upload).
+on:
+  workflow_dispatch:
+    inputs:
+      code:
+        description: "OAuth code from https://astrotobby.site/?code=..."
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: blog-to-video
+  cancel-in-progress: false
+
+jobs:
+  exchange:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mask code
+        run: echo "::add-mask::${{ inputs.code }}"
+      - name: Restore pipeline state
+        uses: actions/cache@v4
+        with:
+          path: .pipeline/state
+          key: blog2video-state-${{ github.run_id }}
+          restore-keys: |
+            blog2video-state-
+      - name: Exchange code and store the refresh token
+        env:
+          CODE: ${{ inputs.code }}
+          TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
+          TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+          REDIRECT: ${{ secrets.TIKTOK_REDIRECT_URI || 'https://astrotobby.site/' }}
+        shell: python
+        run: |
+          import json, os, pathlib, urllib.parse, urllib.request
+          state = pathlib.Path(".pipeline/state"); state.mkdir(parents=True, exist_ok=True)
+          body = urllib.parse.urlencode({
+              "client_key": os.environ["TIKTOK_CLIENT_KEY"].strip(),
+              "client_secret": os.environ["TIKTOK_CLIENT_SECRET"].strip(),
+              "code": urllib.parse.unquote(os.environ["CODE"].strip()),
+              "grant_type": "authorization_code",
+              "redirect_uri": os.environ["REDIRECT"].strip()}).encode()
+          req = urllib.request.Request("https://open.tiktokapis.com/v2/oauth/token/", data=body,
+                                       headers={"Content-Type": "application/x-www-form-urlencoded"})
+          try:
+              tok = json.loads(urllib.request.urlopen(req, timeout=60).read())
+          except urllib.error.HTTPError as e:
+              tok = json.loads(e.read() or b"{}")
+          if not tok.get("refresh_token"):
+              raise SystemExit(f"exchange failed: { {k: v for k, v in tok.items() if 'token' not in k} }")
+          for t in (tok["access_token"], tok["refresh_token"]):
+              print(f"::add-mask::{t}")
+          print("granted scopes:", tok.get("scope"))
+          if "video.publish" not in (tok.get("scope") or ""):
+              raise SystemExit("video.publish not granted; state not updated")
+          (state / "tt_refresh.txt").write_text(tok["refresh_token"] + "\n")
+          info = urllib.request.Request("https://open.tiktokapis.com/v2/post/publish/creator_info/query/",
+                                        data=b"{}", headers={"Authorization": f"Bearer {tok['access_token']}",
+                                                             "Content-Type": "application/json; charset=UTF-8"})
+          try:
+              data = json.loads(urllib.request.urlopen(info, timeout=60).read())
+          except urllib.error.HTTPError as e:
+              data = json.loads(e.read() or b"{}")
+          d = data.get("data") or {}
+          print("creator:", d.get("creator_username"), "| privacy options:", d.get("privacy_level_options"),
+                "| max seconds:", d.get("max_video_post_duration_sec"), "| error:", data.get("error"))
+          print("TikTok refresh token stored in pipeline state")

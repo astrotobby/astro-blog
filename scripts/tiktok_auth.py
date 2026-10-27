@@ -20,7 +20,9 @@ import requests
 
 from common import env, log
 
-SCOPE = "video.upload"            # inbox/draft mode (no full app review needed)
+# video.publish = Direct Post (audited app); video.upload = inbox/draft fallback;
+# user.info.basic = creator info (username, allowed privacy levels).
+SCOPE = "user.info.basic,video.publish,video.upload"
 DEFAULT_REDIRECT = "https://astrotobby.site/"
 
 
