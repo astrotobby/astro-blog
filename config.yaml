@@ -253,11 +253,12 @@ platforms:
     # "api" once developers.pinterest.com grants Standard access.
     via: "make"
 
-  # TikTok: "direct" publishes with the caption (audited app + video.publish scope,
-  # granted via the tiktok-reauth workflow); "inbox" sends drafts to post by hand.
-  # A refused direct post falls back to the inbox automatically.
+  # TikTok: "review" queues each video on Tobbygbot (astrotobby.site/tiktok/review) and
+  # sends the review link; you pick the settings and press Post (TikTok's Direct Post
+  # rules require this). "direct" posts from the pipeline (private-only until the Direct
+  # Post audit passes); "inbox" sends drafts to post in the TikTok app.
   tiktok:
-    mode: "direct"
+    mode: "review"
     privacy: "PUBLIC_TO_EVERYONE"   # until the Direct Post audit passes, TikTok only allows
     allow_other_privacy: false      # SELF_ONLY; false = send drafts instead of private posts
     ai_generated: true              # TikTok "AI-generated content" label (AI presenter)

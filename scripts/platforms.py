@@ -582,7 +582,45 @@ def _tiktok_direct(requests, auth, render, cfg, video, source):
             else f"still processing ({status.get('status')})"}
 
 
+def _tiktok_review(render, cfg, dry):
+    """Queue the video on Tobbygbot (astrotobby.site/tiktok) for the creator to review
+    and post. TikTok's Direct Post rules need the creator to choose the settings and
+    press Post, so the pipeline never publishes to TikTok by itself."""
+    key = env("TOBBYGBOT_API_KEY")
+    if not key:
+        return {"ok": False, "skipped": "no TOBBYGBOT_API_KEY"}
+    post = render["post"]
+    if dry:
+        return {"ok": True, "dry": True, "url": "(dry) queued on Tobbygbot"}
+    video = render["videos"].get("vertical") or render["videos"]["horizontal"]
+    video_url = _host_public_url(video, post["slug"])
+    if not video_url:
+        return {"ok": False, "error": "could not host the video for Tobbygbot"}
+    try:
+        import requests
+        tcfg = (cfg.get("platforms") or {}).get("tiktok") or {}
+        r = requests.post(
+            "https://astrotobby.site/tiktok/api/queue",
+            headers={"Authorization": f"Bearer {key}"},
+            json={"video_url": video_url,
+                  "caption": _tiktok_caption(render),
+                  "post_title": post["title"],
+                  "post_url": post["url"],
+                  "is_aigc": bool(tcfg.get("ai_generated", True)),
+                  "duration": render.get("duration") or 0},
+            timeout=60)
+        j = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+        if r.status_code < 300 and j.get("ok"):
+            log(f"tiktok: queued for review -> {j['review_url']}")
+            return {"ok": True, "url": j["review_url"], "pending_review": True}
+        return {"ok": False, "error": f"tobbygbot queue HTTP {r.status_code}: {str(j or r.text)[:200]}"}
+    except Exception as e:  # noqa
+        return {"ok": False, "error": f"tobbygbot queue: {e}"}
+
+
 def post_tiktok(render, cfg, dry):
+    if ((cfg.get("platforms") or {}).get("tiktok") or {}).get("mode") == "review":
+        return _tiktok_review(render, cfg, dry)
     ck, cs = env("TIKTOK_CLIENT_KEY"), env("TIKTOK_CLIENT_SECRET")
     refresh = tiktok_refresh_token()
     if not (ck and cs and refresh):

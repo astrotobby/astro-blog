@@ -207,6 +207,7 @@ jobs:
           TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
           TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
           TIKTOK_REFRESH_TOKEN: ${{ secrets.TIKTOK_REFRESH_TOKEN }}
+          TOBBYGBOT_API_KEY: ${{ secrets.TOBBYGBOT_API_KEY }}
           RUMBLE_EMAIL: ${{ secrets.RUMBLE_EMAIL }}
           RUMBLE_PASSWORD: ${{ secrets.RUMBLE_PASSWORD }}
           # Saved logged-in session (scripts/rumble_session.py); preferred over the password login.
