@@ -537,10 +537,13 @@ def _tiktok_direct(requests, auth, render, cfg, video, source):
         log(f"tiktok: direct post unavailable ({str(info.get('error'))[:160]}) -> inbox")
         return None
     wanted = tcfg.get("privacy", "PUBLIC_TO_EVERYONE")
+    if wanted not in options and not tcfg.get("allow_other_privacy", False):
+        # Unaudited Direct Post apps only get SELF_ONLY: a private post helps nobody,
+        # while a draft can still be posted publicly by hand.
+        log(f"tiktok: {wanted} not allowed yet (options {options}; Direct Post audit "
+            f"pending?) -> inbox")
+        return None
     privacy = wanted if wanted in options else options[0]
-    if privacy != wanted:
-        log(f"tiktok: {wanted} not allowed for this app/account (options {options}); "
-            f"posting as {privacy}")
     init = requests.post(f"{TIKTOK_API}/post/publish/video/init/", headers=auth, json={
         "post_info": {
             "title": _tiktok_caption(render),

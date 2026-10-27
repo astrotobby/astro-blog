@@ -23,7 +23,7 @@ from common import env, log
 # video.publish = Direct Post (audited app); video.upload = inbox/draft fallback;
 # user.info.basic = creator info (username, allowed privacy levels).
 SCOPE = "user.info.basic,video.publish,video.upload"
-DEFAULT_REDIRECT = "https://astrotobby.site/"
+DEFAULT_REDIRECT = "https://astrotobby.site/tiktok/callback"
 
 
 def main():

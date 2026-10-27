@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       code:
-        description: "OAuth code from https://astrotobby.site/?code=..."
+        description: "OAuth code from https://astrotobby.site/tiktok/callback?code=..."
         required: true
 
 permissions:
@@ -37,7 +37,7 @@ jobs:
           CODE: ${{ inputs.code }}
           TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
           TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
-          REDIRECT: ${{ secrets.TIKTOK_REDIRECT_URI || 'https://astrotobby.site/' }}
+          REDIRECT: ${{ secrets.TIKTOK_REDIRECT_URI || 'https://astrotobby.site/tiktok/callback' }}
         shell: python
         run: |
           import json, os, pathlib, urllib.parse, urllib.request

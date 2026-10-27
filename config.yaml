@@ -253,7 +253,8 @@ platforms:
   # A refused direct post falls back to the inbox automatically.
   tiktok:
     mode: "direct"
-    privacy: "PUBLIC_TO_EVERYONE"   # used if the account allows it, else the first option
+    privacy: "PUBLIC_TO_EVERYONE"   # until the Direct Post audit passes, TikTok only allows
+    allow_other_privacy: false      # SELF_ONLY; false = send drafts instead of private posts
     ai_generated: true              # TikTok "AI-generated content" label (AI presenter)
     cover_ms: 1500                  # cover frame, ms into the video
 
