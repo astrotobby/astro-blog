@@ -15,6 +15,8 @@ export const prerender = false;
 // calls this right before it renders the ad under a reply.
 
 let client: IdlenChatAds | null = null;
+const recentRequests = new Map<string, number>();
+const REQUEST_COOLDOWN_MS = 4_000;
 
 function getClient(): IdlenChatAds | null {
   const apiKey = (cfEnv as any).IDLEN_API_KEY as string | undefined;
@@ -50,6 +52,16 @@ export const POST: APIRoute = async ({ request }) => {
     const sessionId = String(body.sessionId || '').slice(0, 100);
     const text = String(body.text || '').slice(0, 2000);
     if (!sessionId || !text) return json({ error: 'Missing sessionId or text' }, 400);
+
+    const now = Date.now();
+    const previous = recentRequests.get(sessionId);
+    if (previous && now - previous < REQUEST_COOLDOWN_MS) return json({ ad: null });
+    recentRequests.set(sessionId, now);
+    if (recentRequests.size > 2_000) {
+      for (const [key, timestamp] of recentRequests) {
+        if (now - timestamp > REQUEST_COOLDOWN_MS * 10) recentRequests.delete(key);
+      }
+    }
 
     const ad = await ads.getAd({ sessionId, rawText: text });
     if (!ad) return json({ ad: null });

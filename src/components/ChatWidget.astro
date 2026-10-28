@@ -123,12 +123,12 @@
     return text.trim();
   }
 
-  async function showAd(userText: string) {
+  async function showAd(context: string) {
     try {
       const res = await fetch('/api/chat-ad', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'ad', sessionId, text: userText }),
+        body: JSON.stringify({ action: 'ad', sessionId, text: context.slice(0, 2000) }),
       });
       if (!res.ok) return;
       const { ad } = await res.json();
@@ -143,6 +143,17 @@
       const label = document.createElement('span');
       label.className = 'ts-chat-ad-label';
       label.textContent = `Sponsored · ${ad.advertiserName || 'Partner'}`;
+      if (/^https:\/\//.test(ad.imageUrl || '')) {
+        const image = document.createElement('img');
+        image.src = ad.imageUrl;
+        image.alt = '';
+        image.loading = 'lazy';
+        image.decoding = 'async';
+        image.referrerPolicy = 'no-referrer';
+        image.className = 'ts-chat-ad-image';
+        image.addEventListener('error', () => image.remove(), { once: true });
+        card.append(image);
+      }
       const title = document.createElement('strong');
       title.textContent = ad.title;
       const body = document.createElement('span');
@@ -201,7 +212,7 @@
       if (!reply) throw new Error('Empty reply');
       history.push({ role: 'assistant', content: reply });
       save();
-      await showAd(text);
+      await showAd(`User question: ${text}\nAssistant answer: ${reply}`);
       maybeShowReferral(`${text} ${reply}`);
     } catch {
       target.textContent = 'Sorry, something went wrong. Please try again.';
@@ -243,6 +254,7 @@
   }
   .ts-chat-ad:hover { border-color: #00A67F; }
   .ts-chat-ad-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6B7280; }
+  .ts-chat-ad-image { display: block; width: 100%; max-height: 120px; object-fit: cover; border-radius: 8px; background: #F3F4F6; }
   .ts-chat-ad-cta { color: #00A67F; font-weight: 600; }
   .ts-chat-referral { align-self: flex-start; max-width: 85%; margin: 0; font-size: 0.8rem; line-height: 1.4; color: #6B7280; }
   .ts-chat-referral a { color: #00A67F; font-weight: 600; }
