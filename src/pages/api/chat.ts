@@ -41,7 +41,8 @@ export const POST: APIRoute = async (context) => {
     }
 
     // Call Cloudflare Workers AI with streaming enabled
-    const stream = await ai.run('@cf/meta/llama-3.1-8b-instruct', {
+    // llama-3.1-8b-instruct was deprecated on 2026-05-30; fp8 is its current replacement.
+    const stream = await ai.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
       messages,
       stream: true
     });

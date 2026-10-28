@@ -26,7 +26,7 @@ This Astro blog includes an AI-powered chatbot widget that uses Cloudflare Worke
 - **File**: `/src/pages/api/chat.ts`
 - **Features**:
   - Cloudflare Workers integration
-  - Uses `@cf/meta/llama-3.1-8b-instruct` model
+  - Uses `@cf/meta/llama-3.1-8b-instruct-fp8` model
   - Supports streaming responses directly from Cloudflare AI
   - Proper error handling and logging
 
