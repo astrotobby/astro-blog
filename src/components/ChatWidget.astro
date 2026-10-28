@@ -24,6 +24,12 @@
   const SESSION_KEY = 'ts-chat-session';
   const MAX_HISTORY = 20;
 
+  // Disclosed Idlen referral tip, shown at most once per visit when the chat is
+  // about AI coding tools. Leave empty to turn it off.
+  const REFERRAL_URL = '';
+  const REFERRAL_SHOWN_KEY = 'ts-chat-referral-shown';
+  const REFERRAL_TOPICS = /\b(ai|coding|code|copilot|cursor|claude|chatgpt|gpt|gemini|llm|agent|vs ?code|prompt|developer|programming)\b/i;
+
   type Msg = { role: 'user' | 'assistant'; content: string };
 
   const toggle = document.getElementById('ts-chat-toggle') as HTMLButtonElement;
@@ -158,6 +164,26 @@
     } catch {}
   }
 
+  function maybeShowReferral(conversation: string) {
+    if (!REFERRAL_URL || !REFERRAL_TOPICS.test(conversation)) return;
+    try {
+      if (sessionStorage.getItem(REFERRAL_SHOWN_KEY)) return;
+      sessionStorage.setItem(REFERRAL_SHOWN_KEY, '1');
+    } catch {}
+
+    const tip = document.createElement('p');
+    tip.className = 'ts-chat-referral';
+    tip.append('Tip: I use Idlen to get paid for ads shown while my AI tools think. ');
+    const link = document.createElement('a');
+    link.href = REFERRAL_URL;
+    link.target = '_blank';
+    link.rel = 'sponsored noopener';
+    link.textContent = 'Try it (referral link)';
+    tip.append(link);
+    log.appendChild(tip);
+    log.scrollTop = log.scrollHeight;
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = input.value.trim();
@@ -176,6 +202,7 @@
       history.push({ role: 'assistant', content: reply });
       save();
       await showAd(text);
+      maybeShowReferral(`${text} ${reply}`);
     } catch {
       target.textContent = 'Sorry, something went wrong. Please try again.';
     } finally {
@@ -217,6 +244,8 @@
   .ts-chat-ad:hover { border-color: #00A67F; }
   .ts-chat-ad-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6B7280; }
   .ts-chat-ad-cta { color: #00A67F; font-weight: 600; }
+  .ts-chat-referral { align-self: flex-start; max-width: 85%; margin: 0; font-size: 0.8rem; line-height: 1.4; color: #6B7280; }
+  .ts-chat-referral a { color: #00A67F; font-weight: 600; }
   .ts-chat-form { display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid #E5E7EB; }
   .ts-chat-form input { flex: 1; min-width: 0; padding: 0.55rem 0.75rem; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 0.92rem; }
   .ts-chat-form button { padding: 0.55rem 1rem; border: none; border-radius: 8px; background: #00A67F; color: #fff; font-weight: 600; cursor: pointer; }
