@@ -73,6 +73,17 @@ Edit the `CONFIG` object in `/public/js/chat-widget.js`.
 ### System Prompt Customization
 Edit the system prompt in `/src/pages/api/chat.ts`.
 
+## Sponsored Messages (Idlen)
+
+After each assistant reply the widget (`src/components/ChatWidget.astro`, rendered from `Footer.astro`) asks `/api/chat-ad` for a contextual sponsored suggestion from [Idlen](https://idlen.io) and shows it as a card labelled "Sponsored". Idlen counts an impression when an ad is returned, so ads are only requested right before they are shown; clicks are reported back with `sendBeacon`.
+
+Setup:
+1. Create a publisher key at https://adsmanager.idlen.io/publisher/api-keys
+2. Local dev: add `IDLEN_API_KEY=idl_pk_...` to `.dev.vars`
+3. Production: `npx wrangler secret put IDLEN_API_KEY`, then deploy
+
+Without the key the chat still works and simply shows no ads. Earnings appear under Pub Analytics in the Idlen ads manager.
+
 ## Troubleshooting
 
 ### Chatbot Not Responding

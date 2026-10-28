@@ -22,6 +22,7 @@
     "@astrojs/mdx": "^5.0.6",
     "@astrojs/rss": "^4.0.18",
     "@astrojs/sitemap": "^3.7.2",
+    "@idlen/chat-sdk": "^1.0.5",
     "astro": "^6.3.3",
     "sharp": "^0.34.3",
     "typescript": "^5.7.3"

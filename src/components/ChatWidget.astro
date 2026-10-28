@@ -1,0 +1,223 @@
+---
+// Floating "Tobby's Assistant" chat. Replies stream from /api/chat (Workers AI);
+// after each reply a sponsored suggestion from Idlen is fetched from /api/chat-ad.
+---
+<div id="ts-chat" class="ts-chat">
+  <button id="ts-chat-toggle" class="ts-chat-toggle" aria-label="Open chat" aria-expanded="false">
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  </button>
+  <section id="ts-chat-panel" class="ts-chat-panel" hidden aria-label="Chat with Tobby's Assistant">
+    <header class="ts-chat-header">
+      <span>Tobby's Assistant</span>
+      <button id="ts-chat-clear" class="ts-chat-clear" type="button">Clear</button>
+    </header>
+    <div id="ts-chat-log" class="ts-chat-log" aria-live="polite"></div>
+    <form id="ts-chat-form" class="ts-chat-form">
+      <input id="ts-chat-input" type="text" placeholder="Ask about AI, tech or the blog…" autocomplete="off" maxlength="1000" required />
+      <button type="submit">Send</button>
+    </form>
+  </section>
+</div>
+
+<script>
+  const HISTORY_KEY = 'ts-chat-history';
+  const SESSION_KEY = 'ts-chat-session';
+  const MAX_HISTORY = 20;
+
+  type Msg = { role: 'user' | 'assistant'; content: string };
+
+  const toggle = document.getElementById('ts-chat-toggle') as HTMLButtonElement;
+  const panel = document.getElementById('ts-chat-panel') as HTMLElement;
+  const log = document.getElementById('ts-chat-log') as HTMLElement;
+  const form = document.getElementById('ts-chat-form') as HTMLFormElement;
+  const input = document.getElementById('ts-chat-input') as HTMLInputElement;
+  const clear = document.getElementById('ts-chat-clear') as HTMLButtonElement;
+
+  function store(key: string, value?: string): string | null {
+    try {
+      if (value === undefined) return localStorage.getItem(key);
+      localStorage.setItem(key, value);
+    } catch {}
+    return null;
+  }
+
+  let history: Msg[] = [];
+  try { history = JSON.parse(store(HISTORY_KEY) || '[]'); } catch {}
+  let sessionId = store(SESSION_KEY);
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    store(SESSION_KEY, sessionId);
+  }
+  let busy = false;
+
+  function bubble(role: Msg['role'], text: string): HTMLElement {
+    const el = document.createElement('div');
+    el.className = `ts-chat-msg ts-chat-${role}`;
+    el.textContent = text;
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+    return el;
+  }
+
+  function save() {
+    history = history.slice(-MAX_HISTORY);
+    store(HISTORY_KEY, JSON.stringify(history));
+  }
+
+  history.forEach((m) => bubble(m.role, m.content));
+  if (!history.length) bubble('assistant', "Hi! I'm Tobby's Assistant. Ask me anything about AI, tech, or the blog.");
+
+  toggle.addEventListener('click', () => {
+    const open = panel.hidden;
+    panel.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+    if (open) input.focus();
+  });
+
+  clear.addEventListener('click', () => {
+    history = [];
+    save();
+    log.replaceChildren();
+    bubble('assistant', 'Chat cleared. What would you like to know?');
+  });
+
+  // Workers AI streams SSE lines like `data: {"response":"..."}` and ends with `data: [DONE]`.
+  async function streamReply(target: HTMLElement): Promise<string> {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: history }),
+    });
+    if (!res.ok || !res.body) throw new Error(`Chat failed (${res.status})`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let text = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (!data || data === '[DONE]') continue;
+        try {
+          const chunk = JSON.parse(data).response;
+          if (typeof chunk === 'string') {
+            text += chunk;
+            target.textContent = text;
+            log.scrollTop = log.scrollHeight;
+          }
+        } catch {}
+      }
+    }
+    return text.trim();
+  }
+
+  async function showAd(userText: string) {
+    try {
+      const res = await fetch('/api/chat-ad', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'ad', sessionId, text: userText }),
+      });
+      if (!res.ok) return;
+      const { ad } = await res.json();
+      if (!ad || !/^https?:\/\//.test(ad.ctaUrl || '')) return;
+
+      const card = document.createElement('a');
+      card.className = 'ts-chat-ad';
+      card.href = ad.ctaUrl;
+      card.target = '_blank';
+      card.rel = 'sponsored noopener';
+
+      const label = document.createElement('span');
+      label.className = 'ts-chat-ad-label';
+      label.textContent = `Sponsored · ${ad.advertiserName || 'Partner'}`;
+      const title = document.createElement('strong');
+      title.textContent = ad.title;
+      const body = document.createElement('span');
+      body.textContent = ad.body || '';
+      const cta = document.createElement('span');
+      cta.className = 'ts-chat-ad-cta';
+      cta.textContent = `${ad.ctaText || 'Learn more'} →`;
+      card.append(label, title, body, cta);
+
+      card.addEventListener('click', () => {
+        const payload = JSON.stringify({ action: 'click', adId: ad.adId, publisherId: ad.publisherId, requestId: ad.requestId });
+        if (!navigator.sendBeacon?.('/api/chat-ad', new Blob([payload], { type: 'application/json' }))) {
+          fetch('/api/chat-ad', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true });
+        }
+      }, { once: true });
+
+      log.appendChild(card);
+      log.scrollTop = log.scrollHeight;
+    } catch {}
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text || busy) return;
+    busy = true;
+    input.value = '';
+
+    bubble('user', text);
+    history.push({ role: 'user', content: text });
+    save();
+
+    const target = bubble('assistant', '…');
+    try {
+      const reply = await streamReply(target);
+      if (!reply) throw new Error('Empty reply');
+      history.push({ role: 'assistant', content: reply });
+      save();
+      await showAd(text);
+    } catch {
+      target.textContent = 'Sorry, something went wrong. Please try again.';
+    } finally {
+      busy = false;
+    }
+  });
+</script>
+
+<style is:global>
+  .ts-chat { position: fixed; left: 20px; bottom: 20px; z-index: 9999; font-family: inherit; }
+  .ts-chat-toggle {
+    width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer; color: #fff;
+    background: linear-gradient(135deg, #00C89A, #06B6D4);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ts-chat-panel {
+    position: absolute; left: 0; bottom: 70px;
+    width: min(360px, calc(100vw - 40px)); height: min(520px, calc(100vh - 120px));
+    background: #fff; border-radius: 14px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .ts-chat-panel[hidden] { display: none; }
+  .ts-chat-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.8rem 1rem; color: #fff; font-weight: 700;
+    background: linear-gradient(135deg, #00C89A, #06B6D4);
+  }
+  .ts-chat-clear { background: transparent; border: 1px solid rgba(255,255,255,0.6); color: #fff; border-radius: 6px; padding: 0.2rem 0.6rem; cursor: pointer; font-size: 0.8rem; }
+  .ts-chat-log { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; background: #F7F9FA; }
+  .ts-chat-msg { max-width: 85%; padding: 0.6rem 0.85rem; border-radius: 12px; font-size: 0.92rem; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; }
+  .ts-chat-user { align-self: flex-end; background: #00A67F; color: #fff; }
+  .ts-chat-assistant { align-self: flex-start; background: #fff; color: #15161A; border: 1px solid #E5E7EB; }
+  .ts-chat-ad {
+    align-self: flex-start; max-width: 85%; display: flex; flex-direction: column; gap: 0.25rem;
+    padding: 0.65rem 0.85rem; border-radius: 12px; border: 1px dashed #9CA3AF; background: #FFFDF5;
+    color: #15161A; text-decoration: none; font-size: 0.88rem; line-height: 1.4;
+  }
+  .ts-chat-ad:hover { border-color: #00A67F; }
+  .ts-chat-ad-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6B7280; }
+  .ts-chat-ad-cta { color: #00A67F; font-weight: 600; }
+  .ts-chat-form { display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid #E5E7EB; }
+  .ts-chat-form input { flex: 1; min-width: 0; padding: 0.55rem 0.75rem; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 0.92rem; }
+  .ts-chat-form button { padding: 0.55rem 1rem; border: none; border-radius: 8px; background: #00A67F; color: #fff; font-weight: 600; cursor: pointer; }
+</style>
