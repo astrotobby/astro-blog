@@ -23,7 +23,7 @@ async function getListId(apiKey: string, dc: string): Promise<string> {
 }
 
 export const POST: APIRoute = async ({ request }) => {
-  let body: { email?: string };
+  let body: { email?: string; source?: string };
   try {
     body = await request.json();
   } catch {
@@ -34,6 +34,17 @@ export const POST: APIRoute = async ({ request }) => {
   if (!EMAIL_RE.test(email)) {
     return json({ error: 'Please enter a valid email address' }, 400);
   }
+
+  // Keep source tags short and predictable so article paths cannot create an
+  // unbounded number of Mailchimp tags or inject arbitrary tag content.
+  const sourceTag = typeof body.source === 'string'
+    ? body.source
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 40)
+    : '';
+  const tags = ['free-pack', ...(sourceTag ? [`source-${sourceTag}`] : [])];
 
   const apiKey = import.meta.env.MAILCHIMP_API_KEY as string | undefined;
   if (!apiKey) {
@@ -56,8 +67,9 @@ export const POST: APIRoute = async ({ request }) => {
         Authorization: `Basic ${btoa(`anystring:${apiKey}`)}`,
         'Content-Type': 'application/json',
       },
-      // Tag the subscriber so the welcome automation can target "free-pack" leads.
-      body: JSON.stringify({ email_address: email, status: 'subscribed', tags: ['free-pack'] }),
+      // Keep the existing welcome tag and add a safe page/source tag for future
+      // topic-specific sequences and product recommendations.
+      body: JSON.stringify({ email_address: email, status: 'subscribed', tags }),
     });
 
     const data = (await res.json()) as { title?: string; detail?: string };

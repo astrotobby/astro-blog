@@ -24,9 +24,18 @@ try {
 const product = prioritizeProducts(raw, tags, 'in-article-cta')[0];
 const storeBase = 'https://astrotobby.myshopify.com';
 const variantId = product.variantId.split('/').pop();
-const cartUrl = `${storeBase}/cart/${variantId}:1`;
-const pdpUrl = `${storeBase}/products/${product.handle}`;
+const campaign = Astro.url.pathname.replace(/^\/+|\/+$/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80) || 'article';
+const attribution = new URLSearchParams({
+  utm_source: 'astrosignal',
+  utm_medium: 'content',
+  utm_campaign: campaign,
+  utm_content: 'in-article-cta',
+}).toString();
+const cartUrl = `${storeBase}/cart/${variantId}:1?${attribution}`;
+const pdpUrl = `${storeBase}/products/${product.handle}?${attribution}`;
 const headline = hook ?? 'Want this done-for-you?';
+const serviceTags = ['automation', 'agent', 'video', 'chatbot', 'agency', 'workflow'];
+const showServiceCta = tags.some((tag) => serviceTags.some((needle) => tag.toLowerCase().includes(needle)));
 ---
 
 <aside class="iacta" aria-label="Recommended product" data-reveal>
@@ -46,6 +55,9 @@ const headline = hook ?? 'Want this done-for-you?';
     <span class="iacta-price">{product.price}</span>
     <a class="iacta-btn" href={cartUrl} target="_blank" rel="noopener noreferrer">Get instant access →</a>
     <a class="iacta-link" href={pdpUrl} target="_blank" rel="noopener noreferrer">See what's inside</a>
+    {showServiceCta && (
+      <a class="iacta-service-link" href="/portfolio/">Need this built for you? Work with me →</a>
+    )}
   </div>
 </aside>
 
@@ -84,6 +96,8 @@ const headline = hook ?? 'Want this done-for-you?';
   }
   .iacta-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -8px rgba(99,102,241,0.5); }
   .iacta-link { font-size: 0.85rem; color: var(--text-muted, #64748b); text-decoration: underline; }
+  .iacta-service-link { font-size: 0.8rem; color: var(--accent, #4F46E5); text-decoration: none; font-weight: 700; }
+  .iacta-service-link:hover { text-decoration: underline; }
   @media (max-width: 640px) {
     .iacta { grid-template-columns: 1fr; gap: 1.1rem; text-align: left; }
     .iacta-action { align-items: stretch; }

@@ -23,6 +23,8 @@ try {
 const rotated = prioritizeProducts(raw, tags, rotationSeed ?? Astro.url.pathname);
 const products = limit ? rotated.slice(0, limit) : rotated;
 const storeBase = 'https://astrotobby.myshopify.com';
+const sourcePath = rotationSeed ?? Astro.url.pathname;
+const campaign = sourcePath.replace(/^\/+|\/+$/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80) || 'site';
 ---
 
 <section class="sp-section" aria-label="Recommended Resources">
@@ -35,8 +37,14 @@ const storeBase = 'https://astrotobby.myshopify.com';
   <div class="sp-grid">
     {products.map((product, i) => {
       const variantId = product.variantId.split('/').pop();
-      const cartUrl = `${storeBase}/cart/${variantId}:1`;
-      const pdpUrl = `${storeBase}/products/${product.handle}`;
+      const attribution = new URLSearchParams({
+        utm_source: 'astrosignal',
+        utm_medium: 'content',
+        utm_campaign: campaign,
+        utm_content: `product-${i + 1}`,
+      }).toString();
+      const cartUrl = `${storeBase}/cart/${variantId}:1?${attribution}`;
+      const pdpUrl = `${storeBase}/products/${product.handle}?${attribution}`;
       const isFeatured = i === 0;
       return (
         <article class={`sp-card${isFeatured ? ' sp-card--featured' : ''}`} data-reveal data-title={product.title.toLowerCase()} data-handle={product.handle} style={`--reveal-delay:${i * 60}ms`}>

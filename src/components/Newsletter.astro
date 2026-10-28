@@ -1,4 +1,5 @@
 ---
+const source = Astro.url.pathname;
 ---
 <section class="newsletter-section">
     <div class="newsletter-container">
@@ -6,7 +7,7 @@
             <h2>Get the free 2026 AI Starter Pack</h2>
             <p>20 plug-and-play AI prompts + 3 zero-budget automation recipes — instant, free. Plus new posts when they drop.</p>
         </div>
-        <form id="newsletter-form" class="newsletter-form">
+        <form id="newsletter-form" class="newsletter-form" data-source={source}>
             <div class="input-group">
                 <input 
                     type="email" 
@@ -179,6 +180,7 @@
 
 <script>
     const form = document.getElementById('newsletter-form') as HTMLFormElement;
+    const signupSource = form?.dataset.source || window.location.pathname;
     const messageEl = document.getElementById('form-message');
     const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
     const spinner = submitBtn?.querySelector('.spinner') as HTMLElement;
@@ -205,7 +207,7 @@
             const response = await fetch('/api/subscribe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
+                body: JSON.stringify({ email, source: signupSource })
             });
 
             const data = await response.json();
