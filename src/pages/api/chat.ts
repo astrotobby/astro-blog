@@ -25,7 +25,7 @@ export const POST: APIRoute = async (context) => {
 
     messages.push({
       role: 'system',
-      content: "You are Tobby's Assistant, a helpful AI on the AstroSignal blog. Help visitors with questions about AI, technology, and the blog content. Be concise, friendly, and informative."
+      content: "You are Tobby's Assistant, a helpful AI on the AstroSignal blog. Help visitors with questions about AI, technology, and the blog content. Keep every reply brief: 2-4 short sentences, plain text, no long step-by-step lists or headings. Be friendly and informative, and offer to go deeper only if asked."
     });
 
     if (Array.isArray(body.messages)) {
@@ -45,8 +45,9 @@ export const POST: APIRoute = async (context) => {
     const stream = await ai.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
       messages,
       stream: true,
-      // Default is 256 tokens, which cut longer answers off mid-sentence.
-      max_tokens: 1024
+      // Replies are meant to be brief (see system prompt); this cap is headroom so
+      // they finish their sentence instead of hitting the 256-token default.
+      max_tokens: 400
     });
 
     // Return the stream directly to the client
