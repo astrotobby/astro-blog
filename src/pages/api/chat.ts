@@ -44,7 +44,9 @@ export const POST: APIRoute = async (context) => {
     // llama-3.1-8b-instruct was deprecated on 2026-05-30; fp8 is its current replacement.
     const stream = await ai.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
       messages,
-      stream: true
+      stream: true,
+      // Default is 256 tokens, which cut longer answers off mid-sentence.
+      max_tokens: 1024
     });
 
     // Return the stream directly to the client
