@@ -17,9 +17,9 @@ export const INSTAGRAM_URL = 'https://www.instagram.com/astr_osignal';
 
 // ─── Affiliate offers feature flags ──────────────────────────────────────────
 // Flip any back to `true` to re-enable. Kept private/off until then.
-export const ENABLE_CPALEAD = true;       // CPAlead offers enabled
-export const ENABLE_CPAGRIP = true;       // CPAGrip offers enabled
-export const ENABLE_OFFERS_PAGE = true;   // /affiliate-offers page is live
+export const ENABLE_CPALEAD = false;      // false → CPAlead offers never shown anywhere
+export const ENABLE_CPAGRIP = false;      // false → CPAGrip offers never shown anywhere
+export const ENABLE_OFFERS_PAGE = false;  // false → /affiliate-offers and /offers return 404, nav link and unlock buttons hidden
 
 // ─── Adsterra Global Ad Units ────────────────────────────────────────────────
 // These auto-display formats load globally on every page (Adsterra decides when

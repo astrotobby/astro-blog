@@ -1,6 +1,6 @@
 ---
 import HeaderLink from './HeaderLink.astro';
-import { SITE_TITLE } from '../consts';
+import { SITE_TITLE, ENABLE_OFFERS_PAGE } from '../consts';
 ---
 <header id="site-header">
   <nav>
@@ -18,7 +18,7 @@ import { SITE_TITLE } from '../consts';
         <HeaderLink href="/">Home</HeaderLink>
         <HeaderLink href="/blog">Blog</HeaderLink>
         <HeaderLink href="/products">Store</HeaderLink>
-        <HeaderLink href="/affiliate-offers">Free Offers</HeaderLink>
+        {ENABLE_OFFERS_PAGE && <HeaderLink href="/affiliate-offers">Free Offers</HeaderLink>}
         <HeaderLink href="/about">About</HeaderLink>
         <HeaderLink href="/contact">Contact</HeaderLink>
         <a class="nav-search" href="/blog" aria-label="Search articles">
