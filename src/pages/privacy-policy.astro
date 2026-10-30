@@ -14,11 +14,16 @@ import Footer from '../components/Footer.astro';
     <main style="max-width: 820px;">
       <article class="prose glass" style="padding: 2.5rem; margin-top: 2rem;">
         <h1>Privacy Policy</h1>
-        <p><strong>Last updated: October 18, 2026</strong></p>
+        <p><strong>Last updated: October 30, 2026</strong></p>
         <p>This Privacy Policy describes how Astro Tobby collects, uses, and shares information when you visit astrotobby.site.</p>
         
         <h2>Information We Collect</h2>
-        <p>We collect minimal data. Basic analytics including pages visited and general geographic region may be collected. We do not collect your name, email, or personal details unless you contact us directly.</p>
+        <p>We collect limited information needed to operate the site. Basic analytics may include pages visited and general geographic region. If you use the chatbot, the messages you submit are processed by Cloudflare Workers AI to generate replies. Please do not enter sensitive personal information into the chatbot.</p>
+
+        <h2>Chatbot and Sponsored Suggestions</h2>
+        <p>The chatbot keeps recent messages in your browser's local storage so they remain visible on that browser. Use the chatbot's <strong>Clear</strong> button or clear your browser storage to remove that local history. The chat API sends your submitted messages to Cloudflare Workers AI to generate replies.</p>
+        <p>Optional sponsored suggestions are off unless you enable them in the chatbot. If enabled, the site classifies your latest question into a broad topic category and sends that category with a random identifier limited to the current browser session to Idlen Chat Ads to select an ad. The question text and chatbot reply are not sent to Idlen. If an ad is clicked, its ad-tracking identifiers are sent to Idlen to report the click. You can turn sponsored suggestions off at any time using the chatbot checkbox.</p>
+        <p>To limit automated requests, the chat and ad endpoints may temporarily use a Cloudflare-provided client IP address in worker memory for rate limiting. The ad endpoint also uses the temporary session identifier described above. This rate-limit data is not stored by the site as a persistent record.</p>
         
         <h2>Advertising and Cookies</h2>
         <p>This site uses cookies to serve content and advertisements, to provide social media features, and to analyze traffic. We also share information about your use of our site with our advertising and analytics partners.</p>

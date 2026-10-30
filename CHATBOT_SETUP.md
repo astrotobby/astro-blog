@@ -2,112 +2,54 @@
 
 ## Overview
 
-This Astro blog includes an AI-powered chatbot widget that uses Cloudflare Workers AI to provide intelligent responses to visitor questions.
+The site-wide **Tobby's Assistant** widget is rendered by `src/components/Footer.astro` and implemented in `src/components/ChatWidget.astro`. Replies stream from `src/pages/api/chat.ts` using Cloudflare Workers AI. Optional sponsored suggestions are served by `src/pages/api/chat-ad.ts` through `@idlen/chat-sdk`.
 
-## Features
+## Data and privacy behavior
 
-- **Real-time Chat Widget**: Fixed position chat bubble in the bottom-left corner
-- **Message History**: Persistent chat history stored in browser localStorage
-- **Streaming Responses**: Smooth, real-time message display using Server-Sent Events (SSE)
-- **Cloudflare Native**: Leverages Cloudflare Workers AI for high-performance, low-latency inference
+- The widget stores up to 20 recent user/assistant messages in the visitor's browser `localStorage`. The **Clear** button clears that local chat history.
+- User messages are sent to the site's `/api/chat` endpoint and processed by Cloudflare Workers AI to generate replies.
+- Idlen sponsored suggestions are **off by default**. Visitors must enable them with the checkbox in the widget.
+- When enabled, the browser classifies only the latest question into one of four broad categories. The site sends that category and a random browser-session ID to `/api/chat-ad`; it does not send the question text or assistant reply to Idlen.
+- The publisher API key is read only by the server route. Never place it in frontend code or commit it to the repository.
+- The ad endpoint applies best-effort, in-memory request limits using the session ID and Cloudflare-provided client IP. Worker memory is isolate-local, so this is not a substitute for Cloudflare's managed rate-limiting rules for a high-traffic or abuse-sensitive deployment.
 
-## Architecture
+## Configure Idlen
 
-### Frontend
-- **File**: `/public/js/chat-widget.js`
-- **Features**:
-  - Self-contained widget (no external dependencies)
-  - Local message history persistence
-  - Automatic typing indicators
-  - Streaming response handling (SSE)
-  - Mobile-responsive UI
+1. Create a publisher API key in [Idlen Ads Manager](https://adsmanager.idlen.io/publisher/api-keys).
+2. For local development, add the key to the ignored `.dev.vars` file:
 
-### Backend
-- **File**: `/src/pages/api/chat.ts`
-- **Features**:
-  - Cloudflare Workers integration
-  - Uses `@cf/meta/llama-3.1-8b-instruct-fp8` model
-  - Supports streaming responses directly from Cloudflare AI
-  - Proper error handling and logging
+   ```dotenv
+   IDLEN_API_KEY=idl_pk_your_key_here
+   ```
 
-## Setup Instructions
+3. For production, configure the secret and deploy:
 
-### 1. Cloudflare Account
-Ensure you have a Cloudflare account with Workers AI enabled.
+   ```bash
+   npx wrangler secret put IDLEN_API_KEY
+   npm run deploy
+   ```
 
-### 2. Local Development
-To run the project locally with Cloudflare features, you need to use Wrangler.
+Without the key, chat replies continue to work and the ad endpoint returns no ad. Check publisher analytics in Idlen Ads Manager to confirm impressions and clicks after deployment.
 
-```bash
-# Install dependencies
-npm install
+## Development and deployment
 
-# Start development server with remote connection for AI
-npm run dev
-```
+Install dependencies with `npm ci`. Use `npm run dev` for the Astro development server. Use `npm run preview` to build and run the Cloudflare Worker locally when testing Cloudflare bindings. The deployed Worker requires the `AI` binding configured in `wrangler.jsonc` and Cloudflare Workers AI enabled for the account.
 
-### 3. Cloudflare Deployment
+Deploy with `npm run deploy`. After deployment, test both ordinary chat replies and the optional ad flow. Leave the sponsored-suggestions checkbox unchecked to verify that no Idlen ad request is made.
 
-#### Using Wrangler CLI
-The project is configured to deploy to Cloudflare Pages/Workers.
+## Relevant files
 
-```bash
-# Build and deploy
-npm run deploy
-```
-
-#### Configuration
-Ensure your `wrangler.jsonc` or Cloudflare Dashboard has the `AI` binding configured:
-
-```json
-"ai": {
-  "binding": "AI"
-}
-```
-
-## Configuration
-
-### Widget Customization
-Edit the `CONFIG` object in `/public/js/chat-widget.js`.
-
-### System Prompt Customization
-Edit the system prompt in `/src/pages/api/chat.ts`.
-
-## Sponsored Messages (Idlen)
-
-After each assistant reply the widget (`src/components/ChatWidget.astro`, rendered from `Footer.astro`) asks `/api/chat-ad` for a contextual sponsored suggestion from [Idlen](https://idlen.io) and shows it as a card labelled "Sponsored". Idlen counts an impression when an ad is returned, so ads are only requested right before they are shown; clicks are reported back with `sendBeacon`.
-
-Setup:
-1. Create a publisher key at https://adsmanager.idlen.io/publisher/api-keys
-2. Local dev: add `IDLEN_API_KEY=idl_pk_...` to `.dev.vars`
-3. Production: `npx wrangler secret put IDLEN_API_KEY`, then deploy
-
-Without the key the chat still works and simply shows no ads. Earnings appear under Pub Analytics in the Idlen ads manager.
+- `src/components/ChatWidget.astro` — widget UI, local history, consent, topic classification, and ad rendering.
+- `src/components/Footer.astro` — mounts the widget site-wide.
+- `src/pages/api/chat.ts` — streams replies from Cloudflare Workers AI.
+- `src/pages/api/chat-ad.ts` — validates ad requests, calls Idlen, and reports clicks.
+- `src/pages/privacy-policy.astro` — public disclosures about chatbot and ad data handling.
+- `.env.example` — example environment variables; do not put real secrets in this file.
 
 ## Troubleshooting
 
-### Chatbot Not Responding
-1. **Check AI Binding**: Verify that the `AI` binding is correctly set in your Cloudflare settings.
-2. **Check Logs**: View Cloudflare Worker logs in the dashboard.
-3. **Check Browser Console**: Look for JavaScript errors in the console.
+**Chat replies fail:** confirm the Cloudflare `AI` binding is enabled and check Worker logs and the browser console.
 
-### Slow Responses
-- Cloudflare Workers AI latency depends on the model and region. Llama 3.1 8B is generally fast.
+**No sponsored ad appears:** confirm the visitor enabled sponsored suggestions, `IDLEN_API_KEY` is configured as a Worker secret, and the response is not rate-limited. Idlen may also return no suitable ad for a topic.
 
-## API Endpoint Reference
-
-### POST `/api/chat`
-**Request:**
-```json
-{
-  "messages": [
-    { "role": "user", "content": "Hello!" }
-  ]
-}
-```
-
-**Response:**
-A stream of Server-Sent Events (SSE) containing the AI's response.
-
-## License
-This chatbot implementation is part of the AstroSignal blog project.
+**Local key is missing:** verify `.dev.vars` is at the project root and restart the local development process after editing it.
