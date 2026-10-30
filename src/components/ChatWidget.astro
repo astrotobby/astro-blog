@@ -16,11 +16,7 @@
       <input id="ts-chat-input" type="text" placeholder="Ask about AI, tech or the blog…" autocomplete="off" maxlength="1000" required />
       <button type="submit">Send</button>
     </form>
-    <label class="ts-chat-consent">
-      <input id="ts-chat-ads" type="checkbox" checked />
-      <span>Show sponsored suggestions</span>
-    </label>
-    <p class="ts-chat-privacy" id="ts-chat-privacy">Sponsored suggestions appear by default. Uncheck to opt out. Idlen receives only a broad topic and a temporary session ID—not your messages or replies. <a href="/privacy-policy">Privacy details</a>.</p>
+    <p class="ts-chat-privacy" id="ts-chat-privacy">This chatbot may show sponsored suggestions after replies. Idlen receives only a broad topic and a temporary session ID—not your messages or replies. <a href="/privacy-policy">Privacy details</a>.</p>
   </section>
 </div>
 
@@ -28,7 +24,6 @@
   const HISTORY_KEY = 'ts-chat-history';
   const SESSION_KEY = 'ts-chat-session';
   const MAX_HISTORY = 20;
-  const ADS_OPT_OUT_KEY = 'ts-chat-ads-opt-out';
 
   // Disclosed Idlen referral tip, shown at most once per visit when the chat is
   // about AI coding tools. Leave empty to turn it off.
@@ -52,7 +47,6 @@
   const form = document.getElementById('ts-chat-form') as HTMLFormElement;
   const input = document.getElementById('ts-chat-input') as HTMLInputElement;
   const clear = document.getElementById('ts-chat-clear') as HTMLButtonElement;
-  const adsConsent = document.getElementById('ts-chat-ads') as HTMLInputElement;
 
   function store(key: string, value?: string): string | null {
     try {
@@ -74,17 +68,6 @@
   } catch {
     sessionId = crypto.randomUUID();
   }
-  try {
-    adsConsent.checked = localStorage.getItem(ADS_OPT_OUT_KEY) !== '1';
-  } catch {
-    adsConsent.checked = true;
-  }
-  adsConsent.addEventListener('change', () => {
-    try {
-      if (adsConsent.checked) localStorage.removeItem(ADS_OPT_OUT_KEY);
-      else localStorage.setItem(ADS_OPT_OUT_KEY, '1');
-    } catch {}
-  });
   let busy = false;
 
   function bubble(role: Msg['role'], text: string): HTMLElement {
@@ -155,7 +138,6 @@
   }
 
   async function showAd(topic: AdTopic) {
-    if (!adsConsent.checked) return;
     try {
       const res = await fetch('/api/chat-ad', {
         method: 'POST',
@@ -293,8 +275,6 @@
   .ts-chat-form { display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid #E5E7EB; }
   .ts-chat-form input { flex: 1; min-width: 0; padding: 0.55rem 0.75rem; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 0.92rem; }
   .ts-chat-form button { padding: 0.55rem 1rem; border: none; border-radius: 8px; background: #00A67F; color: #fff; font-weight: 600; cursor: pointer; }
-  .ts-chat-consent { display: flex; align-items: center; gap: 0.45rem; padding: 0 0.85rem; font-size: 0.78rem; color: #374151; cursor: pointer; }
-  .ts-chat-consent input { accent-color: #00A67F; }
   .ts-chat-privacy { margin: 0; padding: 0.15rem 0.85rem 0.7rem; color: #6B7280; font-size: 0.72rem; line-height: 1.35; }
   .ts-chat-privacy a { color: #007A62; }
 </style>
