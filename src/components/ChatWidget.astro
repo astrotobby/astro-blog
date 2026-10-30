@@ -17,10 +17,10 @@
       <button type="submit">Send</button>
     </form>
     <label class="ts-chat-consent">
-      <input id="ts-chat-ads" type="checkbox" />
-      <span>Enable optional sponsored suggestions</span>
+      <input id="ts-chat-ads" type="checkbox" checked />
+      <span>Show sponsored suggestions</span>
     </label>
-    <p class="ts-chat-privacy" id="ts-chat-privacy">If enabled, Idlen receives only a broad topic category and a temporary session ID—not your messages or replies. <a href="/privacy-policy">Privacy details</a>.</p>
+    <p class="ts-chat-privacy" id="ts-chat-privacy">Sponsored suggestions appear by default. Uncheck to opt out. Idlen receives only a broad topic and a temporary session ID—not your messages or replies. <a href="/privacy-policy">Privacy details</a>.</p>
   </section>
 </div>
 
@@ -28,6 +28,7 @@
   const HISTORY_KEY = 'ts-chat-history';
   const SESSION_KEY = 'ts-chat-session';
   const MAX_HISTORY = 20;
+  const ADS_OPT_OUT_KEY = 'ts-chat-ads-opt-out';
 
   // Disclosed Idlen referral tip, shown at most once per visit when the chat is
   // about AI coding tools. Leave empty to turn it off.
@@ -70,14 +71,18 @@
       sessionId = crypto.randomUUID();
       sessionStorage.setItem(SESSION_KEY, sessionId);
     }
-    adsConsent.checked = sessionStorage.getItem('ts-chat-ads-consent') === '1';
   } catch {
     sessionId = crypto.randomUUID();
   }
+  try {
+    adsConsent.checked = localStorage.getItem(ADS_OPT_OUT_KEY) !== '1';
+  } catch {
+    adsConsent.checked = true;
+  }
   adsConsent.addEventListener('change', () => {
     try {
-      if (adsConsent.checked) sessionStorage.setItem('ts-chat-ads-consent', '1');
-      else sessionStorage.removeItem('ts-chat-ads-consent');
+      if (adsConsent.checked) localStorage.removeItem(ADS_OPT_OUT_KEY);
+      else localStorage.setItem(ADS_OPT_OUT_KEY, '1');
     } catch {}
   });
   let busy = false;

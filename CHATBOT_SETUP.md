@@ -8,8 +8,8 @@ The site-wide **Tobby's Assistant** widget is rendered by `src/components/Footer
 
 - The widget stores up to 20 recent user/assistant messages in the visitor's browser `localStorage`. The **Clear** button clears that local chat history.
 - User messages are sent to the site's `/api/chat` endpoint and processed by Cloudflare Workers AI to generate replies.
-- Idlen sponsored suggestions are **off by default**. Visitors must enable them with the checkbox in the widget.
-- When enabled, the browser classifies only the latest question into one of four broad categories. The site sends that category and a random browser-session ID to `/api/chat-ad`; it does not send the question text or assistant reply to Idlen.
+- Idlen sponsored suggestions appear **by default**. Visitors can turn them off with the widget checkbox; that opt-out is saved in browser `localStorage`.
+- While suggestions are on, the browser classifies only the latest question into one of four broad categories. The site sends that category and a random browser-session ID to `/api/chat-ad`; it does not send the question text or assistant reply to Idlen.
 - The publisher API key is read only by the server route. Never place it in frontend code or commit it to the repository.
 - The ad endpoint applies best-effort, in-memory request limits using the session ID and Cloudflare-provided client IP. Worker memory is isolate-local, so this is not a substitute for Cloudflare's managed rate-limiting rules for a high-traffic or abuse-sensitive deployment.
 
@@ -35,7 +35,7 @@ Without the key, chat replies continue to work and the ad endpoint returns no ad
 
 Install dependencies with `npm ci`. Use `npm run dev` for the Astro development server. Use `npm run preview` to build and run the Cloudflare Worker locally when testing Cloudflare bindings. The deployed Worker requires the `AI` binding configured in `wrangler.jsonc` and Cloudflare Workers AI enabled for the account.
 
-Deploy with `npm run deploy`. After deployment, test both ordinary chat replies and the optional ad flow. Leave the sponsored-suggestions checkbox unchecked to verify that no Idlen ad request is made.
+Deploy with `npm run deploy`. After deployment, test ordinary chat replies and the ad flow with the sponsored-suggestions checkbox enabled by default. Uncheck it to verify that ad requests stop, then reload and confirm the opt-out remains in effect.
 
 ## Relevant files
 
@@ -50,6 +50,6 @@ Deploy with `npm run deploy`. After deployment, test both ordinary chat replies 
 
 **Chat replies fail:** confirm the Cloudflare `AI` binding is enabled and check Worker logs and the browser console.
 
-**No sponsored ad appears:** confirm the visitor enabled sponsored suggestions, `IDLEN_API_KEY` is configured as a Worker secret, and the response is not rate-limited. Idlen may also return no suitable ad for a topic.
+**No sponsored ad appears:** confirm the visitor has not opted out, `IDLEN_API_KEY` is configured as a Worker secret, and the response is not rate-limited. Idlen may also return no suitable ad for a topic.
 
 **Local key is missing:** verify `.dev.vars` is at the project root and restart the local development process after editing it.
