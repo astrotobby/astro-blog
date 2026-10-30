@@ -24,11 +24,8 @@
   const SESSION_KEY = 'ts-chat-session';
   const MAX_HISTORY = 20;
 
-  // Disclosed Idlen referral tip, shown at most once per visit when the chat is
-  // about AI coding tools. Leave empty to turn it off.
+  // Disclosed Idlen referral tip, shown after every successful assistant reply.
   const REFERRAL_URL = 'https://dashboard.idlen.io/register?ref=TUM2ZRP2';
-  const REFERRAL_SHOWN_KEY = 'ts-chat-referral-shown';
-  const REFERRAL_TOPICS = /\b(ai|coding|code|copilot|cursor|claude|chatgpt|gpt|gemini|llm|agent|vs ?code|prompt|developer|programming)\b/i;
 
   type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -175,13 +172,7 @@
     } catch {}
   }
 
-  function maybeShowReferral(conversation: string) {
-    if (!REFERRAL_URL || !REFERRAL_TOPICS.test(conversation)) return;
-    try {
-      if (sessionStorage.getItem(REFERRAL_SHOWN_KEY)) return;
-      sessionStorage.setItem(REFERRAL_SHOWN_KEY, '1');
-    } catch {}
-
+  function showReferral() {
     const tip = document.createElement('p');
     tip.className = 'ts-chat-referral';
     tip.append('Tip: I use Idlen to get paid for ads shown while my AI tools think. ');
@@ -213,7 +204,7 @@
       history.push({ role: 'assistant', content: reply });
       save();
       await showAd(`User question: ${text}\nAssistant answer: ${reply}`);
-      maybeShowReferral(`${text} ${reply}`);
+      showReferral();
     } catch {
       target.textContent = 'Sorry, something went wrong. Please try again.';
     } finally {
