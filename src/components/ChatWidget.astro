@@ -16,7 +16,6 @@
       <input id="ts-chat-input" type="text" placeholder="Ask about AI, tech or the blog…" autocomplete="off" maxlength="1000" required />
       <button type="submit">Send</button>
     </form>
-    <p class="ts-chat-privacy" id="ts-chat-privacy">This chatbot may show sponsored suggestions after replies. Idlen receives only a broad topic and a temporary session ID—not your messages or replies. <a href="/privacy-policy">Privacy details</a>.</p>
   </section>
 </div>
 
@@ -30,14 +29,6 @@
   const REFERRAL_URL = 'https://dashboard.idlen.io/register?ref=TUM2ZRP2';
   const REFERRAL_SHOWN_KEY = 'ts-chat-referral-shown';
   const REFERRAL_TOPICS = /\b(ai|coding|code|copilot|cursor|claude|chatgpt|gpt|gemini|llm|agent|vs ?code|prompt|developer|programming)\b/i;
-  type AdTopic = 'ai_tools' | 'software_development' | 'technology' | 'general';
-
-  function topicForQuestion(text: string): AdTopic {
-    if (/\b(ai|copilot|cursor|claude|chatgpt|gpt|gemini|llm|agent|prompt)\b/i.test(text)) return 'ai_tools';
-    if (/\b(cod(e|ing)|program(ming|mer)?|developer|software|debug|api)\b/i.test(text)) return 'software_development';
-    if (/\b(tech|technology|computer|internet|cloud|cyber|robot)\b/i.test(text)) return 'technology';
-    return 'general';
-  }
 
   type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -58,15 +49,10 @@
 
   let history: Msg[] = [];
   try { history = JSON.parse(store(HISTORY_KEY) || '[]'); } catch {}
-  let sessionId = '';
-  try {
-    sessionId = sessionStorage.getItem(SESSION_KEY) || '';
-    if (!sessionId) {
-      sessionId = crypto.randomUUID();
-      sessionStorage.setItem(SESSION_KEY, sessionId);
-    }
-  } catch {
+  let sessionId = store(SESSION_KEY);
+  if (!sessionId) {
     sessionId = crypto.randomUUID();
+    store(SESSION_KEY, sessionId);
   }
   let busy = false;
 
@@ -137,16 +123,16 @@
     return text.trim();
   }
 
-  async function showAd(topic: AdTopic) {
+  async function showAd(context: string) {
     try {
       const res = await fetch('/api/chat-ad', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'ad', sessionId, topic }),
+        body: JSON.stringify({ action: 'ad', sessionId, text: context.slice(0, 2000) }),
       });
       if (!res.ok) return;
       const { ad } = await res.json();
-      if (!ad || !/^https:\/\//.test(ad.ctaUrl || '')) return;
+      if (!ad || !/^https?:\/\//.test(ad.ctaUrl || '')) return;
 
       const card = document.createElement('a');
       card.className = 'ts-chat-ad';
@@ -198,7 +184,7 @@
 
     const tip = document.createElement('p');
     tip.className = 'ts-chat-referral';
-    tip.append('I may earn from Idlen sponsored ads and this referral link. ');
+    tip.append('Tip: I use Idlen to get paid for ads shown while my AI tools think. ');
     const link = document.createElement('a');
     link.href = REFERRAL_URL;
     link.target = '_blank';
@@ -226,7 +212,7 @@
       if (!reply) throw new Error('Empty reply');
       history.push({ role: 'assistant', content: reply });
       save();
-      await showAd(topicForQuestion(text));
+      await showAd(`User question: ${text}\nAssistant answer: ${reply}`);
       maybeShowReferral(`${text} ${reply}`);
     } catch {
       target.textContent = 'Sorry, something went wrong. Please try again.';
@@ -275,6 +261,4 @@
   .ts-chat-form { display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid #E5E7EB; }
   .ts-chat-form input { flex: 1; min-width: 0; padding: 0.55rem 0.75rem; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 0.92rem; }
   .ts-chat-form button { padding: 0.55rem 1rem; border: none; border-radius: 8px; background: #00A67F; color: #fff; font-weight: 600; cursor: pointer; }
-  .ts-chat-privacy { margin: 0; padding: 0.15rem 0.85rem 0.7rem; color: #6B7280; font-size: 0.72rem; line-height: 1.35; }
-  .ts-chat-privacy a { color: #007A62; }
 </style>
