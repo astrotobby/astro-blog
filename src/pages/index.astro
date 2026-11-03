@@ -34,6 +34,19 @@ const gridPosts = posts.slice(1, 9);
   <body>
     <Header />
 
+    <section class="growth-hero" aria-labelledby="growth-hero-title">
+      <div class="growth-hero-inner">
+        <p class="growth-eyebrow">AI systems for ambitious operators</p>
+        <h1 id="growth-hero-title">Turn AI into a growth system — not another tab.</h1>
+        <p class="growth-lede">Astro Signal helps creators and small businesses find practical automation, AI-search visibility, and content opportunities that can compound into revenue.</p>
+        <div class="growth-actions">
+          <button class="growth-primary" type="button" id="open-growth-advisor">Get your AI growth diagnosis <span>→</span></button>
+          <a class="growth-secondary" href="/portfolio">Explore implementation work</a>
+        </div>
+        <div class="growth-proof" aria-label="What the advisor helps with"><span>Automation</span><span>AEO / GEO</span><span>Content systems</span><span>Done-for-you builds</span></div>
+      </div>
+    </section>
+
     <!-- ═══ TUKO-STYLE: Inline Leaderboard Banner (Blends with layout) ═══ -->
     <div class="site-top-ad" aria-label="Advertisement">
       <span class="ad-label">Advertisement</span>
@@ -103,7 +116,23 @@ const gridPosts = posts.slice(1, 9);
     </main>
     <Footer />
 
+    <script is:inline>
+      document.getElementById('open-growth-advisor')?.addEventListener('click', () => document.dispatchEvent(new CustomEvent('astro:open-growth-advisor')));
+    </script>
+
     <style>
+      .growth-hero { background: linear-gradient(135deg, #073b3a 0%, #0b5960 52%, #146b7a 100%); color: #fff; margin: 0; }
+      .growth-hero-inner { max-width: 1120px; margin: 0 auto; padding: clamp(3.5rem, 8vw, 6.5rem) 1.5rem clamp(3rem, 6vw, 5rem); }
+      .growth-eyebrow { color: #8ef0d2; font-size: .78rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; margin: 0 0 1rem; }
+      .growth-hero h1 { max-width: 760px; font-size: clamp(2.35rem, 6vw, 4.9rem); line-height: 1.02; letter-spacing: -.045em; margin: 0 0 1.25rem; color: #fff; }
+      .growth-lede { max-width: 680px; color: rgba(255,255,255,.84); font-size: clamp(1.05rem, 2vw, 1.3rem); line-height: 1.6; margin: 0 0 1.8rem; }
+      .growth-actions { display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; }
+      .growth-primary, .growth-secondary { border-radius: 10px; padding: .85rem 1.15rem; font-weight: 800; text-decoration: none; font-size: .95rem; }
+      .growth-primary { border: 0; background: #8ef0d2; color: #063b39; cursor: pointer; }
+      .growth-primary span { margin-left: .4rem; font-size: 1.2rem; }
+      .growth-secondary { color: #fff; border: 1px solid rgba(255,255,255,.38); }
+      .growth-proof { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: 2.2rem; }
+      .growth-proof span { border: 1px solid rgba(255,255,255,.24); border-radius: 999px; padding: .4rem .7rem; color: rgba(255,255,255,.8); font-size: .76rem; }
       /* ── Tuko-style: Inline Leaderboard ── */
       .site-top-ad {
         width: 100%;

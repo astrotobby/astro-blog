@@ -2,11 +2,13 @@
 
 ## Overview
 
-This Astro blog includes an AI-powered chatbot widget that uses Cloudflare Workers AI to provide intelligent responses to visitor questions.
+This Astro blog includes an AI-powered **AI Growth Advisor** that uses Cloudflare Workers AI to diagnose automation, AEO/GEO and content-system opportunities, qualify visitors, and capture leads for a personalized plan.
 
 ## Features
 
-- **Real-time Chat Widget**: Fixed position chat bubble in the bottom-left corner
+- **Guided Growth Advisor**: Quick-start prompts for automation, AI-search visibility and revenue systems
+- **Lead capture**: After useful context is established, visitors can request a personalized 30-day plan
+- **Funnel analytics**: Advisor open, reply, plan-offer and lead-captured events are sent server-side
 - **Message History**: Persistent chat history stored in browser localStorage
 - **Streaming Responses**: Smooth, real-time message display using Server-Sent Events (SSE)
 - **Cloudflare Native**: Leverages Cloudflare Workers AI for high-performance, low-latency inference
@@ -26,7 +28,7 @@ This Astro blog includes an AI-powered chatbot widget that uses Cloudflare Worke
 - **File**: `/src/pages/api/chat.ts`
 - **Features**:
   - Cloudflare Workers integration
-  - Uses `@cf/meta/llama-3.1-8b-instruct-fp8` model
+  - Uses `@cf/meta/llama-3.1-8b-instruct-fp8` model with a commercial growth-advisor prompt
   - Supports streaming responses directly from Cloudflare AI
   - Proper error handling and logging
 
@@ -72,6 +74,16 @@ Edit the `CONFIG` object in `/public/js/chat-widget.js`.
 
 ### System Prompt Customization
 Edit the system prompt in `/src/pages/api/chat.ts`.
+
+## Lead webhook
+
+The advisor posts qualified leads and funnel events to `CHAT_LEAD_WEBHOOK` when configured. `MAKE_LEAD_WEBHOOK` is accepted as a backwards-compatible alias. Set the value as a Cloudflare Worker variable or secret, then deploy:
+
+```bash
+npx wrangler secret put CHAT_LEAD_WEBHOOK
+```
+
+Lead payloads include the visitor email, source path, session ID, intent summary, and the last conversation messages. Event payloads include `advisor_opened`, `reply_received`, `plan_offer_shown`, and `lead_captured`. Use a Make.com custom webhook to route leads into Mailchimp, a CRM, a calendar handoff, or a sales notification. If no webhook is configured, the advisor still works but leads are not persisted.
 
 ## Sponsored Messages (Idlen)
 
