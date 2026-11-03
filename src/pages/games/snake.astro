@@ -1,0 +1,281 @@
+---
+import BaseHead from '../../components/BaseHead.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import AdBanner from '../../components/AdBanner.astro';
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <BaseHead
+      title="Snake Challenge"
+      description="Play the free Astro Signal Snake Challenge. Chase a high score, share your result, and try again."
+      suppressGlobalAds={false}
+    />
+    <meta name="robots" content="index,follow" />
+    <script type="application/ld+json" is:inline>{JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'VideoGame',
+      name: 'Snake Challenge',
+      description: 'A free browser-based Snake game from Astro Signal.',
+      url: 'https://astrotobby.site/games/snake/',
+      applicationCategory: 'Game',
+      operatingSystem: 'Any',
+      playMode: 'SinglePlayer',
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    })}</script>
+  </head>
+  <body>
+    <Header />
+    <div class="game-top-ad" aria-label="Advertisement">
+      <span>Advertisement</span>
+      <AdBanner slot="game-top" minHeight="90px" margin="0 auto" />
+    </div>
+    <main class="game-shell">
+      <section class="game-intro" aria-labelledby="game-title">
+        <p class="eyebrow">Astro Signal Arcade</p>
+        <h1 id="game-title">Snake Challenge</h1>
+        <p>Eat the glowing fruit, avoid the walls and your own tail, then share your best score.</p>
+      </section>
+
+      <section class="game-layout" aria-label="Snake game">
+        <div class="game-card">
+          <div class="game-status" aria-live="polite">
+            <span>Score <strong id="score">0</strong></span>
+            <span>Best <strong id="best">0</strong></span>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="snake-canvas" width="360" height="360" aria-label="Snake game board" role="img"></canvas>
+            <div class="game-overlay" id="game-overlay">
+              <strong id="overlay-title">Ready?</strong>
+              <span id="overlay-message">Use the arrow keys or buttons below.</span>
+              <button class="primary-button" id="start-button" type="button">Start game</button>
+            </div>
+          </div>
+          <div class="controls" aria-label="Game controls">
+            <button type="button" data-direction="up" aria-label="Move up">▲</button>
+            <div>
+              <button type="button" data-direction="left" aria-label="Move left">◀</button>
+              <button type="button" data-direction="down" aria-label="Move down">▼</button>
+              <button type="button" data-direction="right" aria-label="Move right">▶</button>
+            </div>
+          </div>
+          <div class="game-actions">
+            <button class="secondary-button" id="restart-button" type="button">Restart</button>
+            <button class="secondary-button" id="share-button" type="button">Share score</button>
+          </div>
+          <p class="game-help">Desktop: use arrow keys or WASD. Mobile: use the controls. Press Space to start or restart.</p>
+        </div>
+        <aside class="game-sidebar">
+          <div class="info-card">
+            <span class="card-kicker">How to play</span>
+            <h2>Beat your personal best</h2>
+            <ol>
+              <li>Start the game and guide the snake to the fruit.</li>
+              <li>Each fruit adds one point and makes your tail longer.</li>
+              <li>Try again when you crash and share your score.</li>
+            </ol>
+          </div>
+          <div class="sidebar-ad" aria-label="Advertisement">
+            <span>Advertisement</span>
+            <AdBanner slot="sidebar-top" minHeight="250px" margin="0 auto" />
+          </div>
+        </aside>
+      </section>
+
+      <section class="game-footer-ad" aria-label="Advertisement">
+        <span>Advertisement</span>
+        <AdBanner slot="game-bottom" minHeight="90px" margin="0 auto" />
+      </section>
+    </main>
+    <Footer />
+
+    <script is:inline>
+      const canvas = document.getElementById('snake-canvas');
+      const ctx = canvas.getContext('2d');
+      const scoreEl = document.getElementById('score');
+      const bestEl = document.getElementById('best');
+      const overlay = document.getElementById('game-overlay');
+      const overlayTitle = document.getElementById('overlay-title');
+      const overlayMessage = document.getElementById('overlay-message');
+      const startButton = document.getElementById('start-button');
+      const restartButton = document.getElementById('restart-button');
+      const shareButton = document.getElementById('share-button');
+      const grid = 18;
+      const tile = canvas.width / grid;
+      let snake;
+      let food;
+      let direction;
+      let nextDirection;
+      let score = 0;
+      let best = Number(localStorage.getItem('astro-snake-best') || 0);
+      let timer = null;
+      let running = false;
+      let gameOver = false;
+      bestEl.textContent = best;
+
+      function randomFood() {
+        let candidate;
+        do {
+          candidate = { x: Math.floor(Math.random() * grid), y: Math.floor(Math.random() * grid) };
+        } while (snake.some((part) => part.x === candidate.x && part.y === candidate.y));
+        return candidate;
+      }
+
+      function reset() {
+        clearInterval(timer);
+        snake = [{ x: 8, y: 9 }, { x: 7, y: 9 }, { x: 6, y: 9 }];
+        food = randomFood();
+        direction = { x: 1, y: 0 };
+        nextDirection = direction;
+        score = 0;
+        running = false;
+        gameOver = false;
+        scoreEl.textContent = score;
+        draw();
+        showOverlay('Ready?', 'Use the arrow keys or buttons below.', 'Start game');
+      }
+
+      function showOverlay(title, message, buttonText) {
+        overlayTitle.textContent = title;
+        overlayMessage.textContent = message;
+        startButton.textContent = buttonText;
+        overlay.hidden = false;
+      }
+
+      function start() {
+        if (running) return;
+        if (gameOver) reset();
+        running = true;
+        overlay.hidden = true;
+        timer = setInterval(tick, Math.max(72, 145 - score * 3));
+      }
+
+      function endGame() {
+        running = false;
+        gameOver = true;
+        clearInterval(timer);
+        if (score > best) {
+          best = score;
+          localStorage.setItem('astro-snake-best', String(best));
+          bestEl.textContent = best;
+        }
+        draw();
+        showOverlay('Game over', `You scored ${score}. Can you beat it?`, 'Play again');
+      }
+
+      function tick() {
+        direction = nextDirection;
+        const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+        const hitWall = head.x < 0 || head.x >= grid || head.y < 0 || head.y >= grid;
+        const hitTail = snake.some((part, index) => index > 0 && part.x === head.x && part.y === head.y);
+        if (hitWall || hitTail) return endGame();
+        snake.unshift(head);
+        if (head.x === food.x && head.y === food.y) {
+          score += 1;
+          scoreEl.textContent = score;
+          food = randomFood();
+          clearInterval(timer);
+          timer = setInterval(tick, Math.max(72, 145 - score * 3));
+        } else {
+          snake.pop();
+        }
+        draw();
+      }
+
+      function draw() {
+        ctx.fillStyle = '#08131f';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = 'rgba(142, 240, 210, .07)';
+        ctx.lineWidth = 1;
+        for (let i = 1; i < grid; i += 1) {
+          ctx.beginPath(); ctx.moveTo(i * tile, 0); ctx.lineTo(i * tile, canvas.height); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, i * tile); ctx.lineTo(canvas.width, i * tile); ctx.stroke();
+        }
+        ctx.fillStyle = '#ffcf5a';
+        ctx.beginPath();
+        ctx.arc(food.x * tile + tile / 2, food.y * tile + tile / 2, tile * .33, 0, Math.PI * 2);
+        ctx.fill();
+        snake.forEach((part, index) => {
+          ctx.fillStyle = index === 0 ? '#8ef0d2' : '#3cb7a0';
+          const inset = index === 0 ? 2 : 3;
+          ctx.beginPath();
+          ctx.roundRect(part.x * tile + inset, part.y * tile + inset, tile - inset * 2, tile - inset * 2, 5);
+          ctx.fill();
+        });
+      }
+
+      function setDirection(name) {
+        const directions = {
+          up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 },
+        };
+        const candidate = directions[name];
+        if (!candidate || (candidate.x === -direction.x && candidate.y === -direction.y)) return;
+        nextDirection = candidate;
+        if (!running) start();
+      }
+
+      document.querySelectorAll('[data-direction]').forEach((button) => {
+        button.addEventListener('click', () => setDirection(button.dataset.direction));
+      });
+      document.addEventListener('keydown', (event) => {
+        const keys = { ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down', ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right' };
+        if (keys[event.key]) { event.preventDefault(); setDirection(keys[event.key]); }
+        if (event.code === 'Space') { event.preventDefault(); running ? endGame() : start(); }
+      });
+      startButton.addEventListener('click', start);
+      restartButton.addEventListener('click', reset);
+      shareButton.addEventListener('click', async () => {
+        const text = `I scored ${score} on Astro Signal Snake Challenge. Can you beat me?`;
+        try {
+          if (navigator.share) await navigator.share({ title: 'Snake Challenge', text, url: location.href });
+          else await navigator.clipboard.writeText(`${text} ${location.href}`);
+          shareButton.textContent = navigator.share ? 'Shared' : 'Copied';
+          setTimeout(() => { shareButton.textContent = 'Share score'; }, 1600);
+        } catch (_) { /* User cancelled sharing. */ }
+      });
+      reset();
+    </script>
+
+    <style>
+      :global(body) { background: #f5faf9; }
+      .game-top-ad, .game-footer-ad { padding: .75rem 1rem; text-align: center; background: var(--bg-primary); border-bottom: 1px solid var(--border-light); }
+      .game-top-ad > span, .game-footer-ad > span, .sidebar-ad > span { display: block; color: var(--text-muted); font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; margin-bottom: .45rem; }
+      .game-shell { max-width: 1120px; margin: 0 auto; padding: clamp(2rem, 5vw, 4.5rem) 1.25rem; }
+      .game-intro { max-width: 700px; margin-bottom: 2rem; }
+      .eyebrow, .card-kicker { color: #138b78; font-size: .76rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+      .game-intro h1 { margin: .4rem 0 .6rem; font-size: clamp(2.4rem, 6vw, 4.6rem); line-height: 1; color: #073b3a; letter-spacing: -.05em; }
+      .game-intro p:last-child { color: #3e5b5c; font-size: 1.12rem; line-height: 1.6; margin: 0; }
+      .game-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 1.5rem; align-items: start; }
+      .game-card, .info-card { background: #fff; border: 1px solid #d8e8e4; border-radius: 18px; box-shadow: 0 18px 45px rgba(7, 59, 58, .09); }
+      .game-card { max-width: 640px; padding: clamp(1rem, 3vw, 1.6rem); margin: 0 auto; width: 100%; }
+      .game-status { display: flex; justify-content: space-between; color: #547171; font-size: .82rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 800; padding: 0 .25rem 1rem; }
+      .game-status strong { color: #073b3a; font-size: 1.1rem; margin-left: .25rem; }
+      .canvas-wrap { position: relative; max-width: 520px; margin: 0 auto; aspect-ratio: 1; background: #08131f; border-radius: 12px; overflow: hidden; }
+      canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+      .game-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .65rem; padding: 1.25rem; text-align: center; background: rgba(8, 19, 31, .82); color: #fff; }
+      .game-overlay[hidden] { display: none; }
+      .game-overlay strong { font-size: 1.8rem; }
+      .game-overlay span { color: rgba(255,255,255,.72); }
+      .primary-button, .secondary-button, .controls button { border: 0; border-radius: 9px; cursor: pointer; font: inherit; font-weight: 800; transition: transform .15s ease, filter .15s ease; }
+      .primary-button { background: #8ef0d2; color: #063b39; padding: .75rem 1.1rem; }
+      .secondary-button { background: #edf7f4; color: #0d675d; padding: .65rem .9rem; }
+      .primary-button:hover, .secondary-button:hover, .controls button:hover { filter: brightness(.96); transform: translateY(-1px); }
+      .controls { display: grid; justify-items: center; gap: .25rem; margin: 1rem 0 .8rem; }
+      .controls > div { display: flex; gap: .25rem; }
+      .controls button { width: 48px; height: 42px; background: #073b3a; color: #fff; }
+      .controls > button { width: 48px; height: 42px; }
+      .game-actions { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
+      .game-help { color: #718585; text-align: center; font-size: .78rem; line-height: 1.5; margin: 1rem .4rem .1rem; }
+      .game-sidebar { display: grid; gap: 1.25rem; }
+      .info-card { padding: 1.35rem; }
+      .info-card h2 { color: #073b3a; font-size: 1.4rem; margin: .45rem 0 .9rem; }
+      .info-card ol { color: #486364; line-height: 1.65; padding-left: 1.2rem; margin: 0; }
+      .info-card li + li { margin-top: .55rem; }
+      .sidebar-ad { min-width: 0; padding: 1rem; background: #fff; border: 1px solid #d8e8e4; border-radius: 14px; text-align: center; }
+      .game-footer-ad { max-width: 970px; margin: 2rem auto 0; border: 1px solid var(--border-light); border-radius: 12px; }
+      @media (max-width: 800px) { .game-layout { grid-template-columns: 1fr; } .game-card { max-width: 560px; } .game-sidebar { grid-template-columns: minmax(0, 1fr) minmax(0, 300px); max-width: 560px; margin: 0 auto; width: 100%; } }
+      @media (max-width: 560px) { .game-shell { padding-inline: .8rem; } .game-sidebar { grid-template-columns: 1fr; } .game-card { padding: .85rem; } .controls button, .controls > button { width: 44px; height: 40px; } }
+    </style>
+  </body>
+</html>
