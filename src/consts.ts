@@ -22,13 +22,8 @@ export const ENABLE_CPAGRIP = false;      // false → CPAGrip offers never show
 export const ENABLE_OFFERS_PAGE = false;  // false → /affiliate-offers and /offers return 404, nav link and unlock buttons hidden
 
 // ─── Adsterra Global Ad Units ────────────────────────────────────────────────
-// These auto-display formats load globally on every page (Adsterra decides when
-// to show them). Replaces previous Monetag vignette + in-page push zones.
-// - Popunder (ID: 29380103): replaces Monetag vignette/interstitial (zone 11242675)
-// - Social Bar (ID: 29285384): replaces Monetag in-page push (zone 11242710)
-export const ADSTERRA_GLOBAL_UNITS = [
-  { src: 'https://pl29480602.effectivecpmnetwork.com/2f/00/d4/2f00d442ca749f4254cbcdcdfa851714.js' }, // Popunder
-  { src: 'https://pl29385883.effectivecpmnetwork.com/11/db/e0/11dbe0be7216618b728113b9bf654a59.js' }, // Social Bar
-];
+// Intrusive global formats (popunder/social bar) are disabled during the
+// baseline test. Use controlled, clearly labelled display placements instead.
+export const ADSTERRA_GLOBAL_UNITS: { src: string }[] = [];
 
 // Build trigger: ${new Date().toUTCString()}
