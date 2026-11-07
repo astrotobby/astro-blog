@@ -565,3 +565,22 @@ textarea, input { font-size: 16px; }
 .rd-sidebar-ad--bottom {
   margin-top: 0;
 }
+
+
+/* Monetization safeguards: preserve reading space and avoid mobile ad overflow. */
+.adsterra-banner-slot {
+  max-width: 100%;
+  overflow: hidden;
+}
+.rd-sidebar-ad {
+  max-width: 100%;
+}
+@media (max-width: 768px) {
+  /* Fixed-width Adsterra creatives are not reliably responsive. Keep them off
+     narrow screens until a network-provided responsive/mobile unit is used. */
+  .rd-sidebar-ad,
+  .site-top-ad,
+  .post-in-article-banner {
+    display: none !important;
+  }
+}
