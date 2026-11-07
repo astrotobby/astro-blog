@@ -4,7 +4,7 @@
 import '../styles/global.css';
 import type { ImageMetadata } from 'astro';
 import FallbackImage from '../assets/blog-placeholder-1.jpg';
-import MonetagAds from './MonetagAds.astro'; // Now loads Adsterra global units (Popunder + Social Bar)
+import MonetagAds from './MonetagAds.astro'; // Loads Monetag zones alongside Adsterra global units
 import { SITE_TITLE } from '../consts';
 
 interface Props {
@@ -65,6 +65,11 @@ const fullTitle =
 <link rel="dns-prefetch" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://images.pexels.com">
 <link rel="dns-prefetch" href="https://images.pexels.com">
+<!-- Ad network CDN preconnects -->
+<link rel="preconnect" href="https://nap5k.com">
+<link rel="dns-prefetch" href="https://nap5k.com">
+<link rel="preconnect" href="https://n6wxm.com">
+<link rel="dns-prefetch" href="https://n6wxm.com">
 <!-- Adsterra CDN preconnect for faster ad loading -->
 <link rel="preconnect" href="https://pl29385882.effectivecpmnetwork.com">
 <link rel="dns-prefetch" href="https://pl29385882.effectivecpmnetwork.com">
