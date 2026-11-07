@@ -1,16 +1,40 @@
 ---
-// Adsterra global ad loaders — injects Popunder and Social Bar scripts on every page.
-// These are auto-display formats; Adsterra decides when to show them.
-// Replaces previous Monetag vignette (zone 11242675) and in-page push (zone 11242710).
+/**
+ * Monetag global ad loaders.
+ * Two tag.min.js zones and one vignette zone, supplied by the site owner.
+ * Kept separate from Adsterra so both networks can run side by side.
+ */
 import { ADSTERRA_GLOBAL_UNITS } from '../consts';
 ---
+
+<!-- Preserve the existing Adsterra Popunder and Social Bar units. -->
 {ADSTERRA_GLOBAL_UNITS.map((unit) => (
   <script is:inline define:vars={{ src: unit.src }}>
     (function () {
       var s = document.createElement('script');
       s.src = src;
       s.async = true;
-      document.body.appendChild(s);
+      (document.documentElement || document.body).appendChild(s);
     })();
   </script>
 ))}
+
+<!-- Monetag zones: two tag units plus one vignette. -->
+<script is:inline>
+  (function () {
+    var root = document.documentElement || document.body;
+    if (!root) return;
+
+    [
+      { zone: '11244264', src: 'https://nap5k.com/tag.min.js' },
+      { zone: '10979500', src: 'https://nap5k.com/tag.min.js' },
+      { zone: '11242675', src: 'https://n6wxm.com/vignette.min.js' }
+    ].forEach(function (unit) {
+      var s = document.createElement('script');
+      s.dataset.zone = unit.zone;
+      s.src = unit.src;
+      s.async = true;
+      root.appendChild(s);
+    });
+  })();
+</script>
