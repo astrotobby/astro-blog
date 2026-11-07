@@ -53,14 +53,6 @@ const noindex = shouldNoindex(slug);
   <body>
     <Header />
 
-    <!-- ═══ TUKO-STYLE: Inline Leaderboard Banner (Blends with layout) ═══ -->
-    <div class="site-top-ad" aria-label="Advertisement">
-      <span class="ad-label">Advertisement</span>
-      <div class="ad-container">
-        <AdBanner slot="top" minHeight="90px" margin="0 auto" />
-      </div>
-    </div>
-
     <main>
       <div class="rd-layout">
         <div class="rd-main">
@@ -93,14 +85,6 @@ const noindex = shouldNoindex(slug);
             {heroImage && !hideHero && (
               <div class="post-hero">
                 <img src={heroImage} alt={title} onerror={`this.onerror=null;this.src='${heroFallback}'`} />
-              </div>
-            )}
-
-            <!-- ═══ TUKO-STYLE: In-article banner AFTER hero image ═══ -->
-            {slug && (
-              <div class="post-in-article-banner" aria-label="Advertisement">
-                <span class="post-banner__label">Advertisement</span>
-                <AdBanner slot="middle1" minHeight="100px" margin="0 auto" />
               </div>
             )}
 
@@ -137,20 +121,6 @@ const noindex = shouldNoindex(slug);
                 </script>
               )}
 
-              <!-- ═══ TUKO-STYLE: Mid-article banner ═══ -->
-              {slug && (
-                <div class="post-mid-banner" aria-label="Advertisement">
-                  <span class="post-banner__label">Advertisement</span>
-                  <AdBanner slot="middle2" minHeight="100px" margin="0 auto" />
-                </div>
-              )}
-              <!-- Bottom of article banner -->
-              {slug && (
-                <div class="post-bottom-banner" aria-label="Advertisement">
-                  <span class="post-banner__label">Advertisement</span>
-                  <AdBanner slot="bottom" minHeight="90px" margin="0 auto" />
-                </div>
-              )}
             </div>
           </article>
         </div>
