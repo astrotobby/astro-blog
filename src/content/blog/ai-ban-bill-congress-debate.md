@@ -2,8 +2,7 @@
 title: "US Congress Debates Super AI Ban Amid Rapid Progress Fears"
 description: "A new US bill to ban super intelligent AI and pause advanced development gains momentum as Democrats take Congress, fueled by concerns over AI's accelerating self-improvement."
 pubDate: 2026-11-08
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "government discussing ai technology"
+image: "https://images.pexels.com/photos/8438994/pexels-photo-8438994.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [policy, ai, tech-news, research]
 author: "Astro Tobby"
 ---
