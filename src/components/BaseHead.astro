@@ -5,7 +5,7 @@ import '../styles/global.css';
 import type { ImageMetadata } from 'astro';
 import FallbackImage from '../assets/blog-placeholder-1.jpg';
 import MonetagAds from './MonetagAds.astro'; // Loads Monetag zones alongside Adsterra global units
-import { SITE_TITLE } from '../consts';
+import { SITE_TITLE, ENABLE_MONETAG } from '../consts';
 
 interface Props {
   title: string;
@@ -66,10 +66,6 @@ const fullTitle =
 <link rel="preconnect" href="https://images.pexels.com">
 <link rel="dns-prefetch" href="https://images.pexels.com">
 <!-- Ad network CDN preconnects -->
-<link rel="preconnect" href="https://nap5k.com">
-<link rel="dns-prefetch" href="https://nap5k.com">
-<link rel="preconnect" href="https://n6wxm.com">
-<link rel="dns-prefetch" href="https://n6wxm.com">
 <!-- Adsterra CDN preconnect for faster ad loading -->
 <link rel="preconnect" href="https://pl29385882.effectivecpmnetwork.com">
 <link rel="dns-prefetch" href="https://pl29385882.effectivecpmnetwork.com">
@@ -177,5 +173,5 @@ const fullTitle =
 	})();
 </script>
 
-<!-- Monetag (vignette) — loads on every page except high-conversion ones -->
-{!noindex && !suppressGlobalAds && <MonetagAds />}
+<!-- Monetag is off by default (its zone is a full-screen vignette). See ENABLE_MONETAG in consts.ts -->
+{ENABLE_MONETAG && !noindex && !suppressGlobalAds && <MonetagAds />}

@@ -75,8 +75,6 @@ const posts = (await getCollection('blog')).sort((a, b) => orderKey(b) - orderKe
   <body>
     <Header />
     <main>
-      <AdBanner slot="top" minHeight="90px" margin="0 auto 24px" />
-
       <section class="page-header glass" data-reveal>
         <span class="badge"><span class="dot"></span> The Archive</span>
         <h1 class="page-title">Every <span class="gradient-text">deep dive</span>, in one place</h1>
@@ -87,14 +85,6 @@ const posts = (await getCollection('blog')).sort((a, b) => orderKey(b) - orderKe
         <div class="posts-grid">
           {posts.map((post, i) => (
             <>
-              {i === 3 && (
-                <div class="ad-grid-span" style="margin: 1.5rem 0;">
-                  <div class="glass" style="padding: 1.5rem; text-align: center;">
-                    <span class="ad-label" style="display: block; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.75rem;">Advertisement</span>
-                    <AdBanner slot="blog-grid-mid" minHeight="90px" margin="0 auto" />
-                  </div>
-                </div>
-              )}
               {i === 6 && (
                 <div class="ad-grid-span" style="margin: 1.5rem 0;">
                   <div class="glass" style="padding: 1.5rem; text-align: center;">

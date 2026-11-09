@@ -1,75 +1,64 @@
 ---
 interface Props {
-	minHeight?: string;
+	minHeight?: string; // kept for call-site compatibility; space is reserved by CSS below
 	margin?: string;
 	slot?: string;
 }
 
-const { minHeight, margin = "20px auto", slot } = Astro.props;
+const { margin = "20px auto", slot } = Astro.props;
 
 /**
- * Adsterra Iframe Keys provided by the user:
- * 1. 728x90 (Leaderboard) - for horizontal content slots
- * 2. 300x250 (Rectangle) - for sidebar top
- * 3. 160x600 (Skyscraper) - for sidebar bottom
+ * Adsterra iframe banners (display only - no popunder / social bar / interstitial).
+ *   leaderboard 728x90  - wide screens only
+ *   rectangle   300x250 - phones, tablets and the article sidebar
+ *
+ * Each banner runs inside its own lazy <iframe srcdoc>. invoke.js relies on document.write,
+ * which only works while a document is parsing, so a private frame is the reliable way to
+ * render it (also for ads injected into the article after load). The frame size is fixed, so
+ * the page never jumps, and the ad script cannot touch the surrounding page.
  */
 const keys = {
   leaderboard: '69653a4377aeaa881f9eb1c36e09704b',
   rectangle: 'f1cac584b80eaf7c7b3dc78c37cd54df',
-  skyscraper: '1b3ede9e9965480f3c9e13de0dc2dc40'
 };
 
-let iframeKey = keys.leaderboard;
-let width = 728;
-let height = 90;
-let defaultMinHeight = "90px";
+const frame = (key: string, w: number, h: number) =>
+  `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>html,body{margin:0;padding:0;overflow:hidden;background:transparent}</style></head><body>` +
+  `<script>atOptions={'key':'${key}','format':'iframe','height':${h},'width':${w},'params':{}};<\/script>` +
+  `<script src="https://www.highperformanceformat.com/${key}/invoke.js"><\/script></body></html>`;
 
-if (slot === 'sidebar-top') {
-  iframeKey = keys.rectangle;
-  width = 300;
-  height = 250;
-  defaultMinHeight = "250px";
-} else if (slot === 'sidebar-bottom') {
-  iframeKey = keys.skyscraper;
-  width = 160;
-  height = 600;
-  defaultMinHeight = "600px";
-}
-
-const finalMinHeight = minHeight || defaultMinHeight;
-const containerId = `ad-slot-${slot || 'default'}-${Math.floor(Math.random() * 10000)}`;
+const rectOnly = slot === 'sidebar-top';
+const rectDoc = frame(keys.rectangle, 300, 250);
+const wideDoc = frame(keys.leaderboard, 728, 90);
 ---
 
-<div class="adsterra-banner-slot" style={`min-height: ${finalMinHeight}; margin: ${margin}; aspect-ratio: ${width}/${height};`}>
-  <div class="ad-iframe-wrapper" id={containerId} style={`width: ${width}px; height: ${height}px;`}>
-    <script is:inline define:vars={{ iframeKey, width, height }}>
-      // Set the global atOptions for the following invoke.js script
-      window.atOptions = {
-        'key' : iframeKey,
-        'format' : 'iframe',
-        'height' : height,
-        'width' : width,
-        'params' : {}
-      };
-    </script>
-    <script is:inline type="text/javascript" src={`https://www.highperformanceformat.com/${iframeKey}/invoke.js`}></script>
-  </div>
+<div class:list={['ad-slot', rectOnly && 'ad-slot--rect-only']} style={`margin: ${margin};`} data-slot={slot || 'default'}>
+  {!rectOnly && (
+    <iframe class="ad-frame ad-frame--wide" title="Advertisement" width="728" height="90" loading="lazy"
+      scrolling="no" frameborder="0" referrerpolicy="origin" srcdoc={wideDoc}></iframe>
+  )}
+  <iframe class="ad-frame ad-frame--rect" title="Advertisement" width="300" height="250" loading="lazy"
+    scrolling="no" frameborder="0" referrerpolicy="origin" srcdoc={rectDoc}></iframe>
 </div>
 
 <style>
-	.adsterra-banner-slot {
-		width: 100%;
-    max-width: 100%;
-		display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-    background: rgba(0,0,0,0.02); /* Subtle placeholder */
-	}
-  .ad-iframe-wrapper {
+  .ad-slot {
+    width: 100%;
     max-width: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
+    /* reserved space: phones/tablets show the 300x250, wide screens the 728x90 */
+    min-height: 250px;
+    contain: layout paint;
+  }
+  .ad-frame { border: 0; display: block; max-width: 100%; }
+  .ad-frame--wide { display: none; }
+  .ad-frame--rect { display: block; }
+  @media (min-width: 820px) {
+    .ad-slot:not(.ad-slot--rect-only) { min-height: 90px; }
+    .ad-slot:not(.ad-slot--rect-only) .ad-frame--wide { display: block; }
+    .ad-slot:not(.ad-slot--rect-only) .ad-frame--rect { display: none; }
   }
 </style>

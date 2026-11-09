@@ -1,5 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://astrotobby.site/sitemap-index.xml
-Sitemap: https://astrotobby.site/sitemap.xml

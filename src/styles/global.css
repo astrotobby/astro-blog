@@ -576,11 +576,10 @@ textarea, input { font-size: 16px; }
   max-width: 100%;
 }
 @media (max-width: 768px) {
-  /* Fixed-width Adsterra creatives are not reliably responsive. Keep them off
-     narrow screens until a network-provided responsive/mobile unit is used. */
+  /* Phones get ONE unit per article: the 300x250 in-article banner (AdBanner swaps to it
+     below 820px). Sidebar and top-of-page units stay hidden on narrow screens. */
   .rd-sidebar-ad,
-  .site-top-ad,
-  .post-in-article-banner {
+  .site-top-ad {
     display: none !important;
   }
 }

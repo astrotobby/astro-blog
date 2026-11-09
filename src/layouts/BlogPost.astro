@@ -163,7 +163,7 @@ const noindex = shouldNoindex(slug);
       .site-top-ad .ad-container {
         max-width: 970px;
         margin: 0 auto;
-        min-height: 90px;
+        min-height: 0;
         display: flex;
         justify-content: center;
         align-items: center;
@@ -190,7 +190,7 @@ const noindex = shouldNoindex(slug);
 
       /* ── Tuko-style: In-article banner after hero image ── */
       .post-in-article-banner {
-        margin: 0 0 1.75rem;
+        margin: 2rem 0;
         padding: 0.5rem 0 0.75rem;
         border-top: 1px solid var(--border-light);
         border-bottom: 1px solid var(--border-light);
@@ -212,11 +212,10 @@ const noindex = shouldNoindex(slug);
       }
 
       /* ── Ensure all in-article banners have proper sizing ── */
-      .post-in-article-banner :global(.adsterra-banner-slot),
-      .post-mid-banner :global(.adsterra-banner-slot),
-      .post-bottom-banner :global(.adsterra-banner-slot) {
+      .post-in-article-banner :global(.ad-slot),
+      .post-mid-banner :global(.ad-slot),
+      .post-bottom-banner :global(.ad-slot) {
         max-width: 728px;
-        min-height: 100px;
       }
     </style>
   </body>

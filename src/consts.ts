@@ -24,6 +24,10 @@ export const ENABLE_OFFERS_PAGE = false;  // false → /affiliate-offers and /of
 // ─── Adsterra Global Ad Units ────────────────────────────────────────────────
 // Intrusive global formats (popunder/social bar) are disabled during the
 // baseline test. Use controlled, clearly labelled display placements instead.
+// Monetag zone 11244264 is a vignette (full-screen interstitial). Keep OFF until a banner/native
+// zone id is configured in MonetagAds.astro; interstitials hurt reading and mobile UX.
+export const ENABLE_MONETAG = false;
+
 export const ADSTERRA_GLOBAL_UNITS: { src: string }[] = [];
 
 // Build trigger: ${new Date().toUTCString()}
