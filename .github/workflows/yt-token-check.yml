@@ -1,0 +1,32 @@
+name: yt-token-check
+# Read-only diagnostic: which YouTube channel/scopes does the stored refresh token belong to?
+# Prints the channel title and OAuth scopes only - never any secret value.
+on: workflow_dispatch
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect YouTube token
+        env:
+          CID: ${{ secrets.YOUTUBE_CLIENT_ID || secrets.YT_CLIENT_ID }}
+          CSEC: ${{ secrets.YOUTUBE_SECRET_KEY || secrets.YT_CLIENT_SECRET }}
+          RTOK: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import os, json, urllib.request, urllib.parse, urllib.error
+          def post(url, data):
+              return json.load(urllib.request.urlopen(urllib.request.Request(url, data=urllib.parse.urlencode(data).encode()), timeout=60))
+          try:
+              t = post("https://oauth2.googleapis.com/token", {"client_id": os.environ["CID"], "client_secret": os.environ["CSEC"],
+                       "refresh_token": os.environ["RTOK"], "grant_type": "refresh_token"})
+          except urllib.error.HTTPError as e:
+              print("TOKEN REFRESH FAILED:", e.code, e.read().decode()[:300]); raise SystemExit(0)
+          print("refresh ok; scopes:", t.get("scope"))
+          req = urllib.request.Request("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true",
+                                       headers={"Authorization": "Bearer " + t["access_token"]})
+          try:
+              items = json.load(urllib.request.urlopen(req, timeout=60)).get("items", [])
+              print("channel:", [i["snippet"]["title"] for i in items])
+          except urllib.error.HTTPError as e:
+              print("channels.list failed:", e.code, e.read().decode()[:300])
+          PY
