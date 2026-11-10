@@ -2,8 +2,7 @@
 title: "Anthropic's Fable 5.2 Model Achieves Unprecedented Performance and Affordability"
 description: "Anthropic's Claude Fable 5.2, released November 9, redefines AI capabilities by setting new benchmarks across diverse tasks from software engineering to theoretical physics, while also becoming faster and more cost-effective."
 pubDate: 2026-11-11
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "futuristic ai innovation"
+image: "https://images.pexels.com/photos/8566470/pexels-photo-8566470.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, llm, anthropic, tech-news]
 author: "Astro Tobby"
 ---
