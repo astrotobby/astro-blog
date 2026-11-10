@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-label="AI automation agency earnings ladder from zero to ten thousand dollars a month">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12163a"/>
+      <stop offset="1" stop-color="#0b0e1f"/>
+    </linearGradient>
+    <linearGradient id="step" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="step2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#EC4899"/>
+    </linearGradient>
+    <linearGradient id="step3" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#EC4899"/>
+      <stop offset="1" stop-color="#F59E0B"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="620" fill="url(#bg2)"/>
+  <text x="60" y="70" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="800" fill="#fff">The AI Automation Agency Income Ladder</text>
+  <text x="60" y="104" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#93C5FD">Typical progression in your first 12 months (2026 market rates)</text>
+
+  <!-- Step 1 -->
+  <g>
+    <rect x="60" y="430" width="320" height="120" rx="16" fill="url(#step)"/>
+    <text x="84" y="472" font-family="Arial, Helvetica, sans-serif" font-size="16" letter-spacing="2" fill="#C7D2FE">MONTH 0–3 · LAUNCH</text>
+    <text x="84" y="512" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="800" fill="#fff">$0–$1K</text>
+    <text x="84" y="538" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#E0E7FF">First build fee · one niche</text>
+  </g>
+
+  <!-- Step 2 -->
+  <g>
+    <rect x="440" y="300" width="320" height="250" rx="16" fill="url(#step2)"/>
+    <text x="464" y="342" font-family="Arial, Helvetica, sans-serif" font-size="16" letter-spacing="2" fill="#FBCFE8">MONTH 4–8 · TRACTION</text>
+    <text x="464" y="382" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="800" fill="#fff">$2K–$5K</text>
+    <text x="464" y="408" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#FCE7F3">2–3 monthly retainers</text>
+  </g>
+
+  <!-- Step 3 -->
+  <g>
+    <rect x="820" y="150" width="320" height="400" rx="16" fill="url(#step3)"/>
+    <text x="844" y="192" font-family="Arial, Helvetica, sans-serif" font-size="16" letter-spacing="2" fill="#FEF3C7">MONTH 9–12 · SCALE</text>
+    <text x="844" y="232" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="800" fill="#fff">$5K–$10K+</text>
+    <text x="844" y="258" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#FEF9C3">Productized niche · 60–80% margins</text>
+  </g>
+
+  <!-- rising arrow -->
+  <path d="M90 420 L470 290 L850 140" fill="none" stroke="#FDE68A" stroke-width="4" stroke-dasharray="2 10" stroke-linecap="round" opacity="0.8"/>
+  <path d="M838 128 L862 140 L846 162 Z" fill="#FDE68A"/>
+
+  <text x="60" y="596" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#64748B">Source: aggregated 2026 AI automation agency market rates. Figures vary by niche, skill, and effort — not a guarantee.</text>
+</svg>

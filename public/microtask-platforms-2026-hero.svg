@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="Top 15 Global Microtask Platforms 2026">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="0.55" stop-color="#111c3a"/>
+      <stop offset="1" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.6">
+      <stop offset="0" stop-color="#38bdf8" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+
+  <!-- grid of task tiles -->
+  <g opacity="0.9">
+    <g transform="translate(760,110)">
+      <g fill="#1e293b" stroke="#334155" stroke-width="1.5">
+        <rect x="0"   y="0"   width="110" height="110" rx="14"/>
+        <rect x="130" y="0"   width="110" height="110" rx="14"/>
+        <rect x="260" y="0"   width="110" height="110" rx="14"/>
+        <rect x="0"   y="130" width="110" height="110" rx="14"/>
+        <rect x="130" y="130" width="110" height="110" rx="14"/>
+        <rect x="260" y="130" width="110" height="110" rx="14"/>
+        <rect x="0"   y="260" width="110" height="110" rx="14"/>
+        <rect x="130" y="260" width="110" height="110" rx="14"/>
+        <rect x="260" y="260" width="110" height="110" rx="14"/>
+      </g>
+      <g font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700" fill="url(#accent)" text-anchor="middle">
+        <text x="55"  y="70">✓</text>
+        <text x="185" y="70">$</text>
+        <text x="315" y="70">✓</text>
+        <text x="55"  y="200">$</text>
+        <text x="185" y="200">✓</text>
+        <text x="315" y="200">$</text>
+        <text x="55"  y="330">✓</text>
+        <text x="185" y="330">$</text>
+        <text x="315" y="330">✓</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- headline -->
+  <g font-family="Segoe UI, Arial, sans-serif">
+    <text x="80" y="210" font-size="30" font-weight="600" letter-spacing="3" fill="#22d3ee">MICROTASK MONEY · 2026</text>
+    <text x="80" y="300" font-size="76" font-weight="800" fill="#f8fafc">Top 15 Microtask</text>
+    <text x="80" y="384" font-size="76" font-weight="800" fill="url(#accent)">Platforms</text>
+    <text x="80" y="470" font-size="30" font-weight="500" fill="#cbd5e1">Global access · Start today · Low payout thresholds</text>
+  </g>
+
+  <rect x="80" y="512" width="360" height="6" rx="3" fill="url(#accent)"/>
+</svg>

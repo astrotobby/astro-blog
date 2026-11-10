@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Claude Code vs OpenAI Codex comparison hero</title>
+  <desc id="desc">A modern editorial comparison graphic for AI coding agents in 2026.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1020"/>
+      <stop offset="0.55" stop-color="#172033"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+    <linearGradient id="claude" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F4A261"/>
+      <stop offset="1" stop-color="#E76F51"/>
+    </linearGradient>
+    <linearGradient id="codex" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#56CCF2"/>
+      <stop offset="1" stop-color="#2F80ED"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <g opacity="0.18" fill="none" stroke="#FFFFFF" stroke-width="2">
+    <path d="M90 160h1420M90 300h1420M90 440h1420M90 580h1420M90 720h1420"/>
+    <path d="M240 80v740M520 80v740M800 80v740M1080 80v740M1360 80v740"/>
+  </g>
+  <text x="800" y="118" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="800" fill="#FFFFFF">Claude Code vs OpenAI Codex</text>
+  <text x="800" y="174" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="30" fill="#D8E3EA">AI coding agents compared in 2026</text>
+  <g filter="url(#shadow)">
+    <rect x="150" y="255" width="560" height="440" rx="30" fill="#FFFFFF"/>
+    <rect x="890" y="255" width="560" height="440" rx="30" fill="#FFFFFF"/>
+  </g>
+  <circle cx="430" cy="360" r="74" fill="url(#claude)"/>
+  <circle cx="1170" cy="360" r="74" fill="url(#codex)"/>
+  <text x="430" y="382" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="60" font-weight="800" fill="#fff">C</text>
+  <text x="1170" y="382" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="60" font-weight="800" fill="#fff">X</text>
+  <text x="430" y="480" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="800" fill="#111827">Claude Code</text>
+  <text x="1170" y="480" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="800" fill="#111827">Codex</text>
+  <text x="430" y="545" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="26" fill="#334155">Terminal, IDE, web</text>
+  <text x="430" y="590" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="26" fill="#334155">Deep repo execution</text>
+  <text x="430" y="635" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="26" fill="#334155">Permission-first safety</text>
+  <text x="1170" y="545" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="26" fill="#334155">CLI, app, IDE, web, mobile</text>
+  <text x="1170" y="590" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="26" fill="#334155">Parallel worktrees</text>
+  <text x="1170" y="635" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="26" fill="#334155">Sandboxed agent workflows</text>
+  <path d="M750 472h100" stroke="#E5E7EB" stroke-width="12" stroke-linecap="round"/>
+  <text x="800" y="493" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="54" font-weight="900" fill="#FFFFFF">VS</text>
+</svg>

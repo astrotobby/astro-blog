@@ -1,0 +1,69 @@
+name: pinterest-reauth
+
+# One-time (or whenever scopes change): exchange a Pinterest OAuth code for tokens and
+# store them in the shared pipeline state cache, where refresh-ig-token keeps them rolling.
+# The app secret never leaves GitHub; the code is single-use and expires in minutes.
+on:
+  workflow_dispatch:
+    inputs:
+      code:
+        description: "OAuth code from http://localhost:8085/?code=..."
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: blog-to-video
+  cancel-in-progress: false
+
+jobs:
+  exchange:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mask code
+        run: echo "::add-mask::${{ inputs.code }}"
+      - name: Restore pipeline state
+        uses: actions/cache@v4
+        with:
+          path: .pipeline/state
+          key: blog2video-state-${{ github.run_id }}
+          restore-keys: |
+            blog2video-state-
+      - name: Exchange code and store tokens
+        env:
+          CODE: ${{ inputs.code }}
+          PINTEREST_APP_ID: ${{ secrets.PINTEREST_APP_ID }}
+          PINTEREST_APP_SECRET: ${{ secrets.PINTEREST_APP_SECRET }}
+          PINTEREST_REFRESH_TOKEN: ${{ secrets.PINTEREST_REFRESH_TOKEN }}
+        shell: python
+        run: |
+          import base64, hashlib, json, os, pathlib, urllib.parse, urllib.request
+          state = pathlib.Path(".pipeline/state"); state.mkdir(parents=True, exist_ok=True)
+          basic = base64.b64encode(f"{os.environ['PINTEREST_APP_ID']}:{os.environ['PINTEREST_APP_SECRET']}".encode()).decode()
+          body = urllib.parse.urlencode({"grant_type": "authorization_code", "code": os.environ["CODE"],
+                                         "redirect_uri": "http://localhost:8085/"}).encode()
+          req = urllib.request.Request("https://api.pinterest.com/v5/oauth/token", data=body,
+                                       headers={"Authorization": f"Basic {basic}",
+                                                "Content-Type": "application/x-www-form-urlencoded"})
+          try:
+              tok = json.loads(urllib.request.urlopen(req, timeout=60).read())
+          except urllib.error.HTTPError as e:
+              tok = json.loads(e.read() or b"{}")
+          if not tok.get("access_token"):
+              raise SystemExit(f"exchange failed: { {k: v for k, v in tok.items() if 'token' not in k} }")
+          for t in (tok["access_token"], tok.get("refresh_token", "")):
+              if t: print(f"::add-mask::{t}")
+          print("granted scopes:", tok.get("scope"))
+          if "boards:write" not in (tok.get("scope") or ""):
+              raise SystemExit("boards:write not granted; state not updated")
+          (state / "pinterest_token.txt").write_text(tok["access_token"] + "\n")
+          (state / "pinterest_refresh.txt").write_text(tok["refresh_token"] + "\n")
+          seed = os.environ.get("PINTEREST_REFRESH_TOKEN", "")
+          if seed:  # keep refresh_social_tokens from discarding these as stale
+              (state / "pinterest_seed.txt").write_text(hashlib.sha256(seed.encode()).hexdigest()[:16] + "\n")
+          r = urllib.request.Request("https://api.pinterest.com/v5/boards?page_size=50",
+                                     headers={"Authorization": f"Bearer {tok['access_token']}"})
+          for b in json.loads(urllib.request.urlopen(r, timeout=60).read()).get("items", []):
+              print(f"BOARD {b['id']} | {b['name']} | {b.get('privacy')}")
+          print("Pinterest tokens stored in pipeline state")

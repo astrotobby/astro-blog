@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="960" viewBox="0 0 1280 960" role="img" aria-label="The Agent Zero-Trust governance framework: 3 principles and 7 control domains">
+  <defs>
+    <linearGradient id="ig-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B0E1F"/>
+      <stop offset="1" stop-color="#15103A"/>
+    </linearGradient>
+    <linearGradient id="ig-accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#818CF8"/>
+      <stop offset="1" stop-color="#EC4899"/>
+    </linearGradient>
+    <linearGradient id="ig-card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.09"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.03"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="960" fill="url(#ig-bg)"/>
+
+  <!-- Header -->
+  <text x="64" y="80" font-family="Arial, Helvetica, sans-serif" font-size="22" letter-spacing="3" fill="#A5B4FC">AGENT ZERO TRUST · GOVERNANCE FRAMEWORK 2026</text>
+  <text x="64" y="132" font-family="Georgia, serif" font-size="46" font-weight="700" fill="#FFFFFF">Govern agents like insider threats</text>
+  <rect x="66" y="150" width="130" height="6" rx="3" fill="url(#ig-accent)"/>
+
+  <!-- Three principles -->
+  <text x="64" y="212" font-family="Arial, Helvetica, sans-serif" font-size="20" letter-spacing="2" fill="#F9A8D4">THE THREE PRINCIPLES</text>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <g transform="translate(64,232)">
+      <rect width="368" height="118" rx="16" fill="url(#ig-card)" stroke="#818CF8" stroke-opacity="0.4"/>
+      <text x="26" y="52" font-size="30" font-weight="700" fill="#C7D2FE">01</text>
+      <text x="86" y="52" font-size="26" font-weight="700" fill="#FFFFFF">Never trust, always verify</text>
+      <text x="26" y="86" font-size="19" fill="#CBD5E1">Every action is authenticated and</text>
+      <text x="26" y="110" font-size="19" fill="#CBD5E1">authorised — every time.</text>
+    </g>
+    <g transform="translate(456,232)">
+      <rect width="368" height="118" rx="16" fill="url(#ig-card)" stroke="#A78BFA" stroke-opacity="0.4"/>
+      <text x="26" y="52" font-size="30" font-weight="700" fill="#DDD6FE">02</text>
+      <text x="86" y="52" font-size="26" font-weight="700" fill="#FFFFFF">Assume breach</text>
+      <text x="26" y="86" font-size="19" fill="#CBD5E1">Design for the agent that is already</text>
+      <text x="26" y="110" font-size="19" fill="#CBD5E1">compromised or misaligned.</text>
+    </g>
+    <g transform="translate(848,232)">
+      <rect width="368" height="118" rx="16" fill="url(#ig-card)" stroke="#EC4899" stroke-opacity="0.4"/>
+      <text x="26" y="52" font-size="30" font-weight="700" fill="#F9A8D4">03</text>
+      <text x="86" y="52" font-size="26" font-weight="700" fill="#FFFFFF">Least privilege</text>
+      <text x="26" y="86" font-size="19" fill="#CBD5E1">Grant the minimum scope, for the</text>
+      <text x="26" y="110" font-size="19" fill="#CBD5E1">shortest time, then revoke.</text>
+    </g>
+  </g>
+
+  <!-- Seven control domains -->
+  <text x="64" y="418" font-family="Arial, Helvetica, sans-serif" font-size="20" letter-spacing="2" fill="#F9A8D4">THE SEVEN CONTROL DOMAINS</text>
+
+  <g font-family="Arial, Helvetica, sans-serif">
+    <!-- row 1 -->
+    <g transform="translate(64,438)">
+      <rect width="368" height="118" rx="16" fill="url(#ig-card)" stroke="#FFFFFF" stroke-opacity="0.12"/>
+      <circle cx="42" cy="46" r="20" fill="#312E81"/><text x="42" y="53" font-size="20" font-weight="700" fill="#C7D2FE" text-anchor="middle">1</text>
+      <text x="78" y="42" font-size="23" font-weight="700" fill="#FFFFFF">Identity &amp; authentication</text>
+      <text x="78" y="80" font-size="18" fill="#CBD5E1">Give every agent a verifiable,</text>
+      <text x="78" y="102" font-size="18" fill="#CBD5E1">unique cryptographic identity.</text>
+    </g>
+    <g transform="translate(456,438)">
+      <rect width="368" height="118" rx="16" fill="url(#ig-card)" stroke="#FFFFFF" stroke-opacity="0.12"/>
+      <circle cx="42" cy="46" r="20" fill="#312E81"/><text x="42" y="53" font-size="20" font-weight="700" fill="#C7D2FE" text-anchor="middle">2</text>
+      <text x="78" y="42" font-size="23" font-weight="700" fill="#FFFFFF">Access &amp; privilege</text>
+      <text x="78" y="80" font-size="18" fill="#CBD5E1">Scope tools, data and spend to</text>
+      <text x="78" y="102" font-size="18" fill="#CBD5E1">exactly one job.</text>
+    </g>
+    <g transform="translate(848,438)">
+      <rect width="368" height="118" rx="16" fill="url(#ig-card)" stroke="#FFFFFF" stroke-opacity="0.12"/>
+      <circle cx="42" cy="46" r="20" fill="#312E81"/><text x="42" y="53" font-size="20" font-weight="700" fill="#C7D2FE" text-anchor="middle">3</text>
+      <text x="78" y="42" font-size="23" font-weight="700" fill="#FFFFFF">Observability &amp; audit</text>
+      <text x="78" y="80" font-size="18" fill="#CBD5E1">Log every decision so actions are</text>
+      <text x="78" y="102" font-size="18" fill="#CBD5E1">traceable and explainable.</text>
+    </g>
+    <!-- row 2 -->
+    <g transform="translate(64,570)">
+      <rect width="368" height="118" rx="16" fill="url(#ig-card)" stroke="#FFFFFF" stroke-opacity="0.12"/>
+      <circle cx="42" cy="46" r="20" fill="#4C1D66"/><text x="42" y="53" font-size="20" font-weight="700" fill="#F9A8D4" text-anchor="middle">4</text>
+      <text x="78" y="42" font-size="23" font-weight="700" fill="#FFFFFF">Behavioural monitoring</text>
+      <text x="78" y="80" font-size="18" fill="#CBD5E1">Detect drift and anomalies, then</text>
+      <text x="78" y="102" font-size="18" fill="#CBD5E1">respond at machine speed.</text>
+    </g>
+    <g transform="translate(456,570)">
+      <rect width="368" height="118" rx="16" fill="url(#ig-card)" stroke="#FFFFFF" stroke-opacity="0.12"/>
+      <circle cx="42" cy="46" r="20" fill="#4C1D66"/><text x="42" y="53" font-size="20" font-weight="700" fill="#F9A8D4" text-anchor="middle">5</text>
+      <text x="78" y="42" font-size="23" font-weight="700" fill="#FFFFFF">Input &amp; output controls</text>
+      <text x="78" y="80" font-size="18" fill="#CBD5E1">Guard against prompt injection</text>
+      <text x="78" y="102" font-size="18" fill="#CBD5E1">and unsafe outputs.</text>
+    </g>
+    <g transform="translate(848,570)">
+      <rect width="368" height="118" rx="16" fill="url(#ig-card)" stroke="#FFFFFF" stroke-opacity="0.12"/>
+      <circle cx="42" cy="46" r="20" fill="#4C1D66"/><text x="42" y="53" font-size="20" font-weight="700" fill="#F9A8D4" text-anchor="middle">6</text>
+      <text x="78" y="42" font-size="23" font-weight="700" fill="#FFFFFF">Integrity &amp; recovery</text>
+      <text x="78" y="80" font-size="18" fill="#CBD5E1">Roll back poisoned memory and</text>
+      <text x="78" y="102" font-size="18" fill="#CBD5E1">restore a known-good state.</text>
+    </g>
+  </g>
+
+  <!-- domain 7 wide -->
+  <g transform="translate(64,702)" font-family="Arial, Helvetica, sans-serif">
+    <rect width="1152" height="96" rx="16" fill="url(#ig-card)" stroke="#EC4899" stroke-opacity="0.35"/>
+    <circle cx="46" cy="48" r="22" fill="#831843"/><text x="46" y="56" font-size="22" font-weight="700" fill="#FBCFE8" text-anchor="middle">7</text>
+    <text x="86" y="44" font-size="24" font-weight="700" fill="#FFFFFF">AI governance policies</text>
+    <text x="86" y="78" font-size="19" fill="#CBD5E1">The human layer: named owners, approval gates for high-risk actions, kill switches, and a board that reviews agent behaviour.</text>
+  </g>
+
+  <!-- Footer takeaway -->
+  <g transform="translate(64,832)" font-family="Arial, Helvetica, sans-serif">
+    <rect width="1152" height="72" rx="14" fill="#EC4899" fill-opacity="0.10"/>
+    <text x="28" y="45" font-size="21" fill="#FBCFE8">Governance is not paperwork — it is the difference between an agent in production and one that gets cancelled.</text>
+  </g>
+  <text x="64" y="932" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#64748B">Source: Anthropic "Zero Trust for AI Agents" (2026), Google DeepMind AI Control Roadmap · Visual: ASTRO SIGNAL</text>
+</svg>

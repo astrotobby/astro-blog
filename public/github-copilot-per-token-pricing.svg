@@ -1,0 +1,42 @@
+<svg viewBox="0 0 1200 675" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#151f2e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#28314c;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="octoGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#828cf8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e293b;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#bgGrad)"/>
+  <g>
+    <circle cx="300" cy="320" r="112" fill="url(#octoGrad)" />
+    <ellipse cx="310" cy="360" rx="70" ry="30" fill="#111827" opacity="0.3"/>
+    <!-- Minimal Copilot 'octocat' -->
+    <circle cx="300" cy="310" r="60" fill="#fff" opacity="0.96" stroke="#6366F1" stroke-width="4"/>
+    <ellipse cx="272" cy="335" rx="15" ry="6" fill="#6366F1"/>
+    <ellipse cx="328" cy="335" rx="15" ry="6" fill="#6366F1"/>
+    <ellipse cx="300" cy="360" rx="20" ry="6" fill="#6366F1"/>
+    <circle cx="285" cy="300" r="7" fill="#6366F1"/>
+    <circle cx="315" cy="300" r="7" fill="#6366F1"/>
+    <ellipse cx="300" cy="325" rx="23" ry="8" fill="#818cf8" opacity="0.9"/><ellipse cx="300" cy="332" rx="7" ry="3" fill="#6366F1" opacity="0.5"/>
+    <!-- Coins -->
+    <circle cx="420" cy="380" r="20" fill="#fbbf24" stroke="#b45309" stroke-width="2" />
+    <rect x="400" y="395" width="40" height="8" rx="2" fill="#fde68a"/>
+    <circle cx="440" cy="380" r="10" fill="#fde68a"/>
+    <circle cx="438" cy="397" r="6" fill="#fbbf24" stroke="#b45309" stroke-width="1" />
+  </g>
+  <!-- Right - price tag -->
+  <rect x="820" y="195" width="230" height="155" rx="18" fill="#6366F1" opacity="0.9"/>
+  <text x="935" y="255" font-size="34" font-weight="bold" text-anchor="middle" fill="#fff">Per-Token Pricing</text>
+  <text x="935" y="295" font-size="20" text-anchor="middle" fill="#e0e7ef">No more flat rate!</text>
+  <text x="935" y="335" font-size="26" font-weight="bold" text-anchor="middle" fill="#fde68a">$0.002 / 1,000 tokens</text>
+
+  <text x="600" y="80" font-size="40" text-anchor="middle" fill="#e0e7ef" font-weight="bold">
+    GitHub Copilot Pricing 2026
+  </text>
+  <text x="600" y="610" font-size="18" text-anchor="middle" fill="#a5b4fc">
+    Changing the economics of AI coding tools
+  </text>
+</svg>

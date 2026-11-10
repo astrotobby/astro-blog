@@ -1,0 +1,77 @@
+name: indexnow-ping
+
+# Pings IndexNow (Bing/Yandex/Seznam/Naver instantly; free) whenever a post is
+# added or changed, so new articles get crawled within minutes instead of days.
+# Bing is currently the only search engine referring real sessions, so speeding
+# up its crawl is the highest-ROI free indexing lever we have.
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "src/content/blog/**"
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: "space-separated absolute URLs to ping (blank = changed posts in last commit)"
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      # Give Cloudflare Pages time to build+deploy the new post before the
+      # crawler is invited, so it doesn't fetch a 404.
+      - name: Wait for deploy
+        run: sleep 240
+
+      - name: Ping IndexNow
+        env:
+          MANUAL_URLS: ${{ github.event.inputs.urls }}
+        run: |
+          KEY="1096dd9e22aa65ff7c19f364b0a55621"
+          BASE="https://astrotobby.site"
+          if [ -n "$MANUAL_URLS" ]; then
+            URLS="$MANUAL_URLS"
+          else
+            # changed/added posts in this push -> live URLs (Astro slugs keep the
+            # filename, lowercased, spaces->hyphens, punctuation stripped like Astro does)
+            URLS=$(git diff --name-only HEAD^ HEAD -- src/content/blog \
+              | grep -E '\.(md|mdx)$' \
+              | sed 's|src/content/blog/||; s|\.mdx\?$||' \
+              | python3 -c "
+          import sys, re
+          # mirror scripts/fetch_post.py astro_slug (Astro 5 glob-loader ids)
+          for line in sys.stdin:
+              s = line.strip().lower()
+              if not s: continue
+              s = re.sub(r'[^\w\s-]', '', s)
+              s = re.sub(r'\s+', '-', s)
+              s = re.sub(r'-{2,}', '-', s).strip('-')
+              print(f'$BASE/blog/{s}/')
+          ")
+          fi
+          [ -z "$URLS" ] && { echo "no post URLs to ping"; exit 0; }
+          echo "pinging:"; echo "$URLS"
+          python3 - <<EOF
+          import json, urllib.request
+          urls = """$URLS""".split()
+          body = json.dumps({
+              "host": "astrotobby.site",
+              "key": "$KEY",
+              "keyLocation": "https://astrotobby.site/$KEY.txt",
+              "urlList": urls,
+          }).encode()
+          req = urllib.request.Request(
+              "https://api.indexnow.org/indexnow", data=body,
+              headers={"Content-Type": "application/json; charset=utf-8"})
+          with urllib.request.urlopen(req, timeout=30) as r:
+              print("IndexNow response:", r.status)
+          EOF

@@ -1,0 +1,49 @@
+name: fill-post-images
+
+# Posts from the YouTube -> blog Make scenario arrive with a placeholder `image:`
+# and an `imageQuery:` line, because Make can't use the PEXELS_API_KEY secret.
+# This looks the query up on Pexels and commits the real header image.
+# Pushes made with GITHUB_TOKEN don't start other workflows, so this can't
+# re-trigger blog-to-video; Cloudflare still rebuilds the site from the commit.
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "src/content/blog/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fill-post-images
+  cancel-in-progress: false
+
+jobs:
+  fill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fill header images
+        env:
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+        run: |
+          FILES=$(grep -l '^imageQuery:' src/content/blog/*.md 2>/dev/null || true)
+          if [ -z "$FILES" ]; then echo "no posts waiting for an image"; exit 0; fi
+          python scripts/fill_post_images.py $FILES
+
+      - name: Commit
+        run: |
+          if git diff --quiet; then echo "nothing to commit"; exit 0; fi
+          git config user.name "Astro Tobby"
+          git config user.email "chanzeratobias@gmail.com"
+          git add src/content/blog
+          git commit -m "Add Pexels header images to new posts"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push
