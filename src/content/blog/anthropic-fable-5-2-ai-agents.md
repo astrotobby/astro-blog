@@ -2,8 +2,7 @@
 title: "Anthropic Launches Fable 5.2, Demonstrates Major AI Agent Breakthroughs"
 description: "Anthropic has released Fable and Mythos 5.2, new AI models boasting significant speed, cost, and capability improvements amidst the company's IPO roadshow."
 pubDate: 2026-11-11
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "AI agent digital interface"
+image: "https://images.pexels.com/photos/30530420/pexels-photo-30530420.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, ai-agents, llm, anthropic]
 author: "Astro Tobby"
 ---
