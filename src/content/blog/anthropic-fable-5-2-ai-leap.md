@@ -2,8 +2,7 @@
 title: "Anthropic Unveils Fable 5.2, Redefining Advanced AI Capabilities"
 description: "Anthropic has launched Fable 5.2, a new flagship AI model designed for complex technical challenges, excelling in scientific research, coding, and hardware design."
 pubDate: 2026-11-10
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "abstract AI brain processing complex data"
+image: "https://images.pexels.com/photos/17484975/pexels-photo-17484975.png?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, llm, anthropic, tech-news]
 author: "Astro Tobby"
 ---
