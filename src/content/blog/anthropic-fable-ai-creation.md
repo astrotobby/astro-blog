@@ -2,8 +2,7 @@
 title: "Anthropic's Fable 5.2 Sets New Standard for AI Creation"
 description: "Matthew Berman demonstrates Anthropic's new Fable 5.2 AI model, showcasing its unprecedented ability to autonomously build complex software, games, and realistic 3D environments with minimal prompts."
 pubDate: 2026-11-10
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "generative ai development"
+image: "https://images.pexels.com/photos/34804018/pexels-photo-34804018.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, llm, anthropic, tech-news]
 author: "Astro Tobby"
 ---
