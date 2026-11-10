@@ -2,8 +2,7 @@
 title: "AI Reproduces Software, Reshaping Future Development"
 description: "Artificial intelligence is rapidly gaining the capability to recreate software, games, and web pages solely from compiled code or observed behavior, potentially leading to personalized applications and new industry dynamics."
 pubDate: 2026-11-11
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "code recreation neural network"
+image: "https://images.pexels.com/photos/18069696/pexels-photo-18069696.png?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, coding, tech-news, research]
 author: "Astro Tobby"
 ---
