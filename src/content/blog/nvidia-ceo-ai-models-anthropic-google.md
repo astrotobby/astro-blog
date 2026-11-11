@@ -2,8 +2,7 @@
 title: "Nvidia CEO Faces Inquiry Amid Affair, New AI Models Flood Market"
 description: "Nvidia CEO Jensen Huang is under investigation for a reported affair with potential national security implications, as major AI labs release new models."
 pubDate: 2026-11-12
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "AI neural network investigation"
+image: "https://images.pexels.com/photos/14314636/pexels-photo-14314636.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, llm, nvidia, tech-news]
 author: "Astro Tobby"
 ---

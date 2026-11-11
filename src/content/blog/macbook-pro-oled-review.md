@@ -2,8 +2,7 @@
 title: "New MacBook Pro: OLED Display, Not Touchscreen, Steals Show"
 description: "Marques Brownlee reviews Apple's latest MacBook Pro, highlighting its groundbreaking ProLED XDR display and lighter design over the less impactful touchscreen."
 pubDate: 2026-11-12
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "laptop oled screen"
+image: "https://images.pexels.com/photos/7856673/pexels-photo-7856673.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [tech-news, gadgets]
 author: "Astro Tobby"
 ---

@@ -2,8 +2,7 @@
 title: "Creator Builds AI System Runs Entire Business"
 description: "A creator built a custom AI system using multiple LLMs to automate his entire business, from emails to content production."
 pubDate: 2026-11-12
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "automated business system"
+image: "https://images.pexels.com/photos/18471536/pexels-photo-18471536.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, ai-agents, llm, tech-news]
 author: "Astro Tobby"
 ---
