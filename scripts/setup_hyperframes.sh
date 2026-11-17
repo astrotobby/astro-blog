@@ -9,7 +9,7 @@ mkdir -p .hyperframes
 cd .hyperframes
 [ -f package.json ] || echo '{"name": "hf-cards", "private": true}' > package.json
 echo "[hyperframes] installing CLI..."
-npm install --no-audit --no-fund hyperframes@0.8.198
+npm install --no-audit --no-fund hyperframes@0.9.60
 npx hyperframes --version || true
 npx hyperframes render --help || true
 echo "[hyperframes] setup complete"
