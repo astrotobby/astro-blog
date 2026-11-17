@@ -19,9 +19,8 @@ from common import OUT, ROOT, log
 from influencer import LTX_NEGATIVE, LTX_PROMPT, LTX_SPACE
 
 # Any natural, upbeat speech works: Wav2Lip replaces the mouth movement per video.
-LINE = ("Okay, so here is what nobody is telling you about this. It is honestly one of the "
-        "biggest shifts I have seen this year, and if you get it early, you win. Let me "
-        "break it down for you.")
+LINE = ("Here is what most people miss. This shift is bigger than it looks. "
+        "Let me show you why.")
 VOICE = "en-US-AndrewMultilingualNeural"
 SECONDS = 6.0  # current free LTX Space accepts at most six seconds
 
