@@ -23,7 +23,7 @@ LINE = ("Okay, so here is what nobody is telling you about this. It is honestly 
         "biggest shifts I have seen this year, and if you get it early, you win. Let me "
         "break it down for you.")
 VOICE = "en-US-AndrewMultilingualNeural"
-SECONDS = 10.0
+SECONDS = 6.0  # current free LTX Space accepts at most six seconds
 
 
 def _speech(path):
