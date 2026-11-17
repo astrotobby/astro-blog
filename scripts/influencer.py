@@ -229,15 +229,31 @@ def _ltx_client():
         return None
 
 
-def _ltx_segment(client, image, audio, seg_dur, out):
-    """One A-roll segment as a real talking video: LTX-2 animates the look's still
-    (head, face, hands) and lip-syncs it to this slice of the narration."""
+def _ltx_duration(seg_dur):
+    """Return a supported half-second duration, or None when LTX cannot cover the cut."""
+    duration = float(seg_dur)
+    if duration < 1.0 or duration > 6.0:
+        return None
+    return min(6.0, max(1.0, round(duration * 2) / 2))
+
+
+def _ltx_aspect_ratio(tag):
+    """Map the output variant to the exact Gradio radio label."""
+    return "9:16 (Vertical)" if tag == "vertical" else "16:9 (Cinematic)"
+
+
+def _ltx_segment(client, image, audio, seg_dur, aspect_ratio, out):
+    """Generate one <=6s lip-synced LTX-2 segment in the target aspect ratio."""
     from gradio_client import handle_file
+    duration = _ltx_duration(seg_dur)
+    if duration is None:
+        raise ValueError(f"LTX-2 supports 1-6s segments; got {seg_dur:.2f}s")
     try:
-        video, _seed = client.predict(handle_file(str(image)), handle_file(str(audio)),
-                                      LTX_PROMPT, LTX_NEGATIVE,
-                                      min(12.0, max(1.0, round(seg_dur + 0.2, 1))), -1,
-                                      api_name="/generate")
+        # Current Space /generate contract: image, audio, prompts, ratio, duration, seed.
+        video, _seed = client.predict(
+            handle_file(str(image)), handle_file(str(audio)),
+            LTX_PROMPT, LTX_NEGATIVE, aspect_ratio, duration, -1,
+            api_name="/generate")
     except Exception as e:  # noqa
         msg = str(e)
         if "quota" in msg.lower() or "limit" in msg.lower():
@@ -268,12 +284,16 @@ def _render_ltx(plans, voices, cfg):
             if s["kind"] != "A" or not s["look"].get("image") or len(done) >= budget:
                 continue
             seg_dur = s["t1"] - s["t0"]
+            if _ltx_duration(seg_dur) is None:
+                log(f"ltx: {tag}/{i} is {seg_dur:.1f}s; outside the 1-6s Space limit -> Wav2Lip")
+                continue
             audio = OUT / f"_ltx_{tag}_{i:02d}.wav"
             _run(["ffmpeg", "-y", "-v", "error", "-ss", f"{s['t0']:.3f}", "-t", f"{seg_dur:.3f}",
                   "-i", str(voices[tag]), "-ac", "1", "-ar", "44100", audio.name], cwd=OUT)
             try:
-                done[(tag, i)] = _ltx_segment(client, s["look"]["image"], audio, seg_dur,
-                                              OUT / f"_talk_{tag}_{i:02d}.mp4")
+                done[(tag, i)] = _ltx_segment(
+                    client, s["look"]["image"], audio, seg_dur, _ltx_aspect_ratio(tag),
+                    OUT / f"_talk_{tag}_{i:02d}.mp4")
                 log(f"ltx: {tag}/{i} ({s['look']['id']}, {seg_dur:.1f}s) talking video")
             except _LtxQuotaError as e:
                 log(f"ltx: quota reached after {len(done)} segments ({str(e)[:120]})")
