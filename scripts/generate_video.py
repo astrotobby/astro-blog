@@ -241,11 +241,14 @@ def _voicestudio_voice(narration, voice_cfg, tag=""):
 
 
 def make_voice(narration, cfg, tag=""):
-    """Return (audio_path, duration, word_timings_or_None, provider)."""
+    """Return (audio_path, duration, native_word_timings_or_None, provider).
+
+    Keep ElevenLabs first because its timestamped synthesis response aligns the
+    generated audio directly. NVIDIA Magpie is the next cloud option and returns
+    word offsets from the same synthesis call. Local VoiceStudio/Kokoro and the
+    edge/gTTS fallbacks remain available when those providers are not configured.
+    """
     voice_cfg = cfg["voice"]
-    local_voice = _voicestudio_voice(narration, voice_cfg, tag)
-    if local_voice:
-        return local_voice[0], local_voice[1], None, "voicestudio"
     if voice_cfg.get("provider", "elevenlabs") == "elevenlabs":
         eleven_out = OUT / f"voiceover{tag}_11labs.mp3"
         eleven_out.unlink(missing_ok=True)
@@ -253,16 +256,47 @@ def make_voice(narration, cfg, tag=""):
             from tts_elevenlabs import synthesize as eleven_synthesize
             result = eleven_synthesize(narration, str(eleven_out), cfg)
         except Exception as exc:  # noqa
-            log(f"ElevenLabs voice failed ({exc})")
+            log(f"ElevenLabs voice failed ({type(exc).__name__}: {str(exc)[:180]})")
             result = None
         if result:
             duration = ffprobe_duration(eleven_out)
             if duration > 0.25:
+                timings = result[1] or None
                 log(f"ElevenLabs voiceover {duration:.1f}s -> {eleven_out.name}")
-                return eleven_out, duration, result[1] or None, "elevenlabs"
-        log("ElevenLabs unavailable; falling back to the next configured voice")
+                if timings:
+                    log(f"ElevenLabs supplied {len(timings)} native word timings")
+                return eleven_out, duration, timings, "elevenlabs"
+        log("ElevenLabs unavailable; trying NVIDIA Magpie and configured voice fallbacks")
+
+    # NVIDIA Magpie returns PCM audio and per-word offsets together over Riva gRPC.
+    # It is optional: without NVIDIA_API_KEY the helper exits immediately and the
+    # existing voice providers continue unchanged.
+    try:
+        from tts_nvidia_riva import synthesize as nvidia_synthesize
+        nvidia_result = nvidia_synthesize(
+            narration, OUT / f"voiceover{tag}_nvidia_magpie.wav", cfg
+        )
+    except Exception as exc:  # noqa
+        log(f"NVIDIA Magpie voice fallback failed ({type(exc).__name__}: {str(exc)[:180]})")
+        nvidia_result = None
+    if nvidia_result:
+        nvidia_path, nvidia_words = nvidia_result
+        duration = ffprobe_duration(nvidia_path)
+        if duration > 0.25:
+            log(f"NVIDIA Magpie voiceover {duration:.1f}s -> {nvidia_path.name}")
+            if nvidia_words:
+                log(f"NVIDIA Magpie supplied {len(nvidia_words)} native word timings")
+            return nvidia_path, duration, nvidia_words or None, "nvidia-magpie"
+
+    # VoiceStudio is intentionally behind cloud providers. It is loopback-only by
+    # default, so it is useful for a local desktop render but not reachable from
+    # a standard GitHub-hosted runner.
+    local_voice = _voicestudio_voice(narration, voice_cfg, tag)
+    if local_voice:
+        return local_voice[0], local_voice[1], None, "voicestudio"
+
     if (voice_cfg.get("kokoro") or {}).get("enabled"):
-        # Free, no-quota neural voice; captions get word timings from transcription.
+        # Free, no-quota neural voice; captions are aligned from the actual audio.
         try:
             from tts_kokoro import synthesize as kokoro_synthesize
             kokoro_out = kokoro_synthesize(narration, OUT / f"voiceover{tag}_kokoro.wav", cfg)

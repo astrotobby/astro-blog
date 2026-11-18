@@ -6,6 +6,10 @@ on:
     paths:
       - "scripts/longform_pipeline.py"
       - "scripts/generate_video.py"
+      - "scripts/tts_nvidia_riva.py"
+      - "scripts/test_nvidia_riva_tts.py"
+      - "scripts/tts_elevenlabs.py"
+      - "scripts/test_elevenlabs_tts.py"
       - "scripts/test_longform_pipeline.py"
       - "scripts/test_youtube_channel_routing.py"
       - "scripts/test_pipeline_improvements.py"
@@ -17,6 +21,8 @@ on:
     paths:
       - "scripts/longform_pipeline.py"
       - "scripts/generate_video.py"
+      - "scripts/tts_elevenlabs.py"
+      - "scripts/test_elevenlabs_tts.py"
       - "scripts/test_longform_pipeline.py"
       - "scripts/test_youtube_channel_routing.py"
       - "scripts/test_pipeline_improvements.py"
@@ -53,8 +59,18 @@ jobs:
           python -m py_compile \
             scripts/longform_pipeline.py \
             scripts/generate_video.py \
+            scripts/tts_nvidia_riva.py \
+            scripts/test_nvidia_riva_tts.py \
+            scripts/tts_elevenlabs.py \
+            scripts/test_elevenlabs_tts.py \
             scripts/test_longform_pipeline.py \
             scripts/test_youtube_channel_routing.py
+
+      - name: ElevenLabs long-form word-timing tests
+        run: python -m unittest discover -s scripts -p "test_elevenlabs_tts.py" -v
+
+      - name: NVIDIA Magpie word-timed voice tests
+        run: python -m unittest discover -s scripts -p "test_nvidia_riva_tts.py" -v
 
       - name: Long-form source, scheduler and media tests
         run: python scripts/test_longform_pipeline.py
