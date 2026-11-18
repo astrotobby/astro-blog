@@ -16,6 +16,8 @@ import sys
 
 from common import (PIPE, ROOT, find_duplicate_title, load_config, load_ledger,
                     log, normalize_title, save_ledger)
+from blog_quality import (BlogPostValidationError, content_fingerprint,
+                          should_retry_rejected_post, validate_blog_post)
 
 PY = sys.executable
 S = ROOT / "scripts"
@@ -97,8 +99,13 @@ def sweep_posts():
     allp = [ln.strip() for ln in out.splitlines() if ln.strip()]
     led = load_ledger()
     import pathlib
-    new = [p for p in allp if _astro_slug(pathlib.Path(p).stem) not in led]
-    log(f"sweep: {len(allp)} live posts, {len(new)} not yet posted")
+    new = []
+    for post_path in allp:
+        slug = _astro_slug(pathlib.Path(post_path).stem)
+        entry = led.get(slug)
+        if should_retry_rejected_post(post_path, entry):
+            new.append(post_path)
+    log(f"sweep: {len(allp)} live posts, {len(new)} not yet posted or changed since quality rejection")
     return new
 
 
@@ -227,6 +234,31 @@ def main():
     failures = 0
     for i, pf in enumerate(posts, 1):
         log(f"=== post {i}/{len(posts)}: {pf} ===")
+        try:
+            validate_blog_post(pf)
+        except BlogPostValidationError as e:
+            # Keep bad Gemini output out of the video pipeline without retrying it
+            # every three hours. A content edit changes the fingerprint and makes
+            # the post eligible for the next sweep automatically.
+            import datetime as dt
+            from pathlib import Path
+            slug = _astro_slug(Path(pf).stem)
+            ledger = load_ledger()
+            try:
+                fingerprint = content_fingerprint(pf)
+            except OSError as read_error:
+                failures += 1
+                log(f"quality gate could not fingerprint {pf}: {read_error}")
+                continue
+            ledger[slug] = {
+                "quality_rejected_sha": fingerprint,
+                "quality_errors": e.errors,
+                "ts": dt.datetime.now(dt.timezone.utc).isoformat(),
+            }
+            save_ledger(ledger)
+            log(f"QUALITY REJECTED {pf}: {'; '.join(e.errors)}. "
+                "Fix the article to make it eligible for a future sweep.")
+            continue
         try:
             process_one(pf, args.dry_run, args.force, args.only)
         except Exception as e:  # noqa
