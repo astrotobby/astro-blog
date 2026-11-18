@@ -31,6 +31,30 @@ class LLMAuthenticationTests(unittest.TestCase):
         self.assertEqual(post.call_args.kwargs["json"]["model"], "gemini-3.8-flash")
         self.assertFalse(post.call_args.kwargs["json"]["store"])
 
+    def test_gemini_retries_503_then_falls_back_to_supported_model(self):
+        values = {
+            "GEMINI_API_KEY": "test-gemini-key",
+            "GEMINI_MODEL": "gemini-3.8-flash",
+            "GEMINI_FALLBACK_MODEL": "gemini-3.7-flash",
+        }
+        unavailable = pipeline.requests.Response()
+        unavailable.status_code = 503
+        unavailable.headers["Retry-After"] = "1"
+        success = SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {"steps": [{"type": "model_output", "content": [{"type": "text", "text": "fallback text"}]}]},
+        )
+        with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
+            with patch.object(pipeline.requests, "post", side_effect=[unavailable, unavailable, unavailable, success]) as post:
+                with patch.object(pipeline.time_module, "sleep") as sleep:
+                    output = pipeline._generate_text("prompt", "system", "unused-model")
+        self.assertEqual(output, "fallback text")
+        self.assertEqual(post.call_count, 4)
+        self.assertEqual([c.kwargs["json"]["model"] for c in post.call_args_list], [
+            "gemini-3.8-flash", "gemini-3.8-flash", "gemini-3.8-flash", "gemini-3.7-flash"
+        ])
+        self.assertEqual(sleep.call_count, 2)
+
     def test_claude_code_oauth_uses_subscription_cli_without_api_key(self):
         values = {
             "CLAUDE_CODE_OAUTH_TOKEN": "test-oauth-token",
