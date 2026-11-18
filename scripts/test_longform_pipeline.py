@@ -1,0 +1,127 @@
+"""Fast offline regression tests for the long-form scheduler and safety gates."""
+import json
+import sys
+import tempfile
+import unittest
+from datetime import datetime, timezone
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import longform_pipeline as pipeline
+
+
+class ScheduleTests(unittest.TestCase):
+    def test_four_publication_times_are_converted_from_kenya_to_utc(self):
+        fixed_now = datetime(2026, 11, 18, 8, 0, tzinfo=pipeline.EAT)
+        expected = {
+            ("astrotobby", "10:00"): "2026-11-19T07:00:00+00:00",
+            ("astrotobby", "15:00"): "2026-11-19T12:00:00+00:00",
+            ("digital_nomad", "12:00"): "2026-11-19T09:00:00+00:00",
+            ("digital_nomad", "18:00"): "2026-11-19T15:00:00+00:00",
+        }
+        for (channel, slot), value in expected.items():
+            with self.subTest(channel=channel, slot=slot):
+                target = pipeline.publish_time(channel, slot, "2026-11-19", fixed_now)
+                self.assertEqual(target.isoformat(), value)
+
+    def test_wrong_channel_slot_is_rejected(self):
+        with self.assertRaises(ValueError):
+            pipeline.publish_time("astrotobby", "12:00", "2026-11-19")
+        with self.assertRaises(ValueError):
+            pipeline.publish_time("digital_nomad", "10:00", "2026-11-19")
+
+    def test_past_slot_is_rejected_for_manual_target_date(self):
+        now = datetime(2026, 11, 18, 11, 0, tzinfo=pipeline.EAT)
+        with self.assertRaisesRegex(ValueError, "future"):
+            pipeline.publish_time("astrotobby", "10:00", "2026-11-18", now)
+
+    def test_job_ids_are_stable_and_slot_specific(self):
+        target = datetime(2026, 11, 19, 7, 0, tzinfo=timezone.utc)
+        self.assertEqual(
+            pipeline.make_job_id("astrotobby", "10:00", target),
+            "20261119_astrotobby_1000",
+        )
+        self.assertNotEqual(
+            pipeline.make_job_id("astrotobby", "10:00", target),
+            pipeline.make_job_id("digital_nomad", "12:00", target),
+        )
+
+
+class TopicTests(unittest.TestCase):
+    def test_similarity_ignores_generic_headline_words(self):
+        self.assertGreaterEqual(
+            pipeline.similarity(
+                "What happened in the AI technology industry today",
+                "AI technology industry latest update",
+            ),
+            0.6,
+        )
+
+    def test_unrelated_topics_do_not_match(self):
+        self.assertLess(
+            pipeline.similarity("Hollywood box office movie premiere", "Open source Python AI agents"),
+            0.2,
+        )
+
+    def test_article_parser_extracts_visible_paragraphs_and_ignores_scripts(self):
+        parser = pipeline.ArticleText()
+        parser.feed(
+            "<html><head><meta name='description' content='Summary'></head>"
+            "<body><script>ignore this text entirely</script>"
+            "<p>This paragraph contains useful article information for the test.</p>"
+            "<footer>Ignore this footer content.</footer></body></html>"
+        )
+        self.assertIn("useful article information", " ".join(parser.parts))
+        self.assertNotIn("ignore this text", " ".join(parser.parts))
+        self.assertEqual(parser.description, "Summary")
+
+
+class MediaGateTests(unittest.TestCase):
+    def test_accepts_a_real_10_minute_1080p_video_with_audio(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "video.mp4"
+            path.write_bytes(b"x" * 150_000)
+            probe = SimpleNamespace(
+                stdout=json.dumps({
+                    "streams": [
+                        {"codec_type": "video", "width": 1920, "height": 1080},
+                        {"codec_type": "audio"},
+                    ]
+                })
+            )
+            with patch.object(pipeline.renderer, "ffprobe_duration", return_value=600.5), patch.object(
+                pipeline.subprocess, "run", return_value=probe
+            ):
+                result = pipeline.check_media(path)
+            self.assertEqual(result["duration_seconds"], 600.5)
+            self.assertEqual(result["width"], 1920)
+            self.assertEqual(result["height"], 1080)
+
+    def test_rejects_a_video_shorter_than_ten_minutes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "short.mp4"
+            path.write_bytes(b"x" * 150_000)
+            with patch.object(pipeline.renderer, "ffprobe_duration", return_value=599.9):
+                with self.assertRaisesRegex(RuntimeError, "below 600s"):
+                    pipeline.check_media(path)
+
+    def test_rejects_missing_audio_stream(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "silent.mp4"
+            path.write_bytes(b"x" * 150_000)
+            probe = SimpleNamespace(
+                stdout=json.dumps({
+                    "streams": [{"codec_type": "video", "width": 1920, "height": 1080}]
+                })
+            )
+            with patch.object(pipeline.renderer, "ffprobe_duration", return_value=610), patch.object(
+                pipeline.subprocess, "run", return_value=probe
+            ):
+                with self.assertRaisesRegex(RuntimeError, "audio"):
+                    pipeline.check_media(path)
+
+
+if __name__ == "__main__":
+    unittest.main()
