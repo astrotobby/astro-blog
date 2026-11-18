@@ -466,6 +466,35 @@ def _generate_text(prompt,system,model):
                 try:
                     return call_gemini(fallback)
                 except requests.RequestException as fallback_error:
+                    opencode_key=env("OPENCODE_API_KEY")
+                    if opencode_key:
+                        executable=shutil.which("opencode")
+                        if executable:
+                            models=[x.strip() for x in env(
+                                "OPENCODE_FALLBACK_MODELS",
+                                "opencode/big-pickle,opencode/deepseek-v4.1-flash-free,opencode/nemotron-3.5-lightning-free",
+                            ).split(",") if x.strip()]
+                            child_env=os.environ.copy()
+                            child_env["OPENCODE_API_KEY"]=opencode_key
+                            for opencode_model in models:
+                                log(f"Gemini unavailable; trying OpenCode free model {opencode_model}")
+                                try:
+                                    result=subprocess.run(
+                                        [executable,"run","--model",opencode_model,prompt],
+                                        capture_output=True,text=True,timeout=600,env=child_env,
+                                    )
+                                    if result.returncode:
+                                        detail=(result.stderr or result.stdout or "no CLI error details")[-500:]
+                                        log(f"OpenCode model {opencode_model} failed: {detail}")
+                                        continue
+                                    output=(result.stdout or "").strip()
+                                    if output:
+                                        return output
+                                    log(f"OpenCode model {opencode_model} returned empty output")
+                                except Exception as opencode_error:
+                                    log(f"OpenCode model {opencode_model} failed: {type(opencode_error).__name__}: {str(opencode_error)[:300]}")
+                        else:
+                            log("OPENCODE_API_KEY is configured but the OpenCode CLI is not installed")
                     anthropic_key=env("ANTHROPIC_API_KEY")
                     if anthropic_key:
                         anthropic_model=env("ANTHROPIC_FALLBACK_MODEL","claude-sonnet-4-5-20250929")
@@ -483,10 +512,10 @@ def _generate_text(prompt,system,model):
                             return output
                         except Exception as anthropic_error:
                             raise RuntimeError(
-                                "Gemini primary/fallback models and Anthropic fallback all failed: "
+                                "Gemini, OpenCode and Anthropic fallback all failed: "
                                 f"{type(anthropic_error).__name__}: {str(anthropic_error)[:500]}"
                             ) from anthropic_error
-                    raise RuntimeError(f"Gemini primary and fallback models unavailable (HTTP {status or 'network'} / {getattr(getattr(fallback_error,'response',None),'status_code',None) or 'network'}); ANTHROPIC_API_KEY is not configured") from fallback_error
+                    raise RuntimeError(f"Gemini primary and fallback models unavailable (HTTP {status or 'network'} / {getattr(getattr(fallback_error,'response',None),'status_code',None) or 'network'}); no usable OpenCode or Anthropic fallback configured") from fallback_error
             raise RuntimeError(f"Gemini generation failed (HTTP {status or 'network'})") from primary_error
 
     oauth=env("CLAUDE_CODE_OAUTH_TOKEN")
@@ -517,8 +546,8 @@ def _generate_text(prompt,system,model):
 
 
 def create_package(channel,lead,sources):
-    if not (env("GEMINI_API_KEY") or env("CLAUDE_CODE_OAUTH_TOKEN") or env("ANTHROPIC_API_KEY")):
-        raise RuntimeError("GEMINI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY is required")
+    if not (env("GEMINI_API_KEY") or env("OPENCODE_API_KEY") or env("CLAUDE_CODE_OAUTH_TOKEN") or env("ANTHROPIC_API_KEY")):
+        raise RuntimeError("GEMINI_API_KEY, OPENCODE_API_KEY, CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY is required")
     profile=CHANNELS[channel]; model=env("LONGFORM_MODEL","claude-sonnet-5")
     evidence=[]
     for i,s in enumerate(sources,1):

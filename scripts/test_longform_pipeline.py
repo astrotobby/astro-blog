@@ -80,6 +80,30 @@ class LLMAuthenticationTests(unittest.TestCase):
                     pipeline._generate_text("prompt", "system", "claude-sonnet-5")
 
 
+    def test_gemini_outage_uses_opencode_before_anthropic(self):
+        values = {
+            "GEMINI_API_KEY": "test-gemini-key",
+            "GEMINI_MODEL": "gemini-3.8-flash",
+            "GEMINI_FALLBACK_MODEL": "gemini-3.7-flash",
+            "OPENCODE_API_KEY": "test-opencode-key",
+            "OPENCODE_FALLBACK_MODELS": "opencode/big-pickle,opencode/deepseek-v4.1-flash-free",
+            "ANTHROPIC_API_KEY": "must-not-be-used",
+        }
+        unavailable = pipeline.requests.Response()
+        unavailable.status_code = 503
+        unavailable.headers["Retry-After"] = "1"
+        result = SimpleNamespace(returncode=0, stdout='{"title":"OpenCode output"}', stderr="")
+        with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
+            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 6):
+                with patch.object(pipeline.time_module, "sleep"):
+                    with patch.object(pipeline.shutil, "which", return_value="/usr/bin/opencode"):
+                        with patch.object(pipeline.subprocess, "run", return_value=result) as run:
+                            output = pipeline._generate_text("prompt", "system", "unused-model")
+        self.assertEqual(output, '{"title":"OpenCode output"}')
+        command = run.call_args.args[0]
+        self.assertEqual(command[0:4], ["/usr/bin/opencode", "run", "--model", "opencode/big-pickle"])
+        self.assertEqual(run.call_args.kwargs["env"]["OPENCODE_API_KEY"], "test-opencode-key")
+
     def test_gemini_outage_falls_back_to_anthropic_api(self):
         values = {
             "GEMINI_API_KEY": "test-gemini-key",
