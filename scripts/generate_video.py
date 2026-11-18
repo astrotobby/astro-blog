@@ -43,6 +43,14 @@ FOOTAGE_CACHE_TTL_SECONDS = 24 * 60 * 60
 FOOTAGE_HISTORY_FILE = STATE / "footage_history.json"
 FOOTAGE_HISTORY_DAYS = 30
 FOOTAGE_HISTORY_LIMIT = 240
+# Bound each scene's network work so a slow stock provider cannot stall a full episode.
+FOOTAGE_SEARCH_TIMEOUT_SECONDS = 12
+FOOTAGE_DOWNLOAD_TIMEOUT_SECONDS = 18
+FOOTAGE_SCENE_BUDGET_SECONDS = 55
+FOOTAGE_MAX_DOWNLOAD_ATTEMPTS = 3
+FOOTAGE_MAX_ALTERNATE_ATTEMPTS = 1
+POLLINATIONS_TIMEOUT_SECONDS = 12
+POLLINATIONS_ATTEMPTS = 2
 _search_cache = None
 
 
@@ -144,10 +152,39 @@ def ffprobe_duration(path) -> float:
 # ---------- 1. Voiceover ----------
 
 async def _tts(text, voice, rate, pitch, out_path):
+    """Synthesize speech and retain Edge TTS native word-boundary timestamps.
+
+    Edge TTS reports offsets and durations in 100-nanosecond ticks. Using these
+    boundaries avoids a second speech-recognition pass for the common free fallback.
+    """
     import edge_tts
 
-    comm = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
-    await comm.save(str(out_path))
+    comm = edge_tts.Communicate(
+        text, voice, rate=rate, pitch=pitch, boundary="WordBoundary"
+    )
+    words = []
+    audio_bytes = 0
+    with open(out_path, "wb") as audio_file:
+        async for chunk in comm.stream():
+            if chunk.get("type") == "audio":
+                data = chunk.get("data") or b""
+                if data:
+                    audio_file.write(data)
+                    audio_bytes += len(data)
+            elif chunk.get("type") == "WordBoundary":
+                word_text = " ".join(str(chunk.get("text") or "").split()).strip()
+                if not word_text:
+                    continue
+                start = max(0.0, float(chunk.get("offset", 0)) / 10_000_000)
+                duration = max(0.0, float(chunk.get("duration", 0)) / 10_000_000)
+                end = start + duration
+                if end > start:
+                    words.append({"text": word_text, "start": start, "end": end})
+    if audio_bytes < 1024:
+        Path(out_path).unlink(missing_ok=True)
+        raise RuntimeError("edge-tts stream did not contain a usable audio track")
+    words.sort(key=lambda item: (item["start"], item["end"]))
+    return words or None
 
 
 def _gtts_fallback(text, out_path):
@@ -238,8 +275,7 @@ def make_voice(narration, cfg, tag=""):
                 log(f"Kokoro voiceover {duration:.1f}s -> {kokoro_out.name}")
                 return kokoro_out, duration, None, "kokoro"
         log("Kokoro unavailable; falling back to edge-tts")
-    path, duration, provider = _make_voice_fallback(narration, cfg, tag)
-    return path, duration, None, provider
+    return _make_voice_fallback(narration, cfg, tag)
 
 
 def _make_voice_fallback(narration, cfg, tag=""):
@@ -254,7 +290,7 @@ def _make_voice_fallback(narration, cfg, tag=""):
                 duration = ffprobe_duration(clone_out)
                 if duration > 0.25:
                     log(f"authorized cloned voiceover {duration:.1f}s -> {clone_out.name}")
-                    return clone_out, duration, "clone"
+                    return clone_out, duration, None, "clone"
             if voice_cfg.get("clone_required", True):
                 raise RuntimeError(
                     "cloned voice synthesis did not produce valid audio; "
@@ -270,17 +306,25 @@ def _make_voice_fallback(narration, cfg, tag=""):
 
     out = OUT / f"voiceover{tag}.mp3"
     out.unlink(missing_ok=True)
+    word_timings = None
+    provider = "edge-tts"
     try:
-        asyncio.run(_tts(narration, voice_cfg["name"], voice_cfg["rate"],
-                         voice_cfg["pitch"], out))
-        if not out.exists() or out.stat().st_size == 0:
-            raise RuntimeError("edge-tts produced no audio")
+        word_timings = asyncio.run(_tts(
+            narration, voice_cfg["name"], voice_cfg["rate"], voice_cfg["pitch"], out
+        ))
+        if not out.exists() or out.stat().st_size < 1024:
+            raise RuntimeError("edge-tts produced no usable audio")
     except Exception as exc:
-        log(f"edge-tts failed ({exc}); falling back to gTTS")
+        log(f"edge-tts failed ({type(exc).__name__}: {str(exc)[:180]}); falling back to gTTS")
+        out.unlink(missing_ok=True)
         _gtts_fallback(narration, out)
+        word_timings = None
+        provider = "gTTS"
     duration = ffprobe_duration(out)
-    log(f"voiceover {duration:.1f}s -> {out.name}")
-    return out, duration, "edge-tts"
+    log(f"voiceover {duration:.1f}s -> {out.name} ({provider})")
+    if word_timings:
+        log(f"Edge TTS supplied {len(word_timings)} native word-boundary timings")
+    return out, duration, word_timings, provider
 
 
 # ---------- 2. Footage sourcing ----------
@@ -333,7 +377,7 @@ def _pexels_video_search(query, target_w, target_h):
             url,
             headers={"Authorization": api_key},
             params={"query": query, "per_page": 15},
-            timeout=30,
+            timeout=FOOTAGE_SEARCH_TIMEOUT_SECONDS,
         )
         if response.status_code != 200:
             log(f"Pexels search returned HTTP {response.status_code} for {query!r}")
@@ -383,7 +427,7 @@ def _pixabay_video_search(query, target_w, target_h):
         response = requests.get(
             "https://pixabay.com/api/videos/",
             params={"key": api_key, "q": query, "per_page": 15, "safesearch": "true", "order": "popular"},
-            timeout=30,
+            timeout=FOOTAGE_SEARCH_TIMEOUT_SECONDS,
         )
         if response.status_code != 200:
             log(f"Pixabay search returned HTTP {response.status_code} for {query!r}")
@@ -440,9 +484,16 @@ def _clean_image_prompt(prompt: str) -> str:
     return (prompt or "").split("|scene_type:", 1)[0].strip(" ,")
 
 
-def _download_candidate(candidate, destination: Path) -> bool:
+def _download_candidate(candidate, destination: Path, timeout_seconds=None) -> bool:
     try:
-        response = requests.get(candidate["url"], stream=True, timeout=75)
+        read_timeout = min(
+            FOOTAGE_DOWNLOAD_TIMEOUT_SECONDS,
+            max(1.0, float(timeout_seconds or FOOTAGE_DOWNLOAD_TIMEOUT_SECONDS)),
+        )
+        response = requests.get(
+            candidate["url"], stream=True,
+            timeout=(min(5.0, read_timeout), read_timeout),
+        )
         if response.status_code != 200:
             return False
         with open(destination, "wb") as handle:
@@ -460,10 +511,17 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, used_creator
     """Download a relevant clip while avoiding exact, contributor, and recent repeats."""
     destination = OUT / f"scene_{index:02d}_{variant}.mp4"
     destination.unlink(missing_ok=True)
+    deadline = time.monotonic() + FOOTAGE_SCENE_BUDGET_SECONDS
     queries = [query for query in (meta.get("broll"), meta.get("fallback")) if query]
     for query in dict.fromkeys(queries):  # preserve order, remove duplicate fallback
+        if time.monotonic() >= deadline:
+            break
         candidates = _pexels_video_search(query, target_w, target_h)
+        if time.monotonic() >= deadline:
+            break
         candidates.extend(_pixabay_video_search(query, target_w, target_h))
+        if time.monotonic() >= deadline:
+            break
         candidates.sort(key=lambda item: item["score"], reverse=True)
         # Prefer a fresh contributor and a clip not used by the last several posts.
         # If the providers return too few candidates, the second pass relaxes only
@@ -475,8 +533,11 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, used_creator
         relaxed = [candidate for candidate in candidates
                    if candidate.get("id") not in used_clips]
         ordered = fresh + [item for item in relaxed if item not in fresh]
-        for position, candidate in enumerate(ordered):
-            if _download_candidate(candidate, destination):
+        for position, candidate in enumerate(ordered[:FOOTAGE_MAX_DOWNLOAD_ATTEMPTS]):
+            remaining = deadline - time.monotonic()
+            if remaining < 1.0:
+                break
+            if _download_candidate(candidate, destination, remaining):
                 clip_id = candidate["id"]
                 used_clips.add(clip_id)
                 if candidate.get("creator"):
@@ -490,10 +551,13 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, used_creator
                 meta["alt"], meta["alt_source"] = None, None
                 alt_destination = OUT / f"scene_{index:02d}_{variant}_b.mp4"
                 alt_destination.unlink(missing_ok=True)
-                for alt in ordered[position + 1:position + 4]:
+                for alt in ordered[position + 1:position + 1 + FOOTAGE_MAX_ALTERNATE_ATTEMPTS]:
                     if alt["id"] in used_clips:
                         continue
-                    if _download_candidate(alt, alt_destination):
+                    remaining = deadline - time.monotonic()
+                    if remaining < 1.0:
+                        break
+                    if _download_candidate(alt, alt_destination, remaining):
                         used_clips.add(alt["id"])
                         alt_prov = {key: alt[key] for key in ("id", "provider", "creator", "source_url", "query")}
                         alt_prov["scene"] = index
@@ -517,7 +581,7 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
     destination.unlink(missing_ok=True)
     if index == 0 and image_url:
         try:
-            response = requests.get(image_url, timeout=30)
+            response = requests.get(image_url, timeout=10)
             if response.status_code == 200:
                 destination.write_bytes(response.content)
                 return destination, meta, None
@@ -528,20 +592,21 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
     seed = int(hashlib.sha256(f"{slug}:{index}:{variant}".encode()).hexdigest()[:8], 16) % 100000
     url = ("https://image.pollinations.ai/prompt/" + urllib.parse.quote(clean_prompt)
            + f"?width={target_w}&height={target_h}&nologo=true&model=flux&seed={seed}")
-    for attempt in range(3):
+    for attempt in range(POLLINATIONS_ATTEMPTS):
         try:
-            response = requests.get(url, timeout=75)
+            response = requests.get(url, timeout=POLLINATIONS_TIMEOUT_SECONDS)
             if response.status_code == 200 and len(response.content) > 20000:
                 destination.write_bytes(response.content)
                 return destination, meta, None
             log(f"image fallback HTTP {response.status_code} (attempt {attempt + 1})")
         except Exception as exc:
             log(f"image fallback failed: {exc}")
-        time.sleep(6 * (attempt + 1))  # the free endpoint rate-limits bursts
+        time.sleep(2 * (attempt + 1))  # short backoff; image fallback is best-effort
 
-    run(["ffmpeg", "-y", "-f", "lavfi", "-i", f"color=c=black:s={target_w}x{target_h}",
-         "-frames:v", "1", "-update", "1", str(destination)])
-    return destination, meta, None
+    raise RuntimeError(
+        f"No usable visual asset for scene {index + 1}: stock footage and image fallback failed; "
+        "refusing to render a black placeholder"
+    )
 
 
 def fetch_scene_assets(script, cfg, variant):
@@ -553,13 +618,17 @@ def fetch_scene_assets(script, cfg, variant):
     history = _load_footage_history()
     recent_ids = {item["id"] for item in history}
     assets, provenance = [], []
+    scene_count = len(script["scene_prompts"])
     for index, prompt in enumerate(script["scene_prompts"]):
+        scene_started = time.monotonic()
+        log(f"Fetching visual assets for scene {index + 1}/{scene_count}")
         asset, meta, source = _fetch_scene(
             index, prompt, target_w, target_h, post["slug"],
             post.get("image_url") if index == 0 else None, used_clips,
             used_creators, recent_ids, variant,
         )
         assets.append((asset, meta))
+        log(f"Scene {index + 1}/{scene_count} assets ready in {time.monotonic() - scene_started:.1f}s")
         for item in (source, (meta or {}).get("alt_source")):
             if not item:
                 continue
@@ -728,6 +797,30 @@ def _srt_timestamp(seconds: float) -> str:
     minutes, milliseconds = divmod(milliseconds, 60_000)
     seconds, milliseconds = divmod(milliseconds, 1_000)
     return f"{hours:02}:{minutes:02}:{seconds:02},{milliseconds:03}"
+
+
+def word_timings_valid(words, narration):
+    """Reject missing, sparse, or malformed word timing before a master can ship."""
+    if not isinstance(words, list) or not words:
+        return False
+    expected = re.findall(r"\b[\w'-]+\b", narration or "")
+    if not expected:
+        return False
+    # ASR can omit punctuation and occasionally merge a token; require broad coverage.
+    if len(words) < max(4, int(len(expected) * 0.65)):
+        return False
+    previous_start = -1.0
+    for item in words:
+        try:
+            label = str(item.get("text") or "").strip()
+            start = float(item["start"])
+            end = float(item["end"])
+        except (AttributeError, KeyError, TypeError, ValueError):
+            return False
+        if not label or start < 0 or end <= start or start < previous_start:
+            return False
+        previous_start = start
+    return True
 
 
 def transcribe_words(audio_path):
@@ -990,16 +1083,26 @@ def finalize(video_path, voice_path, word_timings, music, size, out_path, cfg, s
 
 def render_variant(name, narration, script, cfg, scene_assets, music):
     tag = "" if name == "vertical" else "_yt"
+    render_started = time.monotonic()
     voice, duration, word_timings, provider = make_voice(narration, cfg, tag)
-    if word_timings is None and cfg["video"].get("captions"):
-        word_timings = transcribe_words(voice)
+    log(f"Narration synthesis completed in {time.monotonic() - render_started:.1f}s ({provider}, {duration:.1f}s speech)")
+    if cfg["video"].get("captions"):
+        if not word_timings_valid(word_timings, narration):
+            if word_timings:
+                log("TTS word timings failed validation; falling back to audio transcription")
+            word_timings = transcribe_words(voice)
+        if not word_timings_valid(word_timings, narration):
+            raise RuntimeError("Word-level caption timing is missing or incomplete; refusing to render an uncaptioned long-form master")
+        log(f"Caption timing validated: {len(word_timings)} word boundaries")
     voiced = master_voice(voice, tag)
     total = duration + float(cfg["video"].get("tail_seconds", 0.6))
     size = cfg["video"][name]
     montage = OUT / f"montage_{name}.mp4"
     final_path = OUT / ("video_9x16.mp4" if name == "vertical" else "video_16x9.mp4")
     windows = scene_windows(word_timings, narration, len(scene_assets), total)
+    montage_started = time.monotonic()
     build_clip(scene_assets, windows, size, cfg["video"]["fps"], montage, cfg, total)
+    log(f"Montage render completed in {time.monotonic() - montage_started:.1f}s")
     if cfg.get("influencer", {}).get("enabled"):
         # The AI presenter cuts in over the montage; the stock footage stays as B-roll.
         try:
@@ -1011,8 +1114,11 @@ def render_variant(name, narration, script, cfg, scene_assets, music):
         except Exception as exc:  # noqa  the presenter must never break the render
             log(f"influencer cut failed -> plain montage: {exc}")
     captions = word_timings if cfg["video"].get("captions") else None
+    final_started = time.monotonic()
     finalize(montage, voiced, captions, music, size, final_path, cfg, scene_assets,
              script.get("hook"), total, grade=script.get("grade"))
+    log(f"Final video encode completed in {time.monotonic() - final_started:.1f}s")
+    log(f"Total {name} render time: {time.monotonic() - render_started:.1f}s")
     return final_path, total, word_timings, provider
 
 

@@ -1,4 +1,5 @@
 """Fast offline regression tests for the long-form scheduler and safety gates."""
+import asyncio
 import json
 import sys
 import tempfile
@@ -153,6 +154,75 @@ class LLMAuthenticationTests(unittest.TestCase):
                     with patch.dict(sys.modules, {"anthropic": anthropic_module}):
                         output = pipeline._generate_text("prompt", "system", "unused-model")
         self.assertEqual(output, "anthropic fallback text")
+
+
+
+class EdgeTtsWordTimingTests(unittest.TestCase):
+    def test_edge_tts_stream_keeps_native_word_boundaries(self):
+        class FakeCommunicate:
+            def __init__(self, text, voice, **kwargs):
+                self.kwargs = kwargs
+
+            async def stream(self):
+                yield {"type": "audio", "data": b"x" * 2048}
+                yield {"type": "WordBoundary", "offset": 1_000_000,
+                       "duration": 2_000_000, "text": "Hello"}
+                yield {"type": "WordBoundary", "offset": 3_500_000,
+                       "duration": 1_500_000, "text": "there."}
+
+        observed = {}
+        class RecordingCommunicate(FakeCommunicate):
+            def __init__(self, text, voice, **kwargs):
+                observed.update(kwargs)
+                super().__init__(text, voice, **kwargs)
+
+        fake_edge_tts = SimpleNamespace(Communicate=RecordingCommunicate)
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp) / "voice.mp3"
+            with patch.dict(sys.modules, {"edge_tts": fake_edge_tts}):
+                words = asyncio.run(pipeline.renderer._tts(
+                    "Hello there.", "en-US-AndrewNeural", "+0%", "+0Hz", output
+                ))
+            self.assertTrue(output.exists())
+            self.assertGreater(output.stat().st_size, 1024)
+
+        self.assertEqual(observed.get("boundary"), "WordBoundary")
+        self.assertEqual(len(words), 2)
+        self.assertAlmostEqual(words[0]["start"], 0.1)
+        self.assertAlmostEqual(words[0]["end"], 0.3)
+        self.assertEqual(words[1]["text"], "there.")
+        self.assertAlmostEqual(words[1]["start"], 0.35)
+
+    def test_caption_timing_validator_accepts_complete_ordered_words(self):
+        narration = "One two three four five six seven eight"
+        words = [
+            {"text": token, "start": index * 0.3, "end": index * 0.3 + 0.2}
+            for index, token in enumerate(narration.split())
+        ]
+        self.assertTrue(pipeline.renderer.word_timings_valid(words, narration))
+
+    def test_caption_timing_validator_rejects_sparse_or_malformed_words(self):
+        narration = "One two three four five six seven eight"
+        sparse = [{"text": "One", "start": 0.0, "end": 0.2}]
+        malformed = [
+            {"text": "One", "start": 0.5, "end": 0.2},
+            {"text": "two", "start": 0.7, "end": 0.8},
+        ]
+        self.assertFalse(pipeline.renderer.word_timings_valid(sparse, narration))
+        self.assertFalse(pipeline.renderer.word_timings_valid(malformed, narration))
+
+    def test_scene_fails_instead_of_creating_black_video_frame(self):
+        with patch.object(pipeline.renderer, "_fetch_video_asset", return_value=(None, None)):
+            with patch.object(pipeline.renderer.requests, "get", return_value=SimpleNamespace(
+                status_code=503, content=b""
+            )):
+                with patch.object(pipeline.renderer.time, "sleep"):
+                    with self.assertRaisesRegex(RuntimeError, "refusing to render a black placeholder"):
+                        pipeline.renderer._fetch_scene(
+                            1,
+                            "a visual scene|broll:relevant subject|fallback:alternative subject",
+                            1280, 720, "offline-test", None, set(), set(), set(), "horizontal"
+                        )
 
 
 class ScheduleTests(unittest.TestCase):
