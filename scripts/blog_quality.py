@@ -134,3 +134,17 @@ def should_retry_rejected_post(path: str | Path, ledger_entry: dict | None) -> b
         return content_fingerprint(path) != ledger_entry["quality_rejected_sha"]
     except OSError:
         return False
+
+
+def should_process_in_sweep(path: str | Path, ledger_entry: dict | None) -> bool:
+    """Select unprocessed posts, or rejected posts whose content has since changed.
+
+    A normal ledger entry means the post has already been processed and must not be
+    selected again by the periodic safety sweep. Only a quality-rejection entry can
+    become eligible again after its SHA-256 fingerprint changes.
+    """
+    if ledger_entry is None:
+        return True
+    if ledger_entry.get("quality_rejected_sha"):
+        return should_retry_rejected_post(path, ledger_entry)
+    return False
