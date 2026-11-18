@@ -96,7 +96,7 @@ def feed(query):
             out.append({"title":title,"url":link,"summary":re.sub(r"\s+"," ",desc)[:1500],
                         "publisher":publisher,"publisher_url":publisher_url,
                         "published_at":published.isoformat() if published else ""})
-    return out[:20]
+    return out[:100]
 
 
 def _age(item):
@@ -126,25 +126,71 @@ def discover(channel,used_titles):
                 key=hashlib.sha256(row["url"].encode()).hexdigest()
                 pub=(row.get("publisher","")+" "+row.get("publisher_url","")).lower()
                 row["score"]=(12 if any(x in pub for x in TRUSTED) else 0)+max(0,20-int(_age(row)/6))
-                if key not in candidates or row["score"]>candidates[key]["score"]: candidates[key]=row
-        except Exception as exc: log(f"News feed unavailable: {str(exc)[:130]}")
+                if key not in candidates or row["score"]>candidates[key]["score"]:
+                    candidates[key]=row
+        except Exception as exc:
+            log(f"News feed unavailable: {str(exc)[:130]}")
     ranked=sorted(candidates.values(),key=lambda x:(x["score"],-_age(x)),reverse=True)
-    lead=next((x for x in ranked if _age(x)<=profile["fresh"] and not any(similarity(x["title"],t)>=.62 for t in used_titles)),None)
-    if not lead: raise RuntimeError(f"No fresh and unused {channel} story found")
-    related=[]
-    try: related=feed(f'"{lead["title"][:150]}" when:14d')
-    except Exception as exc: log(f"Related-source lookup unavailable: {str(exc)[:120]}")
-    pool=[lead]
-    for row in related+ranked:
-        if row["url"]!=lead["url"] and similarity(row["title"],lead["title"])>=.28: pool.append(row)
-        if len(pool)>=7: break
-    sources=[]; seen=set()
-    for row in pool:
-        key=(row.get("publisher") or row["url"]).lower()
-        if key not in seen: seen.add(key); sources.append(enrich(row))
-    if len(sources)<2 or sum(len(x.get("article_text","")) for x in sources)<700:
-        raise RuntimeError("Not enough independent source material for a factual long-form episode")
-    return lead,sources
+    eligible=[row for row in ranked
+              if _age(row)<=profile["fresh"]
+              and not any(similarity(row["title"],old)>=.62 for old in used_titles)]
+    if not eligible:
+        raise RuntimeError(f"No fresh and unused {channel} story found")
+
+    # A first-ranked headline may have only one publisher. Try several recent
+    # candidates and gather both exact-title and broader related coverage.
+    diagnostics=[]
+    for lead in eligible[:10]:
+        base_title=re.split(r"\\s+[—|–-]\\s+",lead["title"],maxsplit=1)[0].strip()
+        related={}
+        for query in (f'"{base_title[:150]}" when:30d',f'{base_title[:150]} when:30d'):
+            try:
+                for row in feed(query):
+                    related[hashlib.sha256(row["url"].encode()).hexdigest()]=row
+            except Exception as exc:
+                log(f"Related-source lookup unavailable: {str(exc)[:120]}")
+
+        pool=[lead]
+        for row in list(related.values())+ranked:
+            if row["url"]==lead["url"] or _age(row)>30*24:
+                continue
+            if similarity(row["title"],base_title)>=.18 or similarity(row["title"],lead["title"])>=.18:
+                pool.append(row)
+            if len(pool)>=35:
+                break
+
+        selected=[]; seen=set()
+        for row in pool:
+            publisher=(row.get("publisher") or "").strip().lower()
+            domain=urllib.parse.urlparse(row.get("publisher_url") or row["url"]).netloc.lower()
+            identity=publisher or domain or row["url"]
+            if identity in seen:
+                continue
+            seen.add(identity); selected.append(row)
+            if len(selected)>=5:
+                break
+        if len(selected)<2:
+            diagnostics.append(f"{lead['title'][:75]}: {len(selected)} publisher(s)")
+            continue
+
+        sources=[enrich(row) for row in selected]
+        independent={}
+        for source in sources:
+            domain=urllib.parse.urlparse(source.get("url") or "").netloc.lower()
+            name=(source.get("publisher") or domain).strip().lower()
+            independent.setdefault(name,source)
+        sources=list(independent.values())
+        evidence_chars=sum(len(x.get("article_text") or x.get("summary") or "") for x in sources)
+        diagnostics.append(f"{lead['title'][:75]}: {len(sources)} publishers, {evidence_chars} evidence chars")
+        log(f"Research candidate check: {diagnostics[-1]}")
+        if len(sources)>=2 and evidence_chars>=700:
+            log(f"Selected corroborated story: {lead['title']}")
+            return lead,sources
+
+    raise RuntimeError(
+        "Could not find a fresh story with at least two independent reports and 700 characters of source evidence. "
+        "Last candidate checks: "+"; ".join(diagnostics[-5:])
+    )
 
 
 def create_package(channel,lead,sources):
