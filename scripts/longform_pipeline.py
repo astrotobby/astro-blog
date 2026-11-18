@@ -1,6 +1,6 @@
 """End-to-end ten-minute YouTube pipeline. Execute from AI-GEMS/whop-clipper."""
 from __future__ import annotations
-import argparse, email.utils, hashlib, html, json, os, re, subprocess, sys, urllib.parse
+import argparse, email.utils, hashlib, html, json, os, re, shutil, subprocess, sys, urllib.parse
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, time as clock_time, timedelta, timezone
 from html.parser import HTMLParser
@@ -407,10 +407,44 @@ def discover(channel,used_titles):
         "Last checks: "+"; ".join(diagnostics[-5:])
     )
 
-def create_package(channel,lead,sources):
+def _generate_text(prompt,system,model):
+    """Generate text using the Claude Code subscription token, or the Console API key.
+
+    Claude Code OAuth is the preferred CI path so a depleted Console API credit balance
+    does not block jobs when the owner already has a Claude Code subscription token.
+    The API key is deliberately removed from the CLI child environment to prevent it
+    from taking precedence over subscription authentication.
+    """
+    oauth=env("CLAUDE_CODE_OAUTH_TOKEN")
+    if oauth:
+        executable=shutil.which("claude")
+        if not executable:
+            raise RuntimeError("CLAUDE_CODE_OAUTH_TOKEN is configured but Claude Code CLI is not installed")
+        child_env=os.environ.copy()
+        child_env.pop("ANTHROPIC_API_KEY",None)
+        child_env["CLAUDE_CODE_OAUTH_TOKEN"]=oauth
+        command=[executable,"-p","--model",model,"--output-format","text","--append-system-prompt",system]
+        result=subprocess.run(command,input=prompt,capture_output=True,text=True,timeout=600,env=child_env)
+        if result.returncode:
+            detail=(result.stderr or result.stdout or "no CLI error details")[-700:]
+            raise RuntimeError(f"Claude Code subscription generation failed: {detail}")
+        output=(result.stdout or "").strip()
+        if not output:
+            raise RuntimeError("Claude Code CLI returned an empty response")
+        return output
+
     key=env("ANTHROPIC_API_KEY")
-    if not key: raise RuntimeError("ANTHROPIC_API_KEY missing")
+    if not key:
+        raise RuntimeError("Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY is configured")
     import anthropic
+    client=anthropic.Anthropic(api_key=key,timeout=600)
+    response=client.messages.create(model=model,max_tokens=8500,system=system,messages=[{"role":"user","content":prompt}])
+    return "".join(x.text for x in response.content if getattr(x,"type","")=="text").strip()
+
+
+def create_package(channel,lead,sources):
+    if not (env("CLAUDE_CODE_OAUTH_TOKEN") or env("ANTHROPIC_API_KEY")):
+        raise RuntimeError("Claude Code OAuth token or Anthropic API key is required")
     profile=CHANNELS[channel]; model=env("LONGFORM_MODEL","claude-sonnet-5")
     evidence=[]
     for i,s in enumerate(sources,1):
@@ -444,9 +478,7 @@ why it matters, multiple perspectives, uncertainties, likely next developments a
 Use multiple sources. Clearly distinguish facts from analysis. Do not invent information to fill length.
 No markdown headings, bullets, timecodes, stage directions or URLs in the spoken narration.
 """
-    client=anthropic.Anthropic(api_key=key,timeout=240)
-    response=client.messages.create(model=model,max_tokens=8500,system=system,messages=[{"role":"user","content":prompt}])
-    raw="".join(x.text for x in response.content if getattr(x,"type","")=="text").strip()
+    raw=_generate_text(prompt,system,model)
     fence=chr(96)*3
     if raw.startswith(fence): raw=raw.split("\n",1)[-1]
     if raw.endswith(fence): raw=raw[:-3]
@@ -454,9 +486,8 @@ No markdown headings, bullets, timecodes, stage directions or URLs in the spoken
     narration=re.sub(r"\s+"," ",str(data.get("narration",""))).strip()
     words=len(re.findall(r"\b[\w'-]+\b",narration))
     if words<1750:
-        expanded=client.messages.create(model=model,max_tokens=8500,system=system,
-          messages=[{"role":"user","content":"Expand this sourced narration to 2,000-2,200 words. Preserve facts, add evidence-based context, no invention. Return narration only.\n\n"+narration}])
-        narration=re.sub(r"\s+"," "," ".join(x.text for x in expanded.content if getattr(x,"type","")=="text")).strip()
+        expanded=_generate_text("Expand this sourced narration to 2,000-2,200 words. Preserve facts, add evidence-based context, no invention. Return narration only.\n\n"+narration,system,model)
+        narration=re.sub(r"\s+"," ",expanded).strip()
         words=len(re.findall(r"\b[\w'-]+\b",narration))
     if not 1900<=words<=2500: raise RuntimeError(f"Script word count outside bounds: {words} (minimum 1,900)")
     title=re.sub(r"\s+"," ",str(data.get("title") or lead["title"])).strip()[:95]
