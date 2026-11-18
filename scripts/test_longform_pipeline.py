@@ -263,7 +263,14 @@ class ContextualVisualAssetTests(unittest.TestCase):
 
 
 class OpenverseFallbackTests(unittest.TestCase):
-    def test_openverse_search_is_anonymous_and_cc0_public_domain_only(self):
+    def test_openverse_core_query_removes_renderer_camera_directions(self):
+        query = "live concert crowd and stage wide establishing shot, visible environment"
+        self.assertEqual(
+            pipeline.renderer._openverse_core_query(query),
+            "live concert crowd and stage",
+        )
+
+    def test_openverse_search_is_anonymous_and_commercial_use_licensed(self):
         response = SimpleNamespace(
             status_code=200,
             json=lambda: {
@@ -284,7 +291,21 @@ class OpenverseFallbackTests(unittest.TestCase):
                     {
                         "id": "by-image",
                         "url": "https://media.example/by.jpg",
+                        "foreign_landing_url": "https://commons.example/by",
+                        "title": "Live concert",
+                        "creator": "Another creator",
+                        "creator_url": "https://creators.example/another",
                         "license": "by",
+                        "license_version": "4.0",
+                        "license_url": "https://creativecommons.org/licenses/by/4.0/",
+                        "attribution": "Another creator / Openverse",
+                        "width": 1920,
+                        "height": 1080,
+                    },
+                    {
+                        "id": "by-nc-image",
+                        "url": "https://media.example/by-nc.jpg",
+                        "license": "by-nc",
                         "width": 1920,
                         "height": 1080,
                     },
@@ -295,17 +316,50 @@ class OpenverseFallbackTests(unittest.TestCase):
             with patch.object(pipeline.renderer, "_cache_put") as cache_put:
                 with patch.object(pipeline.renderer.requests, "get", return_value=response) as get:
                     items = pipeline.renderer._openverse_image_search(
-                        "music recording studio", 1920, 1080
+                        "live concert crowd and stage wide establishing shot, visible environment",
+                        1920,
+                        1080,
                     )
 
-        self.assertEqual(len(items), 1)
-        self.assertEqual(items[0]["id"], "openverse:cc0-image")
-        self.assertEqual(items[0]["license"], "cc0")
+        self.assertEqual(len(items), 2)
+        self.assertEqual({item["license"] for item in items}, {"cc0", "by"})
+        by_item = next(item for item in items if item["license"] == "by")
+        self.assertEqual(by_item["creator_url"], "https://creators.example/another")
+        self.assertEqual(by_item["license_url"], "https://creativecommons.org/licenses/by/4.0/")
+        self.assertEqual(by_item["attribution"], "Another creator / Openverse")
         self.assertEqual(get.call_args.args[0], pipeline.renderer.OPENVERSE_IMAGES_URL)
-        self.assertEqual(get.call_args.kwargs["params"]["license"], "cc0,pdm")
+        self.assertEqual(get.call_args.kwargs["params"]["q"], "live concert crowd and stage")
+        self.assertEqual(
+            get.call_args.kwargs["params"]["license"],
+            pipeline.renderer.OPENVERSE_LICENSE_FILTER,
+        )
         self.assertEqual(get.call_args.kwargs["params"]["license_type"], "commercial")
+        self.assertNotIn("size", get.call_args.kwargs["params"])
+        self.assertNotIn("aspect_ratio", get.call_args.kwargs["params"])
         self.assertNotIn("Authorization", get.call_args.kwargs["headers"])
         cache_put.assert_called_once()
+
+    def test_openverse_attribution_includes_creator_source_and_license(self):
+        credits = pipeline.renderer._source_credits(
+            [
+                {
+                    "id": "openverse:by-image",
+                    "provider": "Openverse",
+                    "title": "Live concert",
+                    "creator": "Another creator",
+                    "creator_url": "https://creators.example/another",
+                    "source_url": "https://commons.example/by",
+                    "license": "by",
+                    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+                }
+            ]
+        )
+        self.assertEqual(len(credits), 1)
+        self.assertIn("Another creator", credits[0])
+        self.assertIn("https://creators.example/another", credits[0])
+        self.assertIn("https://commons.example/by", credits[0])
+        self.assertIn("CC BY", credits[0])
+        self.assertIn("https://creativecommons.org/licenses/by/4.0/", credits[0])
 
     def test_openverse_download_verifies_image_bytes(self):
         from io import BytesIO
