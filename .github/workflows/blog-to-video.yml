@@ -220,6 +220,11 @@ jobs:
           # Narration voice (ElevenLabs). Missing key -> free edge-tts fallback.
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+          # Optional VoiceStudio remote API; localhost works only on a local/self-hosted runner.
+          VOICESTUDIO_BASE_URL: ${{ secrets.VOICESTUDIO_BASE_URL }}
+          VOICESTUDIO_API_KEY: ${{ secrets.VOICESTUDIO_API_KEY }}
+          VOICESTUDIO_MODEL: ${{ secrets.VOICESTUDIO_MODEL }}
+          VOICESTUDIO_VOICE: ${{ secrets.VOICESTUDIO_VOICE }}
           # Optional: Claude rewrites the extractive draft into a spoken script.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # Primary footage provider plus Pixabay fallback. Both values remain GitHub Actions secrets.
