@@ -7,8 +7,11 @@
 Produce four original long-form YouTube videos per day from one GitHub Actions-based system:
 
 - **Digital Nomad:** two videos daily about AI, technology, tools, coding, and automation.
-- **Astrotobbyc:** two videos daily about current news, entertainment, and explainers.
+- **Astrotobby:** two videos daily about current news, entertainment, and explainers; owner Google account: `goodlucktobby@gmail.com`.
+- **Digital Nomad:** two videos daily about AI, technology, tools, coding, and automation; owner Google account: `chanzera3@gmail.com`.
 - **Duration:** every finished main video must be at least 10:00.
+
+The two channels are managed under separate Google accounts. Each channel must use its own refresh token issued while signed in as its stated owner account, and each token must resolve to the matching YouTube channel before uploading.
 - **Orchestration:** GitHub Actions; no Make.com dependency and no requirement to keep the owner's laptop online.
 
 The existing blog-to-video workflow remains a separate ingestion path until the new scheduled pipeline is proven. It must not publish duplicate YouTube videos for topics already owned by the new scheduler.
@@ -30,16 +33,16 @@ The new pipeline should reuse stable code where practical, but should not change
 
 ## Daily schedule
 
-Initial proposed schedule in Africa/Nairobi (UTC+3):
+Confirmed publication timetable in Africa/Nairobi (UTC+3):
 
-| Local time | UTC cron time | Channel | Editorial lane |
-|---|---:|---|---|
-| 07:15 | 04:15 | Digital Nomad | AI and technology developments |
-| 12:15 | 09:15 | Astrotobbyc | News and entertainment |
-| 17:15 | 14:15 | Digital Nomad | Automation, tutorials, practical workflows |
-| 21:15 | 18:15 | Astrotobbyc | Trending stories and explainers |
+| Publish time (Kenya) | `publishAt` / UTC | Channel | Owner Google account | Editorial lane |
+|---|---:|---|---|---|
+| 10:00 AM | 07:00 UTC | Astrotobby | `goodlucktobby@gmail.com` | News and entertainment |
+| 12:00 PM | 09:00 UTC | Digital Nomad | `chanzera3@gmail.com` | AI and technology developments |
+| 3:00 PM | 12:00 UTC | Astrotobby | `goodlucktobby@gmail.com` | Trending stories and explainers |
+| 6:00 PM | 15:00 UTC | Digital Nomad | `chanzera3@gmail.com` | Automation, tutorials, practical workflows |
 
-GitHub Actions cron is UTC. The minute offset avoids scheduling every job at the top of the hour. These are dispatch targets, not a guarantee of exact publication time: GitHub may delay scheduled starts. A queue should retain jobs that do not start on time.
+These are the **publication times**, not merely the time at which a render should begin. Because GitHub Actions scheduled starts can be delayed and long-form rendering may take substantial time, production should run ahead of each slot. Upload each validated video as private with YouTube's scheduled-publication `status.publishAt` set to the table's UTC timestamp. The job must verify the scheduled publication metadata after upload. A failed or late render must be reported as delayed/failed rather than silently published at an unrelated time. GitHub cron dispatches and queue workers should run early enough to meet these publishAt deadlines.
 
 ## Proposed architecture
 
@@ -111,14 +114,14 @@ A job that fails validation must never reach the upload stage.
 
 ### 5. Channel-safe YouTube publishing
 
-Reuse the existing channel-specific refresh tokens already configured in GitHub Actions rather than creating new authorizations by default. Inspection of the local AI-GEMS workflow and its `whop-clipper/config.toml` shows these existing channel labels and secret names:
+Reuse the existing channel-specific refresh tokens already configured in GitHub Actions rather than creating new authorizations by default. The owner has confirmed that the channels are under separate Google accounts: Astrotobby uses `goodlucktobby@gmail.com`; Digital Nomad uses `chanzera3@gmail.com`. Do not authorize both channels using the same browser-selected account by assumption. Inspection of the local AI-GEMS workflow and its `whop-clipper/config.toml` shows these existing channel labels and secret names:
 
-- **Astrotobbyc destination:** configured in AI-GEMS as `Astro Tobby`; refresh-token secret `YOUTUBE_REFRESH_TOKEN_ASTRO_TOBBY`.
-- **Digital Nomad destination:** configured in AI-GEMS as `DIJITOL NOMAD`; refresh-token secret `YOUTUBE_REFRESH_TOKEN_DIJITOL_NOMAD`.
+- **Astrotobby destination:** configured in AI-GEMS as `Astro Tobby`, owned by `goodlucktobby@gmail.com`; refresh-token secret `YOUTUBE_REFRESH_TOKEN_ASTRO_TOBBY`.
+- **Digital Nomad destination:** configured in AI-GEMS as `DIJITOL NOMAD`, owned by `chanzera3@gmail.com`; refresh-token secret `YOUTUBE_REFRESH_TOKEN_DIJITOL_NOMAD`.
 - Legacy Digital Nomad alias: `REFRESHTOKEN_DIJITOLNOMAD`.
 - Shared OAuth client candidates already used by AI-GEMS: `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET`, `CLIENT_ID` / `CLIENT_SECRET`, and the legacy `YOUTUBECLIENT_ID` / `YOUTUBECLIENT_SECTRET` pair.
 
-The `astro-blog` workflow previously exposed only the generic `YOUTUBE_REFRESH_TOKEN`. Its updated environment mapping should expose both channel-specific secrets under canonical environment names and accept an Actions Variable fallback for installations where a value was stored under Variables. The shared OAuth client candidates must be passed without printing their values. The new publisher must never use the generic legacy token as a fallback for an explicitly selected channel.
+The `astro-blog` workflow previously exposed only the generic `YOUTUBE_REFRESH_TOKEN`. Its updated environment mapping exposes both channel-specific secrets under canonical environment names and accepts an Actions Variable fallback for installations where a value was stored under Variables. The two accounts must never share or substitute refresh tokens. The shared OAuth client candidates must be passed without printing their values. The new publisher must never use the generic legacy token as a fallback for an explicitly selected channel.
 
 Also configure expected channel IDs as non-secret settings or repository variables where available:
 
@@ -127,7 +130,7 @@ Also configure expected channel IDs as non-secret settings or repository variabl
 
 For each channel token, refresh it using its matching OAuth client, call `channels.list(mine=true)`, and verify both the configured channel ID (when supplied) and the expected channel title (`DIJITOL NOMAD` or `Astro Tobby`) before any upload. If the token identifies the wrong channel, stop the job. Never fall back to the other token.
 
-A single Google login can manage multiple YouTube channels, but each channel still needs its own correctly authorized refresh token. Existing tokens should be reused if they refresh successfully and resolve to the intended channel; only a missing, revoked, expired, or mismatched authorization should require reauthentication. Keep token values only in GitHub Actions Secrets; never put them in YAML, code, logs, artifacts, or this repository. Do not ask the user to paste refresh tokens into chat.
+These two destinations belong to separate Google login accounts. Existing tokens should be reused if they refresh successfully and resolve to the intended channel; only a missing, revoked, expired, or mismatched authorization should require reauthentication. Channel ID/title verification confirms the YouTube destination. The OAuth account-to-channel ownership mapping is additionally recorded from the owner's confirmation above; do not claim the email itself was verified unless the OAuth grant includes the appropriate Google identity scope. Keep token values only in GitHub Actions Secrets; never put them in YAML, code, logs, artifacts, or this repository. Do not ask the user to paste refresh tokens into chat.
 
 ### 6. Durable state and idempotency
 
@@ -170,8 +173,9 @@ The existing blog-triggered workflow must be reconciled with the new scheduler s
 
 ## Acceptance criteria
 
-- Four independent scheduled jobs are created per day.
-- Exactly two jobs target each configured channel.
+- Four independent publication jobs are created per day at 10:00 AM, 12:00 PM, 3:00 PM, and 6:00 PM Kenya time.
+- Exactly two jobs target Astrotobby (`goodlucktobby@gmail.com`) and two target Digital Nomad (`chanzera3@gmail.com`).
+- Each upload is uploaded ahead of time and carries the correct UTC `publishAt` value for its Kenya publication slot.
 - No job can upload unless its OAuth token resolves to the expected channel ID.
 - Every uploaded main video is at least 10:00 and passes media validation.
 - No topic/job is uploaded twice after retry, timeout, or overlapping workflow runs.
