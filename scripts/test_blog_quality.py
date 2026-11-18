@@ -6,7 +6,8 @@ from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from blog_quality import (BlogPostValidationError, content_fingerprint,
-                           should_retry_rejected_post, validate_blog_post)
+                           should_process_in_sweep, should_retry_rejected_post,
+                           validate_blog_post)
 
 
 def article(words=760):
@@ -67,6 +68,22 @@ class BlogQualityTests(unittest.TestCase):
             self.assertFalse(should_retry_rejected_post(path, entry))
             path.write_text(article(760), encoding="utf-8")
             self.assertTrue(should_retry_rejected_post(path, entry))
+
+    def test_sweep_skips_posts_already_processed(self):
+        with TemporaryDirectory() as tmp:
+            path = self.write(tmp, "new-ai-agent-workflows.md", article())
+            self.assertTrue(should_process_in_sweep(path, None))
+            processed_entry = {"hash": "already-published", "results": {"youtube": "ok"}}
+            self.assertFalse(should_process_in_sweep(path, processed_entry))
+
+    def test_sweep_only_retries_rejected_post_after_edit(self):
+        with TemporaryDirectory() as tmp:
+            path = self.write(tmp, "new-ai-agent-workflows.md", article(120))
+            rejected_entry = {"quality_rejected_sha": content_fingerprint(path),
+                              "quality_errors": ["article too short"]}
+            self.assertFalse(should_process_in_sweep(path, rejected_entry))
+            path.write_text(article(760), encoding="utf-8")
+            self.assertTrue(should_process_in_sweep(path, rejected_entry))
 
     def test_rejects_missing_why_it_matters(self):
         content = article().replace("## Why it matters", "## Conclusion")
