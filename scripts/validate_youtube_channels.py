@@ -19,6 +19,7 @@ def validate_channel(channel_key):
         return {
             "ok": False,
             "channel": profile["expected_title"],
+            "owner_account": profile["owner_account"],
             "error": f"missing environment credential {profile['token_env']}",
         }
 
@@ -28,6 +29,7 @@ def validate_channel(channel_key):
         "ok": True,
         "channel": identity["title"],
         "channel_id": identity["id"],
+        "owner_account_mapping": profile["owner_account"],
         "oauth_client_pair": client_label,
     }
 
@@ -41,7 +43,9 @@ def main():
                 log(
                     f"VERIFIED {channel_key}: {result['channel']} "
                     f"({result['channel_id'] or 'channel ID unavailable'}); "
-                    f"OAuth pair={result['oauth_client_pair']}"
+                    f"configured owner account={result['owner_account_mapping']}; "
+                    f"OAuth pair={result['oauth_client_pair']}" 
+
                 )
             else:
                 failures += 1
