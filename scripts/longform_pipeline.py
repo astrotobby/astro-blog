@@ -253,17 +253,18 @@ def discover(channel,used_titles):
     profile=CHANNELS[channel]
     candidates={}
     source_rows=publisher_feeds(channel)
+    if channel=="astrotobby":
+        source_rows.extend(valuetainment_uploads_feed())
     for query in profile["queries"]:
-        try:
-            source_rows.extend(feed(query))
-        except Exception as exc:
-            log(f"News query unavailable: {str(exc)[:130]}")
+        source_rows.extend(feed(query))
+
     for row in source_rows:
         key=hashlib.sha256(row["url"].encode()).hexdigest()
         publisher=(row.get("publisher","")+" "+row.get("publisher_url","")+" "+row.get("url","")).lower()
         row["score"]=(12 if any(x in publisher for x in TRUSTED) else 0)+max(0,20-int(_age(row)/6))
         if key not in candidates or row["score"]>candidates[key]["score"]:
             candidates[key]=row
+
     ranked=sorted(candidates.values(),key=lambda x:(x["score"],-_age(x)),reverse=True)
     eligible=[row for row in ranked
               if _age(row)<=profile["fresh"]
@@ -271,30 +272,22 @@ def discover(channel,used_titles):
     if not eligible:
         raise RuntimeError(f"No fresh and unused {channel} story found")
 
-    # Try several current stories; Google/Bing feeds alone may yield thin snippets.
+    # Group reports already gathered by RSS providers. Avoid repeated query bursts.
     diagnostics=[]
     for lead in eligible[:12]:
-        base_title=re.split(r"\s+[—|–-]\s+",lead["title"],maxsplit=1)[0].strip()
-        related={}
-        for query in (f'"{base_title[:150]}" when:30d',f'{base_title[:150]} when:30d'):
-            for row in feed(query):
-                related[hashlib.sha256(row["url"].encode()).hexdigest()]=row
-        pool=[lead]
-        for row in list(related.values())+ranked:
+        related=[]
+        for row in ranked:
             if row["url"]==lead["url"] or _age(row)>30*24:
                 continue
-            if similarity(row["title"],base_title)>=.18 or similarity(row["title"],lead["title"])>=.18:
-                pool.append(row)
-            if len(pool)>=45:
-                break
+            if similarity(row["title"],lead["title"])>=.16:
+                related.append(row)
 
+        pool=[lead]+related
         selected=[]
         seen=set()
         for row in pool:
             publisher=(row.get("publisher") or "").strip().lower()
             host=urllib.parse.urlparse(row.get("publisher_url") or row["url"]).netloc.lower()
-            # Bing/Google are aggregators, not the underlying publisher. Keep
-            # distinct result links until redirects reveal the actual publisher.
             if host.endswith("bing.com") or host.endswith("news.google.com"):
                 identity=row["url"]
             else:
@@ -311,7 +304,6 @@ def discover(channel,used_titles):
         for source in sources:
             final_host=urllib.parse.urlparse(source.get("url") or "").netloc.lower()
             publisher=(source.get("publisher") or "").strip().lower()
-            # Prefer publisher label when supplied; otherwise resolved destination host.
             identity=publisher or final_host or source.get("url")
             independent.setdefault(identity,source)
         sources=list(independent.values())
@@ -323,7 +315,7 @@ def discover(channel,used_titles):
             return lead,sources
 
     raise RuntimeError(
-        "Could not find a fresh topic with two independent reports and 700 source-evidence characters. "
+        "Could not find a fresh story with two independent reports and 700 source-evidence characters. "
         "Last checks: "+"; ".join(diagnostics[-5:])
     )
 
