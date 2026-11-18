@@ -126,6 +126,26 @@ TOPIC_VISUAL_PROFILES = {
                  "colorbalance=rs=-0.04:bs=0.05:rh=0.05:bh=-0.06,"
                  "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0",
     },
+    "entertainment": {
+        "signals": [
+            "entertainment", "music industry", "record label", "recording studio",
+            "music", "artist", "album", "song", "concert", "tour", "singer",
+            "producer", "billboard", "latin music", "film", "movie", "actor",
+            "television", "streaming", "box office", "cinema", "soundtrack",
+            "celebrity", "festival", "music executive",
+        ],
+        "visual_language": [
+            "music producer at a professional recording console, cinematic studio light",
+            "artist recording vocals into a studio microphone, documentary photography",
+            "live concert crowd and stage lighting, energetic wide shot",
+            "music executive meeting inside a modern record label office",
+            "film production camera on a professional set, behind-the-scenes editorial",
+            "television studio with cameras, presenters and stage lighting",
+        ],
+        "grade": "eq=contrast=1.09:saturation=1.08:brightness=0.01:gamma=0.99,"
+                 "colorbalance=rs=0.03:bs=-0.03:rh=0.04:bh=-0.04,"
+                 "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0",
+    },
     "general_ai": {
         "signals": ["ai", "artificial intelligence", "machine learning", "agent",
                     "chatbot", "openai", "anthropic", "deepmind", "algorithm"],
@@ -185,6 +205,27 @@ FOOTAGE_BROLL_PROFILES = {
             (("llm", "gpt", "claude", "gemini", "openai", "anthropic", "model", "prompt"), "software developer using computer"),
             (("training", "inference", "parameter", "benchmark", "compute"), "data center servers"),
             (("chip", "gpu", "hardware", "semiconductor"), "computer microchip close up"),
+        ),
+    },
+    "entertainment": {
+        "fallbacks": (
+            "music recording studio mixing console",
+            "live concert crowd on stage",
+            "record label executive office meeting",
+        ),
+        "matches": (
+            (("record label", "music industry", "universal music", "warner music",
+              "sony music", "music executive"), "record label executive office"),
+            (("singer", "vocalist", "artist", "album", "song", "recording"),
+             "singer recording vocals in music studio"),
+            (("concert", "tour", "festival", "performance", "stage"),
+             "live concert crowd and stage"),
+            (("latin music", "reggaeton", "salsa", "bachata", "latin america", "iberia"),
+             "latin music concert performance"),
+            (("film", "movie", "actor", "director", "cinema", "box office"),
+             "film production set with camera crew"),
+            (("television", "tv series", "streaming", "soundtrack"),
+             "television production studio"),
         ),
     },
     "general_ai": {
