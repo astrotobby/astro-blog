@@ -611,23 +611,23 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, used_creator
 
 
 def _openverse_core_query(query):
-    """Strip renderer-only shot directions so Openverse searches for the subject."""
+    """Strip renderer-only camera directions so search focuses on the subject."""
     raw = " ".join((query or "").split()).split(",", 1)[0].strip()[:200]
     if not raw:
         return ""
-    clean = re.sub(
-        r"\\b(?:wide|tall|medium|close[- ]?up|macro|dramatic|establishing|shot|visible|environment|"
-        r"over[- ]the[- ]shoulder|action|hands|interacting|technology|crisp|screen|readable|interface|"
-        r"detail|dynamic|angle|motion|blur|high[- ]energy|clean|premium|desk|deliberate|hand|movement|"
-        r"human|collaboration|fast|confident)\\b",
-        " ",
-        raw,
-        flags=re.IGNORECASE,
-    )
-    clean = " ".join(clean.split()).strip(" ,;:-")
-    tokens = clean.split()
-    if len(tokens) > 7:
-        clean = " ".join(tokens[:7])
+    generic_terms = {
+        "wide", "tall", "medium", "close-up", "closeup", "macro", "dramatic",
+        "establishing", "shot", "visible", "environment", "over-the-shoulder",
+        "action", "hands", "interacting", "crisp", "screen", "readable",
+        "interface", "detail", "dynamic", "angle", "motion", "blur",
+        "high-energy", "clean", "premium", "desk", "deliberate", "hand",
+        "movement", "fast", "confident",
+    }
+    tokens = [
+        token for token in raw.split()
+        if token.lower().strip(" .;:!?") not in generic_terms
+    ]
+    clean = " ".join(tokens[:7]).strip(" ,;:-")
     return clean or raw
 
 
