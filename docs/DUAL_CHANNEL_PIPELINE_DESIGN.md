@@ -114,14 +114,18 @@ A job that fails validation must never reach the upload stage.
 
 ### 5. Channel-safe YouTube publishing
 
-Reuse the existing channel-specific refresh tokens already configured in GitHub Actions rather than creating new authorizations by default. The owner has confirmed that the channels are under separate Google accounts: Astrotobby uses `goodlucktobby@gmail.com`; Digital Nomad uses `chanzera3@gmail.com`. Do not authorize both channels using the same browser-selected account by assumption. Inspection of the local AI-GEMS workflow and its `whop-clipper/config.toml` shows these existing channel labels and secret names:
+Reuse the existing channel-specific refresh tokens already configured in **AI-GEMS** rather than creating new authorizations by default. The owner has confirmed that the channels are under separate Google accounts: Astrotobby uses `goodlucktobby@gmail.com`; Digital Nomad uses `chanzera3@gmail.com`. Do not authorize both channels using the same browser-selected account by assumption.
 
-- **Astrotobby destination:** configured in AI-GEMS as `Astro Tobby`, owned by `goodlucktobby@gmail.com`; refresh-token secret `YOUTUBE_REFRESH_TOKEN_ASTRO_TOBBY`.
-- **Digital Nomad destination:** configured in AI-GEMS as `DIJITOL NOMAD`, owned by `chanzera3@gmail.com`; refresh-token secret `YOUTUBE_REFRESH_TOKEN_DIJITOL_NOMAD`.
-- Legacy Digital Nomad alias: `REFRESHTOKEN_DIJITOLNOMAD`.
-- Shared OAuth client candidates already used by AI-GEMS: `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET`, `CLIENT_ID` / `CLIENT_SECRET`, and the legacy `YOUTUBECLIENT_ID` / `YOUTUBECLIENT_SECTRET` pair.
+The actual GitHub secret inventory was checked with the authenticated GitHub CLI:
 
-The `astro-blog` workflow previously exposed only the generic `YOUTUBE_REFRESH_TOKEN`. Its updated environment mapping exposes both channel-specific secrets under canonical environment names and accepts an Actions Variable fallback for installations where a value was stored under Variables. The two accounts must never share or substitute refresh tokens. The shared OAuth client candidates must be passed without printing their values. The new publisher must never use the generic legacy token as a fallback for an explicitly selected channel.
+- **Astrotobby destination:** AI-GEMS secret `YOUTUBE_REFRESH_TOKEN_ASTRO_TOBBY`; channel title in the existing target configuration is `Astro Tobby`; owner account supplied by the user is `goodlucktobby@gmail.com`.
+- **Digital Nomad destination:** AI-GEMS secret `YOUTUBE_REFRESH_TOKEN_DIJITOL_NOMAD`; channel title in the existing target configuration is `DIJITOL NOMAD`; owner account supplied by the user is `chanzera3@gmail.com`.
+- Shared OAuth credentials present in AI-GEMS include `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET`, `CLIENT_ID` / `CLIENT_SECRET`, and legacy `YOUTUBECLIENT_ID` / `YOUTUBECLIENT_SECTRET`.
+- The `astro-blog` repository does **not** contain the two channel-specific refresh-token secrets; it has only its legacy generic YouTube token and client credentials. GitHub secrets are repository-scoped.
+
+Therefore, the long-form workflow and read-only credential validation must run from AI-GEMS, where both channel refresh tokens already live, and check out `astrotobby/astro-blog` as the production-code repository. This avoids copying secrets between repositories. The first AI-GEMS change is a manual-only validator workflow, `.github/workflows/validate-youtube-channels.yml`, which uses the channel-specific secrets and the validation script from astro-blog. Do not use GitHub Actions Variables for token values.
+
+The two accounts must never share or substitute refresh tokens. The shared OAuth client candidates must be passed without printing their values. The new publisher must never use the generic legacy token as a fallback for an explicitly selected channel.
 
 Also configure expected channel IDs as non-secret settings or repository variables where available:
 
@@ -158,7 +162,7 @@ Proposed workflows/scripts:
 
 Run one video per job initially, not all four sequentially in one 120-minute run. Benchmark actual render time and runner memory before choosing parallelism. If a render regularly approaches the runner time limit, split research, narration, rendering, and upload into resumable jobs or move rendering to a suitable authorized runner. The owner's HP ProBook should not be the production render dependency.
 
-The existing blog-triggered workflow must be reconciled with the new scheduler so the same article/topic cannot be uploaded by both systems. During rollout, keep new long-form uploads private or unlisted until channel routing and media quality are verified.
+The existing blog-triggered workflow remains on its legacy single-channel credential and must not be repurposed for the two long-form channels. The long-form scheduler runs in AI-GEMS and checks out the astro-blog code at a pinned ref. Reconcile topic identities across the legacy blog workflow and new scheduler so the same article/topic cannot be uploaded by both systems. During rollout, keep new long-form uploads private or unlisted until channel routing and media quality are verified.
 
 ## Rollout plan
 
