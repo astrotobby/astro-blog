@@ -77,6 +77,24 @@ class TopicTests(unittest.TestCase):
         self.assertNotIn("ignore this text", " ".join(parser.parts))
         self.assertEqual(parser.description, "Summary")
 
+    def test_enrichment_keeps_rss_summary_when_page_extract_is_short(self):
+        response = SimpleNamespace(
+            url="https://publisher.example/story",
+            ok=True,
+            headers={"content-type": "text/html"},
+            text="<html><body><p>This is a short but valid extracted article paragraph with sufficient detail.</p></body></html>",
+        )
+        rss_summary = "The publisher's RSS feed provides the longer original story summary that remains useful evidence."
+        with patch.object(pipeline.requests, "get", return_value=response):
+            result = pipeline.enrich({
+                "title": "Example story",
+                "url": "https://news.example/story",
+                "summary": rss_summary,
+                "publisher": "Example Publisher",
+            })
+        self.assertIn("short but valid extracted article paragraph", result["article_text"])
+        self.assertIn(rss_summary, result["article_text"])
+
 
 class LedgerMergeTests(unittest.TestCase):
     def test_concurrent_workers_keep_both_independent_jobs(self):
