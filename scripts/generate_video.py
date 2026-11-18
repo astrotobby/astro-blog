@@ -156,9 +156,59 @@ def _gtts_fallback(text, out_path):
     gTTS(text).save(str(out_path))
 
 
+def _voicestudio_speech_url(base_url):
+    """Resolve the speech route whether the configured base URL includes /v1 or not."""
+    base = (base_url or "http://127.0.0.1:3900").rstrip("/")
+    return f"{base}/audio/speech" if base.endswith("/v1") else f"{base}/v1/audio/speech"
+
+
+def _voicestudio_voice(narration, voice_cfg, tag=""):
+    """Use a running local VoiceStudio OpenAI-compatible TTS API when explicitly enabled.
+
+    The API is loopback-only by default. Remote endpoints must be explicitly configured;
+    do not expose the local service to the public internet.
+    """
+    settings = voice_cfg.get("voicestudio", {})
+    if not settings.get("enabled"):
+        return None
+    base_url = (env("VOICESTUDIO_BASE_URL") or settings.get("base_url")
+                or "http://127.0.0.1:3900").rstrip("/")
+    headers = {}
+    api_key = env("VOICESTUDIO_API_KEY")
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    payload = {
+        "model": env("VOICESTUDIO_MODEL") or settings.get("model", "tts-1"),
+        "voice": env("VOICESTUDIO_VOICE") or settings.get("voice", "default"),
+        "input": narration,
+        "response_format": "wav",
+    }
+    output = OUT / f"voiceover{tag}_voicestudio.wav"
+    output.unlink(missing_ok=True)
+    try:
+        response = requests.post(_voicestudio_speech_url(base_url), json=payload,
+                                 headers=headers, timeout=(3, 180))
+        response.raise_for_status()
+        if not response.content:
+            raise RuntimeError("VoiceStudio returned an empty audio response")
+        output.write_bytes(response.content)
+        duration = ffprobe_duration(output)
+        if duration <= 0.25:
+            raise RuntimeError("VoiceStudio output is not a valid audio file")
+        log(f"VoiceStudio local voiceover {duration:.1f}s -> {output.name}")
+        return output, duration
+    except Exception as exc:
+        output.unlink(missing_ok=True)
+        log(f"VoiceStudio unavailable ({str(exc)[:180]}); continuing to configured TTS fallback")
+        return None
+
+
 def make_voice(narration, cfg, tag=""):
     """Return (audio_path, duration, word_timings_or_None, provider)."""
     voice_cfg = cfg["voice"]
+    local_voice = _voicestudio_voice(narration, voice_cfg, tag)
+    if local_voice:
+        return local_voice[0], local_voice[1], None, "voicestudio"
     if voice_cfg.get("provider", "elevenlabs") == "elevenlabs":
         eleven_out = OUT / f"voiceover{tag}_11labs.mp3"
         eleven_out.unlink(missing_ok=True)

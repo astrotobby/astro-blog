@@ -1,6 +1,6 @@
 """Generate a moving base clip for each AI-influencer look (one-time, free).
 
-LTX-2 (free Hugging Face Space) animates the look's still into ~10 s of him talking:
+LTX-2 (free Hugging Face Space) animates the look's still into up to six seconds of him talking:
 head nods, expressions, hand gestures. The clip is saved at the look's `clip` path in
 assets/influencer/looks.yaml. When the per-segment LTX quota runs out during a render,
 Wav2Lip re-syncs the mouth on this MOVING clip instead of a frozen still, so the
@@ -16,14 +16,13 @@ import sys
 import yaml
 
 from common import OUT, ROOT, log
-from influencer import LTX_NEGATIVE, LTX_PROMPT, LTX_SPACE
+from influencer import LTX_SPACE, _ltx_aspect_ratio, _ltx_predict_inputs
 
 # Any natural, upbeat speech works: Wav2Lip replaces the mouth movement per video.
-LINE = ("Okay, so here is what nobody is telling you about this. It is honestly one of the "
-        "biggest shifts I have seen this year, and if you get it early, you win. Let me "
-        "break it down for you.")
+LINE = ("Here is what most people miss. This shift is bigger than it looks. "
+        "Let me show you why.")
 VOICE = "en-US-AndrewMultilingualNeural"
-SECONDS = 10.0
+SECONDS = 6.0  # current free LTX Space accepts at most six seconds
 
 
 def _speech(path):
@@ -54,9 +53,10 @@ def main():
     client = Client(LTX_SPACE, token=os.environ.get("HF_TOKEN") or None)
     for lk in todo:
         try:
-            video, _seed = client.predict(handle_file(str(ROOT / lk["image"])), handle_file(str(audio)),
-                                          LTX_PROMPT, LTX_NEGATIVE, SECONDS, -1,
-                                          api_name="/generate")
+            video, _seed = client.predict(
+                *_ltx_predict_inputs(handle_file(str(ROOT / lk["image"])), handle_file(str(audio)),
+                                     _ltx_aspect_ratio("vertical"), SECONDS),
+                api_name="/generate")
         except Exception as e:  # noqa  quota: the rest are generated on a later run
             log(f"motion {lk['id']}: generation failed ({str(e)[:200]})")
             if "quota" in str(e).lower() or "limit" in str(e).lower():
