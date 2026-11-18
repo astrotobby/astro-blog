@@ -181,6 +181,7 @@ def post_youtube(render, cfg, dry):
         env("YOUTUBE_CLIENT_ID") and (env("YOUTUBE_CLIENT_SECRET") or env("YOUTUBE_SECRET_KEY")),
         env("CLIENT_ID") and env("CLIENT_SECRET"),
         env("YOUTUBECLIENT_ID") and (env("YOUTUBECLIENT_SECTRET") or env("YOUTUBECLIENT_SECRET")),
+        env("YT_CLIENT_ID") and env("YT_CLIENT_SECRET"),
     ))
     if not client_pairs_present:
         return {"youtube": {"ok": False, "skipped": "no complete YouTube OAuth client ID/secret pair"}}
