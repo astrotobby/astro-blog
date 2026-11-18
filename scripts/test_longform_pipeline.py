@@ -101,7 +101,7 @@ class LLMAuthenticationTests(unittest.TestCase):
                             output = pipeline._generate_text("prompt", "system", "unused-model")
         self.assertEqual(output, '{"title":"OpenCode output"}')
         command = run.call_args.args[0]
-        self.assertEqual(command[0:4], ["/usr/bin/opencode", "run", "--model", "opencode/big-pickle"])
+        self.assertEqual(command[0:5], ["/usr/bin/opencode", "run", "--standalone", "--model", "opencode/big-pickle"])
         self.assertEqual(run.call_args.kwargs["env"]["OPENCODE_API_KEY"], "test-opencode-key")
 
     def test_gemini_outage_falls_back_to_anthropic_api(self):
