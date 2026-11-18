@@ -1,0 +1,71 @@
+name: Long-form pipeline tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/longform_pipeline.py"
+      - "scripts/test_longform_pipeline.py"
+      - "scripts/test_youtube_channel_routing.py"
+      - "scripts/test_pipeline_improvements.py"
+      - "scripts/test_blog_quality.py"
+      - "config/channel_profiles.yaml"
+      - "requirements-longform.txt"
+      - ".github/workflows/longform-tests.yml"
+  pull_request:
+    paths:
+      - "scripts/longform_pipeline.py"
+      - "scripts/test_longform_pipeline.py"
+      - "scripts/test_youtube_channel_routing.py"
+      - "scripts/test_pipeline_improvements.py"
+      - "scripts/test_blog_quality.py"
+      - "config/channel_profiles.yaml"
+      - "requirements-longform.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-longform.txt
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 install -y -qq ffmpeg
+
+      - name: Install test/runtime dependencies
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements-longform.txt
+          python -m pip install --disable-pip-version-check "markdown-it-py==3.0.0" "python-frontmatter==1.1.0"
+
+      - name: Compile changed Python modules
+        run: |
+          python -m py_compile \
+            scripts/longform_pipeline.py \
+            scripts/test_longform_pipeline.py \
+            scripts/test_youtube_channel_routing.py
+
+      - name: Long-form source, scheduler and media tests
+        run: python scripts/test_longform_pipeline.py
+
+      - name: YouTube channel routing tests
+        run: python scripts/test_youtube_channel_routing.py
+
+      - name: Existing pipeline regression tests
+        run: python scripts/test_pipeline_improvements.py
+
+      - name: Blog quality regression tests
+        run: python scripts/test_blog_quality.py
