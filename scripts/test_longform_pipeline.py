@@ -12,6 +12,32 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import longform_pipeline as pipeline
 
 
+class LLMAuthenticationTests(unittest.TestCase):
+    def test_claude_code_oauth_uses_subscription_cli_without_api_key(self):
+        values = {
+            "CLAUDE_CODE_OAUTH_TOKEN": "test-oauth-token",
+            "ANTHROPIC_API_KEY": "test-api-key-with-no-credit",
+        }
+        with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
+            with patch.object(pipeline.shutil, "which", return_value="/usr/bin/claude"):
+                with patch.object(pipeline.subprocess, "run", return_value=SimpleNamespace(
+                    returncode=0, stdout='{"title":"test"}', stderr=""
+                )) as run:
+                    output = pipeline._generate_text("prompt", "system prompt", "claude-sonnet-5")
+        self.assertEqual(output, '{"title":"test"}')
+        command = run.call_args.args[0]
+        self.assertIn("--append-system-prompt", command)
+        child_env = run.call_args.kwargs["env"]
+        self.assertNotIn("ANTHROPIC_API_KEY", child_env)
+        self.assertEqual(child_env["CLAUDE_CODE_OAUTH_TOKEN"], "test-oauth-token")
+
+    def test_configured_oauth_without_cli_fails_clearly(self):
+        with patch.object(pipeline, "env", side_effect=lambda name, default=None: "test-token" if name == "CLAUDE_CODE_OAUTH_TOKEN" else default):
+            with patch.object(pipeline.shutil, "which", return_value=None):
+                with self.assertRaisesRegex(RuntimeError, "CLI is not installed"):
+                    pipeline._generate_text("prompt", "system", "claude-sonnet-5")
+
+
 class ScheduleTests(unittest.TestCase):
     def test_four_publication_times_are_converted_from_kenya_to_utc(self):
         fixed_now = datetime(2026, 11, 18, 8, 0, tzinfo=pipeline.EAT)
