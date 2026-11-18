@@ -161,7 +161,7 @@ def feed(query):
     )
     for label,url in providers:
         try:
-            response=requests.get(url,headers={"User-Agent":UA},timeout=22)
+            response=requests.get(url,headers={"User-Agent":UA},timeout=12)
             response.raise_for_status()
             for row in parse_rss(response.text,query):
                 key=hashlib.sha256(row["url"].encode()).hexdigest()
@@ -178,7 +178,7 @@ def youtube_reference_metadata(url):
             "https://www.youtube.com/oembed",
             params={"url": url, "format": "json"},
             headers={"User-Agent": UA},
-            timeout=12,
+            timeout=8,
         )
         response.raise_for_status()
         data=response.json()
@@ -202,7 +202,7 @@ def valuetainment_uploads_feed():
         page=requests.get(
             "https://www.youtube.com/@VALUETAINMENT/videos",
             headers={"User-Agent": UA},
-            timeout=18,
+            timeout=10,
         )
         page.raise_for_status()
         match=re.search(
@@ -214,7 +214,7 @@ def valuetainment_uploads_feed():
             return []
         channel_id=match.group(1)
         feed_url="https://www.youtube.com/feeds/videos.xml?channel_id="+channel_id
-        response=requests.get(feed_url,headers={"User-Agent":UA},timeout=18)
+        response=requests.get(feed_url,headers={"User-Agent":UA},timeout=10)
         response.raise_for_status()
         rows=parse_rss(response.text,"Valuetainment YouTube uploads","Valuetainment")
         log(f"Loaded {len(rows)} recent Valuetainment uploads from channel {channel_id}")
@@ -245,7 +245,7 @@ def enrich(item):
     row=dict(item)
     summary=(row.get("summary") or "").strip()
     try:
-        r=requests.get(row["url"],headers={"User-Agent":UA},timeout=25,allow_redirects=True)
+        r=requests.get(row["url"],headers={"User-Agent":UA},timeout=15,allow_redirects=True)
         row["url"]=r.url
         if r.ok and "html" in r.headers.get("content-type","").lower():
             p=ArticleText(); p.feed(r.text[:2_000_000])
@@ -289,7 +289,7 @@ def discover(channel,used_titles):
 
     # Group reports already gathered by RSS providers. Avoid repeated query bursts.
     diagnostics=[]
-    for lead in eligible[:12]:
+    for lead in eligible[:8]:
         related=[]
         for row in ranked:
             if row["url"]==lead["url"] or _age(row)>30*24:
@@ -311,7 +311,7 @@ def discover(channel,used_titles):
                 continue
             seen.add(identity)
             selected.append(row)
-            if len(selected)>=7:
+            if len(selected)>=4:
                 break
 
         sources=[enrich(row) for row in selected]
