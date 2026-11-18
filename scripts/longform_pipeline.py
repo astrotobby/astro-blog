@@ -521,7 +521,7 @@ def _generate_text(prompt,system,model):
                             routed_via=free_response.headers.get("X-Routed-Via") or free_payload.get("_routed_via")
                             if isinstance(routed_via,dict):
                                 routed_via=str(routed_via.get("platform","unknown"))+"/"+str(routed_via.get("model","unknown"))
-                            log(f"FreeLLMAPI completed generation via {routed_via or "router fallback"}")
+                            log(f"FreeLLMAPI completed generation via {routed_via or 'router fallback'}")
                             return output
                         except Exception as free_error:
                             log(f"FreeLLMAPI fallback unavailable: {type(free_error).__name__}: {str(free_error)[:300]}")
