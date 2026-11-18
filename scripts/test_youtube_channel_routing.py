@@ -34,12 +34,13 @@ class _YouTube:
 
 class YouTubeChannelRoutingTests(unittest.TestCase):
     def test_digital_nomad_aliases_use_existing_dijitol_secret(self):
-        for value in ("digital_nomad", "Digital Nomad", "DIJITOL NOMAD", "dijitolnomad001"):
+        for value in ("digital_nomad", "Digital Nomad", "DIJITAL NOMAD", "DIJITOL NOMAD", "dijitolnomad001"):
             with self.subTest(value=value):
                 profile = platforms._youtube_channel_profile({"channel_key": value})
                 self.assertEqual(profile["key"], "digital_nomad")
                 self.assertEqual(profile["token_env"], "YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD")
                 self.assertEqual(profile["expected_title"], "DIJITOL NOMAD")
+                self.assertEqual(profile["owner_account"], "chanzera3@gmail.com")
 
     def test_astrotobbyc_aliases_use_existing_astro_tobby_secret(self):
         for value in ("astrotobbyc", "Astro Tobby", "Astro Tobbyc", "astrotobyc"):
@@ -48,6 +49,7 @@ class YouTubeChannelRoutingTests(unittest.TestCase):
                 self.assertEqual(profile["key"], "astrotobbyc")
                 self.assertEqual(profile["token_env"], "YOUTUBE_REFRESH_TOKEN_ASTROTOBBYC")
                 self.assertEqual(profile["expected_title"], "Astro Tobby")
+                self.assertEqual(profile["owner_account"], "goodlucktobby@gmail.com")
 
     def test_reads_channel_key_from_post_or_profile(self):
         self.assertEqual(
