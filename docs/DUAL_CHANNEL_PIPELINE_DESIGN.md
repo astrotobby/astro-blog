@@ -1,6 +1,6 @@
 # Dual-channel long-form video pipeline design
 
-**Status:** Design proposal; no production workflow, credentials, or publishing behavior changed by this document.
+**Status:** Implementation in progress. The channel-safe long-form worker, source discovery, media gate, scheduled YouTube upload logic, and AI-GEMS scheduler workflow are now implemented on the feature branch. Scheduled publishing remains gated until a successful end-to-end dry run; no videos have been uploaded by this pipeline yet.
 
 ## Objective
 
@@ -26,8 +26,9 @@ The existing pipeline already provides reusable components:
 - `.github/workflows/blog-to-video.yml` runs on blog-content pushes and a periodic sweep.
 - `config.yaml` currently sets `script.target_seconds: 75`, so it is not a long-form configuration.
 - The YouTube uploader now supports explicit channel-specific refresh tokens and verifies the selected channel before uploading. The legacy generic token remains available only for older posts without an explicit channel profile.
-- The long-form scheduler, topic discovery, ten-minute script mode, long-form renderer, and scheduled-publication workflow are still to be implemented.
-- The current workflow is post-driven; it does not independently discover four daily topics.
+- `scripts/longform_pipeline.py` now discovers fresh source-backed topics, writes 1,900–2,500-word narration packages, renders a dedicated horizontal master, validates media duration/streams, verifies the target channel ID/title, and uploads privately with YouTube `publishAt` scheduling.
+- The AI-GEMS workflow `.github/workflows/longform-youtube.yml` schedules four independent jobs and checks out this repository as its production-code dependency. It starts rendering ahead of each publication slot.
+- The existing blog workflow remains a separate short-form, post-driven path. It is not the long-form topic-discovery scheduler.
 
 The new pipeline should reuse stable code where practical, but should not change the existing short-form defaults globally. Long-form behavior should be an explicit profile/job mode.
 
@@ -75,12 +76,14 @@ For Astrotobby, prefer recent stories and enforce a configurable freshness windo
 
 The research stage must use sources as evidence, not copy their articles. Scripts should be original commentary and explanation, with source links retained in the video description and job metadata.
 
+Astrotobby's configured source pool now includes CNN and BBC reporting discovered through publisher-specific searches, The Guardian Culture RSS, the Valuetainment uploads feed, and the public uploads feeds of the two channels identified by the owner's supplied YouTube references (`CRqhR0tQnKM` and `18by3TXfH5k`). The two video references are resolved through YouTube oEmbed to their channel owners and then to public channel uploads RSS. These YouTube channels and Valuetainment are editorial/commentary leads only; they do not count toward the minimum of two independent factual reporting sources. No video transcript is downloaded or treated as source text.
+
 ### 3. Long-form script
 
 Create a long-form script mode separate from the current 75-second mode.
 
-- Initial target: 1,600–1,800 spoken words.
-- Minimum verified narration duration: 10:00.
+- Current target: 2,050 spoken words; accepted range 1,900–2,500 words.
+- Final media gate: actual rendered duration >= 600 seconds, with both video and audio streams and at least 720p. The current render profile targets 1920x1080, 16:9.
 - Structure: cold open, context, chapters/sections, concrete examples, counterpoints or caveats, recap, and channel-specific CTA.
 - Avoid padding, repeated paragraphs, unsupported claims, and fabricated quotations.
 - Keep source URLs and claim-to-source notes in the script JSON.
@@ -150,15 +153,13 @@ Use separate concurrency groups for channel workers plus a state-write lock. Pre
 
 ### 7. GitHub Actions layout
 
-Proposed workflows/scripts:
+Implemented workflow/scripts:
 
-- `.github/workflows/longform-scheduler.yml`: four UTC schedule triggers plus manual dispatch.
-- `scripts/topic_discovery.py`: channel-specific topic selection and source records.
-- `scripts/longform_script.py`: source-backed narration and duration gate.
-- `scripts/render_longform.py`: long-form media assembly.
-- `scripts/publish_longform.py`: channel-token validation, upload, and result reconciliation.
-- `scripts/longform_job.py`: one job's state machine and retry/resume logic.
-- `config/channel_profiles.yaml`: editorial profiles and schedule.
+- AI-GEMS `.github/workflows/longform-youtube.yml`: four UTC pre-render schedule triggers plus manual dispatch; cron execution is gated by the `LONGFORM_SCHEDULE_ENABLED` repository variable until the first successful end-to-end dry run.
+- `scripts/longform_pipeline.py`: topic discovery, source corroboration, long-form script generation, rendering, channel validation, scheduled upload, reconciliation, and durable state transitions in one resumable worker.
+- `scripts/build_script.py` and `scripts/generate_video.py`: reused for 16:9 scene planning, TTS, footage/still generation, captions, and FFmpeg assembly.
+- `config/channel_profiles.yaml`: owner accounts, channel IDs, editorial source pools, minimum duration, script word range, and publication slots.
+- AI-GEMS `whop-clipper/state/longform/ledger.json`: durable job ledger persisted to the AI-GEMS repository by the scheduler.
 
 Run one video per job initially, not all four sequentially in one 120-minute run. Benchmark actual render time and runner memory before choosing parallelism. If a render regularly approaches the runner time limit, split research, narration, rendering, and upload into resumable jobs or move rendering to a suitable authorized runner. The owner's HP ProBook should not be the production render dependency.
 
@@ -166,14 +167,14 @@ The existing blog-triggered workflow remains on its legacy single-channel creden
 
 ## Rollout plan
 
-1. **Inventory and configuration:** confirm both channel IDs and map each channel's editorial profile.
-2. **OAuth validation:** reuse the existing channel-specific tokens; verify each against its expected channel title and configured channel ID without uploading. Reauthorize only a token that is absent, revoked, expired, or mismatched.
-3. **Dry-run discovery:** generate and inspect a queue for each channel; verify topic separation and freshness.
-4. **Script validation:** produce 10-minute scripts and validate word count, source traceability, and duration estimates.
-5. **Render benchmark:** render one sample per channel; measure elapsed time, memory, artifact size, and actual media duration.
-6. **Private upload test:** upload one test video to each intended channel as private/unlisted and verify the returned channel/video IDs.
-7. **Controlled launch:** enable one scheduled slot per channel, monitor failures and quality, then ramp to all four daily slots.
-8. **Steady state:** publish only after validation, retain failure artifacts, and report all four job outcomes daily.
+1. **Inventory and configuration — complete:** channel titles, owner-account mapping, and channel IDs are configured.
+2. **Credential inventory — complete:** AI-GEMS has the required channel-specific refresh-token names and OAuth client aliases; values were not read or printed.
+3. **Source discovery — implemented:** CNN, BBC, Valuetainment, and both owner-supplied YouTube source channels are configured for Astrotobby; the AI/technology source pool remains separate for Digital Nomad.
+4. **Pipeline and media gate — implemented, tests passing:** source corroboration, 1,900–2,500-word narration, 16:9 rendering, and the 600-second audio/video media check are in place.
+5. **Scheduler — implemented but gated:** four pre-render cron slots are configured in AI-GEMS. Set `LONGFORM_SCHEDULE_ENABLED=true` only after the first successful dry run.
+6. **Next validation:** manually dispatch one dry run per channel, confirm actual render duration and channel identity, then run a scheduled-private upload test.
+7. **Controlled launch:** enable cron publishing and monitor each of the four independent jobs.
+8. **Steady state:** retain artifacts and job state; publish per-slot outcomes and video URLs.
 
 ## Acceptance criteria
 
