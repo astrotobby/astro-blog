@@ -445,7 +445,7 @@ Use multiple sources. Clearly distinguish facts from analysis. Do not invent inf
 No markdown headings, bullets, timecodes, stage directions or URLs in the spoken narration.
 """
     client=anthropic.Anthropic(api_key=key,timeout=240)
-    response=client.messages.create(model=model,max_tokens=8500,temperature=.55,system=system,messages=[{"role":"user","content":prompt}])
+    response=client.messages.create(model=model,max_tokens=8500,system=system,messages=[{"role":"user","content":prompt}])
     raw="".join(x.text for x in response.content if getattr(x,"type","")=="text").strip()
     fence=chr(96)*3
     if raw.startswith(fence): raw=raw.split("\n",1)[-1]
@@ -454,7 +454,7 @@ No markdown headings, bullets, timecodes, stage directions or URLs in the spoken
     narration=re.sub(r"\s+"," ",str(data.get("narration",""))).strip()
     words=len(re.findall(r"\b[\w'-]+\b",narration))
     if words<1750:
-        expanded=client.messages.create(model=model,max_tokens=8500,temperature=.4,system=system,
+        expanded=client.messages.create(model=model,max_tokens=8500,system=system,
           messages=[{"role":"user","content":"Expand this sourced narration to 2,000-2,200 words. Preserve facts, add evidence-based context, no invention. Return narration only.\n\n"+narration}])
         narration=re.sub(r"\s+"," "," ".join(x.text for x in expanded.content if getattr(x,"type","")=="text")).strip()
         words=len(re.findall(r"\b[\w'-]+\b",narration))
