@@ -3,8 +3,8 @@
 timezone: Africa/Nairobi
 minimum_duration_seconds: 600
 script:
-  target_words: 1700
-  acceptable_word_range: [1600, 1800]
+  target_words: 1900
+  acceptable_word_range: [1750, 2300]
   words_per_minute: 160
 render:
   aspect_ratio: "16:9"
