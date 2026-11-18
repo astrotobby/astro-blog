@@ -78,6 +78,34 @@ class TopicTests(unittest.TestCase):
         self.assertEqual(parser.description, "Summary")
 
 
+class LedgerMergeTests(unittest.TestCase):
+    def test_concurrent_workers_keep_both_independent_jobs(self):
+        remote = {
+            "schema": 1,
+            "jobs": {"astro10": {"status": "rendered", "updated_at": "2026-11-18T07:00:00+00:00"}},
+            "recent_topics": [{"job_id": "astro10", "title": "Film release"}],
+        }
+        local = {
+            "schema": 1,
+            "jobs": {"digital12": {"status": "scheduled", "updated_at": "2026-11-18T09:00:00+00:00"}},
+            "recent_topics": [{"job_id": "digital12", "title": "AI automation"}],
+        }
+        merged = pipeline._merge_ledgers(local, remote)
+        self.assertIn("astro10", merged["jobs"])
+        self.assertIn("digital12", merged["jobs"])
+        self.assertEqual({x["job_id"] for x in merged["recent_topics"]}, {"astro10", "digital12"})
+
+    def test_newer_job_state_wins_for_the_same_job(self):
+        remote = {"schema": 1, "jobs": {
+            "astro10": {"status": "rendering", "updated_at": "2026-11-18T07:00:00+00:00"}
+        }}
+        local = {"schema": 1, "jobs": {
+            "astro10": {"status": "scheduled", "updated_at": "2026-11-18T07:30:00+00:00"}
+        }}
+        merged = pipeline._merge_ledgers(local, remote)
+        self.assertEqual(merged["jobs"]["astro10"]["status"], "scheduled")
+
+
 class MediaGateTests(unittest.TestCase):
     def test_accepts_a_real_10_minute_1080p_video_with_audio(self):
         with tempfile.TemporaryDirectory() as temp:
