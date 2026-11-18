@@ -155,6 +155,46 @@ class TopicTests(unittest.TestCase):
         self.assertTrue(result["metadata_only"])
         self.assertEqual(result["article_text"], "")
 
+class SourceDiscoveryTests(unittest.TestCase):
+    def test_targeted_headline_search_finds_second_independent_report(self):
+        now = datetime.now(timezone.utc).isoformat()
+        lead = {
+            "title": "Famous actor announces major new film",
+            "url": "https://cnn.example/story",
+            "summary": "A" * 400,
+            "publisher": "CNN",
+            "published_at": now,
+        }
+        corroborating = {
+            "title": "Major new film announced by famous actor",
+            "url": "https://ap.example/story",
+            "summary": "B" * 400,
+            "publisher": "Associated Press",
+            "published_at": now,
+        }
+
+        def fake_feed(query):
+            if '"Famous actor announces major new film"' in query:
+                return [dict(corroborating)]
+            if "entertainment OR film" in query:
+                return [dict(lead)]
+            return []
+
+        def fake_enrich(row):
+            result = dict(row)
+            result["article_text"] = (row.get("summary") or "") + (" evidence" * 20)
+            return result
+
+        with patch.object(pipeline, "publisher_feeds", return_value=[]), \\
+             patch.object(pipeline, "valuetainment_uploads_feed", return_value=[]), \\
+             patch.object(pipeline, "feed", side_effect=fake_feed), \\
+             patch.object(pipeline, "enrich", side_effect=fake_enrich):
+            selected_lead, sources = pipeline.discover("astrotobby", [])
+
+        self.assertEqual(selected_lead["title"], lead["title"])
+        self.assertGreaterEqual(len(sources), 2)
+        self.assertEqual({source["publisher"] for source in sources}, {"CNN", "Associated Press"})
+
 
 class LedgerMergeTests(unittest.TestCase):
     def test_concurrent_workers_keep_both_independent_jobs(self):
