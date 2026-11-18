@@ -180,9 +180,10 @@ class EdgeTtsWordTimingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             output = Path(temp) / "voice.mp3"
             with patch.dict(sys.modules, {"edge_tts": fake_edge_tts}):
-                words = asyncio.run(pipeline.renderer._tts(
-                    "Hello there.", "en-US-AndrewNeural", "+0%", "+0Hz", output
-                ))
+                with patch.object(pipeline.renderer, "audio_duration", return_value=1.0):
+                    words = asyncio.run(pipeline.renderer._tts(
+                        "Hello there.", "en-US-AndrewNeural", "+0%", "+0Hz", output
+                    ))
             self.assertTrue(output.exists())
             self.assertGreater(output.stat().st_size, 1024)
 
