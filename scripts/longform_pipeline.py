@@ -480,7 +480,7 @@ def _generate_text(prompt,system,model):
                                 log(f"Gemini unavailable; trying OpenCode free model {opencode_model}")
                                 try:
                                     result=subprocess.run(
-                                        [executable,"run","--model",opencode_model,prompt],
+                                        [executable,"run","--standalone","--model",opencode_model,prompt],
                                         capture_output=True,text=True,timeout=600,env=child_env,
                                     )
                                     if result.returncode:
