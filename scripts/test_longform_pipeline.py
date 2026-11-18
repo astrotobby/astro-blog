@@ -95,6 +95,43 @@ class TopicTests(unittest.TestCase):
         self.assertIn("short but valid extracted article paragraph", result["article_text"])
         self.assertIn(rss_summary, result["article_text"])
 
+    def test_astrotobby_source_pool_contains_requested_publishers_and_video_refs(self):
+        queries = pipeline.CHANNELS["astrotobby"]["queries"]
+        self.assertTrue(any("site:cnn.com" in q for q in queries))
+        publishers = {name for name, _url in pipeline.CHANNEL_FEEDS["astrotobby"]}
+        self.assertIn("BBC News", publishers)
+        self.assertIn("BBC Entertainment", publishers)
+        self.assertTrue(any("CRqhR0tQnKM" in x["url"] for x in pipeline.ASTROTOBBY_YOUTUBE_REFERENCES))
+        self.assertTrue(any("18by3TXfH5k" in x["url"] for x in pipeline.ASTROTOBBY_YOUTUBE_REFERENCES))
+        self.assertTrue(any("@VALUETAINMENT" in x["url"] for x in pipeline.ASTROTOBBY_YOUTUBE_REFERENCES))
+        self.assertNotIn("valuetainment", pipeline.TRUSTED)
+
+    def test_atom_youtube_feed_is_parsed_with_publisher_hint(self):
+        atom = """<?xml version="1.0" encoding="UTF-8"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <entry>
+            <title>Valuetainment current affairs discussion</title>
+            <link href="https://www.youtube.com/watch?v=abcdefghijk"/>
+            <published>2026-11-18T07:00:00+00:00</published>
+          </entry>
+        </feed>"""
+        rows = pipeline.parse_rss(atom, "Valuetainment uploads", "Valuetainment")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["publisher"], "Valuetainment")
+        self.assertEqual(rows[0]["title"], "Valuetainment current affairs discussion")
+        self.assertEqual(rows[0]["published_at"], "2026-11-18T07:00:00+00:00")
+
+    def test_youtube_oembed_metadata_is_not_misrepresented_as_transcript(self):
+        response = SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {"title": "A referenced YouTube video", "author_name": "Example Channel"},
+        )
+        with patch.object(pipeline.requests, "get", return_value=response):
+            result = pipeline.youtube_reference_metadata("https://www.youtube.com/watch?v=abcdefghijk")
+        self.assertEqual(result["title"], "A referenced YouTube video")
+        self.assertTrue(result["metadata_only"])
+        self.assertEqual(result["article_text"], "")
+
 
 class LedgerMergeTests(unittest.TestCase):
     def test_concurrent_workers_keep_both_independent_jobs(self):
