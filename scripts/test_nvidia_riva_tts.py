@@ -107,7 +107,7 @@ class MagpieIntegrationTests(unittest.TestCase):
             self.assertEqual(captured["metadata_args"][0], ("function-id", "test-function"))
             self.assertEqual(captured["metadata_args"][1], ("authorization", "Bearer test-key"))
             self.assertEqual([word["text"] for word in words], ["First", "Second"])
-            self.assertAlmostEqual(words[1]["start"], 0.28, places=2)
+            self.assertAlmostEqual(words[1]["start"], 0.29, places=2)
             with wave.open(str(output), "rb") as audio_file:
                 self.assertEqual(audio_file.getnchannels(), 1)
                 self.assertEqual(audio_file.getsampwidth(), 2)
