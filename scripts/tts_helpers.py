@@ -16,7 +16,7 @@ def split_text_chunks(text: str, max_chars: int) -> list[str]:
     if not normalized:
         return []
 
-    sentences = re.split(r"(?<=[.!?])\\s+", normalized)
+    sentences = re.split(r"(?<=[.!?])\s+", normalized)
     chunks: list[str] = []
     current = ""
 
@@ -107,7 +107,7 @@ def concat_audio_files(inputs: list[str | Path], output: str | Path) -> Path:
         for source in sources:
             # These pipeline-generated paths contain no apostrophes.
             rows.append(f"file '{source.as_posix()}'")
-        list_path.write_text("\\n".join(rows) + "\\n", encoding="utf-8")
+        list_path.write_text("\n".join(rows) + "\n", encoding="utf-8")
         try:
             result = subprocess.run(
                 [
