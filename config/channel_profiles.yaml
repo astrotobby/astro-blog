@@ -31,6 +31,21 @@ channels:
       - entertainment
       - trending_stories
       - explainers
+    source_pool:
+      primary_news:
+        - CNN reporting via live site-specific news search
+        - BBC News top stories RSS
+        - BBC Entertainment and Arts RSS
+        - BBC Culture RSS
+        - The Guardian Culture RSS
+      commentary_and_video_references:
+        - https://youtu.be/CRqhR0tQnKM
+        - https://www.youtube.com/live/18by3TXfH5k
+        - https://www.youtube.com/@VALUETAINMENT/videos
+      corroboration_policy:
+        minimum_independent_publishers: 2
+        commentary_is_context_not_fact_verification: true
+        require_claims_to_be_checked_against_independent_reporting: true
     freshness_policy:
       breaking_news_max_age_hours: 36
       evergreen_allowed: true
