@@ -156,6 +156,12 @@ def _gtts_fallback(text, out_path):
     gTTS(text).save(str(out_path))
 
 
+def _voicestudio_speech_url(base_url):
+    """Resolve the speech route whether the configured base URL includes /v1 or not."""
+    base = (base_url or "http://127.0.0.1:3900").rstrip("/")
+    return f"{base}/audio/speech" if base.endswith("/v1") else f"{base}/v1/audio/speech"
+
+
 def _voicestudio_voice(narration, voice_cfg, tag=""):
     """Use a running local VoiceStudio OpenAI-compatible TTS API when explicitly enabled.
 
@@ -180,7 +186,7 @@ def _voicestudio_voice(narration, voice_cfg, tag=""):
     output = OUT / f"voiceover{tag}_voicestudio.wav"
     output.unlink(missing_ok=True)
     try:
-        response = requests.post(f"{base_url}/v1/audio/speech", json=payload,
+        response = requests.post(_voicestudio_speech_url(base_url), json=payload,
                                  headers=headers, timeout=(3, 180))
         response.raise_for_status()
         if not response.content:
