@@ -43,7 +43,7 @@ Confirmed publication timetable in Africa/Nairobi (UTC+3):
 | 3:00 PM | 12:00 UTC | Astrotobby | `goodlucktobby@gmail.com` | Trending stories and explainers |
 | 6:00 PM | 15:00 UTC | Digital Nomad | `chanzera3@gmail.com` | Automation, tutorials, practical workflows |
 
-These are the **publication times**, not merely the time at which a render should begin. The scheduler currently starts the jobs at 04:00, 07:00, 09:00, and 12:00 UTC respectively (07:00, 10:00, 12:00, and 15:00 EAT), leaving a preparation window before the public slot. Upload each validated video as private with YouTube's scheduled-publication `status.publishAt` set to the table's UTC timestamp. The job verifies the scheduled publication metadata after upload. A failed or late render must be reported as delayed/failed rather than silently published at an unrelated time.
+These are the **publication times**, not merely the time at which a render should begin. The AI-GEMS scheduler currently starts the jobs at 03:00, 05:00, 08:00, and 11:00 UTC respectively (06:00, 08:00, 11:00, and 14:00 EAT), leaving a preparation window before the public slot. Upload each validated video as private with YouTube's scheduled-publication `status.publishAt` set to the table's UTC timestamp. The job verifies the scheduled publication metadata after upload. A failed or late render must be reported as delayed/failed rather than silently published at an unrelated time.
 
 ## Proposed architecture
 
