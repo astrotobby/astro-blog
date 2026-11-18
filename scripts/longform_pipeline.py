@@ -266,6 +266,17 @@ def enrich(item):
     return row
 
 
+def _headline_search_queries(title):
+    """Build targeted fallback searches when broad feeds cannot corroborate a lead."""
+    words = [word for word in re.findall(r"[A-Za-z0-9]+", title or "")
+             if len(word) > 2 and word.lower() not in STOP]
+    phrase = " ".join(words[:9])
+    queries = [f'"{title}" when:30d'] if title else []
+    if phrase and phrase.lower() != (title or "").lower():
+        queries.append(f"{phrase} when:30d")
+    return list(dict.fromkeys(queries))
+
+
 def discover(channel,used_titles):
     profile=CHANNELS[channel]
     candidates={}
@@ -275,14 +286,18 @@ def discover(channel,used_titles):
     for query in profile["queries"]:
         source_rows.extend(feed(query))
 
-    for row in source_rows:
-        row.setdefault("source_type","news")
-        key=hashlib.sha256(row["url"].encode()).hexdigest()
-        publisher=(row.get("publisher","")+" "+row.get("publisher_url","")+" "+row.get("url","")).lower()
-        row["score"]=(12 if any(x in publisher for x in TRUSTED) else 0)+max(0,20-int(_age(row)/6))
-        if key not in candidates or row["score"]>candidates[key]["score"]:
-            candidates[key]=row
+    def add_candidates(rows):
+        for row in rows:
+            if not row.get("url") or not row.get("title"):
+                continue
+            row.setdefault("source_type","news")
+            key=hashlib.sha256(row["url"].encode()).hexdigest()
+            publisher=(row.get("publisher","")+" "+row.get("publisher_url","")+" "+row.get("url","")).lower()
+            row["score"]=(12 if any(x in publisher for x in TRUSTED) else 0)+max(0,20-int(_age(row)/6))
+            if key not in candidates or row["score"]>candidates[key]["score"]:
+                candidates[key]=row
 
+    add_candidates(source_rows)
     ranked=sorted(candidates.values(),key=lambda x:(x["score"],-_age(x)),reverse=True)
     eligible=[row for row in ranked
               if _age(row)<=profile["fresh"]
@@ -290,18 +305,29 @@ def discover(channel,used_titles):
     if not eligible:
         raise RuntimeError(f"No fresh and unused {channel} story found")
 
-    # Group reports already gathered by RSS providers. Avoid repeated query bursts.
     diagnostics=[]
     for lead in eligible[:8]:
-        related=[]
-        for row in ranked:
-            if row["url"]==lead["url"] or _age(row)>30*24 or row.get("source_type")=="commentary":
-                continue
-            if similarity(row["title"],lead["title"])>=.16:
-                related.append(row)
+        def matching_reports():
+            lead_tokens=_tokens(lead["title"])
+            related=[]
+            for row in ranked:
+                if row["url"]==lead["url"] or _age(row)>30*24 or row.get("source_type")=="commentary":
+                    continue
+                shared=len(lead_tokens & _tokens(row["title"]))
+                if similarity(row["title"],lead["title"])>=.12 or shared>=2:
+                    related.append(row)
+            return related
 
-        # A Valuetainment video can be a useful editorial lead, but it must
-        # never be counted as one of the independent factual news reports.
+        related=matching_reports()
+        # Retry with headline-specific searches before rejecting a potentially useful lead.
+        if len(related)<2:
+            targeted=[]
+            for query in _headline_search_queries(lead["title"]):
+                targeted.extend(feed(query))
+            add_candidates(targeted)
+            ranked=sorted(candidates.values(),key=lambda x:(x["score"],-_age(x)),reverse=True)
+            related=matching_reports()
+
         pool=related if lead.get("source_type")=="commentary" else [lead]+related
         selected=[]
         seen=set()
@@ -338,7 +364,6 @@ def discover(channel,used_titles):
         "Could not find a fresh story with two independent reports and 700 source-evidence characters. "
         "Last checks: "+"; ".join(diagnostics[-5:])
     )
-
 
 def create_package(channel,lead,sources):
     key=env("ANTHROPIC_API_KEY")
