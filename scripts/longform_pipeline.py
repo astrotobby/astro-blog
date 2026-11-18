@@ -103,31 +103,47 @@ def make_job_id(channel,slot,target):
 
 def parse_rss(xml_text, query="", publisher_hint=""):
     root=ET.fromstring(xml_text)
+
+    def child_text(node,name):
+        for child in list(node):
+            if child.tag.rsplit("}",1)[-1].lower()==name.lower():
+                return child.text or ""
+        return ""
+
     out=[]
-    nodes=root.findall(".//item") or root.findall(".//{*}entry")
+    nodes=[node for node in root.iter()
+           if node.tag.rsplit("}",1)[-1].lower() in {"item","entry"}]
     for node in nodes:
-        title=html.unescape((node.findtext("title") or "").strip())
-        link=(node.findtext("link") or "").strip()
+        title=html.unescape(child_text(node,"title").strip())
+        link=child_text(node,"link").strip()
         if not link:
-            link_node=node.find("{*}link")
+            link_node=next((x for x in list(node)
+                            if x.tag.rsplit("}",1)[-1].lower()=="link"),None)
             if link_node is not None:
-                link=link_node.attrib.get("href","")
-        desc=html.unescape(re.sub(r"<[^>]+>"," ",node.findtext("description") or node.findtext("{*}summary") or ""))
-        source=next((x for x in list(node) if x.tag.rsplit("}",1)[-1].lower()=="source"),None)
+                link=link_node.attrib.get("href","").strip()
+        desc_raw=child_text(node,"description") or child_text(node,"summary")
+        desc=html.unescape(re.sub(r"<[^>]+>"," ",desc_raw))
+        source=next((x for x in list(node)
+                     if x.tag.rsplit("}",1)[-1].lower()=="source"),None)
         publisher=(source.text or "").strip() if source is not None else publisher_hint
         publisher_url=source.attrib.get("url","") if source is not None else ""
-        raw_date=node.findtext("pubDate") or node.findtext("{*}published") or node.findtext("{*}updated") or ""
+        raw_date=(child_text(node,"pubDate") or child_text(node,"published")
+                  or child_text(node,"updated"))
+        published=None
         try:
             published=email.utils.parsedate_to_datetime(raw_date).astimezone(timezone.utc)
         except Exception:
             try:
                 published=datetime.fromisoformat(raw_date.replace("Z","+00:00")).astimezone(timezone.utc)
             except Exception:
-                published=None
+                pass
         if title and link:
             out.append({
-                "title":title,"url":link,"summary":re.sub(r"\s+"," ",desc)[:1800],
-                "publisher":publisher,"publisher_url":publisher_url,
+                "title":title,
+                "url":link,
+                "summary":re.sub(r"\s+"," ",desc).strip()[:1800],
+                "publisher":publisher,
+                "publisher_url":publisher_url,
                 "published_at":published.isoformat() if published else "",
                 "query":query,
             })
