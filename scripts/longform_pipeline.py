@@ -166,7 +166,7 @@ Source bundle:
 
 Return ONLY valid JSON: title, description, tags (array), narration (string).
 Title: compelling, accurate, <=95 characters. Description: 2-4 paragraphs. Tags: 10-15 items.
-Narration must be 1,850-1,950 spoken words, absolute minimum 1,750.
+Narration must be 1,950-2,150 spoken words, absolute minimum 1,900.
 Build a complete 10+ minute episode: hook, verified event/timeline, context, people/organisations, specific examples,
 why it matters, multiple perspectives, uncertainties, likely next developments and wrap-up.
 Use multiple sources. Clearly distinguish facts from analysis. Do not invent information to fill length.
@@ -183,10 +183,10 @@ No markdown headings, bullets, timecodes, stage directions or URLs in the spoken
     words=len(re.findall(r"\b[\w'-]+\b",narration))
     if words<1750:
         expanded=client.messages.create(model=model,max_tokens=8500,temperature=.4,system=system,
-          messages=[{"role":"user","content":"Expand this sourced narration to 1,850-1,950 words. Preserve facts, add evidence-based context, no invention. Return narration only.\n\n"+narration}])
+          messages=[{"role":"user","content":"Expand this sourced narration to 2,000-2,200 words. Preserve facts, add evidence-based context, no invention. Return narration only.\n\n"+narration}])
         narration=re.sub(r"\s+"," "," ".join(x.text for x in expanded.content if getattr(x,"type","")=="text")).strip()
         words=len(re.findall(r"\b[\w'-]+\b",narration))
-    if not 1750<=words<=2300: raise RuntimeError(f"Script word count outside bounds: {words}")
+    if not 1900<=words<=2500: raise RuntimeError(f"Script word count outside bounds: {words} (minimum 1,900)")
     title=re.sub(r"\s+"," ",str(data.get("title") or lead["title"])).strip()[:95]
     desc=str(data.get("description") or "").strip()
     raw_tags=data.get("tags") or []
