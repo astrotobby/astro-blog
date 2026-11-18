@@ -17,7 +17,7 @@ import sys
 from common import (PIPE, ROOT, find_duplicate_title, load_config, load_ledger,
                     log, normalize_title, save_ledger)
 from blog_quality import (BlogPostValidationError, content_fingerprint,
-                          should_retry_rejected_post, validate_blog_post)
+                          should_process_in_sweep, validate_blog_post)
 
 PY = sys.executable
 S = ROOT / "scripts"
@@ -103,7 +103,7 @@ def sweep_posts():
     for post_path in allp:
         slug = _astro_slug(pathlib.Path(post_path).stem)
         entry = led.get(slug)
-        if should_retry_rejected_post(post_path, entry):
+        if should_process_in_sweep(post_path, entry):
             new.append(post_path)
     log(f"sweep: {len(allp)} live posts, {len(new)} not yet posted or changed since quality rejection")
     return new
