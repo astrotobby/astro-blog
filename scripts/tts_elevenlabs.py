@@ -1,25 +1,23 @@
-"""ElevenLabs narration with exact word timings.
+"""ElevenLabs long-form narration with native per-word timestamps.
 
-synthesize(text, out_path, cfg) -> (out_path, words) on success, else None.
-
-Uses the /with-timestamps endpoint, so the same request returns the audio AND a
-per-character alignment. That alignment becomes word-level timings for the
-captions and scene cuts, which is both faster and more accurate than running
-Whisper over the rendered voice afterwards.
-
-Needs the ELEVENLABS_API_KEY secret. Any failure returns None so the caller can
-fall back to the free voice and the pipeline never breaks over TTS.
+The API has a 10,000-character limit for the configured multilingual-v2 model.
+Long narration is therefore split at sentence boundaries, synthesized using the
+same voice settings, and joined while preserving each chunk's native alignment.
 """
+
 import base64
 import time
+from pathlib import Path
 
 import requests
 
 from common import env, log
+from tts_helpers import audio_duration, concat_audio_files, split_text_chunks
 
 API = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/with-timestamps"
+MAX_CHUNK_CHARS = 9000
 DEFAULTS = {
-    "voice_id": "bIHbv24MWmeRgasZH58o",   # "Will" — young, relaxed and friendly narrator
+    "voice_id": "bIHbv24MWmeRgasZH58o",   # Will — young American male narrator
     "model_id": "eleven_multilingual_v2",
     "stability": 0.42,
     "similarity_boost": 0.80,
@@ -60,48 +58,146 @@ def alignment_to_words(alignment):
     return words
 
 
+def _retry_delay(response, attempt):
+    value = (response.headers or {}).get("Retry-After")
+    try:
+        return min(30.0, max(1.0, float(value))) if value else 4.0 * (attempt + 1)
+    except (TypeError, ValueError):
+        return 4.0 * (attempt + 1)
+
+
+def _synthesize_chunk(chunk_text, url, settings, api_key, chunk_number, total_chunks):
+    body = {
+        "text": chunk_text,
+        "model_id": settings["model_id"],
+        "voice_settings": {
+            "stability": settings["stability"],
+            "similarity_boost": settings["similarity_boost"],
+            "style": settings["style"],
+            "use_speaker_boost": settings["use_speaker_boost"],
+            "speed": settings["speed"],
+        },
+    }
+    headers = {"xi-api-key": api_key, "Content-Type": "application/json"}
+    for attempt in range(3):
+        try:
+            response = requests.post(
+                url,
+                params={"output_format": settings["output_format"]},
+                headers=headers,
+                json=body,
+                timeout=180,
+            )
+            if response.status_code == 429 or response.status_code >= 500:
+                if attempt < 2:
+                    delay = _retry_delay(response, attempt)
+                    log(
+                        f"ElevenLabs chunk {chunk_number}/{total_chunks} temporarily "
+                        f"unavailable (HTTP {response.status_code}); retrying in {delay:.0f}s"
+                    )
+                    time.sleep(delay)
+                    continue
+                log(
+                    f"ElevenLabs chunk {chunk_number}/{total_chunks} failed after retries "
+                    f"(HTTP {response.status_code})"
+                )
+                return None
+            if response.status_code != 200:
+                log(
+                    f"ElevenLabs chunk {chunk_number}/{total_chunks} rejected "
+                    f"(HTTP {response.status_code}): {(response.text or '')[:180]}"
+                )
+                return None
+
+            payload = response.json()
+            audio = base64.b64decode(payload.get("audio_base64") or "")
+            if len(audio) < 1024:
+                raise RuntimeError("ElevenLabs returned no usable audio")
+            alignment = payload.get("alignment") or payload.get("normalized_alignment") or {}
+            return audio, alignment_to_words(alignment)
+        except requests.RequestException as exc:
+            if attempt < 2:
+                delay = 3.0 * (attempt + 1)
+                log(
+                    f"ElevenLabs chunk {chunk_number}/{total_chunks} network error; "
+                    f"retrying in {delay:.0f}s ({type(exc).__name__})"
+                )
+                time.sleep(delay)
+                continue
+            log(
+                f"ElevenLabs chunk {chunk_number}/{total_chunks} network request failed: "
+                f"{type(exc).__name__}: {str(exc)[:180]}"
+            )
+            return None
+        except Exception as exc:
+            log(
+                f"ElevenLabs chunk {chunk_number}/{total_chunks} could not be decoded: "
+                f"{type(exc).__name__}: {str(exc)[:180]}"
+            )
+            return None
+    return None
+
+
 def synthesize(text, out_path, cfg=None):
+    """Return (joined_audio_path, word_timings) or None when any chunk fails."""
     api_key = env("ELEVENLABS_API_KEY")
     if not api_key:
         log("ELEVENLABS_API_KEY not set; skipping ElevenLabs voice")
         return None
-    s = _settings(cfg)
-    body = {
-        "text": text,
-        "model_id": s["model_id"],
-        "voice_settings": {
-            "stability": s["stability"],
-            "similarity_boost": s["similarity_boost"],
-            "style": s["style"],
-            "use_speaker_boost": s["use_speaker_boost"],
-            "speed": s["speed"],
-        },
-    }
-    url = API.format(voice_id=s["voice_id"])
-    for attempt in range(3):
-        try:
-            r = requests.post(url, params={"output_format": s["output_format"]},
-                              headers={"xi-api-key": api_key, "Content-Type": "application/json"},
-                              json=body, timeout=180)
-            if r.status_code == 429 or r.status_code >= 500:
-                wait = int(r.headers.get("Retry-After", 5 * (attempt + 1)))
-                log(f"ElevenLabs HTTP {r.status_code}; retrying in {wait}s")
-                time.sleep(wait)
-                continue
-            if r.status_code != 200:
-                log(f"ElevenLabs HTTP {r.status_code}: {r.text[:200]}")
-                return None
-            data = r.json()
-            audio = base64.b64decode(data.get("audio_base64") or "")
-            if len(audio) < 1024:
-                log("ElevenLabs returned no audio")
-                return None
-            with open(out_path, "wb") as fh:
-                fh.write(audio)
-            words = alignment_to_words(data.get("alignment") or data.get("normalized_alignment") or {})
-            log(f"ElevenLabs voice {s['voice_id']} ({s['model_id']}): {len(words)} timed words")
-            return out_path, words
-        except Exception as exc:  # noqa
-            log(f"ElevenLabs request failed ({exc})")
-            time.sleep(3)
-    return None
+
+    chunks = split_text_chunks(text, MAX_CHUNK_CHARS)
+    if not chunks:
+        log("ElevenLabs skipped: narration is empty")
+        return None
+
+    settings = _settings(cfg)
+    url = API.format(voice_id=settings["voice_id"])
+    output = Path(out_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.unlink(missing_ok=True)
+
+    part_files = []
+    all_words = []
+    time_offset = 0.0
+    log(
+        f"ElevenLabs splitting {len(text)} narration characters into "
+        f"{len(chunks)} sentence-safe request(s) (max {MAX_CHUNK_CHARS} each)"
+    )
+
+    try:
+        for index, chunk in enumerate(chunks, 1):
+            result = _synthesize_chunk(chunk, url, settings, api_key, index, len(chunks))
+            if result is None:
+                raise RuntimeError(f"ElevenLabs chunk {index}/{len(chunks)} failed")
+
+            audio, words = result
+            part = output.with_name(f"{output.stem}_part_{index:02d}{output.suffix}")
+            part.write_bytes(audio)
+            part_files.append(part)
+
+            duration = audio_duration(part)
+            for word in words:
+                all_words.append({
+                    "text": word["text"],
+                    "start": float(word["start"]) + time_offset,
+                    "end": float(word["end"]) + time_offset,
+                })
+            time_offset += duration
+            log(
+                f"ElevenLabs chunk {index}/{len(chunks)}: {duration:.1f}s audio, "
+                f"{len(words)} aligned words"
+            )
+
+        concat_audio_files(part_files, output)
+        log(
+            f"ElevenLabs voice {settings['voice_id']} ({settings['model_id']}): "
+            f"{len(all_words)} aligned words across {len(chunks)} chunk(s)"
+        )
+        return output, all_words
+    except Exception as exc:
+        output.unlink(missing_ok=True)
+        log(f"ElevenLabs long-form synthesis aborted: {type(exc).__name__}: {str(exc)[:220]}")
+        return None
+    finally:
+        for part in part_files:
+            part.unlink(missing_ok=True)

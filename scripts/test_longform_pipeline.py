@@ -180,9 +180,10 @@ class EdgeTtsWordTimingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             output = Path(temp) / "voice.mp3"
             with patch.dict(sys.modules, {"edge_tts": fake_edge_tts}):
-                words = asyncio.run(pipeline.renderer._tts(
-                    "Hello there.", "en-US-AndrewNeural", "+0%", "+0Hz", output
-                ))
+                with patch.object(pipeline.renderer, "audio_duration", return_value=1.0):
+                    words = asyncio.run(pipeline.renderer._tts(
+                        "Hello there.", "en-US-AndrewNeural", "+0%", "+0Hz", output
+                    ))
             self.assertTrue(output.exists())
             self.assertGreater(output.stat().st_size, 1024)
 
@@ -192,6 +193,39 @@ class EdgeTtsWordTimingTests(unittest.TestCase):
         self.assertAlmostEqual(words[0]["end"], 0.3)
         self.assertEqual(words[1]["text"], "there.")
         self.assertAlmostEqual(words[1]["start"], 0.35)
+
+    def test_edge_tts_splits_long_text_and_offsets_chunk_word_times(self):
+        seen_text = []
+
+        class FakeCommunicate:
+            def __init__(self, text, voice, **kwargs):
+                seen_text.append(text)
+
+            async def stream(self):
+                yield {"type": "audio", "data": b"x" * 2048}
+                yield {"type": "WordBoundary", "offset": 1_000_000,
+                       "duration": 2_000_000, "text": "spoken"}
+
+        fake_edge_tts = SimpleNamespace(Communicate=FakeCommunicate)
+        narration = "word " * 800  # 4,000 chars: must become multiple Edge requests.
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp) / "long-voice.mp3"
+            with patch.dict(sys.modules, {"edge_tts": fake_edge_tts}):
+                with patch.object(
+                    pipeline.renderer, "audio_duration", side_effect=[1.25, 1.75]
+                ):
+                    with patch.object(
+                        pipeline.renderer, "concat_audio_files",
+                        side_effect=lambda parts, target: Path(target).write_bytes(b"joined" * 400),
+                    ):
+                        words = asyncio.run(pipeline.renderer._tts(
+                            narration, "en-US-AndrewNeural", "+0%", "+0Hz", output
+                        ))
+
+        self.assertEqual(len(seen_text), 2)
+        self.assertTrue(all(len(chunk) <= 3000 for chunk in seen_text))
+        self.assertEqual(len(words), 2)
+        self.assertAlmostEqual(words[1]["start"], 1.35)
 
     def test_caption_timing_validator_accepts_complete_ordered_words(self):
         narration = "One two three four five six seven eight"

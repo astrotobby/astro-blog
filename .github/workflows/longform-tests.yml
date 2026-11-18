@@ -6,6 +6,10 @@ on:
     paths:
       - "scripts/longform_pipeline.py"
       - "scripts/generate_video.py"
+      - "scripts/tts_helpers.py"
+      - "scripts/tts_elevenlabs.py"
+      - "scripts/tts_nvidia.py"
+      - "scripts/test_tts_pipeline.py"
       - "scripts/test_longform_pipeline.py"
       - "scripts/test_youtube_channel_routing.py"
       - "scripts/test_pipeline_improvements.py"
@@ -17,6 +21,10 @@ on:
     paths:
       - "scripts/longform_pipeline.py"
       - "scripts/generate_video.py"
+      - "scripts/tts_helpers.py"
+      - "scripts/tts_elevenlabs.py"
+      - "scripts/tts_nvidia.py"
+      - "scripts/test_tts_pipeline.py"
       - "scripts/test_longform_pipeline.py"
       - "scripts/test_youtube_channel_routing.py"
       - "scripts/test_pipeline_improvements.py"
@@ -53,11 +61,18 @@ jobs:
           python -m py_compile \
             scripts/longform_pipeline.py \
             scripts/generate_video.py \
+            scripts/tts_helpers.py \
+            scripts/tts_elevenlabs.py \
+            scripts/tts_nvidia.py \
+            scripts/test_tts_pipeline.py \
             scripts/test_longform_pipeline.py \
             scripts/test_youtube_channel_routing.py
 
       - name: Long-form source, scheduler and media tests
         run: python scripts/test_longform_pipeline.py
+
+      - name: Voice provider chunking and timestamp tests
+        run: python scripts/test_tts_pipeline.py
 
       - name: YouTube channel routing tests
         run: python scripts/test_youtube_channel_routing.py

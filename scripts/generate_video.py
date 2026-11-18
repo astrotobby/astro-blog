@@ -35,6 +35,7 @@ from pathlib import Path
 import requests
 
 from common import OUT, ROOT, STATE, env, load_config, log, read_json, write_json
+from tts_helpers import audio_duration, concat_audio_files, split_text_chunks
 
 
 MUSIC_EXTENSIONS = {".mp3", ".m4a", ".wav", ".ogg", ".flac"}
@@ -152,39 +153,79 @@ def ffprobe_duration(path) -> float:
 # ---------- 1. Voiceover ----------
 
 async def _tts(text, voice, rate, pitch, out_path):
-    """Synthesize speech and retain Edge TTS native word-boundary timestamps.
+    """Synthesize in bounded requests and retain Edge TTS word-boundary timestamps.
 
-    Edge TTS reports offsets and durations in 100-nanosecond ticks. Using these
-    boundaries avoids a second speech-recognition pass for the common free fallback.
+    The returned offset/duration values are 100-nanosecond ticks relative to each
+    request. Segmenting the narration avoids oversized websocket SSML payloads.
     """
     import edge_tts
 
-    comm = edge_tts.Communicate(
-        text, voice, rate=rate, pitch=pitch, boundary="WordBoundary"
-    )
+    chunks = split_text_chunks(text, 3000)
+    if not chunks:
+        raise RuntimeError("edge-tts received empty narration")
+    destination = Path(out_path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    part_files = []
     words = []
-    audio_bytes = 0
-    with open(out_path, "wb") as audio_file:
-        async for chunk in comm.stream():
-            if chunk.get("type") == "audio":
-                data = chunk.get("data") or b""
-                if data:
-                    audio_file.write(data)
-                    audio_bytes += len(data)
-            elif chunk.get("type") == "WordBoundary":
-                word_text = " ".join(str(chunk.get("text") or "").split()).strip()
-                if not word_text:
-                    continue
-                start = max(0.0, float(chunk.get("offset", 0)) / 10_000_000)
-                duration = max(0.0, float(chunk.get("duration", 0)) / 10_000_000)
-                end = start + duration
-                if end > start:
-                    words.append({"text": word_text, "start": start, "end": end})
-    if audio_bytes < 1024:
-        Path(out_path).unlink(missing_ok=True)
-        raise RuntimeError("edge-tts stream did not contain a usable audio track")
-    words.sort(key=lambda item: (item["start"], item["end"]))
-    return words or None
+    time_offset = 0.0
+    log(f"Edge TTS splitting {len(text)} narration characters into {len(chunks)} request(s)")
+
+    try:
+        for index, chunk_text in enumerate(chunks, 1):
+            part = destination.with_name(
+                f"{destination.stem}_edge_part_{index:02d}{destination.suffix}"
+            )
+            audio_bytes = 0
+            chunk_words = []
+            comm = edge_tts.Communicate(
+                chunk_text, voice, rate=rate, pitch=pitch, boundary="WordBoundary"
+            )
+            with open(part, "wb") as audio_file:
+                async for chunk in comm.stream():
+                    if chunk.get("type") == "audio":
+                        data = chunk.get("data") or b""
+                        if data:
+                            audio_file.write(data)
+                            audio_bytes += len(data)
+                    elif chunk.get("type") == "WordBoundary":
+                        word_text = " ".join(str(chunk.get("text") or "").split()).strip()
+                        if not word_text:
+                            continue
+                        start = max(0.0, float(chunk.get("offset", 0)) / 10_000_000)
+                        duration = max(0.0, float(chunk.get("duration", 0)) / 10_000_000)
+                        end = start + duration
+                        if end > start:
+                            chunk_words.append({
+                                "text": word_text, "start": start, "end": end
+                            })
+            if audio_bytes < 1024:
+                part.unlink(missing_ok=True)
+                raise RuntimeError(
+                    f"edge-tts returned no usable audio for chunk {index}/{len(chunks)}"
+                )
+            duration = audio_duration(part)
+            part_files.append(part)
+            for word in chunk_words:
+                words.append({
+                    "text": word["text"],
+                    "start": word["start"] + time_offset,
+                    "end": word["end"] + time_offset,
+                })
+            time_offset += duration
+            log(
+                f"Edge TTS chunk {index}/{len(chunks)}: {duration:.1f}s audio, "
+                f"{len(chunk_words)} native word boundaries"
+            )
+
+        concat_audio_files(part_files, destination)
+        words.sort(key=lambda item: (item["start"], item["end"]))
+        return words or None
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
+    finally:
+        for part in part_files:
+            part.unlink(missing_ok=True)
 
 
 def _gtts_fallback(text, out_path):
@@ -200,10 +241,10 @@ def _voicestudio_speech_url(base_url):
 
 
 def _voicestudio_voice(narration, voice_cfg, tag=""):
-    """Use a running local VoiceStudio OpenAI-compatible TTS API when explicitly enabled.
+    """Use the local VoiceStudio API, chunked below its per-request text limit.
 
-    The API is loopback-only by default. Remote endpoints must be explicitly configured;
-    do not expose the local service to the public internet.
+    The API is bound to the same machine by default. Never expose localhost via a
+    public tunnel to make a hosted runner reach it.
     """
     settings = voice_cfg.get("voicestudio", {})
     if not settings.get("enabled"):
@@ -214,30 +255,48 @@ def _voicestudio_voice(narration, voice_cfg, tag=""):
     api_key = env("VOICESTUDIO_API_KEY")
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
-    payload = {
-        "model": env("VOICESTUDIO_MODEL") or settings.get("model", "tts-1"),
-        "voice": env("VOICESTUDIO_VOICE") or settings.get("voice", "default"),
-        "input": narration,
-        "response_format": "wav",
-    }
+
+    chunks = split_text_chunks(narration, 3500)
+    if not chunks:
+        return None
     output = OUT / f"voiceover{tag}_voicestudio.wav"
     output.unlink(missing_ok=True)
+    parts = []
     try:
-        response = requests.post(_voicestudio_speech_url(base_url), json=payload,
-                                 headers=headers, timeout=(3, 180))
-        response.raise_for_status()
-        if not response.content:
-            raise RuntimeError("VoiceStudio returned an empty audio response")
-        output.write_bytes(response.content)
+        for index, chunk_text in enumerate(chunks, 1):
+            payload = {
+                "model": env("VOICESTUDIO_MODEL") or settings.get("model", "tts-1"),
+                "voice": env("VOICESTUDIO_VOICE") or settings.get("voice", "default"),
+                "input": chunk_text,
+                "response_format": "wav",
+            }
+            response = requests.post(
+                _voicestudio_speech_url(base_url), json=payload,
+                headers=headers, timeout=(3, 180)
+            )
+            response.raise_for_status()
+            if not response.content or len(response.content) < 1024:
+                raise RuntimeError(f"VoiceStudio returned empty audio for chunk {index}")
+            part = output.with_name(f"{output.stem}_part_{index:02d}.wav")
+            part.write_bytes(response.content)
+            audio_duration(part)
+            parts.append(part)
+        concat_audio_files(parts, output)
         duration = ffprobe_duration(output)
         if duration <= 0.25:
             raise RuntimeError("VoiceStudio output is not a valid audio file")
-        log(f"VoiceStudio local voiceover {duration:.1f}s -> {output.name}")
+        log(
+            f"VoiceStudio local voiceover {duration:.1f}s -> {output.name} "
+            f"({len(chunks)} request(s))"
+        )
         return output, duration
     except Exception as exc:
         output.unlink(missing_ok=True)
         log(f"VoiceStudio unavailable ({str(exc)[:180]}); continuing to configured TTS fallback")
         return None
+    finally:
+        for part in parts:
+            part.unlink(missing_ok=True)
 
 
 def make_voice(narration, cfg, tag=""):
@@ -261,6 +320,22 @@ def make_voice(narration, cfg, tag=""):
                 log(f"ElevenLabs voiceover {duration:.1f}s -> {eleven_out.name}")
                 return eleven_out, duration, result[1] or None, "elevenlabs"
         log("ElevenLabs unavailable; falling back to the next configured voice")
+    # NVIDIA Build Magpie is an optional developer-preview fallback. The workflow
+    # exposes it only during manual dry-runs; no scheduled/live job consumes this key.
+    if (env("NVIDIA_TTS_ENABLED", "false") or "false").strip().lower() in ("1", "true", "yes"):
+        try:
+            from tts_nvidia import synthesize as nvidia_synthesize
+            nvidia_out = OUT / f"voiceover{tag}_nvidia.wav"
+            result = nvidia_synthesize(narration, nvidia_out)
+        except Exception as exc:  # noqa
+            log(f"NVIDIA Magpie TTS failed ({type(exc).__name__}: {str(exc)[:180]})")
+            result = None
+        if result:
+            duration = ffprobe_duration(result)
+            if duration > 0.25:
+                log(f"NVIDIA Magpie voiceover {duration:.1f}s -> {Path(result).name}")
+                return Path(result), duration, None, "nvidia-magpie"
+        log("NVIDIA Magpie unavailable; continuing to the configured free voice fallback")
     if (voice_cfg.get("kokoro") or {}).get("enabled"):
         # Free, no-quota neural voice; captions get word timings from transcription.
         try:
