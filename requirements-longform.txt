@@ -1,0 +1,10 @@
+requests>=2.32
+PyYAML>=6.0
+anthropic>=1.15,<2
+edge-tts>=7.0
+gTTS>=2.5
+faster-whisper>=1.0.3
+Pillow>=10.0
+google-api-python-client>=2.143
+google-auth>=2.30
+google-auth-httplib2>=0.2

@@ -3,8 +3,8 @@
 timezone: Africa/Nairobi
 minimum_duration_seconds: 600
 script:
-  target_words: 1700
-  acceptable_word_range: [1600, 1800]
+  target_words: 2050
+  acceptable_word_range: [1900, 2500]
   words_per_minute: 160
 render:
   aspect_ratio: "16:9"
@@ -31,6 +31,23 @@ channels:
       - entertainment
       - trending_stories
       - explainers
+    source_pool:
+      primary_news:
+        - CNN reporting via live site-specific news search
+        - BBC News articles via domain-specific live search
+        - BBC Entertainment and Arts articles via domain-specific live search
+        - The Guardian Culture RSS
+      source_handling:
+        - CNN legacy RSS is not used because the available feeds appear stale; search cnn.com directly
+        - BBC RSS feeds are not ingested automatically for this monetized workflow; search BBC article pages and link to the publisher
+      commentary_and_video_references:
+        - https://youtu.be/CRqhR0tQnKM
+        - https://www.youtube.com/live/18by3TXfH5k
+        - https://www.youtube.com/@VALUETAINMENT/videos
+      corroboration_policy:
+        minimum_independent_publishers: 2
+        commentary_is_context_not_fact_verification: true
+        require_claims_to_be_checked_against_independent_reporting: true
     freshness_policy:
       breaking_news_max_age_hours: 36
       evergreen_allowed: true

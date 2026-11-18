@@ -45,6 +45,7 @@ def _yt_client_for_token(refresh_token):
         ("CLIENT_ID", env("CLIENT_ID"), env("CLIENT_SECRET")),
         ("YOUTUBECLIENT_ID", env("YOUTUBECLIENT_ID"),
          env("YOUTUBECLIENT_SECTRET") or env("YOUTUBECLIENT_SECRET")),
+        ("YT_CLIENT_ID", env("YT_CLIENT_ID"), env("YT_CLIENT_SECRET")),
     ]
     seen, failures = set(), []
     for label, client_id, client_secret in candidates:
@@ -121,13 +122,29 @@ def _yt_verify_channel(yt, profile):
     return {"id": channel_id, "title": title}
 
 
-def _yt_upload(yt, video, title, desc, tags, cfg):
+def _yt_upload(yt, video, title, desc, tags, cfg, publish_at=None):
+    from datetime import datetime, timezone
     from googleapiclient.http import MediaFileUpload
+
+    status = {"privacyStatus": "private" if publish_at else cfg["platforms"]["youtube"]["privacy"]}
+    if publish_at:
+        # YouTube scheduled publication requires a future RFC 3339 timestamp and
+        # private visibility at upload time. The scheduler supplies UTC (Z) values.
+        try:
+            parsed = datetime.fromisoformat(str(publish_at).replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("publish_at must be a valid RFC 3339 timestamp") from exc
+        if parsed.tzinfo is None:
+            raise ValueError("publish_at must include a timezone offset or Z")
+        if parsed.astimezone(timezone.utc) <= datetime.now(timezone.utc):
+            raise ValueError("publish_at must be in the future")
+        status["publishAt"] = str(publish_at)
+
     body = {
         "snippet": {"title": title[:95], "description": desc[:4900],
                     "tags": [t.lstrip("#") for t in tags][:15],
                     "categoryId": cfg["platforms"]["youtube"]["category_id"]},
-        "status": {"privacyStatus": cfg["platforms"]["youtube"]["privacy"]},
+        "status": status,
     }
     media = MediaFileUpload(video, chunksize=-1, resumable=True)
     req = yt.videos().insert(part="snippet,status", body=body, media_body=media)
@@ -164,6 +181,7 @@ def post_youtube(render, cfg, dry):
         env("YOUTUBE_CLIENT_ID") and (env("YOUTUBE_CLIENT_SECRET") or env("YOUTUBE_SECRET_KEY")),
         env("CLIENT_ID") and env("CLIENT_SECRET"),
         env("YOUTUBECLIENT_ID") and (env("YOUTUBECLIENT_SECTRET") or env("YOUTUBECLIENT_SECRET")),
+        env("YT_CLIENT_ID") and env("YT_CLIENT_SECRET"),
     ))
     if not client_pairs_present:
         return {"youtube": {"ok": False, "skipped": "no complete YouTube OAuth client ID/secret pair"}}
@@ -172,10 +190,30 @@ def post_youtube(render, cfg, dry):
     if not main_video:
         return {"youtube": {"ok": False, "error": "no horizontal or vertical video to upload"}}
 
+    publish_at = (
+        render.get("scheduled_publish_at")
+        or render.get("publish_at")
+        or p.get("scheduled_publish_at")
+        or p.get("publish_at")
+    )
+    if publish_at:
+        # Validate timestamp before any OAuth/network side effects.
+        from datetime import datetime, timezone
+        try:
+            parsed_publish_at = datetime.fromisoformat(str(publish_at).replace("Z", "+00:00"))
+        except ValueError:
+            return {"youtube": {"ok": False, "error": "scheduled_publish_at must be RFC 3339"}}
+        if parsed_publish_at.tzinfo is None:
+            return {"youtube": {"ok": False, "error": "scheduled_publish_at must include timezone or Z"}}
+        if parsed_publish_at.astimezone(timezone.utc) <= datetime.now(timezone.utc):
+            return {"youtube": {"ok": False, "error": "scheduled_publish_at must be in the future"}}
+
     if dry:
         out["youtube"] = {
             "ok": True, "dry": True, "url": "(dry) " + p["yt_title"],
             **({"channel": profile["expected_title"]} if profile else {}),
+            **({"scheduled_publish_at": str(publish_at), "privacy": "private until scheduled time"}
+               if publish_at else {}),
         }
         if cfg["platforms"]["youtube"].get("also_short") and render["videos"].get("vertical"):
             out["youtube_short"] = {"ok": True, "dry": True}
@@ -191,8 +229,12 @@ def post_youtube(render, cfg, dry):
             identity = None
         log("youtube OAuth client pair accepted: " + client_label)
         _url = _yt_upload(
-            yt, main_video, p["yt_title"], p["yt_desc"], p["hashtags"], cfg)
+            yt, main_video, p["yt_title"], p["yt_desc"], p["hashtags"], cfg,
+            publish_at=publish_at)
         out["youtube"] = {"ok": True, "url": _url}
+        if publish_at:
+            out["youtube"]["scheduled_publish_at"] = str(publish_at)
+            out["youtube"]["privacy"] = "private until scheduled time"
         if identity:
             out["youtube"]["channel"] = identity["title"]
             out["youtube"]["channel_id"] = identity["id"]

@@ -44,8 +44,7 @@ def main():
                     f"VERIFIED {channel_key}: {result['channel']} "
                     f"({result['channel_id'] or 'channel ID unavailable'}); "
                     f"configured owner account={result['owner_account_mapping']}; "
-                    f"OAuth pair={result['oauth_client_pair']}" 
-
+                    f"OAuth pair={result['oauth_client_pair']}"
                 )
             else:
                 failures += 1
