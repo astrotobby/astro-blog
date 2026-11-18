@@ -289,7 +289,7 @@ def _make_voice_fallback(narration, cfg, tag=""):
                 duration = ffprobe_duration(clone_out)
                 if duration > 0.25:
                     log(f"authorized cloned voiceover {duration:.1f}s -> {clone_out.name}")
-                    return clone_out, duration, "clone"
+                    return clone_out, duration, None, "clone"
             if voice_cfg.get("clone_required", True):
                 raise RuntimeError(
                     "cloned voice synthesis did not produce valid audio; "
@@ -784,7 +784,7 @@ def word_timings_valid(words, narration):
     """Reject missing, sparse, or malformed word timing before a master can ship."""
     if not isinstance(words, list) or not words:
         return False
-    expected = re.findall(r"\\b[\\w'-]+\\b", narration or "")
+    expected = re.findall(r"\b[\w'-]+\b", narration or "")
     if not expected:
         return False
     # ASR can omit punctuation and occasionally merge a token; require broad coverage.
