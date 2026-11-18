@@ -6,6 +6,7 @@ will be reconsidered automatically after an edit.
 """
 from __future__ import annotations
 
+import hashlib
 import re
 from pathlib import Path
 
@@ -117,3 +118,19 @@ def validate_blog_post(path: str | Path) -> dict:
         "word_count": words,
         "h2_count": len(h2),
     }
+
+
+
+def content_fingerprint(path: str | Path) -> str:
+    """SHA-256 of the exact file bytes, used to suppress repeat rejection of unchanged content."""
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def should_retry_rejected_post(path: str | Path, ledger_entry: dict | None) -> bool:
+    """Retry a rejected post only after its content changes; new posts always qualify."""
+    if not ledger_entry or not ledger_entry.get("quality_rejected_sha"):
+        return True
+    try:
+        return content_fingerprint(path) != ledger_entry["quality_rejected_sha"]
+    except OSError:
+        return False
