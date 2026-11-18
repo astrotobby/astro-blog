@@ -438,6 +438,8 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     cfg["visuals"]["scenes"]=28; cfg["video"]["fps"]=24; cfg["video"]["shot_seconds"]=6.5
     cfg["video"]["tail_seconds"]=0.8; cfg["video"]["music"]=False; cfg["video"]["captions"]=True
     cfg["influencer"]["enabled"]=False; cfg["motion_cards"]["enabled"]=False
+    # The hosted workflow installs edge-tts; the local Kokoro virtualenv is not present.
+    cfg.get("voice",{}).get("kokoro",{})["enabled"] = False
     if cfg.get("voice",{}).get("elevenlabs"): cfg["voice"]["elevenlabs"]["speed"]=0.98
     script=build_render_script(key,lead,sources,package,cfg)
     write_json(f"longform_{key}.json",script)
