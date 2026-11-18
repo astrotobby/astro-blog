@@ -408,13 +408,34 @@ def discover(channel,used_titles):
     )
 
 def _generate_text(prompt,system,model):
-    """Generate text using the Claude Code subscription token, or the Console API key.
+    """Generate text through Gemini, Claude Code subscription OAuth, or Anthropic API.
 
-    Claude Code OAuth is the preferred CI path so a depleted Console API credit balance
-    does not block jobs when the owner already has a Claude Code subscription token.
-    The API key is deliberately removed from the CLI child environment to prevent it
-    from taking precedence over subscription authentication.
+    Gemini is the preferred production path. Claude Code OAuth and the Anthropic Console
+    API remain available as explicit fallbacks. API keys and OAuth tokens are never logged.
     """
+    gemini_key=env("GEMINI_API_KEY")
+    if gemini_key:
+        gemini_model=env("GEMINI_MODEL","gemini-3.8-flash")
+        response=requests.post(
+            "https://generativelanguage.googleapis.com/v1beta/interactions",
+            headers={"x-goog-api-key":gemini_key,"Content-Type":"application/json"},
+            json={"model":gemini_model,"input":prompt,"system_instruction":system,"store":False,
+                  "generation_config":{"max_output_tokens":8500,"thinking_level":"low"}},
+            timeout=600,
+        )
+        response.raise_for_status()
+        payload=response.json()
+        output_parts=[]
+        for step in payload.get("steps",[]):
+            if step.get("type")=="model_output":
+                output_parts.extend(part.get("text","") for part in step.get("content",[]) if part.get("type")=="text")
+        if not output_parts:
+            output_parts.extend(part.get("text","") for part in payload.get("outputs",[]) if part.get("type")=="text")
+        output="\n".join(part for part in output_parts if part).strip()
+        if not output:
+            raise RuntimeError("Gemini Interactions API returned no text output")
+        return output
+
     oauth=env("CLAUDE_CODE_OAUTH_TOKEN")
     if oauth:
         executable=shutil.which("claude")
@@ -443,8 +464,8 @@ def _generate_text(prompt,system,model):
 
 
 def create_package(channel,lead,sources):
-    if not (env("CLAUDE_CODE_OAUTH_TOKEN") or env("ANTHROPIC_API_KEY")):
-        raise RuntimeError("Claude Code OAuth token or Anthropic API key is required")
+    if not (env("GEMINI_API_KEY") or env("CLAUDE_CODE_OAUTH_TOKEN") or env("ANTHROPIC_API_KEY")):
+        raise RuntimeError("GEMINI_API_KEY, CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY is required")
     profile=CHANNELS[channel]; model=env("LONGFORM_MODEL","claude-sonnet-5")
     evidence=[]
     for i,s in enumerate(sources,1):

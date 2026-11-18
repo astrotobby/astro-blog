@@ -89,7 +89,7 @@ Create a long-form script mode separate from the current 75-second mode.
 - Keep source URLs and claim-to-source notes in the script JSON.
 - If the available evidence cannot support a useful ten-minute treatment, reject or replace the topic.
 
-A configured LLM may assist with research synthesis and narration, but it must not be the only fact-checking layer. Missing API credentials should produce an explicit unavailable/review state, not silently downgrade a long-form job to a short script.
+A configured LLM may assist with research synthesis and narration, but it must not be the only fact-checking layer. The current provider order is Gemini Interactions API (`gemini-3.8-flash`) when `GEMINI_API_KEY` is present, then Claude Code subscription OAuth, then the Anthropic Console API. The Anthropic Console key currently has no remaining API credits, and the configured Claude subscription token is blocked by its organization's Claude Code subscription policy. The AI-GEMS workflow therefore requires `GEMINI_API_KEY` to be added to AI-GEMS Actions Secrets; the same key currently exists only in astro-blog. Do not paste the key into chat or source control. Gemini's free tier has model/rate limits and Google states that free-tier input/output may be used to improve its products; choose a paid tier or another provider if that data-use policy is unsuitable. Missing provider credentials should produce an explicit unavailable/review state, not silently downgrade a long-form job to a short script.
 
 ### 4. Long-form render
 
@@ -155,7 +155,7 @@ Use separate concurrency groups for channel workers plus a state-write lock. Pre
 
 Implemented workflow/scripts:
 
-- AI-GEMS `.github/workflows/longform-youtube.yml`: four UTC pre-render schedule triggers plus manual dispatch; cron execution is gated by the `LONGFORM_SCHEDULE_ENABLED` repository variable until the first successful end-to-end dry run.
+- AI-GEMS `.github/workflows/longform-youtube.yml`: four UTC pre-render schedule triggers plus manual dispatch; cron execution is gated by the `LONGFORM_LIVE_ENABLED` repository variable until the first successful end-to-end dry run.
 - `scripts/longform_pipeline.py`: topic discovery, source corroboration, long-form script generation, rendering, channel validation, scheduled upload, reconciliation, and durable state transitions in one resumable worker.
 - `scripts/build_script.py` and `scripts/generate_video.py`: reused for 16:9 scene planning, TTS, footage/still generation, captions, and FFmpeg assembly.
 - `config/channel_profiles.yaml`: owner accounts, channel IDs, editorial source pools, minimum duration, script word range, and publication slots.
@@ -171,7 +171,7 @@ The existing blog-triggered workflow remains on its legacy single-channel creden
 2. **Credential inventory — complete:** AI-GEMS has the required channel-specific refresh-token names and OAuth client aliases; values were not read or printed.
 3. **Source discovery — implemented:** CNN, BBC, Valuetainment, and both owner-supplied YouTube source channels are configured for Astrotobby; the AI/technology source pool remains separate for Digital Nomad.
 4. **Pipeline and media gate — implemented, tests passing:** source corroboration, 1,900–2,500-word narration, 16:9 rendering, and the 600-second audio/video media check are in place.
-5. **Scheduler — implemented but gated:** four pre-render cron slots are configured in AI-GEMS. Set `LONGFORM_SCHEDULE_ENABLED=true` only after the first successful dry run.
+5. **Scheduler — implemented but gated:** four pre-render cron slots are configured in AI-GEMS. Set `LONGFORM_LIVE_ENABLED=true` only after the first successful dry run.
 6. **Next validation:** manually dispatch one dry run per channel, confirm actual render duration and channel identity, then run a scheduled-private upload test.
 7. **Controlled launch:** enable cron publishing and monitor each of the four independent jobs.
 8. **Steady state:** retain artifacts and job state; publish per-slot outcomes and video URLs.

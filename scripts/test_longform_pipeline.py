@@ -13,6 +13,24 @@ import longform_pipeline as pipeline
 
 
 class LLMAuthenticationTests(unittest.TestCase):
+    def test_gemini_interactions_uses_secret_header_and_extracts_model_text(self):
+        values = {
+            "GEMINI_API_KEY": "test-gemini-key",
+            "GEMINI_MODEL": "gemini-3.8-flash",
+            "CLAUDE_CODE_OAUTH_TOKEN": "must-not-be-used",
+        }
+        response = SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {"steps": [{"type": "model_output", "content": [{"type": "text", "text": "generated text"}]}]},
+        )
+        with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
+            with patch.object(pipeline.requests, "post", return_value=response) as post:
+                output = pipeline._generate_text("prompt", "system", "unused-anthropic-model")
+        self.assertEqual(output, "generated text")
+        self.assertEqual(post.call_args.kwargs["headers"]["x-goog-api-key"], "test-gemini-key")
+        self.assertEqual(post.call_args.kwargs["json"]["model"], "gemini-3.8-flash")
+        self.assertFalse(post.call_args.kwargs["json"]["store"])
+
     def test_claude_code_oauth_uses_subscription_cli_without_api_key(self):
         values = {
             "CLAUDE_CODE_OAUTH_TOKEN": "test-oauth-token",
