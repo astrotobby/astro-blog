@@ -8,7 +8,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 import requests
 
-sys.path.insert(0, str(Path.cwd()))
+sys.path.append(str(Path.cwd()))  # keep this repo's scripts/common.py ahead of AI-GEMS/clipper
 from common import OUT, ROOT, env, load_config, log, write_json
 import build_script
 import generate_video as renderer
