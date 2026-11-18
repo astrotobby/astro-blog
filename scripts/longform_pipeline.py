@@ -217,6 +217,8 @@ def valuetainment_uploads_feed():
         response=requests.get(feed_url,headers={"User-Agent":UA},timeout=10)
         response.raise_for_status()
         rows=parse_rss(response.text,"Valuetainment YouTube uploads","Valuetainment")
+        for row in rows:
+            row["source_type"]="commentary"
         log(f"Loaded {len(rows)} recent Valuetainment uploads from channel {channel_id}")
         return rows[:30]
     except Exception as exc:
@@ -274,6 +276,7 @@ def discover(channel,used_titles):
         source_rows.extend(feed(query))
 
     for row in source_rows:
+        row.setdefault("source_type","news")
         key=hashlib.sha256(row["url"].encode()).hexdigest()
         publisher=(row.get("publisher","")+" "+row.get("publisher_url","")+" "+row.get("url","")).lower()
         row["score"]=(12 if any(x in publisher for x in TRUSTED) else 0)+max(0,20-int(_age(row)/6))
@@ -292,12 +295,14 @@ def discover(channel,used_titles):
     for lead in eligible[:8]:
         related=[]
         for row in ranked:
-            if row["url"]==lead["url"] or _age(row)>30*24:
+            if row["url"]==lead["url"] or _age(row)>30*24 or row.get("source_type")=="commentary":
                 continue
             if similarity(row["title"],lead["title"])>=.16:
                 related.append(row)
 
-        pool=[lead]+related
+        # A Valuetainment video can be a useful editorial lead, but it must
+        # never be counted as one of the independent factual news reports.
+        pool=related if lead.get("source_type")=="commentary" else [lead]+related
         selected=[]
         seen=set()
         for row in pool:
