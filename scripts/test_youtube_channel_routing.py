@@ -128,6 +128,44 @@ class YouTubeChannelRoutingTests(unittest.TestCase):
         self.assertTrue(result["youtube"]["ok"])
         self.assertNotIn("channel", result["youtube"])
 
+    def test_scheduled_dry_run_records_publish_time(self):
+        values = {
+            "YOUTUBE_REFRESH_TOKEN_ASTROTOBBYC": "placeholder-token",
+            "YOUTUBE_CLIENT_ID": "placeholder-client",
+            "YOUTUBE_CLIENT_SECRET": "placeholder-secret",
+        }
+        publish_at = "2099-04-05T07:00:00Z"
+        render = {
+            "channel_key": "astrotobby",
+            "scheduled_publish_at": publish_at,
+            "platform": {"yt_title": "Scheduled test", "yt_desc": "Test description", "hashtags": []},
+            "videos": {"horizontal": "test.mp4"},
+        }
+        cfg = {"platforms": {"youtube": {"also_short": False}}}
+        with patch.object(platforms, "env", side_effect=lambda key, default="": values.get(key, default)):
+            result = platforms.post_youtube(render, cfg, dry=True)
+        self.assertTrue(result["youtube"]["ok"])
+        self.assertEqual(result["youtube"]["scheduled_publish_at"], publish_at)
+        self.assertEqual(result["youtube"]["privacy"], "private until scheduled time")
+
+    def test_scheduled_dry_run_rejects_timestamp_without_timezone(self):
+        values = {
+            "YOUTUBE_REFRESH_TOKEN_ASTROTOBBYC": "placeholder-token",
+            "YOUTUBE_CLIENT_ID": "placeholder-client",
+            "YOUTUBE_CLIENT_SECRET": "placeholder-secret",
+        }
+        render = {
+            "channel_key": "astrotobby",
+            "scheduled_publish_at": "2099-04-05T07:00:00",
+            "platform": {"yt_title": "Scheduled test", "yt_desc": "Test description", "hashtags": []},
+            "videos": {"horizontal": "test.mp4"},
+        }
+        cfg = {"platforms": {"youtube": {"also_short": False}}}
+        with patch.object(platforms, "env", side_effect=lambda key, default="": values.get(key, default)):
+            result = platforms.post_youtube(render, cfg, dry=True)
+        self.assertFalse(result["youtube"]["ok"])
+        self.assertIn("timezone", result["youtube"]["error"])
+
     def test_wrong_channel_title_is_blocked(self):
         profile = platforms._youtube_channel_profile({"channel_key": "astrotobbyc"})
         yt = _YouTube({"items": [{"id": "UC_WRONG", "snippet": {"title": "DIJITOL NOMAD"}}]})
