@@ -104,7 +104,7 @@ class MediaGateTests(unittest.TestCase):
             path = Path(temp) / "short.mp4"
             path.write_bytes(b"x" * 150_000)
             with patch.object(pipeline.renderer, "ffprobe_duration", return_value=599.9):
-                with self.assertRaisesRegex(RuntimeError, "below 600s"):
+                with self.assertRaisesRegex(RuntimeError, "minimum required"):
                     pipeline.check_media(path)
 
     def test_rejects_missing_audio_stream(self):
