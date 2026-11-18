@@ -79,6 +79,9 @@ jobs:
       - name: Install Python deps
         run:  pip install -r requirements-blog2video.txt
 
+      - name: Verify YouTube channel routing
+        run: python scripts/test_youtube_channel_routing.py
+
       # Chromium for the Rumble browser-automation poster (no official upload API).
       # Non-fatal: if it fails, only Rumble is skipped; the API posters are unaffected.
       - name: Install Playwright Chromium
@@ -182,6 +185,8 @@ jobs:
           # Accept the correct name OR the earlier mis-typed name (correct wins).
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || secrets.TELEGRAN_BOT }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || secrets.TELCHAT_ID }}
+          # This legacy blog-triggered workflow stays on its original single-channel credentials.
+          # The separate long-form scheduler lives in AI-GEMS, where both channel tokens are stored.
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET || secrets.YOUTUBE_SECRET_KEY }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}

@@ -20,32 +20,131 @@ def _has(*keys) -> bool:
 # --------------------------------------------------------------------------
 # YouTube — Data API v3 (own channel upload needs NO review)
 # --------------------------------------------------------------------------
-def _yt_client():
+def _yt_client(refresh_token=None, client_id=None, client_secret=None):
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
-    # No scopes= here on purpose: the refresh token may have been granted
-    # youtube.upload OR youtube.force-ssl. Passing a scope that wasn't granted makes
-    # Google reject the refresh ("invalid_scope"). Omitting it uses the granted scopes
-    # (force-ssl covers uploads), so it works regardless of how the token was minted.
+    # No scopes= here on purpose: existing authorizations may have youtube,
+    # youtube.upload, or youtube.force-ssl. Omitting scopes preserves the grant.
     creds = Credentials(
         None,
-        refresh_token=env("YOUTUBE_REFRESH_TOKEN"),
+        refresh_token=refresh_token or env("YOUTUBE_REFRESH_TOKEN"),
         token_uri="https://oauth2.googleapis.com/token",
-        client_id=env("YOUTUBE_CLIENT_ID"),
-        client_secret=env("YOUTUBE_CLIENT_SECRET"),
+        client_id=client_id or env("YOUTUBE_CLIENT_ID"),
+        client_secret=client_secret or env("YOUTUBE_CLIENT_SECRET"),
     )
     creds.refresh(Request())
     return build("youtube", "v3", credentials=creds)
 
 
-def _yt_upload(yt, video, title, desc, tags, cfg):
+def _yt_client_for_token(refresh_token):
+    """Try the known OAuth client-name variants without ever logging credential values."""
+    candidates = [
+        ("YOUTUBE_CLIENT_ID", env("YOUTUBE_CLIENT_ID"),
+         env("YOUTUBE_CLIENT_SECRET") or env("YOUTUBE_SECRET_KEY")),
+        ("CLIENT_ID", env("CLIENT_ID"), env("CLIENT_SECRET")),
+        ("YOUTUBECLIENT_ID", env("YOUTUBECLIENT_ID"),
+         env("YOUTUBECLIENT_SECTRET") or env("YOUTUBECLIENT_SECRET")),
+        ("YT_CLIENT_ID", env("YT_CLIENT_ID"), env("YT_CLIENT_SECRET")),
+    ]
+    seen, failures = set(), []
+    for label, client_id, client_secret in candidates:
+        if not client_id or not client_secret or (client_id, client_secret) in seen:
+            continue
+        seen.add((client_id, client_secret))
+        try:
+            return _yt_client(refresh_token, client_id, client_secret), label
+        except Exception as exc:  # noqa: only report the pair label, never the secret values
+            failures.append(f"{label}: {str(exc)[:180]}")
+    raise RuntimeError(
+        "YouTube OAuth refresh failed for all configured client pairs"
+        + (": " + " | ".join(failures) if failures else "; no complete client ID/secret pair was configured")
+    )
+
+
+def _youtube_channel_profile(render):
+    """Resolve an explicit render channel to its own refresh-token environment variable."""
+    post = render.get("post") or {}
+    profile = render.get("channel_profile") or {}
+    raw = (
+        render.get("channel_key")
+        or (profile.get("key") if isinstance(profile, dict) else profile)
+        or render.get("channel")
+        or post.get("channel_key")
+        or post.get("channel")
+    )
+    if not raw:
+        return None  # preserve the legacy single-channel blog workflow
+    if isinstance(raw, dict):
+        raw = raw.get("key") or raw.get("slug") or raw.get("name") or ""
+    normalized = "".join(ch for ch in str(raw).lower() if ch.isalnum())
+    if normalized in {"digitalnomad", "dijitalnomad", "dijitolnomad", "dijitolnomad001"}:
+        return {
+            "key": "digital_nomad",
+            "expected_title": "DIJITOL NOMAD",
+            "owner_account": "chanzera3@gmail.com",
+            "token_env": "YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD",
+            "channel_id_env": "YOUTUBE_CHANNEL_ID_DIGITAL_NOMAD",
+        }
+    if normalized in {"astrotobbyc", "astrotobby", "astrotobyc"}:
+        return {
+            "key": "astrotobbyc",
+            "expected_title": "Astro Tobby",
+            "owner_account": "goodlucktobby@gmail.com",
+            "token_env": "YOUTUBE_REFRESH_TOKEN_ASTROTOBBYC",
+            "channel_id_env": "YOUTUBE_CHANNEL_ID_ASTROTOBBYC",
+        }
+    raise ValueError(f"Unknown YouTube channel profile: {raw!r}")
+
+
+def _yt_verify_channel(yt, profile):
+    """Fail closed unless the selected OAuth token identifies the intended channel."""
+    data = yt.channels().list(part="id,snippet", mine=True).execute()
+    items = data.get("items") or []
+    if not items:
+        raise RuntimeError("YouTube OAuth token returned no channel for channels.list(mine=true)")
+    item = items[0]
+    channel_id = str(item.get("id") or "")
+    title = str((item.get("snippet") or {}).get("title") or "")
+    expected_id = env(profile["channel_id_env"])
+    expected_title = "".join(ch for ch in profile["expected_title"].lower() if ch.isalnum())
+    actual_title = "".join(ch for ch in title.lower() if ch.isalnum())
+    if expected_id and channel_id != expected_id:
+        raise RuntimeError(
+            f"YouTube token/channel ID mismatch for {profile['key']}: expected configured channel ID, "
+            f"received {channel_id or '(empty)'}"
+        )
+    if actual_title != expected_title:
+        raise RuntimeError(
+            f"YouTube token for {profile['key']} belongs to {title!r}, not "
+            f"{profile['expected_title']!r}; upload blocked"
+        )
+    return {"id": channel_id, "title": title}
+
+
+def _yt_upload(yt, video, title, desc, tags, cfg, publish_at=None):
+    from datetime import datetime, timezone
     from googleapiclient.http import MediaFileUpload
+
+    status = {"privacyStatus": "private" if publish_at else cfg["platforms"]["youtube"]["privacy"]}
+    if publish_at:
+        # YouTube scheduled publication requires a future RFC 3339 timestamp and
+        # private visibility at upload time. The scheduler supplies UTC (Z) values.
+        try:
+            parsed = datetime.fromisoformat(str(publish_at).replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("publish_at must be a valid RFC 3339 timestamp") from exc
+        if parsed.tzinfo is None:
+            raise ValueError("publish_at must include a timezone offset or Z")
+        if parsed.astimezone(timezone.utc) <= datetime.now(timezone.utc):
+            raise ValueError("publish_at must be in the future")
+        status["publishAt"] = str(publish_at)
+
     body = {
         "snippet": {"title": title[:95], "description": desc[:4900],
                     "tags": [t.lstrip("#") for t in tags][:15],
                     "categoryId": cfg["platforms"]["youtube"]["category_id"]},
-        "status": {"privacyStatus": cfg["platforms"]["youtube"]["privacy"]},
+        "status": status,
     }
     media = MediaFileUpload(video, chunksize=-1, resumable=True)
     req = yt.videos().insert(part="snippet,status", body=body, media_body=media)
@@ -56,21 +155,89 @@ def _yt_upload(yt, video, title, desc, tags, cfg):
 
 
 def post_youtube(render, cfg, dry):
-    if not _has("YOUTUBE_REFRESH_TOKEN", "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET"):
-        return {"youtube": {"ok": False, "skipped": "no creds"}}
     p = render["platform"]
     out = {}
-    main_video = render["videos"].get("horizontal") or render["videos"]["vertical"]
+    try:
+        profile = _youtube_channel_profile(render)
+    except ValueError as exc:
+        return {"youtube": {"ok": False, "error": str(exc)}}
+
+    if profile:
+        token = env(profile["token_env"])
+        if not token:
+            return {"youtube": {
+                "ok": False,
+                "skipped": f"missing channel-specific credential: {profile['token_env']}",
+                "channel": profile["expected_title"],
+            }}
+    else:
+        # Legacy blog posts without a channel profile continue to use the original
+        # single-token setting; the new multi-channel scheduler must always be explicit.
+        token = env("YOUTUBE_REFRESH_TOKEN")
+        if not token:
+            return {"youtube": {"ok": False, "skipped": "no YouTube refresh token"}}
+
+    client_pairs_present = any((
+        env("YOUTUBE_CLIENT_ID") and (env("YOUTUBE_CLIENT_SECRET") or env("YOUTUBE_SECRET_KEY")),
+        env("CLIENT_ID") and env("CLIENT_SECRET"),
+        env("YOUTUBECLIENT_ID") and (env("YOUTUBECLIENT_SECTRET") or env("YOUTUBECLIENT_SECRET")),
+        env("YT_CLIENT_ID") and env("YT_CLIENT_SECRET"),
+    ))
+    if not client_pairs_present:
+        return {"youtube": {"ok": False, "skipped": "no complete YouTube OAuth client ID/secret pair"}}
+
+    main_video = render["videos"].get("horizontal") or render["videos"].get("vertical")
+    if not main_video:
+        return {"youtube": {"ok": False, "error": "no horizontal or vertical video to upload"}}
+
+    publish_at = (
+        render.get("scheduled_publish_at")
+        or render.get("publish_at")
+        or p.get("scheduled_publish_at")
+        or p.get("publish_at")
+    )
+    if publish_at:
+        # Validate timestamp before any OAuth/network side effects.
+        from datetime import datetime, timezone
+        try:
+            parsed_publish_at = datetime.fromisoformat(str(publish_at).replace("Z", "+00:00"))
+        except ValueError:
+            return {"youtube": {"ok": False, "error": "scheduled_publish_at must be RFC 3339"}}
+        if parsed_publish_at.tzinfo is None:
+            return {"youtube": {"ok": False, "error": "scheduled_publish_at must include timezone or Z"}}
+        if parsed_publish_at.astimezone(timezone.utc) <= datetime.now(timezone.utc):
+            return {"youtube": {"ok": False, "error": "scheduled_publish_at must be in the future"}}
+
     if dry:
-        out["youtube"] = {"ok": True, "dry": True, "url": "(dry) " + p["yt_title"]}
-        if cfg["platforms"]["youtube"].get("also_short"):
+        out["youtube"] = {
+            "ok": True, "dry": True, "url": "(dry) " + p["yt_title"],
+            **({"channel": profile["expected_title"]} if profile else {}),
+            **({"scheduled_publish_at": str(publish_at), "privacy": "private until scheduled time"}
+               if publish_at else {}),
+        }
+        if cfg["platforms"]["youtube"].get("also_short") and render["videos"].get("vertical"):
             out["youtube_short"] = {"ok": True, "dry": True}
         return out
-    yt = _yt_client()
+
+    yt = None
     try:
+        yt, client_label = _yt_client_for_token(token)
+        if profile:
+            identity = _yt_verify_channel(yt, profile)
+            log(f"youtube channel verified: {identity['title']} ({identity['id']})")
+        else:
+            identity = None
+        log("youtube OAuth client pair accepted: " + client_label)
         _url = _yt_upload(
-            yt, main_video, p["yt_title"], p["yt_desc"], p["hashtags"], cfg)
+            yt, main_video, p["yt_title"], p["yt_desc"], p["hashtags"], cfg,
+            publish_at=publish_at)
         out["youtube"] = {"ok": True, "url": _url}
+        if publish_at:
+            out["youtube"]["scheduled_publish_at"] = str(publish_at)
+            out["youtube"]["privacy"] = "private until scheduled time"
+        if identity:
+            out["youtube"]["channel"] = identity["title"]
+            out["youtube"]["channel_id"] = identity["id"]
         if cfg["platforms"]["youtube"].get("set_custom_thumbnail", False):
             try:
                 from thumbnail import set_thumbnail_for
@@ -85,7 +252,8 @@ def post_youtube(render, cfg, dry):
             log("youtube custom thumbnail disabled")
     except Exception as e:  # noqa
         out["youtube"] = {"ok": False, "error": str(e)}
-    if cfg["platforms"]["youtube"].get("also_short") and render["videos"].get("vertical"):
+
+    if yt and cfg["platforms"]["youtube"].get("also_short") and render["videos"].get("vertical"):
         try:
             out["youtube_short"] = {"ok": True, "url": _yt_upload(
                 yt, render["videos"]["vertical"], p["yt_title"][:85] + " #Shorts",
