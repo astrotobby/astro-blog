@@ -97,6 +97,8 @@ class TopicTests(unittest.TestCase):
 
     def test_astrotobby_source_pool_contains_requested_publishers_and_video_refs(self):
         queries = pipeline.CHANNELS["astrotobby"]["queries"]
+        self.assertEqual(pipeline.CHANNELS["astrotobby"]["channel_id"], "UCxndvpcFaVhN1bJxgWIjG_A")
+        self.assertEqual(pipeline.CHANNELS["digital_nomad"]["channel_id"], "UCE_cklDludc6nkU1_4K6JzA")
         self.assertTrue(any("site:cnn.com" in q for q in queries))
         self.assertTrue(any("site:bbc.com/news" in q and "site:bbc.co.uk/news" in q for q in queries))
         publishers = {name for name, _url in pipeline.CHANNEL_FEEDS["astrotobby"]}
