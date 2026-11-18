@@ -24,6 +24,19 @@ CHANNELS = {
    "queries":['("artificial intelligence" OR AI OR automation OR software OR technology OR developer) when:7d','("AI agent" OR "open source" OR LLM OR robotics OR cybersecurity OR cloud) when:7d']}
 }
 
+CHANNEL_FEEDS = {
+ "astrotobby": [
+  ("BBC Entertainment", "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml"),
+  ("The Guardian Culture", "https://www.theguardian.com/culture/rss"),
+ ],
+ "digital_nomad": [
+  ("BBC Technology", "https://feeds.bbci.co.uk/news/technology/rss.xml"),
+  ("The Guardian Technology", "https://www.theguardian.com/technology/rss"),
+  ("The Verge", "https://www.theverge.com/rss/index.xml"),
+  ("Ars Technica", "https://feeds.arstechnica.com/arstechnica/index"),
+ ],
+}
+
 
 class ArticleText(HTMLParser):
     HIDE={"script","style","nav","footer","header","aside","form","noscript"}
@@ -79,24 +92,70 @@ def make_job_id(channel,slot,target):
     return f"{target.astimezone(EAT):%Y%m%d}_{channel}_{slot.replace(':','')}"
 
 
-def feed(query):
-    url="https://news.google.com/rss/search?"+urllib.parse.urlencode({"q":query,"hl":"en-US","gl":"US","ceid":"US:en"})
-    response=requests.get(url,headers={"User-Agent":UA},timeout=35); response.raise_for_status()
-    root=ET.fromstring(response.text); out=[]
-    for node in root.findall(".//item"):
+def parse_rss(xml_text, query="", publisher_hint=""):
+    root=ET.fromstring(xml_text)
+    out=[]
+    nodes=root.findall(".//item") or root.findall(".//{*}entry")
+    for node in nodes:
         title=html.unescape((node.findtext("title") or "").strip())
         link=(node.findtext("link") or "").strip()
-        desc=html.unescape(re.sub(r"<[^>]+>"," ",node.findtext("description") or ""))
-        source=node.find("source")
-        publisher=(source.text or "").strip() if source is not None else ""
+        if not link:
+            link_node=node.find("{*}link")
+            if link_node is not None:
+                link=link_node.attrib.get("href","")
+        desc=html.unescape(re.sub(r"<[^>]+>"," ",node.findtext("description") or node.findtext("{*}summary") or ""))
+        source=next((x for x in list(node) if x.tag.rsplit("}",1)[-1].lower()=="source"),None)
+        publisher=(source.text or "").strip() if source is not None else publisher_hint
         publisher_url=source.attrib.get("url","") if source is not None else ""
-        try: published=email.utils.parsedate_to_datetime(node.findtext("pubDate")).astimezone(timezone.utc)
-        except Exception: published=None
+        raw_date=node.findtext("pubDate") or node.findtext("{*}published") or node.findtext("{*}updated") or ""
+        try:
+            published=email.utils.parsedate_to_datetime(raw_date).astimezone(timezone.utc)
+        except Exception:
+            try:
+                published=datetime.fromisoformat(raw_date.replace("Z","+00:00")).astimezone(timezone.utc)
+            except Exception:
+                published=None
         if title and link:
-            out.append({"title":title,"url":link,"summary":re.sub(r"\s+"," ",desc)[:1500],
-                        "publisher":publisher,"publisher_url":publisher_url,
-                        "published_at":published.isoformat() if published else ""})
-    return out[:100]
+            out.append({
+                "title":title,"url":link,"summary":re.sub(r"\\s+"," ",desc)[:1800],
+                "publisher":publisher,"publisher_url":publisher_url,
+                "published_at":published.isoformat() if published else "",
+                "query":query,
+            })
+    return out
+
+
+def feed(query):
+    """Merge Google News and Bing News search RSS; either provider may rate-limit independently."""
+    found={}
+    providers=(
+        ("Google News", "https://news.google.com/rss/search?"+urllib.parse.urlencode(
+            {"q":query,"hl":"en-US","gl":"US","ceid":"US:en"})),
+        ("Bing News", "https://www.bing.com/news/search?"+urllib.parse.urlencode(
+            {"q":query,"format":"rss"})),
+    )
+    for label,url in providers:
+        try:
+            response=requests.get(url,headers={"User-Agent":UA},timeout=22)
+            response.raise_for_status()
+            for row in parse_rss(response.text,query):
+                key=hashlib.sha256(row["url"].encode()).hexdigest()
+                found.setdefault(key,row)
+        except Exception as exc:
+            log(f"{label} RSS unavailable for one query: {str(exc)[:140]}")
+    return list(found.values())[:100]
+
+
+def publisher_feeds(channel):
+    rows=[]
+    for publisher,url in CHANNEL_FEEDS[channel]:
+        try:
+            response=requests.get(url,headers={"User-Agent":UA},timeout=22)
+            response.raise_for_status()
+            rows.extend(parse_rss(response.text,publisher,publisher))
+        except Exception as exc:
+            log(f"{publisher} RSS unavailable: {str(exc)[:120]}")
+    return rows[:120]
 
 
 def _age(item):
@@ -128,17 +187,20 @@ def enrich(item):
 
 
 def discover(channel,used_titles):
-    profile=CHANNELS[channel]; candidates={}
+    profile=CHANNELS[channel]
+    candidates={}
+    source_rows=publisher_feeds(channel)
     for query in profile["queries"]:
         try:
-            for row in feed(query):
-                key=hashlib.sha256(row["url"].encode()).hexdigest()
-                pub=(row.get("publisher","")+" "+row.get("publisher_url","")).lower()
-                row["score"]=(12 if any(x in pub for x in TRUSTED) else 0)+max(0,20-int(_age(row)/6))
-                if key not in candidates or row["score"]>candidates[key]["score"]:
-                    candidates[key]=row
+            source_rows.extend(feed(query))
         except Exception as exc:
-            log(f"News feed unavailable: {str(exc)[:130]}")
+            log(f"News query unavailable: {str(exc)[:130]}")
+    for row in source_rows:
+        key=hashlib.sha256(row["url"].encode()).hexdigest()
+        publisher=(row.get("publisher","")+" "+row.get("publisher_url","")).lower()
+        row["score"]=(12 if any(x in publisher for x in TRUSTED) else 0)+max(0,20-int(_age(row)/6))
+        if key not in candidates or row["score"]>candidates[key]["score"]:
+            candidates[key]=row
     ranked=sorted(candidates.values(),key=lambda x:(x["score"],-_age(x)),reverse=True)
     eligible=[row for row in ranked
               if _age(row)<=profile["fresh"]
@@ -146,59 +208,60 @@ def discover(channel,used_titles):
     if not eligible:
         raise RuntimeError(f"No fresh and unused {channel} story found")
 
-    # A first-ranked headline may have only one publisher. Try several recent
-    # candidates and gather both exact-title and broader related coverage.
+    # Try several current stories; Google/Bing feeds alone may yield thin snippets.
     diagnostics=[]
-    for lead in eligible[:10]:
+    for lead in eligible[:12]:
         base_title=re.split(r"\\s+[—|–-]\\s+",lead["title"],maxsplit=1)[0].strip()
         related={}
         for query in (f'"{base_title[:150]}" when:30d',f'{base_title[:150]} when:30d'):
-            try:
-                for row in feed(query):
-                    related[hashlib.sha256(row["url"].encode()).hexdigest()]=row
-            except Exception as exc:
-                log(f"Related-source lookup unavailable: {str(exc)[:120]}")
-
+            for row in feed(query):
+                related[hashlib.sha256(row["url"].encode()).hexdigest()]=row
         pool=[lead]
         for row in list(related.values())+ranked:
             if row["url"]==lead["url"] or _age(row)>30*24:
                 continue
             if similarity(row["title"],base_title)>=.18 or similarity(row["title"],lead["title"])>=.18:
                 pool.append(row)
-            if len(pool)>=35:
+            if len(pool)>=45:
                 break
 
-        selected=[]; seen=set()
+        selected=[]
+        seen=set()
         for row in pool:
             publisher=(row.get("publisher") or "").strip().lower()
-            domain=urllib.parse.urlparse(row.get("publisher_url") or row["url"]).netloc.lower()
-            identity=publisher or domain or row["url"]
+            host=urllib.parse.urlparse(row.get("publisher_url") or row["url"]).netloc.lower()
+            # Bing/Google are aggregators, not the underlying publisher. Keep
+            # distinct result links until redirects reveal the actual publisher.
+            if host.endswith("bing.com") or host.endswith("news.google.com"):
+                identity=row["url"]
+            else:
+                identity=publisher or host or row["url"]
             if identity in seen:
                 continue
-            seen.add(identity); selected.append(row)
-            if len(selected)>=5:
+            seen.add(identity)
+            selected.append(row)
+            if len(selected)>=7:
                 break
-        if len(selected)<2:
-            diagnostics.append(f"{lead['title'][:75]}: {len(selected)} publisher(s)")
-            continue
 
         sources=[enrich(row) for row in selected]
         independent={}
         for source in sources:
-            domain=urllib.parse.urlparse(source.get("url") or "").netloc.lower()
-            name=(source.get("publisher") or domain).strip().lower()
-            independent.setdefault(name,source)
+            final_host=urllib.parse.urlparse(source.get("url") or "").netloc.lower()
+            publisher=(source.get("publisher") or "").strip().lower()
+            # Prefer publisher label when supplied; otherwise resolved destination host.
+            identity=publisher or final_host or source.get("url")
+            independent.setdefault(identity,source)
         sources=list(independent.values())
         evidence_chars=sum(len(x.get("article_text") or x.get("summary") or "") for x in sources)
-        diagnostics.append(f"{lead['title'][:75]}: {len(sources)} publishers, {evidence_chars} evidence chars")
+        diagnostics.append(f"{lead['title'][:70]}: {len(sources)} independent reports, {evidence_chars} evidence chars")
         log(f"Research candidate check: {diagnostics[-1]}")
         if len(sources)>=2 and evidence_chars>=700:
             log(f"Selected corroborated story: {lead['title']}")
             return lead,sources
 
     raise RuntimeError(
-        "Could not find a fresh story with at least two independent reports and 700 characters of source evidence. "
-        "Last candidate checks: "+"; ".join(diagnostics[-5:])
+        "Could not find a fresh topic with two independent reports and 700 source-evidence characters. "
+        "Last checks: "+"; ".join(diagnostics[-5:])
     )
 
 
