@@ -80,6 +80,27 @@ class LLMAuthenticationTests(unittest.TestCase):
                     pipeline._generate_text("prompt", "system", "claude-sonnet-5")
 
 
+    def test_gemini_outage_falls_back_to_anthropic_api(self):
+        values = {
+            "GEMINI_API_KEY": "test-gemini-key",
+            "GEMINI_MODEL": "gemini-3.8-flash",
+            "GEMINI_FALLBACK_MODEL": "gemini-3.7-flash",
+            "ANTHROPIC_API_KEY": "test-anthropic-key",
+        }
+        unavailable = pipeline.requests.Response()
+        unavailable.status_code = 503
+        unavailable.headers["Retry-After"] = "1"
+        message = SimpleNamespace(content=[SimpleNamespace(type="text", text="anthropic fallback text")])
+        client = SimpleNamespace(messages=SimpleNamespace(create=lambda **kwargs: message))
+        anthropic_module = SimpleNamespace(Anthropic=lambda **kwargs: client)
+        with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
+            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 6):
+                with patch.object(pipeline.time_module, "sleep"):
+                    with patch.dict(sys.modules, {"anthropic": anthropic_module}):
+                        output = pipeline._generate_text("prompt", "system", "unused-model")
+        self.assertEqual(output, "anthropic fallback text")
+
+
 class ScheduleTests(unittest.TestCase):
     def test_four_publication_times_are_converted_from_kenya_to_utc(self):
         fixed_now = datetime(2026, 11, 18, 8, 0, tzinfo=pipeline.EAT)
