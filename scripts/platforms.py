@@ -45,6 +45,7 @@ def _yt_client_for_token(refresh_token):
         ("CLIENT_ID", env("CLIENT_ID"), env("CLIENT_SECRET")),
         ("YOUTUBECLIENT_ID", env("YOUTUBECLIENT_ID"),
          env("YOUTUBECLIENT_SECTRET") or env("YOUTUBECLIENT_SECRET")),
+        ("YT_CLIENT_ID", env("YT_CLIENT_ID"), env("YT_CLIENT_SECRET")),
     ]
     seen, failures = set(), []
     for label, client_id, client_secret in candidates:
@@ -122,7 +123,7 @@ def _yt_verify_channel(yt, profile):
 
 
 def _yt_upload(yt, video, title, desc, tags, cfg, publish_at=None):
-    from datetime import datetime
+    from datetime import datetime, timezone
     from googleapiclient.http import MediaFileUpload
 
     status = {"privacyStatus": "private" if publish_at else cfg["platforms"]["youtube"]["privacy"]}
@@ -135,6 +136,8 @@ def _yt_upload(yt, video, title, desc, tags, cfg, publish_at=None):
             raise ValueError("publish_at must be a valid RFC 3339 timestamp") from exc
         if parsed.tzinfo is None:
             raise ValueError("publish_at must include a timezone offset or Z")
+        if parsed.astimezone(timezone.utc) <= datetime.now(timezone.utc):
+            raise ValueError("publish_at must be in the future")
         status["publishAt"] = str(publish_at)
 
     body = {
@@ -194,13 +197,15 @@ def post_youtube(render, cfg, dry):
     )
     if publish_at:
         # Validate timestamp before any OAuth/network side effects.
-        from datetime import datetime
+        from datetime import datetime, timezone
         try:
             parsed_publish_at = datetime.fromisoformat(str(publish_at).replace("Z", "+00:00"))
         except ValueError:
             return {"youtube": {"ok": False, "error": "scheduled_publish_at must be RFC 3339"}}
         if parsed_publish_at.tzinfo is None:
             return {"youtube": {"ok": False, "error": "scheduled_publish_at must include timezone or Z"}}
+        if parsed_publish_at.astimezone(timezone.utc) <= datetime.now(timezone.utc):
+            return {"youtube": {"ok": False, "error": "scheduled_publish_at must be in the future"}}
 
     if dry:
         out["youtube"] = {
