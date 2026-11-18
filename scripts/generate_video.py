@@ -44,11 +44,12 @@ FOOTAGE_HISTORY_FILE = STATE / "footage_history.json"
 FOOTAGE_HISTORY_DAYS = 30
 FOOTAGE_HISTORY_LIMIT = 240
 # Bound each scene's network work so a slow stock provider cannot stall a full episode.
-FOOTAGE_SEARCH_TIMEOUT_SECONDS = 15
-FOOTAGE_DOWNLOAD_TIMEOUT_SECONDS = 25
-FOOTAGE_MAX_DOWNLOAD_ATTEMPTS = 4
+FOOTAGE_SEARCH_TIMEOUT_SECONDS = 12
+FOOTAGE_DOWNLOAD_TIMEOUT_SECONDS = 18
+FOOTAGE_SCENE_BUDGET_SECONDS = 55
+FOOTAGE_MAX_DOWNLOAD_ATTEMPTS = 3
 FOOTAGE_MAX_ALTERNATE_ATTEMPTS = 1
-POLLINATIONS_TIMEOUT_SECONDS = 20
+POLLINATIONS_TIMEOUT_SECONDS = 12
 POLLINATIONS_ATTEMPTS = 2
 _search_cache = None
 
@@ -483,11 +484,15 @@ def _clean_image_prompt(prompt: str) -> str:
     return (prompt or "").split("|scene_type:", 1)[0].strip(" ,")
 
 
-def _download_candidate(candidate, destination: Path) -> bool:
+def _download_candidate(candidate, destination: Path, timeout_seconds=None) -> bool:
     try:
+        read_timeout = min(
+            FOOTAGE_DOWNLOAD_TIMEOUT_SECONDS,
+            max(1.0, float(timeout_seconds or FOOTAGE_DOWNLOAD_TIMEOUT_SECONDS)),
+        )
         response = requests.get(
             candidate["url"], stream=True,
-            timeout=(5, FOOTAGE_DOWNLOAD_TIMEOUT_SECONDS),
+            timeout=(min(5.0, read_timeout), read_timeout),
         )
         if response.status_code != 200:
             return False
@@ -506,10 +511,17 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, used_creator
     """Download a relevant clip while avoiding exact, contributor, and recent repeats."""
     destination = OUT / f"scene_{index:02d}_{variant}.mp4"
     destination.unlink(missing_ok=True)
+    deadline = time.monotonic() + FOOTAGE_SCENE_BUDGET_SECONDS
     queries = [query for query in (meta.get("broll"), meta.get("fallback")) if query]
     for query in dict.fromkeys(queries):  # preserve order, remove duplicate fallback
+        if time.monotonic() >= deadline:
+            break
         candidates = _pexels_video_search(query, target_w, target_h)
+        if time.monotonic() >= deadline:
+            break
         candidates.extend(_pixabay_video_search(query, target_w, target_h))
+        if time.monotonic() >= deadline:
+            break
         candidates.sort(key=lambda item: item["score"], reverse=True)
         # Prefer a fresh contributor and a clip not used by the last several posts.
         # If the providers return too few candidates, the second pass relaxes only
@@ -522,7 +534,10 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, used_creator
                    if candidate.get("id") not in used_clips]
         ordered = fresh + [item for item in relaxed if item not in fresh]
         for position, candidate in enumerate(ordered[:FOOTAGE_MAX_DOWNLOAD_ATTEMPTS]):
-            if _download_candidate(candidate, destination):
+            remaining = deadline - time.monotonic()
+            if remaining < 1.0:
+                break
+            if _download_candidate(candidate, destination, remaining):
                 clip_id = candidate["id"]
                 used_clips.add(clip_id)
                 if candidate.get("creator"):
@@ -539,7 +554,10 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, used_creator
                 for alt in ordered[position + 1:position + 1 + FOOTAGE_MAX_ALTERNATE_ATTEMPTS]:
                     if alt["id"] in used_clips:
                         continue
-                    if _download_candidate(alt, alt_destination):
+                    remaining = deadline - time.monotonic()
+                    if remaining < 1.0:
+                        break
+                    if _download_candidate(alt, alt_destination, remaining):
                         used_clips.add(alt["id"])
                         alt_prov = {key: alt[key] for key in ("id", "provider", "creator", "source_url", "query")}
                         alt_prov["scene"] = index
@@ -563,7 +581,7 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
     destination.unlink(missing_ok=True)
     if index == 0 and image_url:
         try:
-            response = requests.get(image_url, timeout=30)
+            response = requests.get(image_url, timeout=10)
             if response.status_code == 200:
                 destination.write_bytes(response.content)
                 return destination, meta, None
@@ -585,9 +603,10 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
             log(f"image fallback failed: {exc}")
         time.sleep(2 * (attempt + 1))  # short backoff; image fallback is best-effort
 
-    run(["ffmpeg", "-y", "-f", "lavfi", "-i", f"color=c=black:s={target_w}x{target_h}",
-         "-frames:v", "1", "-update", "1", str(destination)])
-    return destination, meta, None
+    raise RuntimeError(
+        f"No usable visual asset for scene {index + 1}: stock footage and image fallback failed; "
+        "refusing to render a black placeholder"
+    )
 
 
 def fetch_scene_assets(script, cfg, variant):
