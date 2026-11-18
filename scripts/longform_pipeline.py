@@ -106,15 +106,24 @@ def _age(item):
 
 def enrich(item):
     row=dict(item)
+    summary=(row.get("summary") or "").strip()
     try:
         r=requests.get(row["url"],headers={"User-Agent":UA},timeout=25,allow_redirects=True)
         row["url"]=r.url
         if r.ok and "html" in r.headers.get("content-type","").lower():
             p=ArticleText(); p.feed(r.text[:2_000_000])
-            row["article_text"]="\n\n".join(p.parts)[:7000] or p.description or row["summary"]
-        else: row["article_text"]=row["summary"]
+            extracted="\n\n".join(p.parts).strip() or (p.description or "").strip()
+            # Keep the RSS publisher summary alongside page extracts: many publisher
+            # pages expose only a short teaser or bot-check HTML to server-side fetches.
+            # Discarding the RSS snippet was causing good multi-publisher bundles to
+            # look like they contained almost no supporting evidence.
+            chunks=[x for x in (extracted, summary) if x]
+            row["article_text"]="\n\n[Publisher feed summary]\n".join(chunks)[:9000]
+        else:
+            row["article_text"]=summary
     except Exception as exc:
-        log(f"Source extraction fallback: {str(exc)[:120]}"); row["article_text"]=row["summary"]
+        log(f"Source extraction fallback: {str(exc)[:120]}")
+        row["article_text"]=summary
     return row
 
 
