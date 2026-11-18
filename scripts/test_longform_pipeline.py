@@ -104,11 +104,41 @@ class LLMAuthenticationTests(unittest.TestCase):
         self.assertEqual(command[0:5], ["/usr/bin/opencode", "run", "--standalone", "--model", "opencode/big-pickle"])
         self.assertEqual(run.call_args.kwargs["env"]["OPENCODE_API_KEY"], "test-opencode-key")
 
+    def test_gemini_outage_falls_back_to_freellmapi_before_anthropic(self):
+        values = {
+            "GEMINI_API_KEY": "test-gemini-key",
+            "GEMINI_MODEL": "gemini-3.8-flash",
+            "GEMINI_FALLBACK_MODEL": "gemini-3.7-flash",
+            "FREELLMAPI_API_KEY": "test-local-profile-key",
+            "FREELLMAPI_BASE_URL": "http://127.0.0.1:3001/v1",
+            "FREELLMAPI_MODEL": "auto:smart",
+            "ANTHROPIC_API_KEY": "must-not-be-used",
+        }
+        unavailable = pipeline.requests.Response()
+        unavailable.status_code = 503
+        unavailable.headers["Retry-After"] = "1"
+        free_success = SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {"choices": [{"message": {"content": "FreeLLMAPI script JSON"}}]},
+            headers={"X-Routed-Via": "ovh/example-free-model"},
+        )
+        with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
+            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 6 + [free_success]) as post:
+                with patch.object(pipeline.time_module, "sleep"):
+                    output = pipeline._generate_text("prompt", "system", "unused-model")
+        self.assertEqual(output, "FreeLLMAPI script JSON")
+        self.assertEqual(post.call_count, 7)
+        call = post.call_args
+        self.assertEqual(call.args[0], "http://127.0.0.1:3001/v1/chat/completions")
+        self.assertEqual(call.kwargs["headers"]["Authorization"], "Bearer test-local-profile-key")
+        self.assertEqual(call.kwargs["json"]["model"], "auto:smart")
+
     def test_gemini_outage_falls_back_to_anthropic_api(self):
         values = {
             "GEMINI_API_KEY": "test-gemini-key",
             "GEMINI_MODEL": "gemini-3.8-flash",
             "GEMINI_FALLBACK_MODEL": "gemini-3.7-flash",
+            "FREELLMAPI_API_KEY": "test-local-profile-key",
             "ANTHROPIC_API_KEY": "test-anthropic-key",
         }
         unavailable = pipeline.requests.Response()
@@ -118,7 +148,7 @@ class LLMAuthenticationTests(unittest.TestCase):
         client = SimpleNamespace(messages=SimpleNamespace(create=lambda **kwargs: message))
         anthropic_module = SimpleNamespace(Anthropic=lambda **kwargs: client)
         with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
-            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 6):
+            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 7):
                 with patch.object(pipeline.time_module, "sleep"):
                     with patch.dict(sys.modules, {"anthropic": anthropic_module}):
                         output = pipeline._generate_text("prompt", "system", "unused-model")
