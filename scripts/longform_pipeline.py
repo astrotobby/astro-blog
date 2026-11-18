@@ -18,9 +18,9 @@ UA = "Mozilla/5.0 (compatible; AstroTobbyLongform/1.0)"
 STOP = set("what when where which who why how the a an and or of to in on for with at by from is are was were be new latest this that their its 2025 2026 2027 explained guide update".split())
 TRUSTED = ("reuters", "associated press", "ap news", "bbc", "cnn", "the verge", "techcrunch", "ars technica", "wired", "bloomberg", "cnbc", "hollywood reporter", "variety", "deadline", "billboard", "the guardian", "npr", "fortune", "engadget")
 CHANNELS = {
- "astrotobby": {"title":"Astro Tobby","owner":"goodlucktobby@gmail.com","category":"24","slots":("10:00","15:00"),"fresh":72,
+ "astrotobby": {"title":"Astro Tobby","owner":"goodlucktobby@gmail.com","channel_id":"UCxndvpcFaVhN1bJxgWIjG_A","category":"24","slots":("10:00","15:00"),"fresh":72,
    "queries":['(entertainment OR film OR streaming OR television OR music OR celebrity) when:3d','(box office OR movie OR TV series OR music industry) when:3d','site:cnn.com (entertainment OR film OR streaming OR television OR music OR celebrity) when:7d','site:cnn.com (world OR politics OR US OR celebrity) when:7d','site:bbc.com/news OR site:bbc.co.uk/news (world OR entertainment OR film OR music OR celebrity) when:7d','site:bbc.com/news/entertainment-arts OR site:bbc.co.uk/news/entertainment-arts when:7d']},
- "digital_nomad": {"title":"DIJITOL NOMAD","owner":"chanzera3@gmail.com","category":"28","slots":("12:00","18:00"),"fresh":168,
+ "digital_nomad": {"title":"DIJITOL NOMAD","owner":"chanzera3@gmail.com","channel_id":"UCE_cklDludc6nkU1_4K6JzA","category":"28","slots":("12:00","18:00"),"fresh":168,
    "queries":['("artificial intelligence" OR AI OR automation OR software OR technology OR developer) when:7d','("AI agent" OR "open source" OR LLM OR robotics OR cybersecurity OR cloud) when:7d']}
 }
 
@@ -569,9 +569,15 @@ def yt_service(channel):
     items=yt.channels().list(part="id,snippet",mine=True).execute().get("items") or []
     if not items: raise RuntimeError("YouTube OAuth returned no channel")
     title=(items[0].get("snippet") or {}).get("title","")
+    actual_id=str(items[0].get("id") or "")
     if title.strip().casefold()!=profile["title"].casefold():
         raise RuntimeError(f"Upload blocked: token belongs to {title!r}, expected {profile['title']!r}")
-    return yt,target,creds,{"id":items[0].get("id",""),"title":title}
+    if actual_id != profile["channel_id"]:
+        raise RuntimeError(
+            f"Upload blocked: authenticated channel ID {actual_id!r} does not match "
+            f"the validated destination ID for {profile['title']!r}"
+        )
+    return yt,target,creds,{"id":actual_id,"title":title}
 
 
 def find_existing(yt,title,target):
