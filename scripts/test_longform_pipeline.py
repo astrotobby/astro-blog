@@ -185,9 +185,9 @@ class SourceDiscoveryTests(unittest.TestCase):
             result["article_text"] = (row.get("summary") or "") + (" evidence" * 20)
             return result
 
-        with patch.object(pipeline, "publisher_feeds", return_value=[]), \\
-             patch.object(pipeline, "valuetainment_uploads_feed", return_value=[]), \\
-             patch.object(pipeline, "feed", side_effect=fake_feed), \\
+        with patch.object(pipeline, "publisher_feeds", return_value=[]), \
+             patch.object(pipeline, "valuetainment_uploads_feed", return_value=[]), \
+             patch.object(pipeline, "feed", side_effect=fake_feed), \
              patch.object(pipeline, "enrich", side_effect=fake_enrich):
             selected_lead, sources = pipeline.discover("astrotobby", [])
 
