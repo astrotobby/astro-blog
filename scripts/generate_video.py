@@ -1144,14 +1144,15 @@ def _source_credits(sources):
         source_url = source.get("source_url") or ("https://www.pexels.com/" if provider == "Pexels" else "https://pixabay.com/")
         if provider == "Openverse":
             title = (source.get("title") or "Untitled image").strip()[:72]
-            license_id = (source.get("license") or "cc0").upper()
+            license_id = (source.get("license") or "cc0").lower()
+            license_label = "CC BY" if license_id == "by" else license_id.upper()
             license_url = source.get("license_url") or ""
             creator_url = source.get("creator_url") or ""
             creator_credit = f"{creator} ({creator_url})" if creator_url else creator
             license_credit = f"{license_id} {license_url}".strip()
             credits.append(
                 f"Openverse image: {title} — {creator_credit}; source: {source_url}; "
-                f"license: {license_credit}"
+                f"license: {license_label} {license_url}".strip()
             )
         else:
             credits.append(f"{provider}: {creator} — {source_url}")
