@@ -1,0 +1,62 @@
+# Channel-specific long-form publishing profiles.
+# Secrets remain in GitHub Actions; never put refresh-token values in this file.
+timezone: Africa/Nairobi
+minimum_duration_seconds: 600
+script:
+  target_words: 1700
+  acceptable_word_range: [1600, 1800]
+  words_per_minute: 160
+render:
+  aspect_ratio: "16:9"
+  width: 1920
+  height: 1080
+  audio_required: true
+publish:
+  mode: scheduled_private
+  verify_scheduled_publish_at: true
+
+channels:
+  astrotobby:
+    display_name: "Astrotobby"
+    youtube_channel_title: "Astro Tobby"
+    owner_google_account: "goodlucktobby@gmail.com"
+    refresh_token_env: YOUTUBE_REFRESH_TOKEN_ASTROTOBBYC
+    github_secret_source: YOUTUBE_REFRESH_TOKEN_ASTRO_TOBBY
+    channel_id_env: YOUTUBE_CHANNEL_ID_ASTROTOBBYC
+    publication_times:
+      - "10:00"
+      - "15:00"
+    editorial_focus:
+      - news
+      - entertainment
+      - trending_stories
+      - explainers
+    freshness_policy:
+      breaking_news_max_age_hours: 36
+      evergreen_allowed: true
+
+  digital_nomad:
+    display_name: "Digital Nomad"
+    youtube_channel_title: "DIJITOL NOMAD"
+    owner_google_account: "chanzera3@gmail.com"
+    refresh_token_env: YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD
+    github_secret_sources:
+      - YOUTUBE_REFRESH_TOKEN_DIJITOL_NOMAD
+      - REFRESHTOKEN_DIJITOLNOMAD
+    channel_id_env: YOUTUBE_CHANNEL_ID_DIGITAL_NOMAD
+    publication_times:
+      - "12:00"
+      - "18:00"
+    editorial_focus:
+      - artificial_intelligence
+      - technology
+      - ai_tools
+      - coding
+      - workflow_automation
+      - practical_tutorials
+    freshness_policy:
+      current_developments_max_age_days: 14
+      evergreen_allowed: true
+
+# Publication slots converted to UTC by the scheduler using Africa/Nairobi.
+# Kenya is UTC+03:00; do not hard-code UTC offsets in scheduling code.
