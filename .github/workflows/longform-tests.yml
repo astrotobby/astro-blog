@@ -7,7 +7,6 @@ on:
       - "scripts/longform_pipeline.py"
       - "scripts/build_script.py"
       - "scripts/generate_video.py"
-      - "scripts/build_script.py"
       - "scripts/tts_nvidia_riva.py"
       - "scripts/test_nvidia_riva_tts.py"
       - "scripts/tts_elevenlabs.py"
@@ -23,6 +22,8 @@ on:
     paths:
       - "scripts/longform_pipeline.py"
       - "scripts/generate_video.py"
+      - "scripts/test_nvidia_riva_tts.py"
+      - "scripts/tts_nvidia_riva.py"
       - "scripts/build_script.py"
       - "scripts/tts_elevenlabs.py"
       - "scripts/test_elevenlabs_tts.py"
