@@ -6,7 +6,6 @@
 
 Produce four original long-form YouTube videos per day from one GitHub Actions-based system:
 
-- **Digital Nomad:** two videos daily about AI, technology, tools, coding, and automation.
 - **Astrotobby:** two videos daily about current news, entertainment, and explainers; owner Google account: `goodlucktobby@gmail.com`.
 - **Digital Nomad:** two videos daily about AI, technology, tools, coding, and automation; owner Google account: `chanzera3@gmail.com`.
 - **Duration:** every finished main video must be at least 10:00.
@@ -26,7 +25,8 @@ The existing pipeline already provides reusable components:
 - `scripts/crosspost.py` handles destination deduplication and retry bookkeeping.
 - `.github/workflows/blog-to-video.yml` runs on blog-content pushes and a periodic sweep.
 - `config.yaml` currently sets `script.target_seconds: 75`, so it is not a long-form configuration.
-- The `astro-blog` uploader currently reads one `YOUTUBE_REFRESH_TOKEN`; AI-GEMS already defines separate channel tokens, but they were not yet wired into this uploader.
+- The YouTube uploader now supports explicit channel-specific refresh tokens and verifies the selected channel before uploading. The legacy generic token remains available only for older posts without an explicit channel profile.
+- The long-form scheduler, topic discovery, ten-minute script mode, long-form renderer, and scheduled-publication workflow are still to be implemented.
 - The current workflow is post-driven; it does not independently discover four daily topics.
 
 The new pipeline should reuse stable code where practical, but should not change the existing short-form defaults globally. Long-form behavior should be an explicit profile/job mode.
@@ -71,7 +71,7 @@ Add a topic-discovery stage that runs for the scheduled channel/slot. It should:
 4. Reject topics already used or too similar to a recently published topic on either channel.
 5. Save a durable job record before starting expensive work.
 
-For Astrotobbyc, prefer recent stories and enforce a configurable freshness window. For Digital Nomad, mix current developments with useful evergreen tutorials. If the source pool is weak, create a failed/needs-review job rather than inventing a breaking story.
+For Astrotobby, prefer recent stories and enforce a configurable freshness window. For Digital Nomad, mix current developments with useful evergreen tutorials. If the source pool is weak, create a failed/needs-review job rather than inventing a breaking story.
 
 The research stage must use sources as evidence, not copy their articles. Scripts should be original commentary and explanation, with source links retained in the video description and job metadata.
 
