@@ -51,6 +51,11 @@ FOOTAGE_MAX_DOWNLOAD_ATTEMPTS = 3
 FOOTAGE_MAX_ALTERNATE_ATTEMPTS = 1
 POLLINATIONS_TIMEOUT_SECONDS = 12
 POLLINATIONS_ATTEMPTS = 2
+OPENVERSE_IMAGES_URL = "https://api.openverse.org/v1/images/"
+OPENVERSE_SEARCH_TIMEOUT_SECONDS = 12
+OPENVERSE_DOWNLOAD_TIMEOUT_SECONDS = 20
+OPENVERSE_ALLOWED_LICENSES = {"cc0", "pdm"}
+OPENVERSE_MAX_IMAGE_BYTES = 20 * 1024 * 1024
 _search_cache = None
 
 
@@ -603,6 +608,149 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, used_creator
     return None, None
 
 
+
+def _openverse_image_search(query, target_w, target_h):
+    """Find openly reusable CC0/public-domain stills without requiring an API key.
+
+    Search is anonymous, cached for a day, and restricted to commercial-use
+    licenses that do not require attribution (CC0/Public Domain Mark).
+    """
+    query = " ".join((query or "").split())[:200]
+    if not query:
+        return []
+    cached = _cache_get("openverse", query, target_w, target_h)
+    if cached is not None:
+        log(f"Openverse cache hit for {query!r}")
+        return cached
+
+    aspect = "wide" if target_w >= target_h else "tall"
+    params = {
+        "q": query,
+        "page_size": 10,
+        "license": "cc0,pdm",
+        "license_type": "commercial",
+        "size": "large",
+        "aspect_ratio": aspect,
+    }
+    try:
+        response = requests.get(
+            OPENVERSE_IMAGES_URL,
+            params=params,
+            headers={"User-Agent": "AstroTobbyLongform/1.0 (open media search)"},
+            timeout=(4, OPENVERSE_SEARCH_TIMEOUT_SECONDS),
+        )
+        if response.status_code != 200:
+            log(f"Openverse search returned HTTP {response.status_code} for {query!r}")
+            return []
+        candidates = []
+        for item in (response.json().get("results") or []):
+            license_id = str(item.get("license") or "").lower()
+            if license_id not in OPENVERSE_ALLOWED_LICENSES:
+                continue
+            image_url = item.get("url")
+            if not image_url:
+                continue
+            width, height = int(item.get("width") or 0), int(item.get("height") or 0)
+            if width < 640 or height < 360:
+                continue
+            score = _aspect_score(width, height, target_w, target_h)
+            candidates.append({
+                "id": f"openverse:{item.get('id')}",
+                "provider": "Openverse",
+                "url": image_url,
+                "thumbnail": item.get("thumbnail") or "",
+                "score": score,
+                "creator": item.get("creator") or "Unknown creator",
+                "source_url": item.get("foreign_landing_url") or item.get("detail_url") or "",
+                "title": item.get("title") or "Untitled openly licensed image",
+                "license": license_id,
+                "license_version": item.get("license_version") or "",
+                "license_url": item.get("license_url") or "",
+                "query": query,
+                "width": width,
+                "height": height,
+            })
+        ranked = sorted(candidates, key=lambda item: item["score"], reverse=True)
+        _cache_put("openverse", query, target_w, target_h, ranked)
+        return ranked
+    except Exception as exc:
+        log(f"Openverse image search failed ({type(exc).__name__}): {str(exc)[:160]}")
+        return []
+
+
+def _download_openverse_image(candidate, destination: Path, timeout_seconds=None) -> bool:
+    """Download and verify a real image; reject broken, HTML, or undersized files."""
+    from io import BytesIO
+    from PIL import Image
+
+    timeout = min(
+        OPENVERSE_DOWNLOAD_TIMEOUT_SECONDS,
+        max(1.0, float(timeout_seconds or OPENVERSE_DOWNLOAD_TIMEOUT_SECONDS)),
+    )
+    urls = list(dict.fromkeys(
+        url for url in (candidate.get("url"), candidate.get("thumbnail")) if url
+    ))
+    for url in urls:
+        try:
+            response = requests.get(
+                url,
+                headers={"User-Agent": "AstroTobbyLongform/1.0 (open media download)"},
+                timeout=(4, timeout),
+            )
+            if response.status_code != 200:
+                continue
+            content_type = str(response.headers.get("content-type") or "").lower()
+            content = response.content or b""
+            if (content_type and not content_type.startswith("image/")) or len(content) < 20_000:
+                continue
+            if len(content) > OPENVERSE_MAX_IMAGE_BYTES:
+                log("Openverse image skipped: file exceeded the 20 MB scene asset limit")
+                continue
+            with Image.open(BytesIO(content)) as image:
+                image.verify()
+            with Image.open(BytesIO(content)) as image:
+                width, height = image.size
+                if width < 640 or height < 360:
+                    continue
+                # Normalize the provider file into a predictable JPEG for FFmpeg.
+                rgb = image.convert("RGB")
+                rgb.save(destination, format="JPEG", quality=94, optimize=True)
+            return destination.exists() and destination.stat().st_size > 10_000
+        except Exception as exc:
+            log(f"Openverse image download failed ({type(exc).__name__})")
+    return False
+
+
+def _fetch_openverse_scene(index, meta, target_w, target_h, used_clips, recent_ids, variant):
+    """Use unique CC0/public-domain stills with a gentle Ken Burns move as B-roll fallback."""
+    destination = OUT / f"scene_{index:02d}_{variant}_openverse.jpg"
+    destination.unlink(missing_ok=True)
+    queries = [q for q in (meta.get("broll"), meta.get("fallback")) if q]
+    for query in dict.fromkeys(queries):
+        candidates = _openverse_image_search(query, target_w, target_h)
+        for candidate in candidates:
+            asset_id = candidate["id"]
+            if asset_id in used_clips or asset_id in recent_ids:
+                continue
+            if not _download_openverse_image(candidate, destination):
+                continue
+            used_clips.add(asset_id)
+            provenance = {
+                key: candidate.get(key)
+                for key in (
+                    "id", "provider", "creator", "source_url", "title",
+                    "license", "license_version", "license_url", "query",
+                )
+            }
+            provenance["scene"] = index
+            provenance["variant"] = variant
+            log(
+                f"scene {index} [{variant}] -> Openverse CC0/Public Domain image "
+                f"for {query!r}"
+            )
+            return destination, provenance
+    return None, None
+
 def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
                  used_creators, recent_ids, variant):
     meta = _parse_scene_meta(prompt)
@@ -621,6 +769,14 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
                 return destination, meta, None
         except Exception as exc:
             log(f"hero-image fallback failed: {exc}")
+
+    # If paid/registered stock-footage APIs are not configured, prefer verified
+    # CC0/Public Domain media before any generated-image endpoint.
+    openverse_asset, openverse_source = _fetch_openverse_scene(
+        index, meta, target_w, target_h, used_clips, recent_ids, variant
+    )
+    if openverse_asset:
+        return openverse_asset, meta, openverse_source
 
     clean_prompt = _clean_image_prompt(prompt)
     seed = int(hashlib.sha256(f"{slug}:{index}:{variant}".encode()).hexdigest()[:8], 16) % 100000
@@ -954,7 +1110,14 @@ def _source_credits(sources):
         provider = source.get("provider", "Stock footage")
         creator = source.get("creator", "contributor")
         source_url = source.get("source_url") or ("https://www.pexels.com/" if provider == "Pexels" else "https://pixabay.com/")
-        credits.append(f"{provider}: {creator} — {source_url}")
+        if provider == "Openverse":
+            title = (source.get("title") or "Untitled image").strip()[:72]
+            license_id = (source.get("license") or "cc0").upper()
+            credits.append(
+                f"Openverse image: {title} — {creator} ({license_id}); {source_url}"
+            )
+        else:
+            credits.append(f"{provider}: {creator} — {source_url}")
     return credits
 
 

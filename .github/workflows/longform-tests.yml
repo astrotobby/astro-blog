@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "scripts/longform_pipeline.py"
+      - "scripts/build_script.py"
       - "scripts/generate_video.py"
       - "scripts/tts_nvidia_riva.py"
       - "scripts/test_nvidia_riva_tts.py"
@@ -21,6 +22,9 @@ on:
     paths:
       - "scripts/longform_pipeline.py"
       - "scripts/generate_video.py"
+      - "scripts/test_nvidia_riva_tts.py"
+      - "scripts/tts_nvidia_riva.py"
+      - "scripts/build_script.py"
       - "scripts/tts_elevenlabs.py"
       - "scripts/test_elevenlabs_tts.py"
       - "scripts/test_longform_pipeline.py"
@@ -58,6 +62,7 @@ jobs:
         run: |
           python -m py_compile \
             scripts/longform_pipeline.py \
+            scripts/build_script.py \
             scripts/generate_video.py \
             scripts/tts_nvidia_riva.py \
             scripts/test_nvidia_riva_tts.py \

@@ -225,6 +225,140 @@ class EdgeTtsWordTimingTests(unittest.TestCase):
                         )
 
 
+class ContextualVisualAssetTests(unittest.TestCase):
+    def test_music_story_gets_entertainment_scene_profile(self):
+        narration = (
+            "Universal Music has appointed a new president for its Latin American and Iberian "
+            "record label business. The music executive will work with artists, producers and "
+            "songwriters, while the company expands its music catalogue, streaming relationships "
+            "and concert partnerships. The announcement comes as Latin music continues to grow "
+            "across albums, singles, touring and global music charts. A recording studio, a live "
+            "concert stage and a record label office are all relevant visual settings for this story. "
+        ) * 4
+        package = {
+            "title": "Universal Music Names New Regional President",
+            "description": "A leadership change at a major music company.",
+            "tags": ["music", "record label", "Latin music"],
+            "narration": narration,
+            "word_count": len(narration.split()),
+        }
+        lead = {"url": "https://news.example/music-story"}
+        source = [{"url": "https://publisher.example/music-story"}]
+        cfg = pipeline.load_config()
+        cfg["visuals"]["scenes"] = 6
+
+        script = pipeline.build_render_script(
+            "music-visual-test", lead, source, package, cfg
+        )
+
+        self.assertEqual(script["topic_category"], "entertainment")
+        self.assertIn(narration, script["post"]["body"])
+        prompts = script["scene_prompts"]
+        self.assertEqual(len(prompts), 6)
+        self.assertTrue(any(
+            "record label" in prompt.lower() or "music recording" in prompt.lower()
+            or "concert" in prompt.lower()
+            for prompt in prompts
+        ))
+
+
+class OpenverseFallbackTests(unittest.TestCase):
+    def test_openverse_search_is_anonymous_and_cc0_public_domain_only(self):
+        response = SimpleNamespace(
+            status_code=200,
+            json=lambda: {
+                "results": [
+                    {
+                        "id": "cc0-image",
+                        "url": "https://media.example/cc0.jpg",
+                        "thumbnail": "https://media.example/cc0-thumb.jpg",
+                        "foreign_landing_url": "https://commons.example/cc0",
+                        "title": "Recording studio",
+                        "creator": "Example creator",
+                        "license": "cc0",
+                        "license_version": "",
+                        "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+                        "width": 1920,
+                        "height": 1080,
+                    },
+                    {
+                        "id": "by-image",
+                        "url": "https://media.example/by.jpg",
+                        "license": "by",
+                        "width": 1920,
+                        "height": 1080,
+                    },
+                ]
+            },
+        )
+        with patch.object(pipeline.renderer, "_cache_get", return_value=None):
+            with patch.object(pipeline.renderer, "_cache_put") as cache_put:
+                with patch.object(pipeline.renderer.requests, "get", return_value=response) as get:
+                    items = pipeline.renderer._openverse_image_search(
+                        "music recording studio", 1920, 1080
+                    )
+
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["id"], "openverse:cc0-image")
+        self.assertEqual(items[0]["license"], "cc0")
+        self.assertEqual(get.call_args.args[0], pipeline.renderer.OPENVERSE_IMAGES_URL)
+        self.assertEqual(get.call_args.kwargs["params"]["license"], "cc0,pdm")
+        self.assertEqual(get.call_args.kwargs["params"]["license_type"], "commercial")
+        self.assertNotIn("Authorization", get.call_args.kwargs["headers"])
+        cache_put.assert_called_once()
+
+    def test_openverse_download_verifies_image_bytes(self):
+        from io import BytesIO
+        from PIL import Image
+
+        image = Image.effect_noise((1280, 720), 80).convert("RGB")
+        buffer = BytesIO()
+        image.save(buffer, format="JPEG", quality=95)
+        payload = buffer.getvalue()
+        response = SimpleNamespace(
+            status_code=200,
+            headers={"content-type": "image/jpeg"},
+            content=payload,
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            destination = Path(temp) / "scene.jpg"
+            with patch.object(pipeline.renderer.requests, "get", return_value=response):
+                ok = pipeline.renderer._download_openverse_image(
+                    {"url": "https://media.example/scene.jpg", "thumbnail": ""},
+                    destination,
+                )
+            self.assertTrue(ok)
+            with Image.open(destination) as downloaded:
+                self.assertEqual(downloaded.size, (1280, 720))
+
+    def test_scene_uses_openverse_before_pollinations_when_stock_is_missing(self):
+        with tempfile.TemporaryDirectory() as temp:
+            image_path = Path(temp) / "openverse.jpg"
+            image_path.write_bytes(b"verified-test-image")
+            provenance = {
+                "id": "openverse:cc0",
+                "provider": "Openverse",
+                "creator": "Example creator",
+                "source_url": "https://commons.example/cc0",
+                "license": "cc0",
+            }
+            with patch.object(pipeline.renderer, "_fetch_video_asset", return_value=(None, None)):
+                with patch.object(
+                    pipeline.renderer, "_fetch_openverse_scene",
+                    return_value=(image_path, provenance),
+                ) as openverse:
+                    with patch.object(pipeline.renderer.requests, "get") as request:
+                        asset, meta, source = pipeline.renderer._fetch_scene(
+                            2,
+                            "music studio|broll:record label office|fallback:recording studio",
+                            1920, 1080, "music-test", None, set(), set(), set(), "horizontal"
+                        )
+            self.assertEqual(asset, image_path)
+            self.assertEqual(source["provider"], "Openverse")
+            openverse.assert_called_once()
+            request.assert_not_called()
+
+
 class ScheduleTests(unittest.TestCase):
     def test_four_publication_times_are_converted_from_kenya_to_utc(self):
         fixed_now = datetime(2026, 11, 18, 8, 0, tzinfo=pipeline.EAT)
