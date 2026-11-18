@@ -242,6 +242,11 @@ def _ltx_aspect_ratio(tag):
     return "9:16 (Vertical)" if tag == "vertical" else "16:9 (Cinematic)"
 
 
+def _ltx_predict_inputs(image, audio, aspect_ratio, duration, seed=-1):
+    """Build the current LTX-2 Space /generate inputs in the required order."""
+    return (image, audio, LTX_PROMPT, LTX_NEGATIVE, aspect_ratio, duration, seed)
+
+
 def _ltx_segment(client, image, audio, seg_dur, aspect_ratio, out):
     """Generate one <=6s lip-synced LTX-2 segment in the target aspect ratio."""
     from gradio_client import handle_file
@@ -251,8 +256,8 @@ def _ltx_segment(client, image, audio, seg_dur, aspect_ratio, out):
     try:
         # Current Space /generate contract: image, audio, prompts, ratio, duration, seed.
         video, _seed = client.predict(
-            handle_file(str(image)), handle_file(str(audio)),
-            LTX_PROMPT, LTX_NEGATIVE, aspect_ratio, duration, -1,
+            *_ltx_predict_inputs(handle_file(str(image)), handle_file(str(audio)),
+                                 aspect_ratio, duration),
             api_name="/generate")
     except Exception as e:  # noqa
         msg = str(e)
