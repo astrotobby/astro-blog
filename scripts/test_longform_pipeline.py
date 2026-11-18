@@ -122,6 +122,26 @@ class TopicTests(unittest.TestCase):
         self.assertEqual(rows[0]["title"], "Valuetainment current affairs discussion")
         self.assertEqual(rows[0]["published_at"], "2026-11-18T07:00:00+00:00")
 
+    def test_valuetainment_upload_feed_is_tagged_as_commentary(self):
+        atom = """<?xml version="1.0" encoding="UTF-8"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <entry>
+            <title>Valuetainment current affairs discussion</title>
+            <link href="https://www.youtube.com/watch?v=abcdefghijk"/>
+            <published>2026-11-18T07:00:00+00:00</published>
+          </entry>
+        </feed>"""
+        channel_page = '<html><script>{"channelId":"UCabcdefghijklmnopqrstuv"}</script></html>'
+        responses = [
+            SimpleNamespace(raise_for_status=lambda: None, text=channel_page),
+            SimpleNamespace(raise_for_status=lambda: None, text=atom),
+        ]
+        with patch.object(pipeline.requests, "get", side_effect=responses):
+            rows = pipeline.valuetainment_uploads_feed()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["source_type"], "commentary")
+        self.assertEqual(rows[0]["publisher"], "Valuetainment")
+
     def test_youtube_oembed_metadata_is_not_misrepresented_as_transcript(self):
         response = SimpleNamespace(
             raise_for_status=lambda: None,
