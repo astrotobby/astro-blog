@@ -34,10 +34,12 @@ channels:
     source_pool:
       primary_news:
         - CNN reporting via live site-specific news search
-        - BBC News top stories RSS
-        - BBC Entertainment and Arts RSS
-        - BBC Culture RSS
+        - BBC News articles via domain-specific live search
+        - BBC Entertainment and Arts articles via domain-specific live search
         - The Guardian Culture RSS
+      source_handling:
+        - CNN legacy RSS is not used because the available feeds appear stale; search cnn.com directly
+        - BBC RSS feeds are not ingested automatically for this monetized workflow; search BBC article pages and link to the publisher
       commentary_and_video_references:
         - https://youtu.be/CRqhR0tQnKM
         - https://www.youtube.com/live/18by3TXfH5k
