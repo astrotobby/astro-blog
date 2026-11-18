@@ -238,21 +238,104 @@ def load_ledger():
     return {"schema":1,"jobs":{},"recent_topics":[]}
 
 
-def save_ledger(ledger,dry_run=False):
-    path=ledger_path(); tmp=path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(ledger,indent=2,ensure_ascii=False),encoding="utf-8"); tmp.replace(path)
-    if dry_run or not os.environ.get("GITHUB_ACTIONS"): return
-    workspace=Path(os.environ["GITHUB_WORKSPACE"]).resolve()
-    rel=path.resolve().relative_to(workspace).as_posix()
-    def git(*args): return subprocess.run(["git","-C",str(workspace),*args],capture_output=True,text=True,timeout=60)
-    git("config","user.name","longform-publisher[bot]"); git("config","user.email","longform-publisher@users.noreply.github.com")
-    result=git("add",rel)
-    if result.returncode: raise RuntimeError("Could not stage persistent ledger: "+result.stderr[-200:])
-    if git("diff","--cached","--quiet").returncode==0: return
-    result=git("commit","-m","longform: persist job state [skip ci]")
-    if result.returncode: raise RuntimeError("Could not commit job state: "+result.stderr[-200:])
-    result=git("push","origin","HEAD:"+os.environ.get("GITHUB_REF_NAME","main"))
-    if result.returncode: raise RuntimeError("Could not push job state: "+result.stderr[-200:])
+def _merge_ledgers(local, remote):
+    merged = dict(remote or {})
+    merged["schema"] = max(int(local.get("schema", 1)), int(merged.get("schema", 1)))
+    merged_jobs = dict(merged.get("jobs") or {})
+    for job_id, local_job in (local.get("jobs") or {}).items():
+        remote_job = merged_jobs.get(job_id)
+        local_time = str(local_job.get("updated_at") or local_job.get("created_at") or "")
+        remote_time = str((remote_job or {}).get("updated_at") or (remote_job or {}).get("created_at") or "")
+        if remote_job is None or local_time >= remote_time:
+            merged_jobs[job_id] = local_job
+    merged["jobs"] = merged_jobs
+    recent = {}
+    for row in list(merged.get("recent_topics") or []) + list(local.get("recent_topics") or []):
+        key = row.get("job_id") or row.get("title")
+        if key:
+            recent[key] = row
+    merged["recent_topics"] = sorted(
+        recent.values(), key=lambda row: str(row.get("used_at") or ""), reverse=True
+    )[:240]
+    # Keep the state bounded. Scheduled jobs retain a separate idempotency key.
+    if len(merged_jobs) > 240:
+        keep = sorted(
+            merged_jobs.items(),
+            key=lambda item: str(item[1].get("updated_at") or item[1].get("publish_at") or ""),
+            reverse=True,
+        )[:240]
+        merged["jobs"] = dict(keep)
+    return merged
+
+
+def save_ledger(ledger, dry_run=False):
+    path = ledger_path()
+    active_id = ledger.pop("_active_job_id", None)
+    try:
+        if active_id and active_id in ledger.get("jobs", {}):
+            ledger["jobs"][active_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(ledger, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(path)
+        if dry_run or not os.environ.get("GITHUB_ACTIONS"):
+            return
+
+        workspace = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+        rel = path.resolve().relative_to(workspace).as_posix()
+        ref = os.environ.get("GITHUB_REF_NAME", "main")
+
+        def git(*args):
+            return subprocess.run(
+                ["git", "-C", str(workspace), *args],
+                capture_output=True, text=True, timeout=90
+            )
+
+        git("config", "user.name", "longform-publisher[bot]")
+        git("config", "user.email", "longform-publisher@users.noreply.github.com")
+        last_error = ""
+        for attempt in range(1, 5):
+            fetched = git("fetch", "origin", ref)
+            if fetched.returncode:
+                last_error = fetched.stderr[-250:]
+                continue
+            remote = {}
+            shown = git("show", f"origin/{ref}:{rel}")
+            if shown.returncode == 0 and shown.stdout.strip():
+                try:
+                    remote = json.loads(shown.stdout)
+                except ValueError:
+                    raise RuntimeError("Remote long-form ledger is not valid JSON; refusing to overwrite it")
+
+            # A second channel worker may have committed while this job rendered.
+            local = json.loads(path.read_text(encoding="utf-8"))
+            merged = _merge_ledgers(local, remote)
+            reset = git("reset", "--mixed", f"origin/{ref}")
+            if reset.returncode:
+                last_error = reset.stderr[-250:]
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(merged, indent=2, ensure_ascii=False), encoding="utf-8")
+            tmp.replace(path)
+            staged = git("add", rel)
+            if staged.returncode:
+                last_error = staged.stderr[-250:]
+                continue
+            if git("diff", "--cached", "--quiet").returncode == 0:
+                return
+            commit = git("commit", "-m", "longform: persist job state [skip ci]")
+            if commit.returncode:
+                last_error = commit.stderr[-250:]
+                continue
+            pushed = git("push", "origin", f"HEAD:{ref}")
+            if pushed.returncode == 0:
+                return
+            last_error = pushed.stderr[-250:]
+            log(f"Ledger push raced with another worker; merging and retrying ({attempt}/4)")
+        raise RuntimeError("Could not persist the long-form ledger after four attempts: " + last_error)
+    finally:
+        if active_id:
+            ledger["_active_job_id"] = active_id
 
 
 def yt_service(channel):
@@ -270,7 +353,14 @@ def yt_service(channel):
     creds=publish._yt_creds(target)
     if not creds: raise RuntimeError("No YouTube token available in cache or Actions secrets")
     access=publish._yt_access_token(creds)
-    yt=build("youtube","v3",credentials=Credentials(token=access),cache_discovery=False)
+    credentials = Credentials(
+        token=access,
+        refresh_token=creds[2],
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=creds[0],
+        client_secret=creds[1],
+    )
+    yt=build("youtube","v3",credentials=credentials,cache_discovery=False)
     items=yt.channels().list(part="id,snippet",mine=True).execute().get("items") or []
     if not items: raise RuntimeError("YouTube OAuth returned no channel")
     title=(items[0].get("snippet") or {}).get("title","")
@@ -305,7 +395,7 @@ def upload_scheduled(yt,path,package,channel,target):
     media=MediaFileUpload(str(path),mimetype="video/mp4",chunksize=8*1024*1024,resumable=True)
     req=yt.videos().insert(part="snippet,status",body=body,media_body=media); response=None
     while response is None:
-        progress,response=req.next_chunk()
+        progress,response=req.next_chunk(num_retries=5)
         if progress: log(f"YouTube upload {progress.progress()*100:.1f}%")
     vid=response.get("id")
     if not vid: raise RuntimeError("YouTube upload returned no video ID")
@@ -320,6 +410,7 @@ def upload_scheduled(yt,path,package,channel,target):
 def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     target=publish_time(channel,slot,target_date); key=make_job_id(channel,slot,target)
     ledger=load_ledger(); jobs=ledger.setdefault("jobs",{}); job=jobs.get(key)
+    ledger["_active_job_id"] = key
     if job and job.get("status") in ("scheduled","published"):
         log(f"{key} already scheduled: {job.get('url','')}"); return job
     if job and job.get("status")=="uploading" and not job.get("video_id"):
