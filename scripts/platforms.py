@@ -77,10 +77,11 @@ def _youtube_channel_profile(render):
     if isinstance(raw, dict):
         raw = raw.get("key") or raw.get("slug") or raw.get("name") or ""
     normalized = "".join(ch for ch in str(raw).lower() if ch.isalnum())
-    if normalized in {"digitalnomad", "dijitolnomad", "dijitolnomad001"}:
+    if normalized in {"digitalnomad", "dijitalnomad", "dijitolnomad", "dijitolnomad001"}:
         return {
             "key": "digital_nomad",
             "expected_title": "DIJITOL NOMAD",
+            "owner_account": "chanzera3@gmail.com",
             "token_env": "YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD",
             "channel_id_env": "YOUTUBE_CHANNEL_ID_DIGITAL_NOMAD",
         }
@@ -88,6 +89,7 @@ def _youtube_channel_profile(render):
         return {
             "key": "astrotobbyc",
             "expected_title": "Astro Tobby",
+            "owner_account": "goodlucktobby@gmail.com",
             "token_env": "YOUTUBE_REFRESH_TOKEN_ASTROTOBBYC",
             "channel_id_env": "YOUTUBE_CHANNEL_ID_ASTROTOBBYC",
         }
