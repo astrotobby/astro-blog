@@ -23,7 +23,7 @@ The existing pipeline already provides reusable components:
 - `scripts/crosspost.py` handles destination deduplication and retry bookkeeping.
 - `.github/workflows/blog-to-video.yml` runs on blog-content pushes and a periodic sweep.
 - `config.yaml` currently sets `script.target_seconds: 75`, so it is not a long-form configuration.
-- YouTube currently reads one `YOUTUBE_REFRESH_TOKEN`, so explicit channel routing is not implemented.
+- The `astro-blog` uploader currently reads one `YOUTUBE_REFRESH_TOKEN`; AI-GEMS already defines separate channel tokens, but they were not yet wired into this uploader.
 - The current workflow is post-driven; it does not independently discover four daily topics.
 
 The new pipeline should reuse stable code where practical, but should not change the existing short-form defaults globally. Long-form behavior should be an explicit profile/job mode.
@@ -111,21 +111,23 @@ A job that fails validation must never reach the upload stage.
 
 ### 5. Channel-safe YouTube publishing
 
-Use one shared OAuth client ID/secret if both authorizations were created in the same Google Cloud project, but use a separate refresh token for each channel:
+Reuse the existing channel-specific refresh tokens already configured in GitHub Actions rather than creating new authorizations by default. Inspection of the local AI-GEMS workflow and its `whop-clipper/config.toml` shows these existing channel labels and secret names:
 
-- `YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD`
-- `YOUTUBE_REFRESH_TOKEN_ASTROTOBBYC`
-- `YOUTUBE_CLIENT_ID` (shared)
-- `YOUTUBE_CLIENT_SECRET` (shared)
+- **Astrotobbyc destination:** configured in AI-GEMS as `Astro Tobby`; refresh-token secret `YOUTUBE_REFRESH_TOKEN_ASTRO_TOBBY`.
+- **Digital Nomad destination:** configured in AI-GEMS as `DIJITOL NOMAD`; refresh-token secret `YOUTUBE_REFRESH_TOKEN_DIJITOL_NOMAD`.
+- Legacy Digital Nomad alias: `REFRESHTOKEN_DIJITOLNOMAD`.
+- Shared OAuth client candidates already used by AI-GEMS: `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET`, `CLIENT_ID` / `CLIENT_SECRET`, and the legacy `YOUTUBECLIENT_ID` / `YOUTUBECLIENT_SECTRET` pair.
 
-Also configure expected channel IDs as non-secret settings or repository variables:
+The `astro-blog` workflow previously exposed only the generic `YOUTUBE_REFRESH_TOKEN`. Its updated environment mapping should expose both channel-specific secrets under canonical environment names and accept an Actions Variable fallback for installations where a value was stored under Variables. The shared OAuth client candidates must be passed without printing their values. The new publisher must never use the generic legacy token as a fallback for an explicitly selected channel.
+
+Also configure expected channel IDs as non-secret settings or repository variables where available:
 
 - `YOUTUBE_CHANNEL_ID_DIGITAL_NOMAD`
 - `YOUTUBE_CHANNEL_ID_ASTROTOBBYC`
 
-A single Google login can manage multiple YouTube channels, but that does not mean one refresh token safely selects both destinations. Authorize each channel explicitly, choosing the intended channel during Google's OAuth/channel selection where available. For each token, call `channels.list(mine=true)` and compare the returned channel ID with the configured expected ID before any upload. If it does not match, stop the job. Never fall back to the other token.
+For each channel token, refresh it using its matching OAuth client, call `channels.list(mine=true)`, and verify both the configured channel ID (when supplied) and the expected channel title (`DIJITOL NOMAD` or `Astro Tobby`) before any upload. If the token identifies the wrong channel, stop the job. Never fall back to the other token.
 
-Use the `youtube.upload` scope (or an already-granted compatible scope). Keep tokens only in GitHub Actions Secrets; never put tokens in YAML, code, logs, artifacts, or this repository. Do not request the user's Google password or paste refresh tokens into chat.
+A single Google login can manage multiple YouTube channels, but each channel still needs its own correctly authorized refresh token. Existing tokens should be reused if they refresh successfully and resolve to the intended channel; only a missing, revoked, expired, or mismatched authorization should require reauthentication. Keep token values only in GitHub Actions Secrets; never put them in YAML, code, logs, artifacts, or this repository. Do not ask the user to paste refresh tokens into chat.
 
 ### 6. Durable state and idempotency
 
@@ -158,7 +160,7 @@ The existing blog-triggered workflow must be reconciled with the new scheduler s
 ## Rollout plan
 
 1. **Inventory and configuration:** confirm both channel IDs and map each channel's editorial profile.
-2. **OAuth setup:** create and validate the two channel-specific refresh tokens; verify each token against its expected channel ID without uploading.
+2. **OAuth validation:** reuse the existing channel-specific tokens; verify each against its expected channel title and configured channel ID without uploading. Reauthorize only a token that is absent, revoked, expired, or mismatched.
 3. **Dry-run discovery:** generate and inspect a queue for each channel; verify topic separation and freshness.
 4. **Script validation:** produce 10-minute scripts and validate word count, source traceability, and duration estimates.
 5. **Render benchmark:** render one sample per channel; measure elapsed time, memory, artifact size, and actual media duration.
