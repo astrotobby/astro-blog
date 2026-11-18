@@ -27,6 +27,37 @@ jobs:
           python-version: "3.11"
       - name: Install lightweight test dependencies
         run: python -m pip install --disable-pip-version-check PyYAML requests
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install and diagnose HyperFrames
+        run: bash scripts/setup_hyperframes.sh
+      - name: Render a HyperFrames integration smoke test
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          from pathlib import Path
+          from common import OUT
+          from motion_cards import _clip, _page, render_card
+
+          body = _clip(
+              '<div id="smoke-title" style="position:absolute;inset:0;display:flex;'
+              'align-items:center;justify-content:center;font: bold 48px Arial;color:white">'
+              'HyperFrames smoke test</div>',
+              style="position:absolute;inset:0;background:#151515",
+              duration=2.0,
+          )
+          page = _page("ci-smoke", 640, 360, body,
+                       'tl.from("#smoke-title", {opacity: 0, y: 20, duration: 0.5}, 0.2);')
+          output = OUT / "hyperframes-ci-smoke.mp4"
+          rendered = render_card("ci-smoke", page, output)
+          if not rendered or not Path(rendered).is_file() or Path(rendered).stat().st_size < 10000:
+              raise SystemExit("HyperFrames smoke render did not produce a valid MP4")
+          print(f"Rendered {rendered} ({Path(rendered).stat().st_size} bytes)")
+          PY
+      - name: Compile modified Python modules
+        run: python -m py_compile scripts/influencer.py scripts/gen_influencer_motion.py scripts/generate_video.py scripts/motion_cards.py
       - name: Test LTX and VoiceStudio integration contracts
         run: |
           python -m unittest discover -s tests -p 'test_influencer_ltx.py' -v
