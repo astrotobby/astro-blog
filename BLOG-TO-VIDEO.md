@@ -292,3 +292,25 @@ That's it — every future post renders with a gesturing, expressive, lip-synced
 fully automatically and free.
 
 See `HONEST-LIMITS.md` and `TROUBLESHOOTING.md`.
+
+
+
+### Generated article quality gate
+
+Posts created by the YouTube → Blog (Gemini) Make scenario are checked by
+`scripts/blog_quality.py` before video generation or cross-posting. The gate checks
+frontmatter parsing, title and description limits, the approved tag list, filename
+slug shape, a 600–1,200 word article body, 3–5 editorial H2 sections, and the
+required **Key takeaways** and **Why it matters** sections. It also rejects leaked
+Gemini response labels.
+
+A rejected article is recorded with its exact SHA-256 content fingerprint. The
+three-hour safety sweep will not repeatedly retry the same unchanged bad file.
+When the Markdown file is edited, its fingerprint changes and it becomes eligible
+for validation again automatically. The gate does not rewrite or delete articles.
+
+**Publishing boundary:** the current Make scenario commits directly to `main`.
+This gate protects the video/cross-post pipeline, but it cannot prevent a bad
+article from appearing on the website before the post-push workflow runs. A true
+pre-publication block requires Make to submit a branch/pull request or call a
+validation service before committing to `main`.
