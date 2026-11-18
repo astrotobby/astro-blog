@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from blog_quality import BlogPostValidationError, validate_blog_post
+from blog_quality import (BlogPostValidationError, content_fingerprint,\n                           should_retry_rejected_post, validate_blog_post)
 
 
 def article(words=760):
@@ -58,6 +58,14 @@ class BlogQualityTests(unittest.TestCase):
                 validate_blog_post(self.write(tmp, "new-ai-agent-workflows.md", content))
         self.assertTrue(any("title exceeds" in item for item in ctx.exception.errors))
         self.assertTrue(any("unsupported tags" in item for item in ctx.exception.errors))
+
+    def test_unchanged_rejected_post_is_not_retried_but_edits_are(self):
+        with TemporaryDirectory() as tmp:
+            path = self.write(tmp, "new-ai-agent-workflows.md", article(120))
+            entry = {"quality_rejected_sha": content_fingerprint(path)}
+            self.assertFalse(should_retry_rejected_post(path, entry))
+            path.write_text(article(760), encoding="utf-8")
+            self.assertTrue(should_retry_rejected_post(path, entry))
 
     def test_rejects_missing_why_it_matters(self):
         content = article().replace("## Why it matters", "## Conclusion")
