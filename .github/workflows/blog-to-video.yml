@@ -185,20 +185,11 @@ jobs:
           # Accept the correct name OR the earlier mis-typed name (correct wins).
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || secrets.TELEGRAN_BOT }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || secrets.TELCHAT_ID }}
-          # Keep legacy single-channel support while exposing the two existing channel tokens.
-          # Secret names are mapped from the AI-GEMS YouTube auth workflow; vars are accepted
-          # as a compatibility fallback if a value was stored under Actions Variables.
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID || vars.YOUTUBE_CLIENT_ID || secrets.CLIENT_ID || vars.CLIENT_ID || secrets.YOUTUBECLIENT_ID || vars.YOUTUBECLIENT_ID }}
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET || secrets.YOUTUBE_SECRET_KEY || vars.YOUTUBE_CLIENT_SECRET || vars.YOUTUBE_SECRET_KEY }}
-          CLIENT_ID: ${{ secrets.CLIENT_ID || vars.CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET || vars.CLIENT_SECRET }}
-          YOUTUBECLIENT_ID: ${{ secrets.YOUTUBECLIENT_ID || vars.YOUTUBECLIENT_ID }}
-          YOUTUBECLIENT_SECTRET: ${{ secrets.YOUTUBECLIENT_SECTRET || vars.YOUTUBECLIENT_SECTRET || secrets.YOUTUBECLIENT_SECRET || vars.YOUTUBECLIENT_SECRET }}
-          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN || vars.YOUTUBE_REFRESH_TOKEN }}
-          YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD: ${{ secrets.YOUTUBE_REFRESH_TOKEN_DIJITOL_NOMAD || vars.YOUTUBE_REFRESH_TOKEN_DIJITOL_NOMAD || secrets.REFRESHTOKEN_DIJITOLNOMAD || vars.REFRESHTOKEN_DIJITOLNOMAD || secrets.YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD || vars.YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD }}
-          YOUTUBE_REFRESH_TOKEN_ASTROTOBBYC: ${{ secrets.YOUTUBE_REFRESH_TOKEN_ASTRO_TOBBY || vars.YOUTUBE_REFRESH_TOKEN_ASTRO_TOBBY || secrets.YOUTUBE_REFRESH_TOKEN_ASTROTOBBYC || vars.YOUTUBE_REFRESH_TOKEN_ASTROTOBBYC }}
-          YOUTUBE_CHANNEL_ID_DIGITAL_NOMAD: ${{ vars.YOUTUBE_CHANNEL_ID_DIGITAL_NOMAD || secrets.YOUTUBE_CHANNEL_ID_DIGITAL_NOMAD }}
-          YOUTUBE_CHANNEL_ID_ASTROTOBBYC: ${{ vars.YOUTUBE_CHANNEL_ID_ASTROTOBBYC || secrets.YOUTUBE_CHANNEL_ID_ASTROTOBBYC }}
+          # This legacy blog-triggered workflow stays on its original single-channel credentials.
+          # The separate long-form scheduler lives in AI-GEMS, where both channel tokens are stored.
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET || secrets.YOUTUBE_SECRET_KEY }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           TUMBLR_CONSUMER_KEY: ${{ secrets.TUMBLR_CONSUMER_KEY }}
           TUMBLR_CONSUMER_SECRET: ${{ secrets.TUMBLR_CONSUMER_SECRET }}
           TUMBLR_OAUTH_TOKEN: ${{ secrets.TUMBLR_OAUTH_TOKEN }}
