@@ -1,0 +1,28 @@
+name: blog-content-quality
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/blog_quality.py"
+      - "scripts/test_blog_quality.py"
+      - "scripts/run_pipeline.py"
+      - ".github/workflows/blog-content-quality.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install validator dependency
+        run: python -m pip install --disable-pip-version-check python-frontmatter
+      - name: Run article quality regression tests
+        run: python -m unittest scripts/test_blog_quality.py -v
