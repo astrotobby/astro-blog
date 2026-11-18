@@ -185,6 +185,7 @@ def youtube_reference_metadata(url):
         return {
             "title": str(data.get("title") or ""),
             "publisher": str(data.get("author_name") or "YouTube"),
+            "author_url": str(data.get("author_url") or ""),
             "url": url,
             "article_text": "",
             "published_at": "",
@@ -194,6 +195,44 @@ def youtube_reference_metadata(url):
         log(f"YouTube reference metadata unavailable: {str(exc)[:120]}")
         return {"title": "", "publisher": "YouTube reference", "url": url,
                 "article_text": "", "published_at": "", "metadata_only": True}
+
+
+def youtube_channel_uploads_feed(reference):
+    """Resolve the owner channel behind a supplied video and read its public uploads RSS.
+
+    YouTube oEmbed is used only for public channel metadata. No video or transcript is
+    downloaded; channel uploads are editorial leads, never independent fact checks.
+    """
+    metadata=youtube_reference_metadata(reference["url"])
+    author_url=metadata.get("author_url") or ""
+    channel_id=""
+    match=re.search(r"/channel/(UC[a-zA-Z0-9_-]{22})",author_url)
+    if match:
+        channel_id=match.group(1)
+    elif author_url:
+        try:
+            page=requests.get(author_url,headers={"User-Agent":UA},timeout=12)
+            page.raise_for_status()
+            found=re.search(r'(?:"channelId"|"externalId"|"browseId")\s*:\s*"(UC[a-zA-Z0-9_-]{22})"',page.text)
+            if found: channel_id=found.group(1)
+        except Exception as exc:
+            log(f"YouTube source channel lookup unavailable: {str(exc)[:120]}")
+    if not channel_id:
+        log(f"Could not resolve source channel for {reference['label']}; skipping its uploads feed")
+        return []
+    try:
+        feed_url="https://www.youtube.com/feeds/videos.xml?channel_id="+channel_id
+        response=requests.get(feed_url,headers={"User-Agent":UA},timeout=12)
+        response.raise_for_status()
+        rows=parse_rss(response.text,reference["label"],metadata.get("publisher") or reference["label"])
+        for row in rows:
+            row["source_type"]="commentary"
+            row["source_channel_id"]=channel_id
+        log(f"Loaded {len(rows)} recent uploads from {reference['label']} ({channel_id})")
+        return rows[:30]
+    except Exception as exc:
+        log(f"YouTube source uploads feed unavailable: {str(exc)[:140]}")
+        return []
 
 
 def valuetainment_uploads_feed():
@@ -283,6 +322,10 @@ def discover(channel,used_titles):
     source_rows=publisher_feeds(channel)
     if channel=="astrotobby":
         source_rows.extend(valuetainment_uploads_feed())
+        # The two owner-supplied videos identify channels to follow. Read their public
+        # uploads feeds as commentary leads; never treat them as factual corroboration.
+        for reference in ASTROTOBBY_YOUTUBE_REFERENCES[:2]:
+            source_rows.extend(youtube_channel_uploads_feed(reference))
     for query in profile["queries"]:
         source_rows.extend(feed(query))
 
@@ -427,9 +470,10 @@ No markdown headings, bullets, timecodes, stage directions or URLs in the spoken
     return {"title":title,"description":desc,"tags":tags,"narration":narration,"word_count":words,"model":model}
 
 
-def build_render_script(job_id,lead,package,cfg):
+def build_render_script(job_id,lead,sources,package,cfg):
     post={"slug":job_id,"title":package["title"],"description":package["description"],
-          "tags":package["tags"],"url":lead["url"],"image_url":""}
+          "tags":package["tags"],"url":lead["url"],"image_url":"",
+          "source_urls":[row.get("url","") for row in sources if row.get("url")]}
     category=build_script.detect_topic_category(post); narration=package["narration"]
     return {"post":post,"hook":narration[:180].split(".")[0],"narration":narration,"narration_yt":narration,
       "scene_prompts":build_script.make_scenes(post,cfg,narration),"topic_category":category,
@@ -599,7 +643,7 @@ def yt_service(channel):
         raise RuntimeError(f"Upload blocked: token resolved to channel ID {channel_id!r}, expected {expected_channel_id!r}")
     if title.strip().casefold()!=profile["title"].casefold():
         raise RuntimeError(f"Upload blocked: token belongs to {title!r}, expected {profile['title']!r}")
-    return yt,target,creds,{"id":items[0].get("id",""),"title":title}
+    return yt,target,creds,{"id":channel_id,"title":title}
 
 
 def find_existing(yt,title,target):

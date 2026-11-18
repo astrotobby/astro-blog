@@ -189,9 +189,10 @@ class SourceDiscoveryTests(unittest.TestCase):
 
         with patch.object(pipeline, "publisher_feeds", return_value=[]):
             with patch.object(pipeline, "valuetainment_uploads_feed", return_value=[]):
-                with patch.object(pipeline, "feed", side_effect=fake_feed):
-                    with patch.object(pipeline, "enrich", side_effect=fake_enrich):
-                        selected_lead, sources = pipeline.discover("astrotobby", [])
+                with patch.object(pipeline, "youtube_channel_uploads_feed", return_value=[]):
+                    with patch.object(pipeline, "feed", side_effect=fake_feed):
+                        with patch.object(pipeline, "enrich", side_effect=fake_enrich):
+                            selected_lead, sources = pipeline.discover("astrotobby", [])
 
         self.assertEqual(selected_lead["title"], lead["title"])
         self.assertGreaterEqual(len(sources), 2)
