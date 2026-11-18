@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "scripts/longform_pipeline.py"
+      - "scripts/generate_video.py"
       - "scripts/test_longform_pipeline.py"
       - "scripts/test_youtube_channel_routing.py"
       - "scripts/test_pipeline_improvements.py"
@@ -15,6 +16,7 @@ on:
   pull_request:
     paths:
       - "scripts/longform_pipeline.py"
+      - "scripts/generate_video.py"
       - "scripts/test_longform_pipeline.py"
       - "scripts/test_youtube_channel_routing.py"
       - "scripts/test_pipeline_improvements.py"
@@ -50,6 +52,7 @@ jobs:
         run: |
           python -m py_compile \
             scripts/longform_pipeline.py \
+            scripts/generate_video.py \
             scripts/test_longform_pipeline.py \
             scripts/test_youtube_channel_routing.py
 
