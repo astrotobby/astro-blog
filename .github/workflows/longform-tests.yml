@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "scripts/longform_pipeline.py"
+      - "scripts/build_script.py"
       - "scripts/generate_video.py"
       - "scripts/build_script.py"
       - "scripts/tts_nvidia_riva.py"
@@ -60,6 +61,7 @@ jobs:
         run: |
           python -m py_compile \
             scripts/longform_pipeline.py \
+            scripts/build_script.py \
             scripts/generate_video.py \
             scripts/tts_nvidia_riva.py \
             scripts/test_nvidia_riva_tts.py \
