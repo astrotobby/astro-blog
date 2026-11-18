@@ -5,7 +5,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from blog_quality import (BlogPostValidationError, content_fingerprint,\n                           should_retry_rejected_post, validate_blog_post)
+from blog_quality import (BlogPostValidationError, content_fingerprint,
+                           should_retry_rejected_post, validate_blog_post)
 
 
 def article(words=760):
