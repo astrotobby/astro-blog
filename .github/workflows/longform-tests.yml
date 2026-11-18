@@ -61,10 +61,10 @@ jobs:
           python -m py_compile \
             scripts/longform_pipeline.py \
             scripts/generate_video.py \
-            scripts/tts_helpers.py \\
-            scripts/tts_elevenlabs.py \\
-            scripts/tts_nvidia.py \\
-            scripts/test_tts_pipeline.py \\
+            scripts/tts_helpers.py \
+            scripts/tts_elevenlabs.py \
+            scripts/tts_nvidia.py \
+            scripts/test_tts_pipeline.py \
             scripts/test_longform_pipeline.py \
             scripts/test_youtube_channel_routing.py
 
