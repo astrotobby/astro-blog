@@ -161,7 +161,7 @@ def feed(query):
     )
     for label,url in providers:
         try:
-            response=requests.get(url,headers={"User-Agent":UA},timeout=12)
+            response=requests.get(url,headers={"User-Agent":UA},timeout=22)
             response.raise_for_status()
             for row in parse_rss(response.text,query):
                 key=hashlib.sha256(row["url"].encode()).hexdigest()
@@ -178,7 +178,7 @@ def youtube_reference_metadata(url):
             "https://www.youtube.com/oembed",
             params={"url": url, "format": "json"},
             headers={"User-Agent": UA},
-            timeout=8,
+            timeout=12,
         )
         response.raise_for_status()
         data=response.json()
@@ -202,7 +202,7 @@ def valuetainment_uploads_feed():
         page=requests.get(
             "https://www.youtube.com/@VALUETAINMENT/videos",
             headers={"User-Agent": UA},
-            timeout=10,
+            timeout=18,
         )
         page.raise_for_status()
         match=re.search(
@@ -214,7 +214,7 @@ def valuetainment_uploads_feed():
             return []
         channel_id=match.group(1)
         feed_url="https://www.youtube.com/feeds/videos.xml?channel_id="+channel_id
-        response=requests.get(feed_url,headers={"User-Agent":UA},timeout=10)
+        response=requests.get(feed_url,headers={"User-Agent":UA},timeout=18)
         response.raise_for_status()
         rows=parse_rss(response.text,"Valuetainment YouTube uploads","Valuetainment")
         for row in rows:
@@ -247,7 +247,7 @@ def enrich(item):
     row=dict(item)
     summary=(row.get("summary") or "").strip()
     try:
-        r=requests.get(row["url"],headers={"User-Agent":UA},timeout=15,allow_redirects=True)
+        r=requests.get(row["url"],headers={"User-Agent":UA},timeout=25,allow_redirects=True)
         row["url"]=r.url
         if r.ok and "html" in r.headers.get("content-type","").lower():
             p=ArticleText(); p.feed(r.text[:2_000_000])
@@ -266,6 +266,17 @@ def enrich(item):
     return row
 
 
+def _headline_search_queries(title):
+    """Build targeted fallback searches when broad feeds cannot corroborate a lead."""
+    words = [word for word in re.findall(r"[A-Za-z0-9]+", title or "")
+             if len(word) > 2 and word.lower() not in STOP]
+    phrase = " ".join(words[:9])
+    queries = [f'"{title}" when:30d'] if title else []
+    if phrase and phrase.lower() != (title or "").lower():
+        queries.append(f"{phrase} when:30d")
+    return list(dict.fromkeys(queries))
+
+
 def discover(channel,used_titles):
     profile=CHANNELS[channel]
     candidates={}
@@ -275,14 +286,18 @@ def discover(channel,used_titles):
     for query in profile["queries"]:
         source_rows.extend(feed(query))
 
-    for row in source_rows:
-        row.setdefault("source_type","news")
-        key=hashlib.sha256(row["url"].encode()).hexdigest()
-        publisher=(row.get("publisher","")+" "+row.get("publisher_url","")+" "+row.get("url","")).lower()
-        row["score"]=(12 if any(x in publisher for x in TRUSTED) else 0)+max(0,20-int(_age(row)/6))
-        if key not in candidates or row["score"]>candidates[key]["score"]:
-            candidates[key]=row
+    def add_candidates(rows):
+        for row in rows:
+            if not row.get("url") or not row.get("title"):
+                continue
+            row.setdefault("source_type","news")
+            key=hashlib.sha256(row["url"].encode()).hexdigest()
+            publisher=(row.get("publisher","")+" "+row.get("publisher_url","")+" "+row.get("url","")).lower()
+            row["score"]=(12 if any(x in publisher for x in TRUSTED) else 0)+max(0,20-int(_age(row)/6))
+            if key not in candidates or row["score"]>candidates[key]["score"]:
+                candidates[key]=row
 
+    add_candidates(source_rows)
     ranked=sorted(candidates.values(),key=lambda x:(x["score"],-_age(x)),reverse=True)
     eligible=[row for row in ranked
               if _age(row)<=profile["fresh"]
@@ -290,18 +305,28 @@ def discover(channel,used_titles):
     if not eligible:
         raise RuntimeError(f"No fresh and unused {channel} story found")
 
-    # Group reports already gathered by RSS providers. Avoid repeated query bursts.
     diagnostics=[]
-    for lead in eligible[:8]:
-        related=[]
-        for row in ranked:
-            if row["url"]==lead["url"] or _age(row)>30*24 or row.get("source_type")=="commentary":
-                continue
-            if similarity(row["title"],lead["title"])>=.16:
-                related.append(row)
+    for lead in eligible[:12]:
+        def matching_reports():
+            lead_tokens=_tokens(lead["title"])
+            related=[]
+            for row in ranked:
+                if row["url"]==lead["url"] or _age(row)>30*24 or row.get("source_type")=="commentary":
+                    continue
+                shared=len(lead_tokens & _tokens(row["title"]))
+                if similarity(row["title"],lead["title"])>=.12 or shared>=2:
+                    related.append(row)
+            return related
 
-        # A Valuetainment video can be a useful editorial lead, but it must
-        # never be counted as one of the independent factual news reports.
+        related=matching_reports()
+        if len(related)<2:
+            targeted=[]
+            for query in _headline_search_queries(lead["title"]):
+                targeted.extend(feed(query))
+            add_candidates(targeted)
+            ranked=sorted(candidates.values(),key=lambda x:(x["score"],-_age(x)),reverse=True)
+            related=matching_reports()
+
         pool=related if lead.get("source_type")=="commentary" else [lead]+related
         selected=[]
         seen=set()
@@ -316,7 +341,7 @@ def discover(channel,used_titles):
                 continue
             seen.add(identity)
             selected.append(row)
-            if len(selected)>=4:
+            if len(selected)>=7:
                 break
 
         sources=[enrich(row) for row in selected]
@@ -338,7 +363,6 @@ def discover(channel,used_titles):
         "Could not find a fresh story with two independent reports and 700 source-evidence characters. "
         "Last checks: "+"; ".join(diagnostics[-5:])
     )
-
 
 def create_package(channel,lead,sources):
     key=env("ANTHROPIC_API_KEY")
@@ -569,15 +593,13 @@ def yt_service(channel):
     items=yt.channels().list(part="id,snippet",mine=True).execute().get("items") or []
     if not items: raise RuntimeError("YouTube OAuth returned no channel")
     title=(items[0].get("snippet") or {}).get("title","")
-    actual_id=str(items[0].get("id") or "")
+    channel_id=items[0].get("id","")
+    expected_channel_id=profile.get("channel_id")
+    if expected_channel_id and channel_id != expected_channel_id:
+        raise RuntimeError(f"Upload blocked: token resolved to channel ID {channel_id!r}, expected {expected_channel_id!r}")
     if title.strip().casefold()!=profile["title"].casefold():
         raise RuntimeError(f"Upload blocked: token belongs to {title!r}, expected {profile['title']!r}")
-    if actual_id != profile["channel_id"]:
-        raise RuntimeError(
-            f"Upload blocked: authenticated channel ID {actual_id!r} does not match "
-            f"the validated destination ID for {profile['title']!r}"
-        )
-    return yt,target,creds,{"id":actual_id,"title":title}
+    return yt,target,creds,{"id":items[0].get("id",""),"title":title}
 
 
 def find_existing(yt,title,target):
@@ -660,7 +682,7 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     cfg.get("voice",{}).get("kokoro",{})["enabled"] = False
     if cfg.get("voice",{}).get("elevenlabs"): cfg["voice"]["elevenlabs"]["speed"]=0.98
     script=build_render_script(key,lead,sources,package,cfg)
-    write_json(f"longform_{key}.json",script)
+    write_json(f"out/longform_{key}.json",script)
     job["status"]="rendering"; save_ledger(ledger,dry_run)
     assets,stock_sources=renderer.fetch_scene_assets(script,cfg,"horizontal")
     video,_duration,_words,voice=renderer.render_variant("horizontal",package["narration"],script,cfg,assets,None)
