@@ -19,16 +19,15 @@ STOP = set("what when where which who why how the a an and or of to in on for wi
 TRUSTED = ("reuters", "associated press", "ap news", "bbc", "cnn", "the verge", "techcrunch", "ars technica", "wired", "bloomberg", "cnbc", "hollywood reporter", "variety", "deadline", "billboard", "the guardian", "npr", "fortune", "engadget")
 CHANNELS = {
  "astrotobby": {"title":"Astro Tobby","owner":"goodlucktobby@gmail.com","category":"24","slots":("10:00","15:00"),"fresh":72,
-   "queries":['(entertainment OR film OR streaming OR television OR music OR celebrity) when:3d','(box office OR movie OR TV series OR music industry) when:3d','site:cnn.com (entertainment OR film OR streaming OR television OR music OR celebrity) when:7d','site:cnn.com (world OR politics OR US OR celebrity) when:7d']},
+   "queries":['(entertainment OR film OR streaming OR television OR music OR celebrity) when:3d','(box office OR movie OR TV series OR music industry) when:3d','site:cnn.com (entertainment OR film OR streaming OR television OR music OR celebrity) when:7d','site:cnn.com (world OR politics OR US OR celebrity) when:7d','site:bbc.com/news OR site:bbc.co.uk/news (world OR entertainment OR film OR music OR celebrity) when:7d','site:bbc.com/news/entertainment-arts OR site:bbc.co.uk/news/entertainment-arts when:7d']},
  "digital_nomad": {"title":"DIJITOL NOMAD","owner":"chanzera3@gmail.com","category":"28","slots":("12:00","18:00"),"fresh":168,
    "queries":['("artificial intelligence" OR AI OR automation OR software OR technology OR developer) when:7d','("AI agent" OR "open source" OR LLM OR robotics OR cybersecurity OR cloud) when:7d']}
 }
 
 CHANNEL_FEEDS = {
  "astrotobby": [
-  ("BBC News", "https://feeds.bbci.co.uk/news/rss.xml"),
-  ("BBC Entertainment", "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml"),
-  ("BBC Culture", "https://www.bbc.com/culture/feed.rss"),
+  # CNN and BBC are searched by article domain, not via their RSS feeds:
+  # legacy CNN RSS appears stale; BBC feed terms require permission for business use.
   ("The Guardian Culture", "https://www.theguardian.com/culture/rss"),
  ],
  "digital_nomad": [
