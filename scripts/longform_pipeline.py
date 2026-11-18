@@ -1,6 +1,6 @@
 """End-to-end ten-minute YouTube pipeline. Execute from AI-GEMS/whop-clipper."""
 from __future__ import annotations
-import argparse, email.utils, hashlib, html, json, os, re, shutil, subprocess, sys, urllib.parse
+import argparse, email.utils, hashlib, html, json, os, re, shutil, subprocess, sys, time as time_module, urllib.parse
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, time as clock_time, timedelta, timezone
 from html.parser import HTMLParser
@@ -415,26 +415,59 @@ def _generate_text(prompt,system,model):
     """
     gemini_key=env("GEMINI_API_KEY")
     if gemini_key:
-        gemini_model=env("GEMINI_MODEL","gemini-3.8-flash")
-        response=requests.post(
-            "https://generativelanguage.googleapis.com/v1beta/interactions",
-            headers={"x-goog-api-key":gemini_key,"Content-Type":"application/json"},
-            json={"model":gemini_model,"input":prompt,"system_instruction":system,"store":False,
-                  "generation_config":{"max_output_tokens":8500,"thinking_level":"low"}},
-            timeout=600,
-        )
-        response.raise_for_status()
-        payload=response.json()
-        output_parts=[]
-        for step in payload.get("steps",[]):
-            if step.get("type")=="model_output":
-                output_parts.extend(part.get("text","") for part in step.get("content",[]) if part.get("type")=="text")
-        if not output_parts:
-            output_parts.extend(part.get("text","") for part in payload.get("outputs",[]) if part.get("type")=="text")
-        output="\n".join(part for part in output_parts if part).strip()
-        if not output:
-            raise RuntimeError("Gemini Interactions API returned no text output")
-        return output
+        primary=env("GEMINI_MODEL","gemini-3.8-flash")
+        fallback=env("GEMINI_FALLBACK_MODEL","gemini-3.7-flash")
+        headers={"x-goog-api-key":gemini_key,"Content-Type":"application/json"}
+
+        def call_gemini(model_id):
+            last_error=None
+            for attempt in range(3):
+                try:
+                    response=requests.post(
+                        "https://generativelanguage.googleapis.com/v1beta/interactions",
+                        headers=headers,
+                        json={"model":model_id,"input":prompt,"system_instruction":system,"store":False,
+                              "generation_config":{"max_output_tokens":8500,"thinking_level":"low"}},
+                        timeout=600,
+                    )
+                    response.raise_for_status()
+                    payload=response.json()
+                    output_parts=[]
+                    for step in payload.get("steps",[]):
+                        if step.get("type")=="model_output":
+                            output_parts.extend(part.get("text","") for part in step.get("content",[]) if part.get("type")=="text")
+                    if not output_parts:
+                        output_parts.extend(part.get("text","") for part in payload.get("outputs",[]) if part.get("type")=="text")
+                    output="\n".join(part for part in output_parts if part).strip()
+                    if not output:
+                        raise RuntimeError("Gemini Interactions API returned no text output")
+                    return output
+                except requests.RequestException as exc:
+                    last_error=exc
+                    status=getattr(getattr(exc,"response",None),"status_code",None)
+                    retryable=status in (429,500,502,503,504) or status is None
+                    if not retryable or attempt==2:
+                        break
+                    retry_after=getattr(getattr(exc,"response",None),"headers",{}).get("Retry-After")
+                    try:
+                        delay=min(30.0,max(1.0,float(retry_after))) if retry_after else 4.0*(2**attempt)
+                    except (TypeError,ValueError):
+                        delay=4.0*(2**attempt)
+                    log(f"Gemini {model_id} temporarily unavailable (HTTP {status or 'network'}); retry {attempt+1}/2 in {delay:.0f}s")
+                    time_module.sleep(delay)
+            raise last_error
+
+        try:
+            return call_gemini(primary)
+        except requests.RequestException as primary_error:
+            status=getattr(getattr(primary_error,"response",None),"status_code",None)
+            if fallback and fallback!=primary and (status in (429,500,502,503,504) or status is None):
+                log(f"Gemini primary model {primary} unavailable; trying fallback model {fallback}")
+                try:
+                    return call_gemini(fallback)
+                except requests.RequestException as fallback_error:
+                    raise RuntimeError(f"Gemini primary and fallback models unavailable (HTTP {status or 'network'} / {getattr(getattr(fallback_error,'response',None),'status_code',None) or 'network'})") from fallback_error
+            raise RuntimeError(f"Gemini generation failed (HTTP {status or 'network'})") from primary_error
 
     oauth=env("CLAUDE_CODE_OAUTH_TOKEN")
     if oauth:
