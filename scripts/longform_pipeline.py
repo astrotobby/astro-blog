@@ -151,7 +151,7 @@ def create_package(channel,lead,sources):
     key=env("ANTHROPIC_API_KEY")
     if not key: raise RuntimeError("ANTHROPIC_API_KEY missing")
     import anthropic
-    profile=CHANNELS[channel]; model=env("LONGFORM_MODEL","claude-sonnet-5-5")
+    profile=CHANNELS[channel]; model=env("LONGFORM_MODEL","claude-sonnet-5")
     evidence=[]
     for i,s in enumerate(sources,1):
         evidence.append(f"SOURCE {i}\nPublisher: {s.get('publisher') or 'Unknown'}\nDate: {s.get('published_at')}\nHeadline: {s['title']}\nURL: {s['url']}\nText: {s.get('article_text') or s.get('summary','')[:6000]}")
