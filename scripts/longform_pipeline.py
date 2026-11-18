@@ -654,7 +654,7 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     cfg.get("voice",{}).get("kokoro",{})["enabled"] = False
     if cfg.get("voice",{}).get("elevenlabs"): cfg["voice"]["elevenlabs"]["speed"]=0.98
     script=build_render_script(key,lead,sources,package,cfg)
-    write_json(f"out/longform_{key}.json",script)
+    write_json(f"longform_{key}.json",script)
     job["status"]="rendering"; save_ledger(ledger,dry_run)
     assets,stock_sources=renderer.fetch_scene_assets(script,cfg,"horizontal")
     video,_duration,_words,voice=renderer.render_variant("horizontal",package["narration"],script,cfg,assets,None)
