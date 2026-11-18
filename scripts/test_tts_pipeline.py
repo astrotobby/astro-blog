@@ -95,7 +95,7 @@ class NVIDIATtsTests(unittest.TestCase):
     def test_magpie_is_opt_in_and_splits_under_the_documented_limit(self):
         narration = "A clear spoken sentence. " * 400
         calls = []
-        wav = b"RIFF" + b"\\x00" * 4 + b"WAVE" + b"\\x00" * 2048
+        wav = b"RIFF" + b"\x00" * 4 + b"WAVE" + b"\x00" * 2048
 
         def fake_concat(parts, output):
             Path(output).write_bytes(wav)
