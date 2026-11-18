@@ -54,7 +54,8 @@ POLLINATIONS_ATTEMPTS = 2
 OPENVERSE_IMAGES_URL = "https://api.openverse.org/v1/images/"
 OPENVERSE_SEARCH_TIMEOUT_SECONDS = 12
 OPENVERSE_DOWNLOAD_TIMEOUT_SECONDS = 20
-OPENVERSE_ALLOWED_LICENSES = {"cc0", "pdm"}
+OPENVERSE_ALLOWED_LICENSES = {"cc0", "pdm", "by"}
+OPENVERSE_LICENSE_FILTER = "cc0,pdm,by"
 OPENVERSE_MAX_IMAGE_BYTES = 20 * 1024 * 1024
 _search_cache = None
 
@@ -609,13 +610,35 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, used_creator
 
 
 
-def _openverse_image_search(query, target_w, target_h):
-    """Find openly reusable CC0/public-domain stills without requiring an API key.
+def _openverse_core_query(query):
+    """Strip renderer-only shot directions so Openverse searches for the subject."""
+    raw = " ".join((query or "").split()).split(",", 1)[0].strip()[:200]
+    if not raw:
+        return ""
+    clean = re.sub(
+        r"\\b(?:wide|tall|medium|close[- ]?up|macro|dramatic|establishing|shot|visible|environment|"
+        r"over[- ]the[- ]shoulder|action|hands|interacting|technology|crisp|screen|readable|interface|"
+        r"detail|dynamic|angle|motion|blur|high[- ]energy|clean|premium|desk|deliberate|hand|movement|"
+        r"human|collaboration|fast|confident)\\b",
+        " ",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    clean = " ".join(clean.split()).strip(" ,;:-")
+    tokens = clean.split()
+    if len(tokens) > 7:
+        clean = " ".join(tokens[:7])
+    return clean or raw
 
-    Search is anonymous, cached for a day, and restricted to commercial-use
-    licenses that do not require attribution (CC0/Public Domain Mark).
+
+def _openverse_image_search(query, target_w, target_h):
+    """Find commercial-use CC0, public-domain, or CC BY stills without an API key.
+
+    CC BY is included to provide materially better coverage for specific scenes;
+    creator, title, source URL, and licence URL are preserved for attribution.
+    Search remains anonymous and cached for a day.
     """
-    query = " ".join((query or "").split())[:200]
+    query = _openverse_core_query(query)
     if not query:
         return []
     cached = _cache_get("openverse", query, target_w, target_h)
@@ -623,14 +646,11 @@ def _openverse_image_search(query, target_w, target_h):
         log(f"Openverse cache hit for {query!r}")
         return cached
 
-    aspect = "wide" if target_w >= target_h else "tall"
     params = {
         "q": query,
-        "page_size": 10,
-        "license": "cc0,pdm",
+        "page_size": 20,
+        "license": OPENVERSE_LICENSE_FILTER,
         "license_type": "commercial",
-        "size": "large",
-        "aspect_ratio": aspect,
     }
     try:
         response = requests.get(
@@ -651,9 +671,11 @@ def _openverse_image_search(query, target_w, target_h):
             if not image_url:
                 continue
             width, height = int(item.get("width") or 0), int(item.get("height") or 0)
-            if width < 640 or height < 360:
+            # Some valid Openverse records omit dimensions. Their downloaded bytes
+            # are still verified for real dimensions before they can be rendered.
+            if (width and width < 640) or (height and height < 360):
                 continue
-            score = _aspect_score(width, height, target_w, target_h)
+            score = _aspect_score(width, height, target_w, target_h) if width and height else 0.5
             candidates.append({
                 "id": f"openverse:{item.get('id')}",
                 "provider": "Openverse",
@@ -661,22 +683,28 @@ def _openverse_image_search(query, target_w, target_h):
                 "thumbnail": item.get("thumbnail") or "",
                 "score": score,
                 "creator": item.get("creator") or "Unknown creator",
+                "creator_url": item.get("creator_url") or "",
                 "source_url": item.get("foreign_landing_url") or item.get("detail_url") or "",
                 "title": item.get("title") or "Untitled openly licensed image",
                 "license": license_id,
                 "license_version": item.get("license_version") or "",
                 "license_url": item.get("license_url") or "",
+                "attribution": item.get("attribution") or "",
                 "query": query,
                 "width": width,
                 "height": height,
             })
         ranked = sorted(candidates, key=lambda item: item["score"], reverse=True)
-        _cache_put("openverse", query, target_w, target_h, ranked)
+        if ranked:
+            _cache_put("openverse", query, target_w, target_h, ranked)
+        log(
+            f"Openverse found {len(ranked)} eligible commercial-use images "
+            f"for {query!r} ({OPENVERSE_LICENSE_FILTER})"
+        )
         return ranked
     except Exception as exc:
         log(f"Openverse image search failed ({type(exc).__name__}): {str(exc)[:160]}")
         return []
-
 
 def _download_openverse_image(candidate, destination: Path, timeout_seconds=None) -> bool:
     """Download and verify a real image; reject broken, HTML, or undersized files."""
@@ -722,11 +750,14 @@ def _download_openverse_image(candidate, destination: Path, timeout_seconds=None
 
 
 def _fetch_openverse_scene(index, meta, target_w, target_h, used_clips, recent_ids, variant):
-    """Use unique CC0/public-domain stills with a gentle Ken Burns move as B-roll fallback."""
+    """Use unique commercial-safe CC0/PDM/CC BY stills with gentle Ken Burns motion."""
     destination = OUT / f"scene_{index:02d}_{variant}_openverse.jpg"
     destination.unlink(missing_ok=True)
-    queries = [q for q in (meta.get("broll"), meta.get("fallback")) if q]
-    for query in dict.fromkeys(queries):
+    raw_queries = [q for q in (meta.get("broll"), meta.get("fallback")) if q]
+    queries = list(dict.fromkeys(
+        core for core in (_openverse_core_query(query) for query in raw_queries) if core
+    ))
+    for query in queries:
         candidates = _openverse_image_search(query, target_w, target_h)
         for candidate in candidates:
             asset_id = candidate["id"]
@@ -738,17 +769,18 @@ def _fetch_openverse_scene(index, meta, target_w, target_h, used_clips, recent_i
             provenance = {
                 key: candidate.get(key)
                 for key in (
-                    "id", "provider", "creator", "source_url", "title",
-                    "license", "license_version", "license_url", "query",
+                    "id", "provider", "creator", "creator_url", "source_url", "title",
+                    "license", "license_version", "license_url", "attribution", "query",
                 )
             }
             provenance["scene"] = index
             provenance["variant"] = variant
             log(
-                f"scene {index} [{variant}] -> Openverse CC0/Public Domain image "
-                f"for {query!r}"
+                f"scene {index} [{variant}] -> Openverse {candidate.get('license', '').upper()} "
+                f"image for {query!r}"
             )
             return destination, provenance
+    log(f"scene {index} [{variant}]: no eligible Openverse image for {queries!r}")
     return None, None
 
 def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
@@ -1113,13 +1145,17 @@ def _source_credits(sources):
         if provider == "Openverse":
             title = (source.get("title") or "Untitled image").strip()[:72]
             license_id = (source.get("license") or "cc0").upper()
+            license_url = source.get("license_url") or ""
+            creator_url = source.get("creator_url") or ""
+            creator_credit = f"{creator} ({creator_url})" if creator_url else creator
+            license_credit = f"{license_id} {license_url}".strip()
             credits.append(
-                f"Openverse image: {title} — {creator} ({license_id}); {source_url}"
+                f"Openverse image: {title} — {creator_credit}; source: {source_url}; "
+                f"license: {license_credit}"
             )
         else:
             credits.append(f"{provider}: {creator} — {source_url}")
     return credits
-
 
 def _with_attribution(platform, sources):
     """Preserve asset provenance without exposing footage credits in published copy."""
