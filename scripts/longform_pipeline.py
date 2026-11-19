@@ -657,9 +657,33 @@ No markdown headings, bullets, timecodes, stage directions or URLs in the spoken
 """
     raw=_generate_text(prompt,system,model)
     fence=chr(96)*3
-    if raw.startswith(fence): raw=raw.split("\n",1)[-1]
-    if raw.endswith(fence): raw=raw[:-3]
-    data=json.loads(raw)
+    raw=raw.strip()
+    if raw.startswith(fence):
+        raw=raw.split("\n",1)[-1]
+    if raw.rstrip().endswith(fence):
+        raw=raw.rstrip()[:-3].rstrip()
+    # Some model responses contain literal line breaks/tabs inside JSON strings.
+    # Escape those control characters without altering valid JSON whitespace or
+    # already-escaped sequences, then parse strictly as before.
+    repaired=[]
+    in_string=False
+    escaped=False
+    for char in raw:
+        code=ord(char)
+        if in_string and code < 0x20:
+            repaired.append({"\n": r"\n", "\r": r"\r", "\t": r"\t"}.get(char, f"\\u{code:04x}"))
+            continue
+        repaired.append(char)
+        if in_string:
+            if escaped:
+                escaped=False
+            elif char == "\\":
+                escaped=True
+            elif char == '"':
+                in_string=False
+        elif char == '"':
+            in_string=True
+    data=json.loads("".join(repaired))
     narration=re.sub(r"\s+"," ",str(data.get("narration",""))).strip()
     words=narration_word_count(narration)
     if words>2500:
