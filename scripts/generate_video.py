@@ -749,11 +749,14 @@ def _download_openverse_image(candidate, destination: Path, timeout_seconds=None
     return False
 
 
-def _fetch_openverse_scene(index, meta, target_w, target_h, used_clips, recent_ids, variant):
+def _fetch_openverse_scene(index, meta, target_w, target_h, used_clips, recent_ids, variant, context_queries=None):
     """Use unique commercial-safe CC0/PDM/CC BY stills with gentle Ken Burns motion."""
     destination = OUT / f"scene_{index:02d}_{variant}_openverse.jpg"
     destination.unlink(missing_ok=True)
     raw_queries = [q for q in (meta.get("broll"), meta.get("fallback")) if q]
+    # Scene prompts can drift into generic or overly-specific imagery. Search the
+    # actual story title/tags and category after those local scene queries fail.
+    raw_queries.extend(context_queries or [])
     queries = list(dict.fromkeys(
         core for core in (_openverse_core_query(query) for query in raw_queries) if core
     ))
@@ -784,7 +787,7 @@ def _fetch_openverse_scene(index, meta, target_w, target_h, used_clips, recent_i
     return None, None
 
 def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
-                 used_creators, recent_ids, variant):
+                 used_creators, recent_ids, variant, context_queries=None):
     meta = _parse_scene_meta(prompt)
     video_asset, provenance = _fetch_video_asset(
         index, meta, target_w, target_h, used_clips, used_creators, recent_ids, variant)
@@ -805,7 +808,8 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
     # If paid/registered stock-footage APIs are not configured, prefer verified
     # CC0/Public Domain media before any generated-image endpoint.
     openverse_asset, openverse_source = _fetch_openverse_scene(
-        index, meta, target_w, target_h, used_clips, recent_ids, variant
+        index, meta, target_w, target_h, used_clips, recent_ids, variant,
+        context_queries=context_queries,
     )
     if openverse_asset:
         return openverse_asset, meta, openverse_source
@@ -836,6 +840,45 @@ def fetch_scene_assets(script, cfg, variant):
     target_size = cfg["video"][variant]
     target_w, target_h = target_size["w"], target_size["h"]
     post = script["post"]
+    category = str(script.get("topic_category") or "").lower()
+    category_queries = {
+        "entertainment": [
+            "country music awards stage", "country music concert singer",
+            "music awards audience stage", "live music concert audience",
+            "recording studio microphone",
+        ],
+        "finance": [
+            "financial documents desk", "business office paperwork",
+            "calculator financial papers", "banking payment terminal",
+        ],
+        "automation": [
+            "industrial automation robot", "robotic process automation",
+            "computer workflow software", "factory robotics",
+        ],
+        "llm_model": [
+            "artificial intelligence computer", "software developer computer",
+            "computer server data center", "machine learning workstation",
+        ],
+        "security": [
+            "cybersecurity operations center", "computer security server",
+            "data protection computer", "network security monitoring",
+        ],
+        "healthcare": [
+            "hospital doctor computer", "medical research laboratory",
+            "healthcare technology workstation",
+        ],
+        "general_ai": [
+            "artificial intelligence computer", "software developer laptop",
+            "computer workspace", "technology office workstation",
+        ],
+    }
+    context_queries = []
+    if post.get("title"):
+        context_queries.append(str(post["title"]))
+    tags = post.get("tags") or []
+    if tags:
+        context_queries.append(" ".join(str(tag) for tag in tags[:8]))
+    context_queries.extend(category_queries.get(category, []))
     used_clips, used_creators = set(), set()
     history = _load_footage_history()
     recent_ids = {item["id"] for item in history}
@@ -847,7 +890,7 @@ def fetch_scene_assets(script, cfg, variant):
         asset, meta, source = _fetch_scene(
             index, prompt, target_w, target_h, post["slug"],
             post.get("image_url") if index == 0 else None, used_clips,
-            used_creators, recent_ids, variant,
+            used_creators, recent_ids, variant, context_queries=context_queries,
         )
         assets.append((asset, meta))
         log(f"Scene {index + 1}/{scene_count} assets ready in {time.monotonic() - scene_started:.1f}s")

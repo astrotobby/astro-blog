@@ -214,6 +214,8 @@ FOOTAGE_BROLL_PROFILES = {
             "record label executive office meeting",
         ),
         "matches": (
+            (("ticket", "price", "pricing", "cost", "revenue", "budget", "earnings", "sales"),
+             "concert ticket sales and box office"),
             (("record label", "music industry", "universal music", "warner music",
               "sony music", "music executive"), "record label executive office"),
             (("singer", "vocalist", "artist", "album", "song", "recording"),
@@ -617,35 +619,44 @@ def _metadata_value(value: str, limit: int = 96) -> str:
 
 
 def _footage_brief(segment: str, category: str, scene_type: str) -> tuple[str, str]:
-    """Return a concrete primary and fallback B-roll query for a narration beat.
-
-    The stock APIs work best with visible people, objects, actions and locations.
-    This deliberately uses category-aware terms rather than falling back to a vague
-    post-title search or decorative landscape footage.
-    """
+    """Return concrete, category-relevant footage queries for a narration beat."""
     profile = FOOTAGE_BROLL_PROFILES.get(category, FOOTAGE_BROLL_PROFILES["general_ai"])
     text = (segment or "").lower()
-    for signals, concrete_query in CONCRETE_FOOTAGE_MATCHES:
-        if any(signal in text for signal in signals):
-            fallback = profile["fallbacks"][(len(concrete_query) + len(segment)) % len(profile["fallbacks"])]
-            return _metadata_value(concrete_query), _metadata_value(fallback)
 
+    # Prefer a match from the story's own visual category. This prevents broad
+    # words such as "price", "video" or "budget" from turning a music story into
+    # a generic invoice, coding or technology shot.
     for signals, query in profile["matches"]:
         if any(signal in text for signal in signals):
-            break
-    else:
-        query = profile["fallbacks"][0]
+            fallback = profile["fallbacks"][
+                (len(query) + len(segment)) % len(profile["fallbacks"])
+            ]
+            if fallback == query and len(profile["fallbacks"]) > 1:
+                fallback = profile["fallbacks"][
+                    (profile["fallbacks"].index(fallback) + 1) % len(profile["fallbacks"])
+                ]
+            return _metadata_value(query), _metadata_value(fallback)
 
-    # Variety is useful only after relevance: rotate between equally safe category
-    # fallbacks by scene type when no specific concept is named in the narration.
-    if query == profile["fallbacks"][0] and scene_type in {"ESTABLISH", "PAYOFF"}:
+    # Use globally concrete matches only when no category-specific subject was
+    # found (for example, a specific AI-video generator inside a technology story).
+    for signals, concrete_query in CONCRETE_FOOTAGE_MATCHES:
+        if any(signal in text for signal in signals):
+            fallback = profile["fallbacks"][
+                (len(concrete_query) + len(segment)) % len(profile["fallbacks"])
+            ]
+            return _metadata_value(concrete_query), _metadata_value(fallback)
+
+    query = profile["fallbacks"][0]
+    if scene_type in {"ESTABLISH", "PAYOFF"}:
         query = profile["fallbacks"][1 % len(profile["fallbacks"])]
-    elif query == profile["fallbacks"][0] and scene_type == "CTA":
+    elif scene_type == "CTA":
         query = profile["fallbacks"][2 % len(profile["fallbacks"])]
 
     fallback = profile["fallbacks"][(len(query) + len(segment)) % len(profile["fallbacks"])]
     if fallback == query and len(profile["fallbacks"]) > 1:
-        fallback = profile["fallbacks"][(profile["fallbacks"].index(fallback) + 1) % len(profile["fallbacks"])]
+        fallback = profile["fallbacks"][
+            (profile["fallbacks"].index(fallback) + 1) % len(profile["fallbacks"])
+        ]
     return _metadata_value(query), _metadata_value(fallback)
 
 
@@ -718,8 +729,14 @@ def make_scenes(post, cfg, narration=None):
         seg_kws = _scene_keywords(segment, post["title"])
         broll_query, fallback_query = _footage_brief(segment, cat, scene_type)
         if broll_query in used_queries:
-            profile_pool = FOOTAGE_BROLL_PROFILES.get(cat, FOOTAGE_BROLL_PROFILES["general_ai"])["fallbacks"]
-            pool = [q for q in (*profile_pool, *FOOTAGE_VARIETY_POOL) if q not in used_queries]
+            footage_profile = FOOTAGE_BROLL_PROFILES.get(cat, FOOTAGE_BROLL_PROFILES["general_ai"])
+            profile_pool = list(footage_profile["fallbacks"])
+            profile_pool.extend(query for _signals, query in footage_profile["matches"])
+            profile_pool.extend(
+                visual.split(",", 1)[0]
+                for visual in TOPIC_VISUAL_PROFILES[cat]["visual_language"]
+            )
+            pool = [q for q in dict.fromkeys(profile_pool) if q not in used_queries]
             if pool:
                 fallback_query = broll_query
                 broll_query = pool[(i * 7) % len(pool)]
