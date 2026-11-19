@@ -52,6 +52,10 @@ FOOTAGE_MAX_ALTERNATE_ATTEMPTS = 1
 POLLINATIONS_TIMEOUT_SECONDS = 12
 POLLINATIONS_ATTEMPTS = 2
 OPENVERSE_IMAGES_URL = "https://api.openverse.org/v1/images/"
+WIKIMEDIA_COMMONS_API_URL = "https://commons.wikimedia.org/w/api.php"
+WIKIMEDIA_COMMONS_SEARCH_TIMEOUT_SECONDS = 12
+WIKIMEDIA_COMMONS_DOWNLOAD_TIMEOUT_SECONDS = 20
+WIKIMEDIA_COMMONS_MAX_IMAGE_BYTES = 20 * 1024 * 1024
 OPENVERSE_SEARCH_TIMEOUT_SECONDS = 12
 OPENVERSE_DOWNLOAD_TIMEOUT_SECONDS = 20
 OPENVERSE_ALLOWED_LICENSES = {"cc0", "pdm", "by"}
@@ -783,6 +787,234 @@ def _fetch_openverse_scene(index, meta, target_w, target_h, used_clips, recent_i
     log(f"scene {index} [{variant}]: no eligible Openverse image for {queries!r}")
     return None, None
 
+
+def _commons_license(metadata):
+    """Return a commercial-safe licence label; reject NC, ND, and ShareAlike terms."""
+    import html
+
+    raw = str((metadata or {}).get("LicenseShortName", {}).get("value") or "")
+    label = html.unescape(re.sub(r"<[^>]+>", " ", raw)).strip()
+    normalized = re.sub(r"\s+", " ", label).lower()
+    if "public domain" in normalized or normalized in {"pd", "pdm"}:
+        return "pdm", label or "Public Domain"
+    if "cc0" in normalized:
+        return "cc0", label or "CC0"
+    if "cc by" in normalized and not any(term in normalized for term in ("nc", "nd", "sa")):
+        return "by", label
+    return None, label
+
+
+def _commons_plain_text(value):
+    import html
+
+    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", str(value or "")))).strip()
+
+
+def _commons_search_queries(meta):
+    """Build targeted and category-aware Commons queries without over-broad filler."""
+    queries = []
+    raw_values = [meta.get("broll"), meta.get("fallback")]
+    for raw in raw_values:
+        core = _openverse_core_query(raw)
+        if not core:
+            continue
+        tokens = [token for token in core.split() if len(token) > 2]
+        for candidate in (core, " ".join(tokens[:3])):
+            candidate = candidate.strip()
+            if candidate and candidate.lower() not in {q.lower() for q in queries}:
+                queries.append(candidate)
+
+    combined = " ".join(str(value or "").lower() for value in raw_values)
+    related = []
+    if any(term in combined for term in ("video", "editing", "creator", "film", "content")):
+        related.extend(["video editor", "film editing suite", "media production studio"])
+    if any(term in combined for term in ("music", "singer", "record label", "recording", "concert", "album", "artist")):
+        related.extend([
+            "music production studio", "recording studio microphone",
+            "music executive", "audio mixing console", "singer at microphone",
+        ])
+    if any(term in combined for term in ("invoice", "pricing", "business", "office", "meeting", "executive")):
+        related.extend(["business meeting office", "office paperwork desk"])
+    if any(term in combined for term in ("software", "computer", "programmer", "coding", "technology", "data")):
+        related.extend(["computer workstation", "software developer computer", "data center servers"])
+
+    for candidate in related:
+        if candidate.lower() not in {q.lower() for q in queries}:
+            queries.append(candidate)
+    return queries[:7]
+
+
+def _commons_terms(value):
+    """Small inflection normalizer used only to reject obviously unrelated search hits."""
+    stop = {"the", "and", "for", "with", "from", "into", "shot", "closeup",
+            "wide", "medium", "office", "meeting", "environment", "visible",
+            "detail", "action", "hands", "interacting", "crisp", "screen"}
+    aliases = {
+        "editor": "edit", "editing": "edit", "edited": "edit",
+        "videos": "video", "studios": "studio", "recordings": "recording",
+        "records": "record", "producers": "produce", "producer": "produce",
+        "production": "produce", "creators": "creator", "singers": "singer",
+    }
+    result = set()
+    for token in re.findall(r"[a-z0-9]+", str(value or "").lower()):
+        if token in stop or len(token) < 3:
+            continue
+        result.add(aliases.get(token, token))
+    return result
+
+
+def _wikimedia_commons_image_search(query, target_w, target_h):
+    """Search Wikimedia Commons for verified commercial-use stills with attribution."""
+    query = " ".join((query or "").split()).strip()[:160]
+    if not query:
+        return []
+    cached = _cache_get("wikimedia-commons", query, target_w, target_h)
+    if cached is not None:
+        log(f"Wikimedia Commons cache hit for {query!r}")
+        return cached
+
+    params = {
+        "action": "query",
+        "format": "json",
+        "generator": "search",
+        "gsrsearch": query,
+        "gsrnamespace": 6,
+        "gsrlimit": 25,
+        "prop": "imageinfo",
+        "iiprop": "url|extmetadata",
+        "iiurlwidth": 2200,
+    }
+    try:
+        response = requests.get(
+            WIKIMEDIA_COMMONS_API_URL,
+            params=params,
+            headers={"User-Agent": "AstroTobbyLongform/1.0 (https://astrotobby.site; licensed media search)"},
+            timeout=(4, WIKIMEDIA_COMMONS_SEARCH_TIMEOUT_SECONDS),
+        )
+        response.raise_for_status()
+        pages = ((response.json().get("query") or {}).get("pages") or {})
+        candidates = []
+        for page in pages.values():
+            title = str(page.get("title") or "")
+            if not re.search(r"\.(?:jpe?g|png|webp)$", title, flags=re.IGNORECASE):
+                continue
+            info = (page.get("imageinfo") or [{}])[0]
+            metadata = info.get("extmetadata") or {}
+            license_id, license_label = _commons_license(metadata)
+            if not license_id:
+                continue
+            width, height = int(info.get("width") or 0), int(info.get("height") or 0)
+            if (width and width < 640) or (height and height < 360):
+                continue
+            artist = _commons_plain_text((metadata.get("Artist") or {}).get("value"))
+            description = _commons_plain_text((metadata.get("ImageDescription") or {}).get("value"))
+            license_url = _commons_plain_text((metadata.get("LicenseUrl") or {}).get("value"))
+            image_url = info.get("thumburl") or info.get("url")
+            if not image_url:
+                continue
+            query_terms = _commons_terms(query)
+            asset_terms = _commons_terms(" ".join((title, description, artist)))
+            required_matches = 1 if len(query_terms) <= 2 else 2
+            if query_terms and len(query_terms & asset_terms) < required_matches:
+                continue
+            candidates.append({
+                "id": f"wikimedia-commons:{page.get('pageid')}",
+                "provider": "Wikimedia Commons",
+                "url": image_url,
+                "thumbnail": info.get("thumburl") or "",
+                "score": _aspect_score(width, height, target_w, target_h) if width and height else 0.5,
+                "creator": artist or "Unknown creator",
+                "creator_url": "",
+                "source_url": info.get("descriptionurl") or "",
+                "title": title.removeprefix("File:") or description or "Wikimedia Commons image",
+                "license": license_id,
+                "license_version": license_label,
+                "license_url": license_url,
+                "attribution": f"{artist or 'Unknown creator'} / {license_label or license_id}",
+                "query": query,
+                "width": width,
+                "height": height,
+            })
+        ranked = sorted(candidates, key=lambda item: item["score"], reverse=True)
+        if ranked:
+            _cache_put("wikimedia-commons", query, target_w, target_h, ranked)
+        log(f"Wikimedia Commons found {len(ranked)} commercially usable images for {query!r}")
+        return ranked
+    except Exception as exc:
+        log(f"Wikimedia Commons search unavailable ({type(exc).__name__}): {str(exc)[:160]}")
+        return []
+
+
+def _download_commons_image(candidate, destination: Path, timeout_seconds=None) -> bool:
+    """Download and verify a real Wikimedia Commons image before rendering."""
+    from io import BytesIO
+    from PIL import Image
+
+    timeout = min(
+        WIKIMEDIA_COMMONS_DOWNLOAD_TIMEOUT_SECONDS,
+        max(1.0, float(timeout_seconds or WIKIMEDIA_COMMONS_DOWNLOAD_TIMEOUT_SECONDS)),
+    )
+    urls = list(dict.fromkeys(url for url in (candidate.get("url"), candidate.get("thumbnail")) if url))
+    for url in urls:
+        try:
+            response = requests.get(
+                url,
+                headers={"User-Agent": "AstroTobbyLongform/1.0 (https://astrotobby.site; licensed media download)"},
+                timeout=(4, timeout),
+            )
+            if response.status_code != 200:
+                continue
+            content_type = str(response.headers.get("content-type") or "").lower()
+            content = response.content or b""
+            if (content_type and not content_type.startswith("image/")) or len(content) < 20_000:
+                continue
+            if len(content) > WIKIMEDIA_COMMONS_MAX_IMAGE_BYTES:
+                log("Wikimedia Commons image skipped: file exceeded the 20 MB scene asset limit")
+                continue
+            with Image.open(BytesIO(content)) as image:
+                image.verify()
+            with Image.open(BytesIO(content)) as image:
+                width, height = image.size
+                if width < 640 or height < 360:
+                    continue
+                image.convert("RGB").save(destination, format="JPEG", quality=94, optimize=True)
+            return destination.exists() and destination.stat().st_size > 10_000
+        except Exception as exc:
+            log(f"Wikimedia Commons image download failed ({type(exc).__name__})")
+    return False
+
+
+def _fetch_commons_scene(index, meta, target_w, target_h, used_clips, recent_ids, variant):
+    """Use unique CC0, Public Domain, and CC BY images if Openverse has no match."""
+    destination = OUT / f"scene_{index:02d}_{variant}_commons.jpg"
+    destination.unlink(missing_ok=True)
+    for query in _commons_search_queries(meta):
+        candidates = _wikimedia_commons_image_search(query, target_w, target_h)
+        for candidate in candidates:
+            asset_id = candidate["id"]
+            if asset_id in used_clips or asset_id in recent_ids:
+                continue
+            if not _download_commons_image(candidate, destination):
+                continue
+            used_clips.add(asset_id)
+            provenance = {
+                key: candidate.get(key)
+                for key in (
+                    "id", "provider", "creator", "creator_url", "source_url", "title",
+                    "license", "license_version", "license_url", "attribution", "query",
+                )
+            }
+            provenance["scene"] = index
+            provenance["variant"] = variant
+            log(
+                f"scene {index} [{variant}] -> Wikimedia Commons "
+                f"{candidate.get('license_version') or candidate.get('license')} image for {query!r}"
+            )
+            return destination, provenance
+    log(f"scene {index} [{variant}]: no licensed Wikimedia Commons image for {_commons_search_queries(meta)!r}")
+    return None, None
+
+
 def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
                  used_creators, recent_ids, variant):
     meta = _parse_scene_meta(prompt)
@@ -809,6 +1041,14 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
     )
     if openverse_asset:
         return openverse_asset, meta, openverse_source
+
+    # Wikimedia Commons is an independent, no-key source. Only CC0, Public
+    # Domain, and CC BY (not NC/ND/SA) assets are admitted and credited.
+    commons_asset, commons_source = _fetch_commons_scene(
+        index, meta, target_w, target_h, used_clips, recent_ids, variant
+    )
+    if commons_asset:
+        return commons_asset, meta, commons_source
 
     clean_prompt = _clean_image_prompt(prompt)
     seed = int(hashlib.sha256(f"{slug}:{index}:{variant}".encode()).hexdigest()[:8], 16) % 100000
@@ -1142,26 +1382,49 @@ def _source_credits(sources):
         provider = source.get("provider", "Stock footage")
         creator = source.get("creator", "contributor")
         source_url = source.get("source_url") or ("https://www.pexels.com/" if provider == "Pexels" else "https://pixabay.com/")
-        if provider == "Openverse":
-            title = (source.get("title") or "Untitled image").strip()[:72]
+        if provider in {"Openverse", "Wikimedia Commons"}:
+            title = (source.get("title") or "Untitled image").strip()[:120]
             license_id = (source.get("license") or "cc0").lower()
-            license_label = "CC BY" if license_id == "by" else license_id.upper()
+            license_label = source.get("license_version") or ("CC BY" if license_id == "by" else license_id.upper())
             license_url = source.get("license_url") or ""
             creator_url = source.get("creator_url") or ""
             creator_credit = f"{creator} ({creator_url})" if creator_url else creator
-            license_credit = f"{license_id} {license_url}".strip()
             credits.append(
-                f"Openverse image: {title} — {creator_credit}; source: {source_url}; "
+                f"{provider} image: {title} - {creator_credit}; source: {source_url}; "
                 f"license: {license_label} {license_url}".strip()
             )
         else:
-            credits.append(f"{provider}: {creator} — {source_url}")
+            credits.append(f"{provider}: {creator} - {source_url}")
     return credits
 
+
 def _with_attribution(platform, sources):
-    """Preserve asset provenance without exposing footage credits in published copy."""
+    """Preserve provenance and publish required attribution for CC BY adaptations."""
     output = dict(platform)
     output["footage_credits"] = _source_credits(sources)
+    required = [
+        source for source in sources
+        if str(source.get("license") or "").lower() == "by"
+        and source.get("provider") in {"Openverse", "Wikimedia Commons"}
+    ]
+    if required:
+        lines = []
+        for source in required:
+            title = (source.get("title") or "Untitled image").strip()[:120]
+            creator = source.get("creator") or "Unknown creator"
+            source_url = source.get("source_url") or ""
+            license_label = source.get("license_version") or "CC BY"
+            license_url = source.get("license_url") or ""
+            lines.append(
+                f"- {title} - {creator}; source: {source_url}; "
+                f"licence: {license_label} {license_url}".strip()
+            )
+        description = str(output.get("yt_desc") or "").rstrip()
+        attribution = (
+            "Image attribution (CC BY):\n" + "\n".join(lines)
+            + "\nChanges: cropped, resized and animated for this video."
+        )
+        output["yt_desc"] = (description + "\n\n" + attribution).strip()
     return output
 
 
