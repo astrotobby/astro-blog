@@ -1567,11 +1567,11 @@ def finalize(video_path, voice_path, word_timings, music, size, out_path, cfg, s
            # Efficient high-quality 1080p master: slower x264 encoding improves
            # compression at the same visual quality. CRF controls quality while
            # maxrate/bufsize prevent unusually complex scenes bloating the upload.
-           "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-maxrate", "8M",
-           "-bufsize", "16M", "-profile:v", "high",
+           "-c:v", "libx264", "-preset", "slow", "-crf", "22", "-maxrate", "6M",
+           "-bufsize", "12M", "-profile:v", "high",
            "-pix_fmt", "yuv420p", "-r", str(fps), "-g", str(fps * 2),
            "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
-           "-c:a", "aac", "-b:a", "160k", "-ar", "48000",
+           "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
            "-movflags", "+faststart", "-t", total, str(Path(out_path).resolve())]
     # libass resolves the caption file and font folder relative to OUT.
     run(cmd, cwd=str(OUT))
