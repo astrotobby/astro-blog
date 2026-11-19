@@ -53,8 +53,8 @@ channels:
       evergreen_allowed: true
 
   digital_nomad:
-    display_name: "Digital Nomad"
-    youtube_channel_title: "DIGITAL NOMAD"
+    display_name: "DIJITAL NOMAD"
+    youtube_channel_title: "DIJITAL NOMAD"
     owner_google_account: "chanzera3@gmail.com"
     refresh_token_env: YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD
     github_secret_sources:
