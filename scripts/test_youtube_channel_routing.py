@@ -34,11 +34,11 @@ class _YouTube:
 
 class YouTubeChannelRoutingTests(unittest.TestCase):
     def test_digital_nomad_aliases_use_existing_dijitol_secret(self):
-        for value in ("digital_nomad", "Digital Nomad", "DIJITAL NOMAD", "DIJITOL NOMAD", "dijitolnomad001"):
+        for value in ("digital_nomad", "Digital Nomad", "DIJITAL NOMAD", "DIJITOL NOMAD", "DIGITAL NOMAD", "dijitolnomad001"):
             with self.subTest(value=value):
                 profile = platforms._youtube_channel_profile({"channel_key": value})
                 self.assertEqual(profile["key"], "digital_nomad")
-                self.assertEqual(profile["token_env"], "YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD")
+                self.assertEqual(profile["token_env"], "YOUTUBE_REFRESH_TOKEN_DIJITOL_NOMAD")
                 self.assertEqual(profile["expected_title"], "DIJITOL NOMAD")
                 self.assertEqual(profile["owner_account"], "chanzera3@gmail.com")
 
@@ -79,7 +79,7 @@ class YouTubeChannelRoutingTests(unittest.TestCase):
 
     def test_channel_specific_dry_run_uses_correct_profile_without_network(self):
         values = {
-            "YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD": "placeholder-token",
+            "YOUTUBE_REFRESH_TOKEN_DIJITOL_NOMAD": "placeholder-token",
             "YOUTUBE_CLIENT_ID": "placeholder-client",
             "YOUTUBE_CLIENT_SECRET": "placeholder-secret",
         }
