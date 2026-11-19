@@ -39,7 +39,7 @@ class YouTubeChannelRoutingTests(unittest.TestCase):
                 profile = platforms._youtube_channel_profile({"channel_key": value})
                 self.assertEqual(profile["key"], "digital_nomad")
                 self.assertEqual(profile["token_env"], "YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD")
-                self.assertEqual(profile["expected_title"], "DIJITAL NOMAD")
+                self.assertEqual(profile["expected_title"], "DIJITOL NOMAD")
                 self.assertEqual(profile["owner_account"], "chanzera3@gmail.com")
 
     def test_astrotobbyc_aliases_use_existing_astro_tobby_secret(self):
@@ -70,12 +70,12 @@ class YouTubeChannelRoutingTests(unittest.TestCase):
 
     def test_verifies_channel_title_and_optional_id(self):
         profile = platforms._youtube_channel_profile({"channel_key": "digital_nomad"})
-        yt = _YouTube({"items": [{"id": "UC_DIGITAL", "snippet": {"title": "DIJITAL NOMAD"}}]})
+        yt = _YouTube({"items": [{"id": "UCE_cklDludc6nkU1_4K6JzA", "snippet": {"title": "DIGITAL NOMAD"}}]})
         with patch.object(platforms, "env", side_effect=lambda key, default="": (
-            "UC_DIGITAL" if key == "YOUTUBE_CHANNEL_ID_DIGITAL_NOMAD" else default
+            "UCE_cklDludc6nkU1_4K6JzA" if key == "YOUTUBE_CHANNEL_ID_DIGITAL_NOMAD" else default
         )):
             identity = platforms._yt_verify_channel(yt, profile)
-        self.assertEqual(identity, {"id": "UC_DIGITAL", "title": "DIJITAL NOMAD"})
+        self.assertEqual(identity, {"id": "UCE_cklDludc6nkU1_4K6JzA", "title": "DIGITAL NOMAD"})
 
     def test_channel_specific_dry_run_uses_correct_profile_without_network(self):
         values = {
@@ -92,7 +92,7 @@ class YouTubeChannelRoutingTests(unittest.TestCase):
         with patch.object(platforms, "env", side_effect=lambda key, default="": values.get(key, default)):
             result = platforms.post_youtube(render, cfg, dry=True)
         self.assertTrue(result["youtube"]["ok"])
-        self.assertEqual(result["youtube"]["channel"], "DIJITAL NOMAD")
+        self.assertEqual(result["youtube"]["channel"], "DIJITOL NOMAD")
 
     def test_channel_specific_job_never_falls_back_to_generic_token(self):
         values = {
