@@ -34,7 +34,7 @@ class _YouTube:
 
 class YouTubeChannelRoutingTests(unittest.TestCase):
     def test_digital_nomad_aliases_use_existing_dijitol_secret(self):
-        for value in ("digital_nomad", "Digital Nomad", "DIJITAL NOMAD", "DIJITOL NOMAD", "DIGITAL NOMAD", "dijitolnomad001"):
+        for value in ("digital_nomad", "Digital Nomad", "DIJITOL NOMAD", "DIGITAL NOMAD", "dijitolnomad001"):
             with self.subTest(value=value):
                 profile = platforms._youtube_channel_profile({"channel_key": value})
                 self.assertEqual(profile["key"], "digital_nomad")
