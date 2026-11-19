@@ -453,7 +453,7 @@ def _generate_text(prompt,system,model):
                     last_error=exc
                     status=getattr(getattr(exc,"response",None),"status_code",None)
                     retryable=status in (429,500,502,503,504) or status is None
-                    if not retryable or attempt==2:
+                    if not retryable or attempt==GEMINI_MAX_ATTEMPTS-1:
                         break
                     retry_after=getattr(getattr(exc,"response",None),"headers",{}).get("Retry-After")
                     try:
