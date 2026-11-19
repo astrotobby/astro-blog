@@ -78,7 +78,7 @@ def _youtube_channel_profile(render):
     if isinstance(raw, dict):
         raw = raw.get("key") or raw.get("slug") or raw.get("name") or ""
     normalized = "".join(ch for ch in str(raw).lower() if ch.isalnum())
-    if normalized in {"digitalnomad", "dijitalnomad", "dijitolnomad", "dijitolnomad001"}:
+    if normalized in {"digitalnomad", "dijitolnomad", "dijitolnomad001"}:
         return {
             "key": "digital_nomad",
             "expected_title": "DIJITOL NOMAD",
