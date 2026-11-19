@@ -333,6 +333,17 @@ class EdgeTtsWordTimingTests(unittest.TestCase):
 
 
 class ContextualVisualAssetTests(unittest.TestCase):
+    def test_entertainment_pricing_beats_use_music_business_visuals(self):
+        primary, fallback = pipeline.build_script._footage_brief(
+            "The story examines pricing, ticket sales, revenue and the cost of touring.",
+            "entertainment",
+            "EXPLAIN",
+        )
+        self.assertEqual(primary, "concert ticket sales and box office")
+        self.assertNotIn("invoice", primary)
+        self.assertNotIn("video production pricing", primary)
+        self.assertNotEqual(primary, fallback)
+
     def test_music_story_gets_entertainment_scene_profile(self):
         narration = (
             "Universal Music has appointed a new president for its Latin American and Iberian "
@@ -367,9 +378,66 @@ class ContextualVisualAssetTests(unittest.TestCase):
             or "concert" in prompt.lower()
             for prompt in prompts
         ))
+        scene_queries = [
+            query.lower()
+            for prompt in prompts
+            for query in (
+                pipeline.renderer._parse_scene_meta(prompt).get("broll", ""),
+                pipeline.renderer._parse_scene_meta(prompt).get("fallback", ""),
+            )
+        ]
+        self.assertFalse(any(
+            unrelated in query
+            for query in scene_queries
+            for unrelated in ("programmer typing code", "computer microchip", "robotic arm factory")
+        ))
 
 
 class OpenverseFallbackTests(unittest.TestCase):
+    def test_openverse_uses_story_context_when_scene_queries_have_no_assets(self):
+        candidate = {
+            "id": "openverse:topic-context-image",
+            "provider": "Openverse",
+            "creator": "Example creator",
+            "creator_url": "https://creators.example/music",
+            "source_url": "https://commons.example/music-stage",
+            "title": "Country music awards stage",
+            "license": "by",
+            "license_version": "4.0",
+            "license_url": "https://creativecommons.org/licenses/by/4.0/",
+            "attribution": "Example creator / Openverse",
+            "query": "Taylor Swift CMA Awards",
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            with patch.object(pipeline.renderer, "OUT", Path(temp)):
+                with patch.object(
+                    pipeline.renderer, "_openverse_image_search",
+                    side_effect=[[], [], [candidate]],
+                ) as search:
+                    with patch.object(
+                        pipeline.renderer, "_download_openverse_image", return_value=True
+                    ) as download:
+                        asset, provenance = pipeline.renderer._fetch_openverse_scene(
+                            13,
+                            {
+                                "broll": "digital invoice video production pricing",
+                                "fallback": "record label executive office meeting",
+                            },
+                            1920,
+                            1080,
+                            set(),
+                            set(),
+                            "horizontal",
+                            context_queries=["Taylor Swift CMA Awards"],
+                        )
+
+        self.assertEqual(search.call_count, 3)
+        self.assertEqual(search.call_args_list[2].args[0], "Taylor Swift CMA Awards")
+        self.assertEqual(provenance["provider"], "Openverse")
+        self.assertEqual(provenance["license"], "by")
+        self.assertEqual(asset.name, "scene_13_horizontal_openverse.jpg")
+        download.assert_called_once()
+
     def test_openverse_core_query_removes_renderer_camera_directions(self):
         query = "live concert crowd and stage wide establishing shot, visible environment"
         self.assertEqual(
