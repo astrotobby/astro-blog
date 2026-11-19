@@ -81,7 +81,7 @@ def _youtube_channel_profile(render):
     if normalized in {"digitalnomad", "dijitalnomad", "dijitolnomad", "dijitolnomad001"}:
         return {
             "key": "digital_nomad",
-            "expected_title": "DIJITOL NOMAD",
+            "expected_title": "DIJITAL NOMAD",
             "owner_account": "chanzera3@gmail.com",
             "token_env": "YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD",
             "channel_id_env": "YOUTUBE_CHANNEL_ID_DIGITAL_NOMAD",
