@@ -81,10 +81,11 @@ def _youtube_channel_profile(render):
     if normalized in {"digitalnomad", "dijitalnomad", "dijitolnomad", "dijitolnomad001"}:
         return {
             "key": "digital_nomad",
-            "expected_title": "DIJITAL NOMAD",
+            "expected_title": "DIJITOL NOMAD",
             "owner_account": "chanzera3@gmail.com",
-            "token_env": "YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD",
+            "token_env": "YOUTUBE_REFRESH_TOKEN_DIJITOL_NOMAD",
             "channel_id_env": "YOUTUBE_CHANNEL_ID_DIGITAL_NOMAD",
+            "expected_channel_id": "UCE_cklDludc6nkU1_4K6JzA",
         }
     if normalized in {"astrotobbyc", "astrotobby", "astrotobyc"}:
         return {
@@ -106,15 +107,16 @@ def _yt_verify_channel(yt, profile):
     item = items[0]
     channel_id = str(item.get("id") or "")
     title = str((item.get("snippet") or {}).get("title") or "")
-    expected_id = env(profile["channel_id_env"])
+    expected_id = env(profile["channel_id_env"]) or profile.get("expected_channel_id", "")
     expected_title = "".join(ch for ch in profile["expected_title"].lower() if ch.isalnum())
     actual_title = "".join(ch for ch in title.lower() if ch.isalnum())
-    if expected_id and channel_id != expected_id:
-        raise RuntimeError(
-            f"YouTube token/channel ID mismatch for {profile['key']}: expected configured channel ID, "
-            f"received {channel_id or '(empty)'}"
-        )
-    if actual_title != expected_title:
+    if expected_id:
+        if channel_id != expected_id:
+            raise RuntimeError(
+                f"YouTube token/channel ID mismatch for {profile['key']}: expected configured channel ID, "
+                f"received {channel_id or '(empty)'}"
+            )
+    elif actual_title != expected_title:
         raise RuntimeError(
             f"YouTube token for {profile['key']} belongs to {title!r}, not "
             f"{profile['expected_title']!r}; upload blocked"
