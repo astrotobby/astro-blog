@@ -616,6 +616,57 @@ def trim_narration_to_word_limit(text, max_words):
     return bounded.rstrip(" ,;:-") + "."
 
 
+def parse_model_json(raw):
+    """Parse strict model JSON, then repair common LLM formatting errors without losing valid content."""
+    raw = str(raw or "").strip()
+    fence = chr(96) * 3
+    if raw.startswith(fence):
+        raw = raw.split("\n", 1)[-1]
+    if raw.rstrip().endswith(fence):
+        raw = raw.rstrip()[:-3].rstrip()
+
+    # Some models place literal line breaks/tabs inside JSON strings. Escape those
+    # control characters while preserving valid JSON whitespace outside strings.
+    repaired = []
+    in_string = False
+    escaped = False
+    for char in raw:
+        code = ord(char)
+        if in_string and code < 0x20:
+            repaired.append({"\n": r"\n", "\r": r"\r", "\t": r"\t"}.get(char, f"\\u{code:04x}"))
+            continue
+        repaired.append(char)
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+    candidate = "".join(repaired)
+    try:
+        data = json.loads(candidate)
+    except json.JSONDecodeError as strict_error:
+        try:
+            # Gemini can occasionally emit unescaped quotes, misplaced commas or
+            # an unfinished final brace. Repair only after strict JSON parsing fails.
+            from json_repair import repair_json
+            data = repair_json(candidate, return_objects=True)
+        except Exception as repair_error:
+            raise RuntimeError(
+                f"Model response was invalid JSON and automatic repair failed "
+                f"(strict error at line {strict_error.lineno}, column {strict_error.colno})"
+            ) from repair_error
+        if not isinstance(data, dict):
+            raise RuntimeError("Model response JSON repair did not produce an object")
+        log("Repaired malformed JSON in the model response")
+    if not isinstance(data, dict):
+        raise RuntimeError("Model response must be a JSON object")
+    return data
+
+
 def create_package(channel,lead,sources):
     if not (env("GEMINI_API_KEY") or env("OPENCODE_API_KEY") or env("CLAUDE_CODE_OAUTH_TOKEN") or env("ANTHROPIC_API_KEY")):
         raise RuntimeError("GEMINI_API_KEY, OPENCODE_API_KEY, CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY is required")
@@ -656,34 +707,7 @@ Use multiple sources. Clearly distinguish facts from analysis. Do not invent inf
 No markdown headings, bullets, timecodes, stage directions or URLs in the spoken narration.
 """
     raw=_generate_text(prompt,system,model)
-    fence=chr(96)*3
-    raw=raw.strip()
-    if raw.startswith(fence):
-        raw=raw.split("\n",1)[-1]
-    if raw.rstrip().endswith(fence):
-        raw=raw.rstrip()[:-3].rstrip()
-    # Some model responses contain literal line breaks/tabs inside JSON strings.
-    # Escape those control characters without altering valid JSON whitespace or
-    # already-escaped sequences, then parse strictly as before.
-    repaired=[]
-    in_string=False
-    escaped=False
-    for char in raw:
-        code=ord(char)
-        if in_string and code < 0x20:
-            repaired.append({"\n": r"\n", "\r": r"\r", "\t": r"\t"}.get(char, f"\\u{code:04x}"))
-            continue
-        repaired.append(char)
-        if in_string:
-            if escaped:
-                escaped=False
-            elif char == "\\":
-                escaped=True
-            elif char == '"':
-                in_string=False
-        elif char == '"':
-            in_string=True
-    data=json.loads("".join(repaired))
+    data=parse_model_json(raw)
     narration=re.sub(r"\s+"," ",str(data.get("narration",""))).strip()
     words=narration_word_count(narration)
     if words>2500:
