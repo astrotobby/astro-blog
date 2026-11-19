@@ -114,6 +114,84 @@ class FootageBriefTests(unittest.TestCase):
         self.assertEqual(cached_candidates, candidates)
         self.assertEqual(request_get.call_count, 1)
 
+
+    def test_commons_licence_filter_rejects_restrictive_terms(self):
+        self.assertEqual(generate_video._commons_license({
+            "LicenseShortName": {"value": "CC BY 4.0"}
+        }), ("by", "CC BY 4.0"))
+        self.assertEqual(generate_video._commons_license({
+            "LicenseShortName": {"value": "CC0 1.0"}
+        }), ("cc0", "CC0 1.0"))
+        self.assertEqual(generate_video._commons_license({
+            "LicenseShortName": {"value": "Public domain"}
+        }), ("pdm", "Public domain"))
+        for licence in ("CC BY-SA 4.0", "CC BY-NC 4.0", "CC BY-ND 4.0", "All rights reserved"):
+            self.assertIsNone(generate_video._commons_license({
+                "LicenseShortName": {"value": licence}
+            })[0], licence)
+
+    def test_commons_search_keeps_only_commercial_safe_attributed_images(self):
+        class FakeResponse:
+            status_code = 200
+
+            def raise_for_status(self):
+                return None
+
+            @staticmethod
+            def json():
+                def page(page_id, license_name):
+                    return {
+                        "pageid": page_id,
+                        "title": f"File:film-production-studio-scene-{page_id}.jpg",
+                        "imageinfo": [{
+                            "url": f"https://upload.wikimedia.test/{page_id}.jpg",
+                            "thumburl": f"https://upload.wikimedia.test/thumb-{page_id}.jpg",
+                            "descriptionurl": f"https://commons.wikimedia.org/wiki/File:scene-{page_id}.jpg",
+                            "width": 1920,
+                            "height": 1080,
+                            "extmetadata": {
+                                "LicenseShortName": {"value": license_name},
+                                "LicenseUrl": {"value": "https://creativecommons.org/licenses/by/4.0/"},
+                                "Artist": {"value": "<a>Photographer A</a>"},
+                                "ImageDescription": {"value": "A useful scene"},
+                            },
+                        }],
+                    }
+                return {"query": {"pages": {
+                    "1": page(1, "CC BY 4.0"),
+                    "2": page(2, "CC BY-SA 4.0"),
+                    "3": page(3, "CC BY-NC 4.0"),
+                    "4": page(4, "Public domain"),
+                }}}
+
+        with TemporaryDirectory() as temporary_dir:
+            cache_file = Path(temporary_dir) / "footage_cache.json"
+            with (
+                patch.object(generate_video, "FOOTAGE_CACHE_FILE", cache_file),
+                patch.object(generate_video, "_search_cache", {}),
+                patch.object(generate_video.requests, "get", return_value=FakeResponse()) as request_get,
+            ):
+                candidates = generate_video._wikimedia_commons_image_search(
+                    "film production studio", 1920, 1080
+                )
+        self.assertEqual({item["id"] for item in candidates},
+                         {"wikimedia-commons:1", "wikimedia-commons:4"})
+        self.assertEqual(candidates[0]["provider"], "Wikimedia Commons")
+        self.assertEqual(candidates[0]["creator"], "Photographer A")
+        self.assertIn("creativecommons.org", candidates[0]["license_url"])
+        self.assertEqual(request_get.call_count, 1)
+
+    def test_commons_query_broadening_removes_overly_specific_words(self):
+        queries = generate_video._commons_search_queries({
+            "broll": "record label executive office meeting",
+            "fallback": "music industry office"
+        })
+        self.assertIn("record label executive office meeting", queries)
+        self.assertIn("record label executive", queries)
+        self.assertIn("music production studio", queries)
+        self.assertIn("music executive", queries)
+        self.assertLessEqual(len(queries), 7)
+
     def test_fetch_assets_uses_each_master_dimensions(self):
         script = {
             "post": {"slug": "format-test", "image_url": ""},
@@ -130,6 +208,59 @@ class FootageBriefTests(unittest.TestCase):
         self.assertEqual(sources, [])
         self.assertEqual(fetch.call_args_list[0].args[2:4], (1920, 1080))
         self.assertEqual(fetch.call_args_list[0].args[-1], "horizontal")
+
+
+    def test_fetch_scene_uses_commons_when_video_and_openverse_fail(self):
+        asset = Path("/tmp/commons-scene.jpg")
+        source = {"id": "wikimedia-commons:10", "provider": "Wikimedia Commons"}
+        with (
+            patch.object(generate_video, "_fetch_video_asset", return_value=(None, None)),
+            patch.object(generate_video, "_fetch_openverse_scene", return_value=(None, None)),
+            patch.object(generate_video, "_fetch_commons_scene", return_value=(asset, source)) as commons,
+        ):
+            result_asset, meta, provenance = generate_video._fetch_scene(
+                1,
+                "scene, scene_type:EXPLAIN|kb:static|dur:2|broll:music production studio|fallback:recording studio",
+                1920, 1080, "test-story", None, set(), set(), set(), "horizontal",
+            )
+        self.assertEqual(result_asset, asset)
+        self.assertEqual(provenance, source)
+        self.assertEqual(meta["broll"], "music production studio")
+        commons.assert_called_once()
+
+    def test_commons_cc_by_assets_receive_youtube_description_attribution(self):
+        source = {
+            "id": "wikimedia-commons:42",
+            "provider": "Wikimedia Commons",
+            "title": "Recording studio.jpg",
+            "creator": "Photographer A",
+            "source_url": "https://commons.wikimedia.org/wiki/File:Recording_studio.jpg",
+            "license": "by",
+            "license_version": "CC BY 4.0",
+            "license_url": "https://creativecommons.org/licenses/by/4.0/",
+        }
+        result = generate_video._with_attribution({"yt_desc": "Read more below."}, [source])
+        self.assertIn("Image attribution (CC BY):", result["yt_desc"])
+        self.assertIn("Photographer A", result["yt_desc"])
+        self.assertIn(source["source_url"], result["yt_desc"])
+        self.assertIn(source["license_url"], result["yt_desc"])
+        self.assertIn("Changes: cropped, resized and animated", result["yt_desc"])
+        self.assertEqual(len(result["footage_credits"]), 1)
+
+    def test_commons_public_domain_assets_do_not_clutter_youtube_description(self):
+        source = {
+            "id": "wikimedia-commons:43",
+            "provider": "Wikimedia Commons",
+            "title": "Music producer.jpg",
+            "creator": "Creator B",
+            "source_url": "https://commons.wikimedia.org/wiki/File:Music_producer.jpg",
+            "license": "cc0",
+            "license_version": "CC0",
+            "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        }
+        result = generate_video._with_attribution({"yt_desc": "Read more below."}, [source])
+        self.assertEqual(result["yt_desc"], "Read more below.")
+        self.assertIn("Wikimedia Commons image:", result["footage_credits"][0])
 
     def test_youtube_description_excludes_asset_credits(self):
         platform = {"yt_desc": "Read the full post."}
