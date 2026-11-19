@@ -13,6 +13,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import longform_pipeline as pipeline
 
 
+class LLMJsonParsingTests(unittest.TestCase):
+    def test_strict_json_parses_without_repair(self):
+        raw = '{"title":"AI watchdog","description":"A short summary","tags":["AI","technology"],"narration":"A supported account."}'
+        data = pipeline.parse_model_json(raw)
+        self.assertEqual(data["title"], "AI watchdog")
+        self.assertEqual(data["tags"], ["AI", "technology"])
+
+    def test_malformed_model_json_is_repaired(self):
+        # Simulates an unescaped quote and a trailing comma in an LLM response.
+        raw = '{"title":"AI watchdog","description":"A short summary","tags":["AI","technology",],"narration":"The report called the glasses "always listening" and raised concerns."'
+        data = pipeline.parse_model_json(raw)
+        self.assertEqual(data["title"], "AI watchdog")
+        self.assertIn("always listening", data["narration"])
+        self.assertEqual(data["tags"], ["AI", "technology"])
+
+
 class LLMAuthenticationTests(unittest.TestCase):
     def test_gemini_interactions_uses_secret_header_and_extracts_model_text(self):
         values = {
