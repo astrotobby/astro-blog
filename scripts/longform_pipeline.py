@@ -15,6 +15,13 @@ import generate_video as renderer
 
 EAT = ZoneInfo("Africa/Nairobi")
 UA = "Mozilla/5.0 (compatible; AstroTobbyLongform/1.0)"
+
+# Bound provider waits so transient model outages cannot occupy a workflow step for hours.
+GEMINI_REQUEST_TIMEOUT = (10, 75)  # connect, read seconds
+GEMINI_MAX_ATTEMPTS = 2
+OPENCODE_REQUEST_TIMEOUT = 75
+FREELLMAPI_REQUEST_TIMEOUT = (10, 75)
+ANTHROPIC_REQUEST_TIMEOUT = 120
 STOP = set("what when where which who why how the a an and or of to in on for with at by from is are was were be new latest this that their its 2025 2026 2027 explained guide update".split())
 TRUSTED = ("reuters", "associated press", "ap news", "bbc", "cnn", "the verge", "techcrunch", "ars technica", "wired", "bloomberg", "cnbc", "hollywood reporter", "variety", "deadline", "billboard", "the guardian", "npr", "fortune", "engadget")
 CHANNELS = {
@@ -421,14 +428,14 @@ def _generate_text(prompt,system,model):
 
         def call_gemini(model_id):
             last_error=None
-            for attempt in range(3):
+            for attempt in range(GEMINI_MAX_ATTEMPTS):
                 try:
                     response=requests.post(
                         "https://generativelanguage.googleapis.com/v1beta/interactions",
                         headers=headers,
                         json={"model":model_id,"input":prompt,"system_instruction":system,"store":False,
                               "generation_config":{"max_output_tokens":8500,"thinking_level":"low"}},
-                        timeout=600,
+                        timeout=GEMINI_REQUEST_TIMEOUT,
                     )
                     response.raise_for_status()
                     payload=response.json()
@@ -453,19 +460,19 @@ def _generate_text(prompt,system,model):
                         delay=min(30.0,max(1.0,float(retry_after))) if retry_after else 4.0*(2**attempt)
                     except (TypeError,ValueError):
                         delay=4.0*(2**attempt)
-                    log(f"Gemini {model_id} temporarily unavailable (HTTP {status or 'network'}); retry {attempt+1}/2 in {delay:.0f}s")
+                    log(f"Gemini {model_id} temporarily unavailable (HTTP {status or 'network'}); retry {attempt+1}/{GEMINI_MAX_ATTEMPTS-1} in {delay:.0f}s")
                     time_module.sleep(delay)
             raise last_error
 
         try:
             return call_gemini(primary)
-        except requests.RequestException as primary_error:
+        except Exception as primary_error:
             status=getattr(getattr(primary_error,"response",None),"status_code",None)
             if fallback and fallback!=primary and (status in (429,500,502,503,504) or status is None):
                 log(f"Gemini primary model {primary} unavailable; trying fallback model {fallback}")
                 try:
                     return call_gemini(fallback)
-                except requests.RequestException as fallback_error:
+                except Exception as fallback_error:
                     opencode_key=env("OPENCODE_API_KEY")
                     if opencode_key:
                         executable=shutil.which("opencode")
@@ -481,7 +488,7 @@ def _generate_text(prompt,system,model):
                                 try:
                                     result=subprocess.run(
                                         [executable,"run","--standalone","--model",opencode_model,prompt],
-                                        capture_output=True,text=True,timeout=600,env=child_env,
+                                        capture_output=True,text=True,timeout=OPENCODE_REQUEST_TIMEOUT,env=child_env,
                                     )
                                     if result.returncode:
                                         detail=(result.stderr or result.stdout or "no CLI error details")[-500:]
@@ -505,7 +512,7 @@ def _generate_text(prompt,system,model):
                                 base_url+"/chat/completions",
                                 headers={"Authorization": f"Bearer {freellmapi_key}", "Content-Type": "application/json"},
                                 json={"model": free_model, "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}], "max_tokens": 8500},
-                                timeout=(15,600),
+                                timeout=FREELLMAPI_REQUEST_TIMEOUT,
                             )
                             free_response.raise_for_status()
                             free_payload=free_response.json()
@@ -532,7 +539,7 @@ def _generate_text(prompt,system,model):
                         log(f"Gemini models unavailable; falling back to Anthropic API model {anthropic_model}")
                         try:
                             import anthropic
-                            client=anthropic.Anthropic(api_key=anthropic_key,timeout=600)
+                            client=anthropic.Anthropic(api_key=anthropic_key,timeout=ANTHROPIC_REQUEST_TIMEOUT)
                             response=client.messages.create(
                                 model=anthropic_model,max_tokens=8500,system=system,
                                 messages=[{"role":"user","content":prompt}],
@@ -558,7 +565,7 @@ def _generate_text(prompt,system,model):
         child_env.pop("ANTHROPIC_API_KEY",None)
         child_env["CLAUDE_CODE_OAUTH_TOKEN"]=oauth
         command=[executable,"-p","--model",model,"--output-format","text","--append-system-prompt",system]
-        result=subprocess.run(command,input=prompt,capture_output=True,text=True,timeout=600,env=child_env)
+        result=subprocess.run(command,input=prompt,capture_output=True,text=True,timeout=ANTHROPIC_REQUEST_TIMEOUT,env=child_env)
         if result.returncode:
             detail=(result.stderr or result.stdout or "no CLI error details")[-700:]
             raise RuntimeError(f"Claude Code subscription generation failed: {detail}")
@@ -571,7 +578,7 @@ def _generate_text(prompt,system,model):
     if not key:
         raise RuntimeError("Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY is configured")
     import anthropic
-    client=anthropic.Anthropic(api_key=key,timeout=600)
+    client=anthropic.Anthropic(api_key=key,timeout=ANTHROPIC_REQUEST_TIMEOUT)
     response=client.messages.create(model=model,max_tokens=8500,system=system,messages=[{"role":"user","content":prompt}])
     return "".join(x.text for x in response.content if getattr(x,"type","")=="text").strip()
 
