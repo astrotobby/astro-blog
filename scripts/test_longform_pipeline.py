@@ -232,6 +232,37 @@ class CreatePackageLengthTests(unittest.TestCase):
         self.assertIn("Primary report about the event", continuation_prompt)
         self.assertIn("Write only 500 additional spoken words", continuation_prompt)
 
+    def test_oversized_sourced_continuation_is_trimmed_at_sentence_boundary(self):
+        first_narration = " ".join(["verified"] * 1700)
+        extra_narration = "additional facts are supported. " * 400
+        first_response = json.dumps({
+            "title": "Verified technology story",
+            "description": "A sourced long-form report.",
+            "tags": ["technology", "news", "analysis"],
+            "narration": first_narration,
+        })
+        source = {
+            "publisher": "Example Publisher",
+            "published_at": "2026-11-19T00:00:00Z",
+            "title": "Primary report about the event",
+            "url": "https://news.example/report",
+            "article_text": "The verified report describes the event, the people involved and the documented timeline.",
+            "summary": "A corroborating summary.",
+        }
+        values = {"GEMINI_API_KEY": "test-key", "LONGFORM_MODEL": "test-model"}
+        with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
+            with patch.object(pipeline, "_generate_text", side_effect=[first_response, extra_narration]):
+                package = pipeline.create_package(
+                    "digital_nomad",
+                    {"title": "Verified lead story", "url": "https://news.example/lead"},
+                    [source],
+                )
+
+        self.assertLessEqual(package["word_count"], 2500)
+        self.assertGreaterEqual(package["word_count"], 1900)
+        self.assertLessEqual(pipeline.narration_word_count(package["narration"]), 2500)
+        self.assertTrue(package["narration"].endswith("supported."))
+
 
 class EdgeTtsWordTimingTests(unittest.TestCase):
     def test_edge_tts_stream_keeps_native_word_boundaries(self):

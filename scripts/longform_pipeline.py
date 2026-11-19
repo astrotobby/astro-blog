@@ -597,6 +597,25 @@ def _generate_text(prompt,system,model):
     return "".join(x.text for x in response.content if getattr(x,"type","")=="text").strip()
 
 
+def narration_word_count(text):
+    return len(re.findall(r"\b[\w'-]+\b", text))
+
+
+def trim_narration_to_word_limit(text, max_words):
+    """Keep whole sentences where possible while enforcing the spoken-word ceiling."""
+    if max_words <= 0:
+        return ""
+    matches = list(re.finditer(r"\b[\w'-]+\b", text))
+    if len(matches) <= max_words:
+        return text.strip()
+
+    bounded = text[:matches[max_words - 1].end()]
+    sentence_ends = list(re.finditer(r"[.!?](?=\s|$)", bounded))
+    if sentence_ends:
+        return text[:sentence_ends[-1].end()].strip()
+    return bounded.rstrip(" ,;:-") + "."
+
+
 def create_package(channel,lead,sources):
     if not (env("GEMINI_API_KEY") or env("OPENCODE_API_KEY") or env("CLAUDE_CODE_OAUTH_TOKEN") or env("ANTHROPIC_API_KEY")):
         raise RuntimeError("GEMINI_API_KEY, OPENCODE_API_KEY, CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY is required")
@@ -642,7 +661,11 @@ No markdown headings, bullets, timecodes, stage directions or URLs in the spoken
     if raw.endswith(fence): raw=raw[:-3]
     data=json.loads(raw)
     narration=re.sub(r"\s+"," ",str(data.get("narration",""))).strip()
-    words=len(re.findall(r"\b[\w'-]+\b",narration))
+    words=narration_word_count(narration)
+    if words>2500:
+        narration=trim_narration_to_word_limit(narration,2500)
+        words=narration_word_count(narration)
+        log(f"Trimmed initial narration to the 2,500-word ceiling: {words} words")
     log(f"Initial generated narration length: {words} words")
     if words<1900:
         minimum_additions=1900-words
@@ -658,8 +681,16 @@ No markdown headings, bullets, timecodes, stage directions or URLs in the spoken
         )
         expanded=_generate_text(expansion_prompt,system,model)
         expanded=re.sub(r"\s+"," ",expanded).strip()
+        available_words=max(0,2500-words)
+        expanded_words=narration_word_count(expanded)
+        if expanded_words>available_words:
+            expanded=trim_narration_to_word_limit(expanded,available_words)
+            log(
+                f"Continuation overshot the {available_words}-word allowance; "
+                f"trimmed it to {narration_word_count(expanded)} words at a sentence boundary"
+            )
         narration=f"{narration} {expanded}".strip()
-        words=len(re.findall(r"\b[\w'-]+\b",narration))
+        words=narration_word_count(narration)
         log(f"Appended sourced narration; final length: {words} words")
     if not 1900<=words<=2500: raise RuntimeError(f"Script word count outside bounds: {words} (minimum 1,900)")
     title=re.sub(r"\s+"," ",str(data.get("title") or lead["title"])).strip()[:95]
