@@ -54,7 +54,7 @@ channels:
 
   digital_nomad:
     display_name: "Digital Nomad"
-    youtube_channel_title: "DIJITOL NOMAD"
+    youtube_channel_title: "DIGITAL NOMAD"
     owner_google_account: "chanzera3@gmail.com"
     refresh_token_env: YOUTUBE_REFRESH_TOKEN_DIGITAL_NOMAD
     github_secret_sources:
