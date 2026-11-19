@@ -194,6 +194,45 @@ class LLMAuthenticationTests(unittest.TestCase):
 
 
 
+class CreatePackageLengthTests(unittest.TestCase):
+    def test_short_first_draft_appends_sourced_continuation_and_keeps_minimum(self):
+        first_narration = " ".join(["verified"] * 1700)
+        extra_narration = " ".join(["additional"] * 500)
+        first_response = json.dumps({
+            "title": "Verified technology story",
+            "description": "A sourced long-form report.",
+            "tags": ["technology", "news", "analysis"],
+            "narration": first_narration,
+        })
+        source = {
+            "publisher": "Example Publisher",
+            "published_at": "2026-11-19T00:00:00Z",
+            "title": "Primary report about the event",
+            "url": "https://news.example/report",
+            "article_text": "The verified report describes the event, the people involved and the documented timeline.",
+            "summary": "A corroborating summary.",
+        }
+        values = {"GEMINI_API_KEY": "test-key", "LONGFORM_MODEL": "test-model"}
+        with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
+            with patch.object(pipeline, "_generate_text", side_effect=[first_response, extra_narration]) as generate:
+                package = pipeline.create_package(
+                    "digital_nomad",
+                    {"title": "Verified lead story", "url": "https://news.example/lead"},
+                    [source],
+                )
+
+        self.assertEqual(package["word_count"], 2200)
+        self.assertTrue(package["narration"].startswith("verified verified"))
+        self.assertTrue(package["narration"].endswith("additional"))
+        self.assertEqual(generate.call_count, 2)
+        continuation_prompt = generate.call_args_list[1].args[0]
+        self.assertIn("EXISTING NARRATION:", continuation_prompt)
+        self.assertIn("SOURCE BUNDLE:", continuation_prompt)
+        self.assertIn("Publisher: Example Publisher", continuation_prompt)
+        self.assertIn("Primary report about the event", continuation_prompt)
+        self.assertIn("Write only 500 additional spoken words", continuation_prompt)
+
+
 class EdgeTtsWordTimingTests(unittest.TestCase):
     def test_edge_tts_stream_keeps_native_word_boundaries(self):
         class FakeCommunicate:
