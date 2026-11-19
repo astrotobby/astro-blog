@@ -19,7 +19,8 @@ UA = "Mozilla/5.0 (compatible; AstroTobbyLongform/1.0)"
 # Bound provider waits so transient model outages cannot occupy a workflow step for hours.
 GEMINI_REQUEST_TIMEOUT = (10, 75)  # connect, read seconds
 GEMINI_MAX_ATTEMPTS = 2
-OPENCODE_REQUEST_TIMEOUT = 75
+GEMINI_FALLBACK_ATTEMPTS = 1
+OPENCODE_REQUEST_TIMEOUT = 110
 FREELLMAPI_REQUEST_TIMEOUT = (10, 75)
 ANTHROPIC_REQUEST_TIMEOUT = 120
 STOP = set("what when where which who why how the a an and or of to in on for with at by from is are was were be new latest this that their its 2025 2026 2027 explained guide update".split())
@@ -423,18 +424,26 @@ def _generate_text(prompt,system,model):
     gemini_key=env("GEMINI_API_KEY")
     if gemini_key:
         primary=env("GEMINI_MODEL","gemini-3.8-flash")
-        fallback=env("GEMINI_FALLBACK_MODEL","gemini-3.7-flash")
+        fallback_config=env("GEMINI_FALLBACK_MODELS", "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.7-flash")
+        fallback_models=[]
+        for candidate in fallback_config.split(","):
+            candidate=candidate.strip()
+            if candidate and candidate!=primary and candidate not in fallback_models:
+                fallback_models.append(candidate)
+        legacy_fallback=env("GEMINI_FALLBACK_MODEL", "")
+        if legacy_fallback and legacy_fallback!=primary and legacy_fallback not in fallback_models:
+            fallback_models.append(legacy_fallback)
         headers={"x-goog-api-key":gemini_key,"Content-Type":"application/json"}
 
-        def call_gemini(model_id):
+        def call_gemini(model_id, attempts=GEMINI_MAX_ATTEMPTS):
             last_error=None
-            for attempt in range(GEMINI_MAX_ATTEMPTS):
+            for attempt in range(attempts):
                 try:
                     response=requests.post(
                         "https://generativelanguage.googleapis.com/v1beta/interactions",
                         headers=headers,
                         json={"model":model_id,"input":prompt,"system_instruction":system,"store":False,
-                              "generation_config":{"max_output_tokens":8500,"thinking_level":"low"}},
+                              "generation_config":{"max_output_tokens":11000,"thinking_level":"low"}},
                         timeout=GEMINI_REQUEST_TIMEOUT,
                     )
                     response.raise_for_status()
@@ -453,14 +462,14 @@ def _generate_text(prompt,system,model):
                     last_error=exc
                     status=getattr(getattr(exc,"response",None),"status_code",None)
                     retryable=status in (429,500,502,503,504) or status is None
-                    if not retryable or attempt==GEMINI_MAX_ATTEMPTS-1:
+                    if not retryable or attempt==attempts-1:
                         break
                     retry_after=getattr(getattr(exc,"response",None),"headers",{}).get("Retry-After")
                     try:
                         delay=min(30.0,max(1.0,float(retry_after))) if retry_after else 4.0*(2**attempt)
                     except (TypeError,ValueError):
                         delay=4.0*(2**attempt)
-                    log(f"Gemini {model_id} temporarily unavailable (HTTP {status or 'network'}); retry {attempt+1}/{GEMINI_MAX_ATTEMPTS-1} in {delay:.0f}s")
+                    log(f"Gemini {model_id} temporarily unavailable (HTTP {status or 'network'}); retry {attempt+1}/{attempts-1} in {delay:.0f}s")
                     time_module.sleep(delay)
             raise last_error
 
@@ -468,92 +477,97 @@ def _generate_text(prompt,system,model):
             return call_gemini(primary)
         except Exception as primary_error:
             status=getattr(getattr(primary_error,"response",None),"status_code",None)
-            if fallback and fallback!=primary and (status in (429,500,502,503,504) or status is None):
-                log(f"Gemini primary model {primary} unavailable; trying fallback model {fallback}")
-                try:
-                    return call_gemini(fallback)
-                except Exception as fallback_error:
-                    opencode_key=env("OPENCODE_API_KEY")
-                    if opencode_key:
-                        executable=shutil.which("opencode")
-                        if executable:
-                            models=[x.strip() for x in env(
-                                "OPENCODE_FALLBACK_MODELS",
-                                "opencode/big-pickle,opencode/deepseek-v4.1-flash-free,opencode/nemotron-3.5-lightning-free",
-                            ).split(",") if x.strip()]
-                            child_env=os.environ.copy()
-                            child_env["OPENCODE_API_KEY"]=opencode_key
-                            for opencode_model in models:
-                                log(f"Gemini unavailable; trying OpenCode free model {opencode_model}")
-                                try:
-                                    result=subprocess.run(
-                                        [executable,"run","--standalone","--model",opencode_model,prompt],
-                                        capture_output=True,text=True,timeout=OPENCODE_REQUEST_TIMEOUT,env=child_env,
-                                    )
-                                    if result.returncode:
-                                        detail=(result.stderr or result.stdout or "no CLI error details")[-500:]
-                                        log(f"OpenCode model {opencode_model} failed: {detail}")
-                                        continue
-                                    output=(result.stdout or "").strip()
-                                    if output:
-                                        return output
-                                    log(f"OpenCode model {opencode_model} returned empty output")
-                                except Exception as opencode_error:
-                                    log(f"OpenCode model {opencode_model} failed: {type(opencode_error).__name__}: {str(opencode_error)[:300]}")
+            if status in (429,500,502,503,504) or status is None:
+                fallback_error=primary_error
+                for fallback_model in fallback_models:
+                    log(f"Gemini model {primary} unavailable; trying fallback model {fallback_model}")
+                    try:
+                        return call_gemini(fallback_model, attempts=GEMINI_FALLBACK_ATTEMPTS)
+                    except Exception as gemini_error:
+                        fallback_error=gemini_error
+                        fallback_status=getattr(getattr(gemini_error,"response",None),"status_code",None)
+                        log(f"Gemini fallback {fallback_model} unavailable (HTTP {fallback_status or 'network'}); continuing to next provider")
+                opencode_key=env("OPENCODE_API_KEY")
+                if opencode_key:
+                    executable=shutil.which("opencode")
+                    if executable:
+                        models=[x.strip() for x in env(
+                            "OPENCODE_FALLBACK_MODELS",
+                            "opencode/nemotron-3.5-lightning-free,opencode/deepseek-v4.1-flash-free,opencode/mimo-v2.6-flash-free,opencode/nemotron-3.5-super-vl-free,opencode/beam-free,opencode/big-pickle",
+                        ).split(",") if x.strip()]
+                        child_env=os.environ.copy()
+                        child_env["OPENCODE_API_KEY"]=opencode_key
+                        for opencode_model in models:
+                            log(f"Gemini unavailable; trying OpenCode free model {opencode_model}")
+                            try:
+                                result=subprocess.run(
+                                    [executable,"run","--standalone","--model",opencode_model,prompt],
+                                    capture_output=True,text=True,timeout=OPENCODE_REQUEST_TIMEOUT,env=child_env,
+                                )
+                                if result.returncode:
+                                    detail=(result.stderr or result.stdout or "no CLI error details")[-500:]
+                                    log(f"OpenCode model {opencode_model} failed: {detail}")
+                                    continue
+                                output=(result.stdout or "").strip()
+                                if output:
+                                    return output
+                                log(f"OpenCode model {opencode_model} returned empty output")
+                            except Exception as opencode_error:
+                                log(f"OpenCode model {opencode_model} failed: {type(opencode_error).__name__}: {str(opencode_error)[:300]}")
+                    else:
+                        log("OPENCODE_API_KEY is configured but the OpenCode CLI is not installed")
+                freellmapi_key=env("FREELLMAPI_API_KEY")
+                if freellmapi_key:
+                    base_url=env("FREELLMAPI_BASE_URL","http://127.0.0.1:3001/v1").rstrip("/")
+                    free_model=env("FREELLMAPI_MODEL","auto:smart")
+                    log(f"Gemini and OpenCode unavailable; trying FreeLLMAPI model {free_model}")
+                    try:
+                        free_response=requests.post(
+                            base_url+"/chat/completions",
+                            headers={"Authorization": f"Bearer {freellmapi_key}", "Content-Type": "application/json"},
+                            json={"model": free_model, "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}], "max_tokens": 8500},
+                            timeout=FREELLMAPI_REQUEST_TIMEOUT,
+                        )
+                        free_response.raise_for_status()
+                        free_payload=free_response.json()
+                        choices=free_payload.get("choices") or []
+                        message=(choices[0].get("message") or {}) if choices else {}
+                        content=message.get("content","")
+                        if isinstance(content,list):
+                            output="".join(str(part.get("text","")) for part in content if isinstance(part,dict) and part.get("type") in ("text",None)).strip()
                         else:
-                            log("OPENCODE_API_KEY is configured but the OpenCode CLI is not installed")
-                    freellmapi_key=env("FREELLMAPI_API_KEY")
-                    if freellmapi_key:
-                        base_url=env("FREELLMAPI_BASE_URL","http://127.0.0.1:3001/v1").rstrip("/")
-                        free_model=env("FREELLMAPI_MODEL","auto:smart")
-                        log(f"Gemini and OpenCode unavailable; trying FreeLLMAPI model {free_model}")
-                        try:
-                            free_response=requests.post(
-                                base_url+"/chat/completions",
-                                headers={"Authorization": f"Bearer {freellmapi_key}", "Content-Type": "application/json"},
-                                json={"model": free_model, "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}], "max_tokens": 8500},
-                                timeout=FREELLMAPI_REQUEST_TIMEOUT,
-                            )
-                            free_response.raise_for_status()
-                            free_payload=free_response.json()
-                            choices=free_payload.get("choices") or []
-                            message=(choices[0].get("message") or {}) if choices else {}
-                            content=message.get("content","")
-                            if isinstance(content,list):
-                                output="".join(str(part.get("text","")) for part in content if isinstance(part,dict) and part.get("type") in ("text",None)).strip()
-                            else:
-                                output=str(content or "").strip()
-                            if not output:
-                                raise RuntimeError("FreeLLMAPI returned an empty completion")
-                            routed_via=free_response.headers.get("X-Routed-Via") or free_payload.get("_routed_via")
-                            if isinstance(routed_via,dict):
-                                routed_via=str(routed_via.get("platform","unknown"))+"/"+str(routed_via.get("model","unknown"))
-                            log(f"FreeLLMAPI completed generation via {routed_via or 'router fallback'}")
-                            return output
-                        except Exception as free_error:
-                            log(f"FreeLLMAPI fallback unavailable: {type(free_error).__name__}: {str(free_error)[:300]}")
+                            output=str(content or "").strip()
+                        if not output:
+                            raise RuntimeError("FreeLLMAPI returned an empty completion")
+                        routed_via=free_response.headers.get("X-Routed-Via") or free_payload.get("_routed_via")
+                        if isinstance(routed_via,dict):
+                            routed_via=str(routed_via.get("platform","unknown"))+"/"+str(routed_via.get("model","unknown"))
+                        log(f"FreeLLMAPI completed generation via {routed_via or 'router fallback'}")
+                        return output
+                    except Exception as free_error:
+                        log(f"FreeLLMAPI fallback unavailable: {type(free_error).__name__}: {str(free_error)[:300]}")
 
-                    anthropic_key=env("ANTHROPIC_API_KEY")
-                    if anthropic_key:
-                        anthropic_model=env("ANTHROPIC_FALLBACK_MODEL","claude-sonnet-4-5-20250929")
-                        log(f"Gemini models unavailable; falling back to Anthropic API model {anthropic_model}")
-                        try:
-                            import anthropic
-                            client=anthropic.Anthropic(api_key=anthropic_key,timeout=ANTHROPIC_REQUEST_TIMEOUT)
-                            response=client.messages.create(
-                                model=anthropic_model,max_tokens=8500,system=system,
-                                messages=[{"role":"user","content":prompt}],
-                            )
-                            output="".join(x.text for x in response.content if getattr(x,"type","")=="text").strip()
-                            if not output:
-                                raise RuntimeError("Anthropic API returned an empty response")
-                            return output
-                        except Exception as anthropic_error:
-                            raise RuntimeError(
-                                "Gemini, OpenCode, FreeLLMAPI and Anthropic fallback all failed: "
-                                f"{type(anthropic_error).__name__}: {str(anthropic_error)[:500]}"
-                            ) from anthropic_error
-                    raise RuntimeError(f"Gemini primary and fallback models unavailable (HTTP {status or 'network'} / {getattr(getattr(fallback_error,'response',None),'status_code',None) or 'network'}); no usable OpenCode, FreeLLMAPI or Anthropic fallback configured") from fallback_error
+                anthropic_key=env("ANTHROPIC_API_KEY")
+                if anthropic_key:
+                    anthropic_model=env("ANTHROPIC_FALLBACK_MODEL","claude-sonnet-4-5-20250929")
+                    log(f"Gemini models unavailable; falling back to Anthropic API model {anthropic_model}")
+                    try:
+                        import anthropic
+                        client=anthropic.Anthropic(api_key=anthropic_key,timeout=ANTHROPIC_REQUEST_TIMEOUT)
+                        response=client.messages.create(
+                            model=anthropic_model,max_tokens=8500,system=system,
+                            messages=[{"role":"user","content":prompt}],
+                        )
+                        output="".join(x.text for x in response.content if getattr(x,"type","")=="text").strip()
+                        if not output:
+                            raise RuntimeError("Anthropic API returned an empty response")
+                        return output
+                    except Exception as anthropic_error:
+                        raise RuntimeError(
+                            "Gemini, OpenCode, FreeLLMAPI and Anthropic fallback all failed: "
+                            f"{type(anthropic_error).__name__}: {str(anthropic_error)[:500]}"
+                        ) from anthropic_error
+                raise RuntimeError(f"Gemini primary and fallback models unavailable (HTTP {status or 'network'} / {getattr(getattr(fallback_error,'response',None),'status_code',None) or 'network'}); no usable OpenCode, FreeLLMAPI or Anthropic fallback configured") from fallback_error
             raise RuntimeError(f"Gemini generation failed (HTTP {status or 'network'})") from primary_error
 
     oauth=env("CLAUDE_CODE_OAUTH_TOKEN")
@@ -613,9 +627,12 @@ Source bundle:
 
 Return ONLY valid JSON: title, description, tags (array), narration (string).
 Title: compelling, accurate, <=95 characters. Description: 2-4 paragraphs. Tags: 10-15 items.
-Narration must be 1,950-2,150 spoken words, absolute minimum 1,900.
-Build a complete 10+ minute episode: hook, verified event/timeline, context, people/organisations, specific examples,
-why it matters, multiple perspectives, uncertainties, likely next developments and wrap-up.
+Narration must be 2,050-2,250 spoken words, target about 2,150, absolute minimum 1,900.
+Build a complete 10+ minute episode as eight fully developed spoken segments: hook and stakes (about 150 words),
+verified event and timeline (about 300), context and background (about 300), key people and organisations (about 250),
+verified specifics and examples (about 350), competing perspectives and analysis (about 300), why it matters and
+what happens next (about 300), and a concise wrap-up (about 150). Use sourced detail to reach the length; never pad
+or invent. Do not print segment names or headings in the narration.
 Use multiple sources. Clearly distinguish facts from analysis. Do not invent information to fill length.
 No markdown headings, bullets, timecodes, stage directions or URLs in the spoken narration.
 """
@@ -626,10 +643,24 @@ No markdown headings, bullets, timecodes, stage directions or URLs in the spoken
     data=json.loads(raw)
     narration=re.sub(r"\s+"," ",str(data.get("narration",""))).strip()
     words=len(re.findall(r"\b[\w'-]+\b",narration))
-    if words<1750:
-        expanded=_generate_text("Expand this sourced narration to 2,000-2,200 words. Preserve facts, add evidence-based context, no invention. Return narration only.\n\n"+narration,system,model)
-        narration=re.sub(r"\s+"," ",expanded).strip()
+    log(f"Initial generated narration length: {words} words")
+    if words<1900:
+        minimum_additions=1900-words
+        target_additions=min(1200,max(500,minimum_additions+200))
+        source_context="\n\n".join(evidence)[:18000]
+        expansion_prompt=(
+            f"Write only {target_additions} additional spoken words to append to the existing narration. "
+            f"The current narration has {words} words; the final script must contain at least 1,900 words. "
+            "Continue naturally from its final sentence. Do not repeat its hook, timeline or any paragraph. "
+            "Add concrete, specific details supported by the source bundle below; do not invent dates, quotes, numbers, motives or events. "
+            "Return only the additional narration, with no headings, bullets, labels or preamble.\n\n"
+            f"EXISTING NARRATION:\n{narration}\n\nSOURCE BUNDLE:\n{source_context}"
+        )
+        expanded=_generate_text(expansion_prompt,system,model)
+        expanded=re.sub(r"\s+"," ",expanded).strip()
+        narration=f"{narration} {expanded}".strip()
         words=len(re.findall(r"\b[\w'-]+\b",narration))
+        log(f"Appended sourced narration; final length: {words} words")
     if not 1900<=words<=2500: raise RuntimeError(f"Script word count outside bounds: {words} (minimum 1,900)")
     title=re.sub(r"\s+"," ",str(data.get("title") or lead["title"])).strip()[:95]
     desc=str(data.get("description") or "").strip()

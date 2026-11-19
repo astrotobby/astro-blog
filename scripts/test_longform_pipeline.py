@@ -37,7 +37,8 @@ class LLMAuthenticationTests(unittest.TestCase):
         values = {
             "GEMINI_API_KEY": "test-gemini-key",
             "GEMINI_MODEL": "gemini-3.8-flash",
-            "GEMINI_FALLBACK_MODEL": "gemini-3.7-flash",
+            "GEMINI_FALLBACK_MODEL": "",
+            "GEMINI_FALLBACK_MODELS": "gemini-3.7-flash",
         }
         unavailable = pipeline.requests.Response()
         unavailable.status_code = 503
@@ -55,6 +56,31 @@ class LLMAuthenticationTests(unittest.TestCase):
         self.assertEqual([c.kwargs["json"]["model"] for c in post.call_args_list], [
             "gemini-3.8-flash", "gemini-3.8-flash", "gemini-3.7-flash"
         ])
+        self.assertEqual(sleep.call_count, 1)
+
+    def test_gemini_fallback_models_try_flash_lite_candidates_in_order(self):
+        values = {
+            "GEMINI_API_KEY": "test-gemini-key",
+            "GEMINI_MODEL": "gemini-3.8-flash",
+            "GEMINI_FALLBACK_MODELS": "gemini-3.5-flash-lite,gemini-3.1-flash-lite",
+            "GEMINI_FALLBACK_MODEL": "",
+        }
+        unavailable = pipeline.requests.Response()
+        unavailable.status_code = 503
+        success = SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {"steps": [{"type": "model_output", "content": [{"type": "text", "text": "Flash-Lite fallback text"}]}]},
+        )
+        with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
+            with patch.object(pipeline.requests, "post", side_effect=[unavailable, unavailable, unavailable, success]) as post:
+                with patch.object(pipeline.time_module, "sleep") as sleep:
+                    output = pipeline._generate_text("prompt", "system", "unused-model")
+        self.assertEqual(output, "Flash-Lite fallback text")
+        self.assertEqual(
+            [call.kwargs["json"]["model"] for call in post.call_args_list],
+            ["gemini-3.8-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"],
+        )
+        self.assertEqual(post.call_args_list[2].kwargs["timeout"], pipeline.GEMINI_REQUEST_TIMEOUT)
         self.assertEqual(sleep.call_count, 1)
 
     def test_claude_code_oauth_uses_subscription_cli_without_api_key(self):
@@ -86,9 +112,10 @@ class LLMAuthenticationTests(unittest.TestCase):
         values = {
             "GEMINI_API_KEY": "test-gemini-key",
             "GEMINI_MODEL": "gemini-3.8-flash",
-            "GEMINI_FALLBACK_MODEL": "gemini-3.7-flash",
+            "GEMINI_FALLBACK_MODEL": "",
+            "GEMINI_FALLBACK_MODELS": "",
             "OPENCODE_API_KEY": "test-opencode-key",
-            "OPENCODE_FALLBACK_MODELS": "opencode/big-pickle,opencode/deepseek-v4.1-flash-free",
+            "OPENCODE_FALLBACK_MODELS": "opencode/nemotron-3.5-lightning-free,opencode/deepseek-v4.1-flash-free",
             "ANTHROPIC_API_KEY": "must-not-be-used",
         }
         unavailable = pipeline.requests.Response()
@@ -96,14 +123,14 @@ class LLMAuthenticationTests(unittest.TestCase):
         unavailable.headers["Retry-After"] = "1"
         result = SimpleNamespace(returncode=0, stdout='{"title":"OpenCode output"}', stderr="")
         with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
-            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 4):
+            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 2):
                 with patch.object(pipeline.time_module, "sleep"):
                     with patch.object(pipeline.shutil, "which", return_value="/usr/bin/opencode"):
                         with patch.object(pipeline.subprocess, "run", return_value=result) as run:
                             output = pipeline._generate_text("prompt", "system", "unused-model")
         self.assertEqual(output, '{"title":"OpenCode output"}')
         command = run.call_args.args[0]
-        self.assertEqual(command[0:5], ["/usr/bin/opencode", "run", "--standalone", "--model", "opencode/big-pickle"])
+        self.assertEqual(command[0:5], ["/usr/bin/opencode", "run", "--standalone", "--model", "opencode/nemotron-3.5-lightning-free"])
         self.assertEqual(run.call_args.kwargs["env"]["OPENCODE_API_KEY"], "test-opencode-key")
         self.assertEqual(run.call_args.kwargs["timeout"], pipeline.OPENCODE_REQUEST_TIMEOUT)
 
@@ -111,7 +138,8 @@ class LLMAuthenticationTests(unittest.TestCase):
         values = {
             "GEMINI_API_KEY": "test-gemini-key",
             "GEMINI_MODEL": "gemini-3.8-flash",
-            "GEMINI_FALLBACK_MODEL": "gemini-3.7-flash",
+            "GEMINI_FALLBACK_MODEL": "",
+            "GEMINI_FALLBACK_MODELS": "",
             "FREELLMAPI_API_KEY": "test-local-profile-key",
             "FREELLMAPI_BASE_URL": "http://127.0.0.1:3001/v1",
             "FREELLMAPI_MODEL": "auto:smart",
@@ -126,11 +154,11 @@ class LLMAuthenticationTests(unittest.TestCase):
             headers={"X-Routed-Via": "ovh/example-free-model"},
         )
         with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
-            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 4 + [free_success]) as post:
+            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 2 + [free_success]) as post:
                 with patch.object(pipeline.time_module, "sleep"):
                     output = pipeline._generate_text("prompt", "system", "unused-model")
         self.assertEqual(output, "FreeLLMAPI script JSON")
-        self.assertEqual(post.call_count, 5)
+        self.assertEqual(post.call_count, 3)
         self.assertEqual(post.call_args.kwargs["timeout"], pipeline.FREELLMAPI_REQUEST_TIMEOUT)
         call = post.call_args
         self.assertEqual(call.args[0], "http://127.0.0.1:3001/v1/chat/completions")
@@ -141,7 +169,8 @@ class LLMAuthenticationTests(unittest.TestCase):
         values = {
             "GEMINI_API_KEY": "test-gemini-key",
             "GEMINI_MODEL": "gemini-3.8-flash",
-            "GEMINI_FALLBACK_MODEL": "gemini-3.7-flash",
+            "GEMINI_FALLBACK_MODEL": "",
+            "GEMINI_FALLBACK_MODELS": "",
             "FREELLMAPI_API_KEY": "test-local-profile-key",
             "ANTHROPIC_API_KEY": "test-anthropic-key",
         }
@@ -156,13 +185,52 @@ class LLMAuthenticationTests(unittest.TestCase):
             return client
         anthropic_module = SimpleNamespace(Anthropic=make_anthropic_client)
         with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
-            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 5):
+            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 3):
                 with patch.object(pipeline.time_module, "sleep"):
                     with patch.dict(sys.modules, {"anthropic": anthropic_module}):
                         output = pipeline._generate_text("prompt", "system", "unused-model")
         self.assertEqual(output, "anthropic fallback text")
         self.assertEqual(constructed["timeout"], pipeline.ANTHROPIC_REQUEST_TIMEOUT)
 
+
+
+class CreatePackageLengthTests(unittest.TestCase):
+    def test_short_first_draft_appends_sourced_continuation_and_keeps_minimum(self):
+        first_narration = " ".join(["verified"] * 1700)
+        extra_narration = " ".join(["additional"] * 500)
+        first_response = json.dumps({
+            "title": "Verified technology story",
+            "description": "A sourced long-form report.",
+            "tags": ["technology", "news", "analysis"],
+            "narration": first_narration,
+        })
+        source = {
+            "publisher": "Example Publisher",
+            "published_at": "2026-11-19T00:00:00Z",
+            "title": "Primary report about the event",
+            "url": "https://news.example/report",
+            "article_text": "The verified report describes the event, the people involved and the documented timeline.",
+            "summary": "A corroborating summary.",
+        }
+        values = {"GEMINI_API_KEY": "test-key", "LONGFORM_MODEL": "test-model"}
+        with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
+            with patch.object(pipeline, "_generate_text", side_effect=[first_response, extra_narration]) as generate:
+                package = pipeline.create_package(
+                    "digital_nomad",
+                    {"title": "Verified lead story", "url": "https://news.example/lead"},
+                    [source],
+                )
+
+        self.assertEqual(package["word_count"], 2200)
+        self.assertTrue(package["narration"].startswith("verified verified"))
+        self.assertTrue(package["narration"].endswith("additional"))
+        self.assertEqual(generate.call_count, 2)
+        continuation_prompt = generate.call_args_list[1].args[0]
+        self.assertIn("EXISTING NARRATION:", continuation_prompt)
+        self.assertIn("SOURCE BUNDLE:", continuation_prompt)
+        self.assertIn("Publisher: Example Publisher", continuation_prompt)
+        self.assertIn("Primary report about the event", continuation_prompt)
+        self.assertIn("Write only 500 additional spoken words", continuation_prompt)
 
 
 class EdgeTtsWordTimingTests(unittest.TestCase):
