@@ -644,11 +644,23 @@ No markdown headings, bullets, timecodes, stage directions or URLs in the spoken
     narration=re.sub(r"\s+"," ",str(data.get("narration",""))).strip()
     words=len(re.findall(r"\b[\w'-]+\b",narration))
     log(f"Initial generated narration length: {words} words")
-    if words<1750:
-        expanded=_generate_text("Expand this sourced narration to 2,000-2,200 words. Preserve facts, add evidence-based context, no invention. Return narration only.\n\n"+narration,system,model)
-        narration=re.sub(r"\s+"," ",expanded).strip()
+    if words<1900:
+        minimum_additions=1900-words
+        target_additions=min(1200,max(500,minimum_additions+200))
+        source_context="\n\n".join(evidence)[:18000]
+        expansion_prompt=(
+            f"Write only {target_additions} additional spoken words to append to the existing narration. "
+            f"The current narration has {words} words; the final script must contain at least 1,900 words. "
+            "Continue naturally from its final sentence. Do not repeat its hook, timeline or any paragraph. "
+            "Add concrete, specific details supported by the source bundle below; do not invent dates, quotes, numbers, motives or events. "
+            "Return only the additional narration, with no headings, bullets, labels or preamble.\n\n"
+            f"EXISTING NARRATION:\n{narration}\n\nSOURCE BUNDLE:\n{source_context}"
+        )
+        expanded=_generate_text(expansion_prompt,system,model)
+        expanded=re.sub(r"\s+"," ",expanded).strip()
+        narration=f"{narration} {expanded}".strip()
         words=len(re.findall(r"\b[\w'-]+\b",narration))
-        log(f"Expanded narration length: {words} words")
+        log(f"Appended sourced narration; final length: {words} words")
     if not 1900<=words<=2500: raise RuntimeError(f"Script word count outside bounds: {words} (minimum 1,900)")
     title=re.sub(r"\s+"," ",str(data.get("title") or lead["title"])).strip()[:95]
     desc=str(data.get("description") or "").strip()
