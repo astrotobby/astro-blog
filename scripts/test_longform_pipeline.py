@@ -30,6 +30,7 @@ class LLMAuthenticationTests(unittest.TestCase):
         self.assertEqual(output, "generated text")
         self.assertEqual(post.call_args.kwargs["headers"]["x-goog-api-key"], "test-gemini-key")
         self.assertEqual(post.call_args.kwargs["json"]["model"], "gemini-3.8-flash")
+        self.assertEqual(post.call_args.kwargs["timeout"], pipeline.GEMINI_REQUEST_TIMEOUT)
         self.assertFalse(post.call_args.kwargs["json"]["store"])
 
     def test_gemini_retries_503_then_falls_back_to_supported_model(self):
@@ -46,15 +47,15 @@ class LLMAuthenticationTests(unittest.TestCase):
             json=lambda: {"steps": [{"type": "model_output", "content": [{"type": "text", "text": "fallback text"}]}]},
         )
         with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
-            with patch.object(pipeline.requests, "post", side_effect=[unavailable, unavailable, unavailable, success]) as post:
+            with patch.object(pipeline.requests, "post", side_effect=[unavailable, unavailable, success]) as post:
                 with patch.object(pipeline.time_module, "sleep") as sleep:
                     output = pipeline._generate_text("prompt", "system", "unused-model")
         self.assertEqual(output, "fallback text")
-        self.assertEqual(post.call_count, 4)
+        self.assertEqual(post.call_count, 3)
         self.assertEqual([c.kwargs["json"]["model"] for c in post.call_args_list], [
-            "gemini-3.8-flash", "gemini-3.8-flash", "gemini-3.8-flash", "gemini-3.7-flash"
+            "gemini-3.8-flash", "gemini-3.8-flash", "gemini-3.7-flash"
         ])
-        self.assertEqual(sleep.call_count, 2)
+        self.assertEqual(sleep.call_count, 1)
 
     def test_claude_code_oauth_uses_subscription_cli_without_api_key(self):
         values = {
@@ -95,7 +96,7 @@ class LLMAuthenticationTests(unittest.TestCase):
         unavailable.headers["Retry-After"] = "1"
         result = SimpleNamespace(returncode=0, stdout='{"title":"OpenCode output"}', stderr="")
         with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
-            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 6):
+            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 4):
                 with patch.object(pipeline.time_module, "sleep"):
                     with patch.object(pipeline.shutil, "which", return_value="/usr/bin/opencode"):
                         with patch.object(pipeline.subprocess, "run", return_value=result) as run:
@@ -104,6 +105,7 @@ class LLMAuthenticationTests(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertEqual(command[0:5], ["/usr/bin/opencode", "run", "--standalone", "--model", "opencode/big-pickle"])
         self.assertEqual(run.call_args.kwargs["env"]["OPENCODE_API_KEY"], "test-opencode-key")
+        self.assertEqual(run.call_args.kwargs["timeout"], pipeline.OPENCODE_REQUEST_TIMEOUT)
 
     def test_gemini_outage_falls_back_to_freellmapi_before_anthropic(self):
         values = {
@@ -124,11 +126,12 @@ class LLMAuthenticationTests(unittest.TestCase):
             headers={"X-Routed-Via": "ovh/example-free-model"},
         )
         with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
-            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 6 + [free_success]) as post:
+            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 4 + [free_success]) as post:
                 with patch.object(pipeline.time_module, "sleep"):
                     output = pipeline._generate_text("prompt", "system", "unused-model")
         self.assertEqual(output, "FreeLLMAPI script JSON")
-        self.assertEqual(post.call_count, 7)
+        self.assertEqual(post.call_count, 5)
+        self.assertEqual(post.call_args.kwargs["timeout"], pipeline.FREELLMAPI_REQUEST_TIMEOUT)
         call = post.call_args
         self.assertEqual(call.args[0], "http://127.0.0.1:3001/v1/chat/completions")
         self.assertEqual(call.kwargs["headers"]["Authorization"], "Bearer test-local-profile-key")
@@ -147,13 +150,18 @@ class LLMAuthenticationTests(unittest.TestCase):
         unavailable.headers["Retry-After"] = "1"
         message = SimpleNamespace(content=[SimpleNamespace(type="text", text="anthropic fallback text")])
         client = SimpleNamespace(messages=SimpleNamespace(create=lambda **kwargs: message))
-        anthropic_module = SimpleNamespace(Anthropic=lambda **kwargs: client)
+        constructed = {}
+        def make_anthropic_client(**kwargs):
+            constructed.update(kwargs)
+            return client
+        anthropic_module = SimpleNamespace(Anthropic=make_anthropic_client)
         with patch.object(pipeline, "env", side_effect=lambda name, default=None: values.get(name, default)):
-            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 7):
+            with patch.object(pipeline.requests, "post", side_effect=[unavailable] * 5):
                 with patch.object(pipeline.time_module, "sleep"):
                     with patch.dict(sys.modules, {"anthropic": anthropic_module}):
                         output = pipeline._generate_text("prompt", "system", "unused-model")
         self.assertEqual(output, "anthropic fallback text")
+        self.assertEqual(constructed["timeout"], pipeline.ANTHROPIC_REQUEST_TIMEOUT)
 
 
 
