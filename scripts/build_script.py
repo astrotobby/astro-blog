@@ -658,6 +658,30 @@ def _stat_label(segment: str) -> str:
     return _metadata_value(label, 72)
 
 
+def _story_visual_terms(post) -> str:
+    """Return distinctive story/entity terms for a topic-specific opening shot."""
+    stop = set(
+        "the a an and or of to in for with on is are be this that it as at by from "
+        "already has have was were their its your you we our more new latest inside "
+        "news story stories explained guide update today company companies "
+        "million billion thousand 2025 2026 2027 first second third four two three "
+        "what when where which who why how".split()
+    )
+    source_title = str(post.get("source_title") or "")
+    post_title = str(post.get("title") or "")
+    words = re.findall(r"[A-Za-z][A-Za-z0-9-]{2,}", f"{source_title} {post_title}".lower())
+    selected = []
+    seen = set()
+    for word in words:
+        if word in stop or word in seen or word.isdigit():
+            continue
+        seen.add(word)
+        selected.append(word)
+        if len(selected) >= 5:
+            break
+    return " ".join(selected)
+
+
 def _scene_keywords(segment: str, post_title: str, n_kw: int = 3) -> str:
     """Extract the most relevant keywords from a narration segment for the prompt."""
     stop = set("the a an and or of to in for with on is are be this that it as at "
@@ -717,6 +741,14 @@ def make_scenes(post, cfg, narration=None):
         # fallback. The visual prompt remains available only if all footage sources fail.
         seg_kws = _scene_keywords(segment, post["title"])
         broll_query, fallback_query = _footage_brief(segment, cat, scene_type)
+        # The opening shot must be anchored to this episode's actual lead story.
+        # Without this, broad category fallbacks can select the same stock photo
+        # for unrelated videos (for example, generic "film production" imagery).
+        if i == 0 and scene_type == "HOOK":
+            story_terms = _story_visual_terms(post)
+            if story_terms:
+                broll_query = _metadata_value(f"{story_terms} {broll_query}")
+                fallback_query = _metadata_value(f"{story_terms} {fallback_query}")
         if broll_query in used_queries:
             profile_pool = FOOTAGE_BROLL_PROFILES.get(cat, FOOTAGE_BROLL_PROFILES["general_ai"])["fallbacks"]
             pool = [q for q in (*profile_pool, *FOOTAGE_VARIETY_POOL) if q not in used_queries]
