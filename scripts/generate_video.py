@@ -24,7 +24,9 @@ import argparse
 import asyncio
 import datetime as dt
 import hashlib
+import io
 import json
+import math
 import os
 import re
 import subprocess
@@ -41,8 +43,12 @@ MUSIC_EXTENSIONS = {".mp3", ".m4a", ".wav", ".ogg", ".flac"}
 FOOTAGE_CACHE_FILE = STATE / "footage_search_cache.json"
 FOOTAGE_CACHE_TTL_SECONDS = 24 * 60 * 60
 FOOTAGE_HISTORY_FILE = STATE / "footage_history.json"
-FOOTAGE_HISTORY_DAYS = 30
-FOOTAGE_HISTORY_LIMIT = 240
+# Keep visual IDs and fingerprints across all daily channel slots for years.
+FOOTAGE_HISTORY_DAYS = 36500
+FOOTAGE_HISTORY_LIMIT = 100000
+VISUAL_PHASH_THRESHOLD = 5
+VISUAL_SCAN_FRAME_FRACTIONS = (0.12, 0.30, 0.50, 0.70, 0.88)
+VISUAL_SELECTION_ATTEMPTS = 5
 # Bound each scene's network work so a slow stock provider cannot stall a full episode.
 FOOTAGE_SEARCH_TIMEOUT_SECONDS = 12
 FOOTAGE_DOWNLOAD_TIMEOUT_SECONDS = 18
