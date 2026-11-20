@@ -28,21 +28,17 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
-          python -m pip install --disable-pip-version-check requests PyYAML PyNaCl playwright
+          python -m pip install --disable-pip-version-check requests PyYAML PyNaCl
 
       - name: Restore rotating Instagram and Rumble session state
         uses: actions/cache/restore@v4
         with:
           path: |
-            .pipeline/state/rumble_state.enc
             .pipeline/state/ig_token.txt
             .pipeline/state/ig_seed.txt
           key: longform-social-state-${{ github.run_id }}
           restore-keys: |
             longform-social-state-
-
-      - name: Install Chromium for Rumble publisher
-        run: python -m playwright install --with-deps chromium
 
       - name: Publish to Facebook, Instagram and Rumble
         env:
@@ -58,9 +54,6 @@ jobs:
           FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
           INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
           INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
-          RUMBLE_EMAIL: ${{ secrets.RUMBLE_EMAIL }}
-          RUMBLE_PASSWORD: ${{ secrets.RUMBLE_PASSWORD }}
-          RUMBLE_STORAGE_STATE: ${{ secrets.RUMBLE_STORAGE_STATE }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
