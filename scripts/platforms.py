@@ -308,7 +308,7 @@ def post_facebook(render, cfg, dry):
         token = env("FACEBOOK_PAGE_TOKEN")
         p = render["platform"]
         video = render["videos"].get("vertical") or render["videos"]["horizontal"]
-        url = f"https://graph.facebook.com/v21.0/{page_id}/videos"
+        url = f"https://graph.facebook.com/v27.0/{page_id}/videos"
         with open(video, "rb") as fh:
             r = requests.post(url,
                               data={"description": p["caption"], "access_token": token},
@@ -430,7 +430,7 @@ def post_instagram(render, cfg, dry):
         video_url = _host_public_url(video, render["post"]["slug"])
         if not video_url:
             return {"ok": False, "error": "could not host a public video URL"}
-        base = "https://graph.instagram.com/v21.0"   # Instagram-Login API
+        base = "https://graph.instagram.com/v27.0"   # Instagram-Login API
         # 1) create a Reels container
         caption = p.get("ig_caption") or p["caption"]   # IG: "link in bio" (links aren't clickable)
         r = requests.post(f"{base}/{ig_id}/media",
@@ -490,7 +490,7 @@ def post_instagram_story(render, cfg, dry):
         video_url = _host_public_url(video, render["post"]["slug"] + "-story")
         if not video_url:
             return {"ok": False, "error": "could not host a public video URL"}
-        base = "https://graph.instagram.com/v21.0"
+        base = "https://graph.instagram.com/v27.0"
         # Stories take no caption; just the media. media_type=STORIES.
         r = requests.post(f"{base}/{ig_id}/media",
                           data={"media_type": "STORIES", "video_url": video_url,
@@ -536,7 +536,7 @@ def post_facebook_story(render, cfg, dry):
         video_url = _host_public_url(video, render["post"]["slug"] + "-story")
         if not video_url:
             return {"ok": False, "error": "could not host a public video URL"}
-        base = "https://graph.facebook.com/v21.0"
+        base = "https://graph.facebook.com/v27.0"
         # 1) start -> video_id + a resumable upload_url
         start = requests.post(f"{base}/{page_id}/video_stories",
                               data={"upload_phase": "start", "access_token": token},
