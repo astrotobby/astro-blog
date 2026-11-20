@@ -95,6 +95,7 @@ def main() -> int:
                     "title": str(asset.get("title") or ""),
                     "provider": str(asset.get("provider") or "historical-ledger"),
                     "creator": str(asset.get("creator") or ""),
+                    "visual_hashes": asset.get("visual_hashes") or [],
                     "used_at": used_at,
                     "reason": "seeded_from_longform_ledger",
                 })
