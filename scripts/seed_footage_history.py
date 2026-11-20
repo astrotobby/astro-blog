@@ -1,7 +1,7 @@
 """Seed a small one-time blocklist of scene assets that were duplicated in two posts.
 
-This file is intentionally limited to public asset identifiers and metadata. The full
-30-day footage history is persisted between Actions runs with the workflow cache.
+This file contains public asset identifiers, metadata, and perceptual hashes only.
+It seeds the cross-channel, long-lived visual no-repeat ledger from earlier long-form jobs.
 """
 from __future__ import annotations
 
