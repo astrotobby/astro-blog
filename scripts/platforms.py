@@ -378,7 +378,9 @@ def post_threads(render, cfg, dry):
         token = cached_token("threads_token.txt", "THREADS_ACCESS_TOKEN")
         p = render["platform"]
         video = render["videos"].get("vertical") or render["videos"]["horizontal"]
-        video_url = _host_public_url(video, render["post"]["slug"])
+        # Long-form YouTube handoffs already provide a temporary public MP4 URL.
+        # Existing blog-to-video posts keep the original release-hosting fallback.
+        video_url = render["videos"].get("public_url") or _host_public_url(video, render["post"]["slug"])
         if not video_url:
             return {"ok": False, "error": "could not host a public video URL"}
         base = "https://graph.threads.net/v1.0"
