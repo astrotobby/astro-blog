@@ -70,9 +70,6 @@ jobs:
             blog2video-state-
 
       - name: Publish pending long-form videos to Facebook Instagram and Rumble
-        env:
-          DRY_RUN: ${{ env.DRY_RUN }}
-          RUN_LIMIT: ${{ env.RUN_LIMIT }}
         run: |
           set -euo pipefail
           ARGS=(--limit "$RUN_LIMIT")
