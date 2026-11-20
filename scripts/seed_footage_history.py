@@ -5,8 +5,10 @@ This file is intentionally limited to public asset identifiers and metadata. The
 """
 from __future__ import annotations
 
+import argparse
 import json
 import time
+from datetime import datetime
 from pathlib import Path
 
 STATE = Path(__file__).resolve().parents[1] / ".pipeline" / "state"
@@ -39,7 +41,25 @@ KNOWN_DUPLICATES = [
 ]
 
 
+def _timestamp(value: str, fallback: float) -> float:
+    if not value:
+        return fallback
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+    except (TypeError, ValueError, OverflowError):
+        return fallback
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--ledger",
+        type=Path,
+        default=None,
+        help="Optional AI-GEMS long-form ledger; seed every previously used stock asset ID",
+    )
+    args = parser.parse_args()
+
     STATE.mkdir(parents=True, exist_ok=True)
     try:
         raw = json.loads(HISTORY.read_text(encoding="utf-8"))
@@ -50,6 +70,39 @@ def main() -> int:
     known = {item.get("id") for item in items if isinstance(item, dict)}
     now = time.time()
     added = 0
+    ledger_added = 0
+
+    # Seed every source already recorded by the two-channel long-form pipeline,
+    # not just the known duplicate pair. This prevents any previously used source
+    # image or clip from being selected again by either channel.
+    if args.ledger:
+        try:
+            ledger = json.loads(args.ledger.read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            raise SystemExit(f"Could not read historical long-form ledger: {exc}")
+        jobs = ledger.get("jobs", {}) if isinstance(ledger, dict) else {}
+        for job in jobs.values():
+            used_at = _timestamp(
+                job.get("rendered_at") or job.get("created_at") or "",
+                now,
+            )
+            for asset in job.get("stock_sources") or []:
+                asset_id = str(asset.get("id") or "").strip()
+                if not asset_id or asset_id in known:
+                    continue
+                items.append({
+                    "id": asset_id,
+                    "title": str(asset.get("title") or ""),
+                    "provider": str(asset.get("provider") or "historical-ledger"),
+                    "creator": str(asset.get("creator") or ""),
+                    "used_at": used_at,
+                    "reason": "seeded_from_longform_ledger",
+                })
+                known.add(asset_id)
+                added += 1
+                ledger_added += 1
+
+    # These are duplicate stock assets seen before the ledger was available.
     for asset_id, title, provider in KNOWN_DUPLICATES:
         if asset_id not in known:
             items.append({
@@ -67,7 +120,10 @@ def main() -> int:
         json.dumps({"items": items[:100000]}, ensure_ascii=False),
         encoding="utf-8",
     )
-    print(f"Visual duplicate guard ready: {added} seeded, {len(items[:100000])} recent asset IDs.")
+    print(
+        f"Visual duplicate guard ready: {added} added "
+        f"({ledger_added} from prior videos), {len(items[:100000])} historical asset IDs."
+    )
     return 0
 
 
