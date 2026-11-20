@@ -2,6 +2,17 @@ name: Visual duplicate guard tests
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/generate_video.py
+      - scripts/build_script.py
+      - scripts/seed_footage_history.py
+      - scripts/longform_social_relay.py
+      - scripts/platforms.py
+      - scripts/test_video_pipeline.py
+      - scripts/test_longform_social_relay.py
+      - .github/workflows/visual-duplicate-tests.yml
 
 permissions:
   contents: read
