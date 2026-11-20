@@ -133,6 +133,42 @@ def _probe_video(path: Path) -> dict:
     }
 
 
+def _make_instagram_vertical(source: Path, job_id: str) -> Path:
+    """Create a full-frame 9:16 Reel without cropping the original 16:9 programme."""
+    target = OUT / f"longform_{_slug(job_id)}_instagram_9x16.mp4"
+    command = [
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-i", str(source),
+        "-filter_complex",
+        (
+            "[0:v]split=2[bgsrc][fgsrc];"
+            "[bgsrc]scale=1080:1920:force_original_aspect_ratio=increase,"
+            "crop=1080:1920,boxblur=18:3,eq=brightness=-0.12[bg];"
+            "[fgsrc]scale=1080:608:force_original_aspect_ratio=decrease[fg];"
+            "[bg][fg]overlay=(W-w)/2:(H-h)/2,format=yuv420p[v]"
+        ),
+        "-map", "[v]", "-map", "0:a:0?",
+        "-r", "24", "-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
+        "-movflags", "+faststart", "-shortest", str(target),
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, timeout=3600, check=False)
+    if result.returncode != 0 or not target.exists():
+        target.unlink(missing_ok=True)
+        raise RuntimeError(
+            "Could not create Instagram 9:16 version: "
+            + (result.stderr or result.stdout or "FFmpeg returned no output")[-450:]
+        )
+    media = _probe_video(target)
+    if media["width"] != 1080 or media["height"] != 1920:
+        raise RuntimeError(
+            f"Instagram version has unexpected dimensions: {media['width']}x{media['height']}"
+        )
+    if media["duration_seconds"] > MAX_INSTAGRAM_SECONDS or media["bytes"] > MAX_VIDEO_BYTES:
+        raise RuntimeError("Instagram version exceeds the 15-minute or 1 GB Reels API limit")
+    return target
+
+
 def _platform_call(name: str, fn, render: dict, cfg: dict) -> dict:
     try:
         result = fn(render, cfg, False)
@@ -196,12 +232,12 @@ def publish(args) -> int:
             "hashtags": ["#" + tag for tag in tags],
             "short_url": youtube_url,
         },
-        # The two-channel long-form pipeline renders a 16:9 master.
-        # The existing platform adapters accept this file for Page Video,
-        # Instagram Reels (landscape is supported; 9:16 is recommended),
-        # and Rumble.
         "videos": {"horizontal": str(video)},
     }
+    # Instagram receives a format-appropriate 9:16 version; Facebook Page Video
+    # and Rumble receive the original 16:9 master. The original video is untouched.
+    instagram_video = _make_instagram_vertical(video, job_id)
+    instagram_render = {**render, "videos": {"vertical": str(instagram_video)}}
 
     cfg = load_config()
     cfg.setdefault("platforms", {}).setdefault("rumble", {})
@@ -250,7 +286,8 @@ def publish(args) -> int:
                 "skipped": "Instagram Reels API supports up to 15 minutes and 1 GB per video",
             }
         else:
-            result = _platform_call(name, fn, render, cfg)
+            platform_render = instagram_render if name == "instagram" else render
+            result = _platform_call(name, fn, platform_render, cfg)
         results[name] = {
             "attempted": True,
             "attempted_at": datetime.now(timezone.utc).isoformat(),
