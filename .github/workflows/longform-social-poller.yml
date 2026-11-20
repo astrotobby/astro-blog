@@ -4,6 +4,12 @@ name: Long-form social distribution
 # is longform-social-bridge.yml; two concurrent pollers could duplicate social posts.
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Download and validate a handoff without publishing"
+        type: boolean
+        required: true
+        default: true
 permissions:
   contents: write
 
