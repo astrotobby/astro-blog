@@ -1169,36 +1169,161 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
 
 
 def fetch_scene_assets(script, cfg, variant):
-    """Fetch format-specific assets while maintaining cross-post visual variety."""
+    """Fetch unique assets; reject repeats within a video and across both channels."""
     target_size = cfg["video"][variant]
     target_w, target_h = target_size["w"], target_size["h"]
     post = script["post"]
+    post_slug = post["slug"]
     used_clips, used_creators = set(), set()
     history = _load_footage_history()
-    recent_ids = {item["id"] for item in history}
+
+    # Vertical and horizontal masters for one story may reuse their own shots.
+    # Any other story, channel, or scene must use different media.
+    applicable_history = [
+        item for item in history
+        if not (
+            item.get("slug") == post_slug
+            and item.get("variant")
+            and item.get("variant") != variant
+        )
+    ]
+    recent_ids = {item["id"] for item in applicable_history}
     assets, provenance = [], []
     scene_count = len(script["scene_prompts"])
+
     for index, prompt in enumerate(script["scene_prompts"]):
         scene_started = time.monotonic()
-        log(f"Fetching visual assets for scene {index + 1}/{scene_count}")
-        asset, meta, source = _fetch_scene(
-            index, prompt, target_w, target_h, post["slug"],
-            post.get("image_url") if index == 0 else None, used_clips,
-            used_creators, recent_ids, variant,
-        )
-        assets.append((asset, meta))
-        log(f"Scene {index + 1}/{scene_count} assets ready in {time.monotonic() - scene_started:.1f}s")
-        for item in (source, (meta or {}).get("alt_source")):
-            if not item:
-                continue
-            provenance.append(item)
-            recent_ids.add(item["id"])
-            history.append({"id": item["id"], "provider": item.get("provider"),
-                            "creator": item.get("creator"), "slug": post["slug"],
-                            "used_at": time.time()})
-    _save_footage_history(history)
-    return assets, provenance
+        log(f"Fetching unique visual assets for scene {index + 1}/{scene_count}")
+        selected = None
+        last_duplicate = None
 
+        for attempt in range(VISUAL_SELECTION_ATTEMPTS):
+            # Salt the fallback filename for each retry; do not reuse the same hero image.
+            retry_slug = f"{post_slug}-visual-attempt-{attempt}"
+            hero_image = post.get("image_url") if index == 0 and attempt == 0 else None
+            asset, meta, source = _fetch_scene(
+                index, prompt, target_w, target_h, retry_slug,
+                hero_image, used_clips, used_creators, recent_ids, variant,
+            )
+            hashes = _visual_hashes(Path(asset))
+            duplicate = _find_visual_duplicate(hashes, applicable_history)
+            if duplicate:
+                last_duplicate = duplicate.get("id", "unknown")
+                log(
+                    f"scene {index + 1}: rejected repeated/near-duplicate visual "
+                    f"(asset={source.get('id') if source else 'generated-image'}, "
+                    f"matches={last_duplicate}); trying another result"
+                )
+                if source and source.get("id"):
+                    used_clips.add(source["id"])
+                    recent_ids.add(source["id"])
+                if meta and meta.get("alt_source", {}).get("id"):
+                    used_clips.add(meta["alt_source"]["id"])
+                    recent_ids.add(meta["alt_source"]["id"])
+                Path(asset).unlink(missing_ok=True)
+                if meta and meta.get("alt") and Path(meta["alt"]).exists():
+                    Path(meta["alt"]).unlink(missing_ok=True)
+                if meta:
+                    meta["alt"] = None
+                    meta["alt_source"] = None
+                continue
+
+            # Fingerprint the optional second angle too. It must be unique against
+            # prior posts and against the primary shot selected for this scene.
+            alt_path = (meta or {}).get("alt")
+            alt_source = (meta or {}).get("alt_source")
+            alt_hashes = []
+            if alt_path and Path(alt_path).exists():
+                alt_hashes = _visual_hashes(Path(alt_path))
+                alt_duplicate = _find_visual_duplicate(
+                    alt_hashes, applicable_history + [
+                        _history_record(
+                            (source or {}).get("id") or f"visual:{hashes[0]}",
+                            (source or {}).get("provider") or "scene",
+                            hashes,
+                            slug=post_slug,
+                            variant=variant,
+                        )
+                    ],
+                )
+                if alt_duplicate:
+                    last_duplicate = alt_duplicate.get("id", "unknown")
+                    log(
+                        f"scene {index + 1}: rejected duplicate alternate angle "
+                        f"matching {last_duplicate}"
+                    )
+                    if alt_source and alt_source.get("id"):
+                        used_clips.add(alt_source["id"])
+                        recent_ids.add(alt_source["id"])
+                    Path(alt_path).unlink(missing_ok=True)
+                    meta["alt"] = None
+                    meta["alt_source"] = None
+                    alt_path = None
+                    alt_source = None
+                    alt_hashes = []
+
+            selected = (asset, meta, source, hashes, alt_source, alt_hashes)
+            break
+
+        if selected is None:
+            raise RuntimeError(
+                f"Scene {index + 1} has no unique visual after {VISUAL_SELECTION_ATTEMPTS} attempts "
+                f"(last duplicate: {last_duplicate or 'unknown'}); refusing to publish repeated footage."
+            )
+
+        asset, meta, source, hashes, alt_source, alt_hashes = selected
+        assets.append((asset, meta))
+        log(
+            f"Scene {index + 1}/{scene_count} unique visual ready in "
+            f"{time.monotonic() - scene_started:.1f}s"
+        )
+
+        if source:
+            provenance.append(source)
+            source_id = source.get("id")
+            if source_id:
+                recent_ids.add(source_id)
+            applicable_history.append(_history_record(
+                source_id or f"visual:{hashes[0]}",
+                source.get("provider") or "stock-footage",
+                hashes,
+                slug=post_slug,
+                variant=variant,
+            ))
+        else:
+            # Generated fallback images have no stable provider ID; pHash stops
+            # identical outputs from returning under a new filename or generated URL.
+            applicable_history.append(_history_record(
+                f"generated-image:{hashes[0]}",
+                "generated-image",
+                hashes,
+                slug=post_slug,
+                variant=variant,
+            ))
+
+        if alt_path and alt_source:
+            provenance.append(alt_source)
+            if alt_source.get("id"):
+                recent_ids.add(alt_source["id"])
+            applicable_history.append(_history_record(
+                alt_source.get("id") or f"visual:{alt_hashes[0]}",
+                alt_source.get("provider") or "stock-footage",
+                alt_hashes,
+                slug=post_slug,
+                variant=variant,
+            ))
+
+    # Save immediately after this master. The Actions cache persists it between
+    # the four daily runs for Astro Tobby and DIJITOL NOMAD.
+    _save_footage_history(history + applicable_history[len([
+        item for item in history
+        if not (
+            item.get("slug") == post_slug
+            and item.get("variant")
+            and item.get("variant") != variant
+        )
+    ]):])
+    return assets, provenance
 
 # ---------- 3. Scene assembly ----------
 
