@@ -234,11 +234,6 @@ def publish(args) -> int:
         },
         "videos": {"horizontal": str(video)},
     }
-    # Instagram receives a format-appropriate 9:16 version; Facebook Page Video
-    # and Rumble receive the original 16:9 master. The original video is untouched.
-    instagram_video = _make_instagram_vertical(video, job_id)
-    instagram_render = {**render, "videos": {"vertical": str(instagram_video)}}
-
     cfg = load_config()
     cfg.setdefault("platforms", {}).setdefault("rumble", {})
     cfg["platforms"]["rumble"]["visibility"] = "public"
@@ -285,9 +280,24 @@ def publish(args) -> int:
                 "ok": False,
                 "skipped": "Instagram Reels API supports up to 15 minutes and 1 GB per video",
             }
+        elif name == "instagram" and not (
+            os.environ.get("INSTAGRAM_USER_ID") and platforms.ig_token()
+        ):
+            # Let the existing adapter report missing credentials; avoid unnecessary transcoding.
+            result = _platform_call(name, fn, render, cfg)
+        elif name == "instagram":
+            try:
+                instagram_video = _make_instagram_vertical(video, job_id)
+                instagram_render = {**render, "videos": {"vertical": str(instagram_video)}}
+                result = _platform_call(name, fn, instagram_render, cfg)
+            except Exception as exc:
+                # A Reel formatting failure must not block Facebook or Rumble.
+                result = {
+                    "ok": False,
+                    "error": f"Instagram vertical preparation failed: {type(exc).__name__}: {str(exc)[:240]}",
+                }
         else:
-            platform_render = instagram_render if name == "instagram" else render
-            result = _platform_call(name, fn, platform_render, cfg)
+            result = _platform_call(name, fn, render, cfg)
         results[name] = {
             "attempted": True,
             "attempted_at": datetime.now(timezone.utc).isoformat(),
