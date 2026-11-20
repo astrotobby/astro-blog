@@ -10,6 +10,11 @@ on:
         type: boolean
         required: true
         default: true
+      check_destinations:
+        description: "Validate configured Facebook, Instagram and Rumble credentials without posting"
+        type: boolean
+        required: true
+        default: false
       limit:
         description: "Maximum handoffs to process in this run"
         type: number
@@ -40,6 +45,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
       RUN_LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.limit || 4 }}
+      CHECK_DESTINATIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.check_destinations || false }}
 
     steps:
       - name: Checkout astro-blog social publisher
@@ -71,7 +77,11 @@ jobs:
         run: |
           set -euo pipefail
           ARGS=(--limit "$RUN_LIMIT")
-          if [ "$DRY_RUN" = "true" ]; then ARGS+=(--dry-run); fi
+          if [ "$CHECK_DESTINATIONS" = "true" ]; then
+            ARGS+=(--check-destinations)
+          elif [ "$DRY_RUN" = "true" ]; then
+            ARGS+=(--dry-run)
+          fi
           python scripts/longform_social_bridge.py "${ARGS[@]}"
 
       - name: Save social tokens, Rumble session and post ledger
