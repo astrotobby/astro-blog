@@ -64,10 +64,10 @@ def main() -> int:
 
     items.sort(key=lambda item: float(item.get("used_at", 0)), reverse=True)
     HISTORY.write_text(
-        json.dumps({"items": items[:240]}, ensure_ascii=False),
+        json.dumps({"items": items[:100000]}, ensure_ascii=False),
         encoding="utf-8",
     )
-    print(f"Visual duplicate guard ready: {added} seeded, {len(items[:240])} recent asset IDs.")
+    print(f"Visual duplicate guard ready: {added} seeded, {len(items[:100000])} recent asset IDs.")
     return 0
 
 
