@@ -172,6 +172,8 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--check-destinations", action="store_true",
                         help="check Facebook, Instagram and Rumble credentials without publishing")
+    parser.add_argument("--has-pending", action="store_true",
+                        help="print true if any public YouTube handoff is ready for social posting")
     parser.add_argument("--limit", type=int, default=MAX_PER_RUN)
     args = parser.parse_args()
     limit = max(1, min(int(args.limit), 20))
@@ -210,6 +212,25 @@ def main() -> int:
 
     releases = _releases(session)
     now = datetime.now(timezone.utc)
+    if args.has_pending:
+        ready = False
+        for release in releases:
+            try:
+                manifest = _manifest(session, release)
+                publish_at = _utc(str(manifest["publish_at"]))
+                if now < publish_at + MIN_YOUTUBE_PUBLIC_GRACE:
+                    continue
+                prior = state["jobs"].get(str(manifest["job_id"])) or {}
+                results = prior.get("results") or {}
+                if any((results.get(destination) or {}).get("ok") is not True
+                       for destination in DESTINATIONS):
+                    ready = True
+                    break
+            except Exception as exc:
+                log(f"social handoff readiness check skipped: {type(exc).__name__}: {str(exc)[:180]}")
+        print("true" if ready else "false")
+        return 0
+
     processed = 0
     failed = 0
 
