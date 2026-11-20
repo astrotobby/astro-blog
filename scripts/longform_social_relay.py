@@ -116,8 +116,8 @@ def _probe_video(path: Path) -> dict:
     if not video or not audio:
         raise RuntimeError("The social relay requires a video stream and an audio stream")
     width, height = int(video.get("width") or 0), int(video.get("height") or 0)
-    if width < 1280 or height < 720:
-        raise RuntimeError(f"Incoming video is below 720p ({width}x{height})")
+    if min(width, height) < 720 or max(width, height) < 1280:
+        raise RuntimeError(f"Incoming video is below 720p in its native orientation ({width}x{height})")
     if duration < 60:
         raise RuntimeError(f"Incoming long-form video is unexpectedly short ({duration:.1f}s)")
     size = path.stat().st_size
