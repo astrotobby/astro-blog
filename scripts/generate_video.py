@@ -180,9 +180,12 @@ def _visual_hashes(path: Path) -> list[str]:
     from PIL import Image
 
     path = Path(path)
-    if not path.exists() or path.stat().st_size < 1024:
-        raise RuntimeError(f"Visual asset is missing or too small to fingerprint: {path}")
-    if path.suffix.lower() not in {".mp4", ".mov", ".m4v", ".webm", ".mkv"}:
+    if not path.exists() or path.stat().st_size == 0:
+        raise RuntimeError(f"Visual asset is missing or empty and cannot be fingerprinted: {path}")
+    is_video = path.suffix.lower() in {".mp4", ".mov", ".m4v", ".webm", ".mkv"}
+    if is_video and path.stat().st_size < 1024:
+        raise RuntimeError(f"Video asset is too small to be valid: {path}")
+    if not is_video:
         with Image.open(path) as image:
             return [_phash_image(image)]
 
