@@ -1,18 +1,9 @@
 name: Long-form social distribution
 
+# Legacy poller retained for manual recovery only. The active scheduled publisher
+# is longform-social-bridge.yml; two concurrent pollers could duplicate social posts.
 on:
-  # Each AI-GEMS long-form upload creates a public handoff release. Poll twice an hour;
-  # the receiver waits until YouTube confirms the video is public before cross-posting.
-  schedule:
-    - cron: "7,37 * * * *"
   workflow_dispatch:
-    inputs:
-      dry_run:
-        description: "Download and validate the next due handoff without posting"
-        type: boolean
-        required: true
-        default: true
-
 permissions:
   contents: write
 
