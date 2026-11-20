@@ -256,10 +256,11 @@ def publish(args) -> int:
 
     # Do not retry an uncertain/previously attempted destination automatically.
     results = entry.setdefault("results", {})
+    # Rumble's uploader requires accepting a rights/terms declaration in its UI.
+    # That declaration must be completed by the owner, not accepted automatically.
     destinations = [
         ("facebook", platforms.post_facebook),
         ("instagram", platforms.post_instagram),
-        ("rumble", platforms.post_rumble),
     ]
     summary = {}
     for name, fn in destinations:
@@ -307,6 +308,23 @@ def publish(args) -> int:
         entry["results"] = results
         ledger[job_id] = entry
         _persist_ledger(ledger)
+
+    rumble_previous = results.get("rumble") or {}
+    rumble_result = rumble_previous.get("result") or {}
+    if rumble_result.get("ok") is not True:
+        rumble_result = {
+            "ok": False,
+            "skipped": "Manual Rumble upload required: owner must personally confirm rights and terms.",
+            "video_url": args.video_url,
+        }
+        results["rumble"] = {
+            "attempted": False,
+            "result": rumble_result,
+        }
+        entry["results"] = results
+        ledger[job_id] = entry
+        _persist_ledger(ledger)
+    summary["rumble"] = rumble_result
 
     entry["in_flight"] = False
     entry["completed"] = True
