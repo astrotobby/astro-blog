@@ -1,0 +1,85 @@
+name: Long-form social distribution
+
+on:
+  # Each AI-GEMS long-form upload creates a public handoff release. Poll twice an hour;
+  # the receiver waits until YouTube confirms the video is public before cross-posting.
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Download and validate the next due handoff without posting"
+        type: boolean
+        required: true
+        default: true
+
+permissions:
+  contents: write
+
+# Share the same state/cache serialization with blog-to-video so Instagram tokens,
+# Rumble rolling sessions, and per-platform dedup records cannot race or be lost.
+concurrency:
+  group: blog-to-video
+  cancel-in-progress: false
+
+jobs:
+  publish-longform-social:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Install blog-to-video dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-blog2video.txt
+
+      - name: Install Chromium for Rumble uploads
+        run: python -m playwright install --with-deps chromium
+
+      - name: Restore shared social tokens, sessions, and dedup state
+        uses: actions/cache/restore@v4
+        with:
+          path: .pipeline/state
+          key: blog2video-state-${{ github.run_id }}
+          restore-keys: |
+            blog2video-state-
+
+      - name: Cross-post one due AI-GEMS long-form video
+        env:
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
+          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+          INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
+          RUMBLE_EMAIL: ${{ secrets.RUMBLE_EMAIL }}
+          RUMBLE_PASSWORD: ${{ secrets.RUMBLE_PASSWORD }}
+          RUMBLE_STORAGE_STATE: ${{ secrets.RUMBLE_STORAGE_STATE }}
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARGS=(--max-releases 1)
+          if [ "$DRY_RUN" = "true" ]; then ARGS+=(--dry-run); fi
+          python scripts/crosspost_longform.py "${ARGS[@]}"
+
+      - name: Save shared social tokens, sessions, and dedup state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .pipeline/state
+          key: blog2video-state-${{ github.run_id }}
+
+      - name: Preserve Rumble diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: longform-social-diagnostics-${{ github.run_id }}
+          path: |
+            .pipeline/out/rumble_fail_*.png
+          if-no-files-found: ignore
+          retention-days: 7
