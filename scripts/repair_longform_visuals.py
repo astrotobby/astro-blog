@@ -260,9 +260,9 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
         raise RuntimeError(f"Repaired render has a source without a visual fingerprint for {job_id}")
 
     replacement = upload_public(yt, video_path, package, channel)
-    thumb_path = build_custom_thumbnail(video_path, package["title"], repair_slug)
     thumb_result = None
     try:
+        thumb_path = build_custom_thumbnail(video_path, package["title"], repair_slug)
         from googleapiclient.http import MediaFileUpload
         thumb_result = yt.thumbnails().set(
             videoId=replacement["video_id"],
@@ -300,7 +300,12 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
     job["replacement_thumbnail"] = bool(thumb_result)
     lp.save_ledger(ledger)
 
-    handoff = create_social_handoff(video_path, job, replacement, channel, job_id)
+    try:
+        handoff = create_social_handoff(video_path, job, replacement, channel, job_id)
+        handoff_result = {"ok": True, "tag": handoff["tag"]}
+    except Exception as exc:
+        log(f"Social handoff release could not be created: {str(exc)[:250]}")
+        handoff_result = {"ok": False, "error": str(exc)[:250]}
     return {
         "job_id": job_id,
         "channel": lp.CHANNELS[channel]["title"],
@@ -313,7 +318,7 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
         "description": package["description"],
         "source_count": len(stock_sources),
         "media": media,
-        "social_handoff": handoff["tag"],
+        "social_handoff": handoff_result,
     }
 
 
