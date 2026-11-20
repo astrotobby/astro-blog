@@ -1032,7 +1032,8 @@ def post_rumble(render, cfg, dry):
     title = (post["title"] or "Untitled")[:100]
     desc_body = p.get("yt_desc") or p.get("caption") or post.get("description", "")
     tags = " ".join(p.get("hashtags", [])[:8])
-    description = f"{desc_body}\n\nRead the full post: {link}\n\n{tags}".strip()
+    link_label = p.get("rumble_link_label") or "Read the full post:"
+    description = f"{desc_body}\n\n{link_label} {link}\n\n{tags}".strip()
 
     shot = str(OUT / f"rumble_fail_{post['slug'][:40]}.png")
 
