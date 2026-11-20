@@ -995,8 +995,11 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     else:
         previous=[x.get("title","") for x in ledger.get("recent_topics",[])]
         lead,sources=discover(channel,previous); package=create_package(channel,lead,sources)
+        workflow_run_id = os.environ.get("GITHUB_RUN_ID", "")
         job={"job_id":key,"channel":channel,"channel_title":CHANNELS[channel]["title"],
              "owner_account":CHANNELS[channel]["owner"],"slot":slot,"publish_at":target.isoformat(),
+             "workflow_run_id":workflow_run_id,
+             "artifact_name":f"longform-{channel}-{workflow_run_id}" if workflow_run_id else "",
              "title":package["title"],"topic_title":lead["title"],"lead":lead,"sources":sources,
              "package":package,"status":"scripted","created_at":datetime.now(timezone.utc).isoformat()}
         # Persist enough to resume script/render/upload, but do not put full scraped
