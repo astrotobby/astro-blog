@@ -1291,6 +1291,7 @@ def fetch_scene_assets(script, cfg, variant):
         )
 
         if source:
+            source["visual_hashes"] = hashes
             provenance.append(source)
             source_id = source.get("id")
             if source_id:
@@ -1315,6 +1316,7 @@ def fetch_scene_assets(script, cfg, variant):
 
         if alt_path:
             if alt_source:
+                alt_source["visual_hashes"] = alt_hashes
                 provenance.append(alt_source)
                 if alt_source.get("id"):
                     recent_ids.add(alt_source["id"])
