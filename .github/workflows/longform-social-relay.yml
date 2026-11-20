@@ -36,6 +36,7 @@ jobs:
           path: |
             .pipeline/state/ig_token.txt
             .pipeline/state/ig_seed.txt
+            .pipeline/state/longform_social_relay_ledger.json
           key: longform-social-state-${{ github.run_id }}
           restore-keys: |
             longform-social-state-
@@ -77,4 +78,5 @@ jobs:
             .pipeline/state/rumble_state.enc
             .pipeline/state/ig_token.txt
             .pipeline/state/ig_seed.txt
+            .pipeline/state/longform_social_relay_ledger.json
           key: longform-social-state-${{ github.run_id }}
