@@ -1,0 +1,87 @@
+name: AI-GEMS long-form social relay
+
+on:
+  repository_dispatch:
+    types: [longform_video_ready]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: longform-social-relay
+  cancel-in-progress: false
+
+jobs:
+  publish-social:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout astro-blog publisher
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install media and social publishing dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install --disable-pip-version-check requests PyYAML PyNaCl playwright
+
+      - name: Restore rotating Instagram and Rumble session state
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .pipeline/state/rumble_state.enc
+            .pipeline/state/ig_token.txt
+            .pipeline/state/ig_seed.txt
+          key: longform-social-state-${{ github.run_id }}
+          restore-keys: |
+            longform-social-state-
+
+      - name: Install Chromium for Rumble publisher
+        run: python -m playwright install --with-deps chromium
+
+      - name: Publish to Facebook, Instagram and Rumble
+        env:
+          JOB_ID: ${{ github.event.client_payload.job_id }}
+          CHANNEL: ${{ github.event.client_payload.channel }}
+          VIDEO_TITLE: ${{ github.event.client_payload.title }}
+          VIDEO_DESCRIPTION: ${{ github.event.client_payload.description }}
+          YOUTUBE_URL: ${{ github.event.client_payload.youtube_url }}
+          VIDEO_URL: ${{ github.event.client_payload.video_url }}
+          TAGS_JSON: ${{ toJSON(github.event.client_payload.tags) }}
+          FORCE_RETRY: ${{ github.event.client_payload.force_retry }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
+          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+          INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
+          RUMBLE_EMAIL: ${{ secrets.RUMBLE_EMAIL }}
+          RUMBLE_PASSWORD: ${{ secrets.RUMBLE_PASSWORD }}
+          RUMBLE_STORAGE_STATE: ${{ secrets.RUMBLE_STORAGE_STATE }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ARGS=(
+            --job-id "$JOB_ID"
+            --channel "$CHANNEL"
+            --title "$VIDEO_TITLE"
+            --description "$VIDEO_DESCRIPTION"
+            --youtube-url "$YOUTUBE_URL"
+            --video-url "$VIDEO_URL"
+            --tags-json "${TAGS_JSON:-[]}"
+          )
+          if [ "$FORCE_RETRY" = "true" ]; then ARGS+=(--force-retry); fi
+          python scripts/longform_social_relay.py "${ARGS[@]}"
+
+      - name: Persist rotating Instagram and Rumble session state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .pipeline/state/rumble_state.enc
+            .pipeline/state/ig_token.txt
+            .pipeline/state/ig_seed.txt
+          key: longform-social-state-${{ github.run_id }}
