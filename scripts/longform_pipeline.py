@@ -764,8 +764,9 @@ No markdown headings, bullets, timecodes, stage directions or URLs in the spoken
 
 def build_render_script(job_id,lead,sources,package,cfg):
     narration=package["narration"]
-    post={"slug":job_id,"title":package["title"],"description":package["description"],
-          "body":narration,"tags":package["tags"],"url":lead["url"],"image_url":"",
+    post={"slug":job_id,"title":package["title"],"source_title":lead.get("title",""),
+          "description":package["description"],"body":narration,"tags":package["tags"],
+          "url":lead["url"],"image_url":"",
           "source_urls":[row.get("url","") for row in sources if row.get("url")]}
     category=build_script.detect_topic_category(post)
     return {"post":post,"hook":narration[:180].split(".")[0],"narration":narration,"narration_yt":narration,
