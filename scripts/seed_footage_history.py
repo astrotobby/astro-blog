@@ -86,7 +86,11 @@ def main() -> int:
                 job.get("rendered_at") or job.get("created_at") or "",
                 now,
             )
-            for asset in job.get("stock_sources") or []:
+            # Include active footage plus assets from videos that have since been
+            # replaced/privated. A source must not quietly re-enter the pool later.
+            historical_assets = list(job.get("stock_sources") or [])
+            historical_assets.extend(job.get("original_stock_sources") or [])
+            for asset in historical_assets:
                 asset_id = str(asset.get("id") or "").strip()
                 if not asset_id or asset_id in known:
                     continue
