@@ -201,8 +201,14 @@ class FootageBriefTests(unittest.TestCase):
             ],
         }
         cfg = {"video": {"vertical": {"w": 1080, "h": 1920}, "horizontal": {"w": 1920, "h": 1080}}}
-        result = (Path("/tmp/scene.mp4"), {"scene_type": "HOOK"}, None)
-        with patch.object(generate_video, "_fetch_scene", return_value=result) as fetch:
+        result_one = (Path("/tmp/scene-one.png"), {"scene_type": "HOOK"}, None)
+        result_two = (Path("/tmp/scene-two.png"), {"scene_type": "CTA"}, None)
+        with (
+            patch.object(generate_video, "_load_footage_history", return_value=[]),
+            patch.object(generate_video, "_save_footage_history"),
+            patch.object(generate_video, "_visual_hashes", side_effect=[["1111111111111111"], ["eeeeeeeeeeeeeeee"]]),
+            patch.object(generate_video, "_fetch_scene", side_effect=[result_one, result_two]) as fetch,
+        ):
             assets, sources = generate_video.fetch_scene_assets(script, cfg, "horizontal")
         self.assertEqual(len(assets), 2)
         self.assertEqual(sources, [])
