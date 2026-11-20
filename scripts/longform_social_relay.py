@@ -19,11 +19,11 @@ from urllib.parse import urlparse
 
 import requests
 
-from common import OUT, ROOT, load_config, log
+from common import OUT, STATE, load_config, log
 import platforms
 
 
-LEDGER_PATH = ROOT / "social-relay-ledger.json"
+LEDGER_PATH = STATE / "longform_social_relay_ledger.json"
 MAX_VIDEO_BYTES = 1_000_000_000
 MAX_INSTAGRAM_SECONDS = 15 * 60
 
@@ -42,27 +42,11 @@ def _load_ledger() -> dict:
 
 
 def _persist_ledger(data: dict) -> None:
-    LEDGER_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    if not os.environ.get("GITHUB_ACTIONS"):
-        return
-    subprocess.run(["git", "config", "user.name", "longform-social-relay[bot]"], check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "longform-social-relay@users.noreply.github.com"],
-        check=True,
-    )
-    subprocess.run(["git", "add", str(LEDGER_PATH.relative_to(ROOT))], check=True)
-    staged = subprocess.run(["git", "diff", "--cached", "--quiet"], check=False)
-    if staged.returncode == 0:
-        return
-    subprocess.run(
-        ["git", "commit", "-m", "Record long-form social publishing results"],
-        check=True,
-        cwd=ROOT,
-    )
-    branch = subprocess.run(
-        ["git", "branch", "--show-current"], check=True, capture_output=True, text=True, cwd=ROOT
-    ).stdout.strip() or "main"
-    subprocess.run(["git", "push", "origin", f"HEAD:{branch}"], check=True, cwd=ROOT)
+    """Persist destination idempotency in the private Actions cache, not public git."""
+    LEDGER_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = LEDGER_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(LEDGER_PATH)
 
 
 def _download_video(url: str, job_id: str) -> Path:
