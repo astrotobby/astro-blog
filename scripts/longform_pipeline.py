@@ -696,7 +696,7 @@ Source bundle:
 {chr(10).join(evidence)[:26000]}
 
 Return ONLY valid JSON: title, description, tags (array), narration (string).
-Title: compelling, accurate, <=95 characters. Description: 2-4 paragraphs. Tags: 10-15 items.
+Title: compelling, accurate, <=95 characters. Description: exactly 1-2 short, natural sentences, maximum 280 characters total. Keep it brief and viewer-focused. Do not include source names, citations, references, footnotes, URLs, links, bibliography, hashtags, bullets or markdown in the description. Tags: 10-15 items.
 Narration must be 2,050-2,250 spoken words, target about 2,150, absolute minimum 1,900.
 Build a complete 10+ minute episode as eight fully developed spoken segments: hook and stakes (about 150 words),
 verified event and timeline (about 300), context and background (about 300), key people and organisations (about 250),
@@ -743,12 +743,22 @@ No markdown headings, bullets, timecodes, stage directions or URLs in the spoken
     if not 1900<=words<=2500: raise RuntimeError(f"Script word count outside bounds: {words} (minimum 1,900)")
     title=re.sub(r"\s+"," ",str(data.get("title") or lead["title"])).strip()[:95]
     desc=str(data.get("description") or "").strip()
+    # Keep YouTube descriptions concise and free of citations/source lists for both channels.
+    # Research citations remain in the internal evidence and narration workflow, not the description.
+    desc=re.sub(r"(?is)\\n\\s*(?:sources?(?: and further reading)?|references?|citations?|further reading)\\s*:.*$", "", desc)
+    desc=re.sub(r"\\[([^\\]]+)\\]\\((?:https?://|www\\.)[^)]+\\)", r"\\1", desc, flags=re.I)
+    desc=re.sub(r"https?://\\S+|www\\.\\S+", "", desc, flags=re.I)
+    desc=re.sub(r"\\[\\s*\\d{1,3}\\s*\\]|\\(\\s*\\d{1,3}\\s*\\)", "", desc)
+    desc=re.sub(r"(?m)^\\s*(?:[-*•]|\\d+[.)])\\s+.*$", "", desc)
+    desc=re.sub(r"\\s+", " ", desc).strip(" \\t\\r\\n-–—;:,.")
+    sentences=re.split(r"(?<=[.!?])\\s+", desc)
+    desc=" ".join(sentences[:2]).strip()
+    if len(desc)>280:
+        desc=desc[:280].rsplit(" ",1)[0].rstrip(" ,;:-") + "."
     raw_tags=data.get("tags") or []
     if isinstance(raw_tags,str): raw_tags=raw_tags.split(",")
     tags=[re.sub(r"[^A-Za-z0-9]","",str(x).replace(" ",""))[:30] for x in raw_tags if str(x).strip()][:15]
     if not title or not desc or not tags: raise RuntimeError("Model omitted title, description or tags")
-    credits="\n".join(f"- {s.get('publisher') or 'Source'}: {s['title']} — {s['url']}" for s in sources)
-    desc=(desc[:3300]+"\n\nSources and further reading:\n"+credits)[:4800]
     return {"title":title,"description":desc,"tags":tags,"narration":narration,"word_count":words,"model":model}
 
 
