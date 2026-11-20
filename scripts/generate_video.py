@@ -231,11 +231,20 @@ def _find_visual_duplicate(hashes: list[str], history: list[dict]) -> dict | Non
     return None
 
 
-def _history_record(asset_id: str, provider: str, hashes: list[str]) -> dict:
+def _history_record(
+    asset_id: str,
+    provider: str,
+    hashes: list[str],
+    *,
+    slug: str = "",
+    variant: str = "",
+) -> dict:
     return {
         "id": asset_id,
         "provider": provider,
         "visual_hashes": hashes,
+        "slug": slug,
+        "variant": variant,
         "used_at": time.time(),
     }
 
