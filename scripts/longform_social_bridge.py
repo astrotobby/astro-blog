@@ -170,11 +170,39 @@ def _post_one(destination: str, render: dict, cfg: dict, dry_run: bool) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--check-destinations", action="store_true",
+                        help="check Facebook, Instagram and Rumble credentials without publishing")
     parser.add_argument("--limit", type=int, default=MAX_PER_RUN)
     args = parser.parse_args()
     limit = max(1, min(int(args.limit), 20))
 
     cfg = load_config()
+    if args.check_destinations:
+        # Existing publishers return before upload in dry-run mode. Instagram may
+        # refresh the token cache; no media is uploaded and no post is created.
+        dummy = {
+            "post": {"slug": "credential-preflight", "title": "Credential preflight",
+                     "description": "", "url": ""},
+            "platform": {"caption": "", "ig_caption": "", "yt_desc": "", "hashtags": []},
+            "videos": {"horizontal": "", "vertical": "", "public_url": ""},
+        }
+        results = {}
+        for destination in DESTINATIONS:
+            try:
+                results[destination] = _post_one(destination, dummy, cfg, True)
+            except Exception as exc:
+                results[destination] = {"ok": False, "error": f"{type(exc).__name__}: {str(exc)[:300]}"}
+            print(json.dumps({
+                "destination": destination,
+                "preflight": True,
+                "result": results[destination],
+            }, ensure_ascii=False))
+        missing = [name for name, result in results.items()
+                   if not result.get("ok") and result.get("skipped") == "no creds"]
+        errors = [name for name, result in results.items() if result.get("error")]
+        log(f"Social credential preflight: {len(DESTINATIONS)-len(missing)-len(errors)}/{len(DESTINATIONS)} configured")
+        return 1 if errors else 0
+
     state_path = STATE / "longform_social_ledger.json"
     state = _load_state(state_path)
     session = requests.Session()
