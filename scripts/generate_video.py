@@ -149,6 +149,97 @@ def _save_footage_history(items):
         log(f"footage history write skipped: {exc}")
 
 
+def _phash_image(image) -> str:
+    """DCT perceptual hash that survives resizing, cropping and re-encoding."""
+    from PIL import Image
+
+    image = image.convert("L").resize((32, 32))
+    pixels = list(image.getdata())
+    cosines = [[math.cos((2 * x + 1) * u * math.pi / 64) for x in range(32)]
+               for u in range(8)]
+    rows = []
+    for u in range(8):
+        rows.append([
+            sum(pixels[y * 32 + x] * cosines[u][x] for x in range(32))
+            for y in range(32)
+        ])
+    coeffs = []
+    for u in range(8):
+        for v in range(8):
+            coeffs.append(sum(rows[u][y] * cosines[v][y] for y in range(32)))
+    ac = coeffs[1:]
+    median = sorted(ac)[len(ac) // 2]
+    bits = 0
+    for value in ac:
+        bits = (bits << 1) | int(value > median)
+    return f"{bits:016x}"
+
+
+def _visual_hashes(path: Path) -> list[str]:
+    """Fingerprint an image or five evenly-spaced frames from a video clip."""
+    from PIL import Image
+
+    path = Path(path)
+    if not path.exists() or path.stat().st_size < 1024:
+        raise RuntimeError(f"Visual asset is missing or too small to fingerprint: {path}")
+    if path.suffix.lower() not in {".mp4", ".mov", ".m4v", ".webm", ".mkv"}:
+        with Image.open(path) as image:
+            return [_phash_image(image)]
+
+    duration = ffprobe_duration(path)
+    if duration <= 0:
+        raise RuntimeError(f"Could not determine duration for visual clip: {path}")
+    hashes = []
+    for fraction in VISUAL_SCAN_FRAME_FRACTIONS:
+        timestamp = max(0.0, min(duration - 0.08, duration * fraction))
+        result = subprocess.run(
+            [
+                "ffmpeg", "-hide_banner", "-loglevel", "error",
+                "-ss", f"{timestamp:.3f}", "-i", str(path),
+                "-frames:v", "1", "-vf", "scale=32:32:flags=area",
+                "-f", "image2pipe", "-vcodec", "png", "pipe:1",
+            ],
+            capture_output=True, timeout=25, check=False,
+        )
+        if result.returncode != 0 or not result.stdout:
+            raise RuntimeError(f"Could not extract a frame for visual duplicate checking: {path}")
+        with Image.open(io.BytesIO(result.stdout)) as frame:
+            hashes.append(_phash_image(frame))
+    return hashes
+
+
+def _hamming_distance(left: str, right: str) -> int:
+    return (int(left, 16) ^ int(right, 16)).bit_count()
+
+
+def _find_visual_duplicate(hashes: list[str], history: list[dict]) -> dict | None:
+    """Detect exact/near-identical stills and footage, including cross-provider copies."""
+    if not hashes:
+        return {"id": "missing-visual-fingerprint"}
+    for item in history:
+        previous = item.get("visual_hashes") or []
+        if not previous:
+            continue
+        matched_frames = sum(
+            1 for current_hash in hashes
+            if any(_hamming_distance(current_hash, old_hash) <= VISUAL_PHASH_THRESHOLD
+                   for old_hash in previous)
+        )
+        required = 1 if len(hashes) == 1 or len(previous) == 1 else 2
+        if matched_frames >= required:
+            return item
+    return None
+
+
+def _history_record(asset_id: str, provider: str, hashes: list[str]) -> dict:
+    return {
+        "id": asset_id,
+        "provider": provider,
+        "visual_hashes": hashes,
+        "used_at": time.time(),
+    }
+
+
 def run(cmd, **kw):
     log("$ " + " ".join(str(c) for c in cmd))
     subprocess.run(cmd, check=True, **kw)
