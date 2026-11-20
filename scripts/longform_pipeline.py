@@ -745,13 +745,13 @@ No markdown headings, bullets, timecodes, stage directions or URLs in the spoken
     desc=str(data.get("description") or "").strip()
     # Keep YouTube descriptions concise and free of citations/source lists for both channels.
     # Research citations remain in the internal evidence and narration workflow, not the description.
-    desc=re.sub(r"(?is)\\n\\s*(?:sources?(?: and further reading)?|references?|citations?|further reading)\\s*:.*$", "", desc)
-    desc=re.sub(r"\\[([^\\]]+)\\]\\((?:https?://|www\\.)[^)]+\\)", r"\\1", desc, flags=re.I)
-    desc=re.sub(r"https?://\\S+|www\\.\\S+", "", desc, flags=re.I)
-    desc=re.sub(r"\\[\\s*\\d{1,3}\\s*\\]|\\(\\s*\\d{1,3}\\s*\\)", "", desc)
-    desc=re.sub(r"(?m)^\\s*(?:[-*•]|\\d+[.)])\\s+.*$", "", desc)
-    desc=re.sub(r"\\s+", " ", desc).strip(" \\t\\r\\n-–—;:,.")
-    sentences=re.split(r"(?<=[.!?])\\s+", desc)
+    desc=re.sub(r"(?is)\n\s*(?:sources?(?: and further reading)?|references?|citations?|further reading)\s*:.*$", "", desc)
+    desc=re.sub(r"\[([^\]]+)\]\((?:https?://|www\.)[^)]+\)", r"\1", desc, flags=re.I)
+    desc=re.sub(r"https?://\S+|www\.\S+", "", desc, flags=re.I)
+    desc=re.sub(r"\[\s*\d{1,3}\s*\]|\(\s*\d{1,3}\s*\)", "", desc)
+    desc=re.sub(r"(?m)^\s*(?:[-*•]|\d+[.)])\s+.*$", "", desc)
+    desc=re.sub(r"\s+", " ", desc).strip(" \t\r\n-–—;:,.")
+    sentences=re.split(r"(?<=[.!?])\s+", desc)
     desc=" ".join(sentences[:2]).strip()
     if len(desc)>280:
         desc=desc[:280].rsplit(" ",1)[0].rstrip(" ,;:-") + "."
