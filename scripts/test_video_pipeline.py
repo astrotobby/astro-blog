@@ -308,5 +308,86 @@ class VoiceAndEditTimingTests(unittest.TestCase):
                          ["THIS IS BIG.", "AGENTS NOW RUN", "REAL WORK"])
 
 
+class VisualDuplicateGuardTests(unittest.TestCase):
+    def _pattern_image(self, path, checker=False):
+        from PIL import Image
+        image = Image.new("RGB", (192, 128))
+        pixels = []
+        for y in range(128):
+            for x in range(192):
+                if checker:
+                    value = 240 if ((x // 12) + (y // 12)) % 2 else 12
+                    pixels.append((value, value, value))
+                else:
+                    value = int(35 + 0.8 * x + 0.2 * y) % 256
+                    pixels.append((value, int(value * 0.65) % 256, 255 - value))
+        image.putdata(pixels)
+        image.save(path, format="PNG")
+
+    def test_perceptual_hash_detects_the_same_image(self):
+        with TemporaryDirectory() as temporary_dir:
+            first = Path(temporary_dir) / "first.png"
+            second = Path(temporary_dir) / "copy.png"
+            self._pattern_image(first)
+            self._pattern_image(second)
+            first_hashes = generate_video._visual_hashes(first)
+            second_hashes = generate_video._visual_hashes(second)
+            self.assertEqual(first_hashes, second_hashes)
+            match = generate_video._find_visual_duplicate(
+                second_hashes, [{"id": "previous-channel-image", "visual_hashes": first_hashes}]
+            )
+            self.assertIsNotNone(match)
+            self.assertEqual(match["id"], "previous-channel-image")
+
+    def test_perceptually_different_images_are_not_duplicates(self):
+        with TemporaryDirectory() as temporary_dir:
+            first = Path(temporary_dir) / "gradient.png"
+            second = Path(temporary_dir) / "checker.png"
+            self._pattern_image(first)
+            self._pattern_image(second, checker=True)
+            first_hashes = generate_video._visual_hashes(first)
+            second_hashes = generate_video._visual_hashes(second)
+            self.assertIsNone(generate_video._find_visual_duplicate(
+                second_hashes, [{"id": "different-image", "visual_hashes": first_hashes}]
+            ))
+
+    def test_scene_fetch_retries_duplicate_asset_before_accepting_new_one(self):
+        with TemporaryDirectory() as temporary_dir:
+            repeated = Path(temporary_dir) / "repeated.png"
+            unique = Path(temporary_dir) / "unique.png"
+            self._pattern_image(repeated)
+            self._pattern_image(unique, checker=True)
+            repeated_hashes = generate_video._visual_hashes(repeated)
+            history = [{
+                "id": "old-cross-channel-asset",
+                "provider": "Openverse",
+                "visual_hashes": repeated_hashes,
+                "used_at": 1,
+                "slug": "previous-post",
+                "variant": "vertical",
+            }]
+            script = {
+                "post": {"slug": "new-post", "title": "A new story", "image_url": ""},
+                "scene_prompts": ["HOOK|broll:topic-specific image|fallback:topic image"],
+            }
+            cfg = {"video": {"vertical": {"w": 1080, "h": 1920}}}
+
+            with (
+                patch.object(generate_video, "_load_footage_history", return_value=history),
+                patch.object(generate_video, "_save_footage_history") as save_history,
+                patch.object(generate_video, "_fetch_scene", side_effect=[
+                    (str(repeated), {}, {"id": "pexels:copy", "provider": "Pexels"}),
+                    (str(unique), {}, {"id": "pixabay:unique", "provider": "Pixabay"}),
+                ]) as fetch,
+            ):
+                assets, sources = generate_video.fetch_scene_assets(script, cfg, "vertical")
+
+            self.assertEqual(fetch.call_count, 2)
+            self.assertEqual(assets[0][0], str(unique))
+            self.assertFalse(repeated.exists())
+            self.assertEqual(sources[0]["id"], "pixabay:unique")
+            save_history.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()
