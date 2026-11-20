@@ -160,7 +160,7 @@ def publish(args) -> int:
 
     ledger = _load_ledger()
     entry = ledger.get(job_id) or {}
-    if entry.get("completed"):
+    if entry.get("completed") and not args.force_retry:
         log(f"Social relay already completed for {job_id}; skipping duplicate event")
         return 0
     if entry.get("in_flight") and not args.force_retry:
@@ -233,8 +233,13 @@ def publish(args) -> int:
     summary = {}
     for name, fn in destinations:
         previous = results.get(name) or {}
+        previous_result = previous.get("result") or {}
+        # Never repost a platform that already succeeded, even during a forced retry.
+        if previous_result.get("ok") is True:
+            summary[name] = previous_result
+            continue
         if previous.get("attempted") and not args.force_retry:
-            summary[name] = previous.get("result") or {"ok": False, "skipped": "previous attempt recorded"}
+            summary[name] = previous_result or {"ok": False, "skipped": "previous attempt recorded; manual retry required"}
             continue
         if name == "instagram" and (
             media["duration_seconds"] > MAX_INSTAGRAM_SECONDS
