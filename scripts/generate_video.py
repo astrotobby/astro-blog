@@ -1310,13 +1310,14 @@ def fetch_scene_assets(script, cfg, variant):
                 variant=variant,
             ))
 
-        if alt_path and alt_source:
-            provenance.append(alt_source)
-            if alt_source.get("id"):
-                recent_ids.add(alt_source["id"])
+        if alt_path:
+            if alt_source:
+                provenance.append(alt_source)
+                if alt_source.get("id"):
+                    recent_ids.add(alt_source["id"])
             applicable_history.append(_history_record(
-                alt_source.get("id") or f"visual:{alt_hashes[0]}",
-                alt_source.get("provider") or "stock-footage",
+                (alt_source or {}).get("id") or f"generated-image:{alt_hashes[0]}",
+                (alt_source or {}).get("provider") or "generated-image",
                 alt_hashes,
                 slug=post_slug,
                 variant=variant,
