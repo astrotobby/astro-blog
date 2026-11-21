@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import time
 from datetime import datetime, timedelta, timezone
@@ -50,6 +51,19 @@ def _save_state(path: Path, state: dict) -> None:
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(path)
+
+
+def _github_session() -> requests.Session:
+    """Create an authenticated GitHub API session for release polling and assets."""
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "AstroTobbyLongformSocialBridge/1.1",
+        "Accept": "application/vnd.github+json",
+    })
+    token = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
+    if token:
+        session.headers["Authorization"] = f"Bearer {token}"
+    return session
 
 
 def _releases(session: requests.Session) -> list[dict]:
@@ -237,17 +251,9 @@ def main() -> int:
 
     state_path = STATE / "longform_social_ledger.json"
     state = _load_state(state_path)
-    session = requests.Session()
-    session.headers.update({
-        "User-Agent": "AstroTobbyLongformSocialBridge/1.1",
-        "Accept": "application/vnd.github+json",
-    })
     # The AI-GEMS release listing is called every 15 minutes. Authenticate it so
     # GitHub does not apply the low unauthenticated API rate limit to the poller.
-    github_token = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
-    if github_token:
-        session.headers["Authorization"] = f"Bearer {github_token}"
-
+    session = _github_session()
     releases = _releases(session)
     now = datetime.now(timezone.utc)
     if args.has_pending:
