@@ -1,0 +1,70 @@
+name: leadsleap-traffic-campaign
+
+# A 14-day educational promotion pilot. Posts only to external social platforms;
+# this workflow never automates LeadsLeap surfing or member-area interactions.
+on:
+  schedule:
+    - cron: "30 5 * * *" # 08:30 Africa/Nairobi (UTC+3)
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Actually publish posts (false = preview only)"
+        type: boolean
+        required: true
+        default: false
+
+concurrency:
+  group: leadsleap-traffic-campaign
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install posting dependencies
+        run: python -m pip install --disable-pip-version-check requests tweepy
+
+      - name: Validate campaign content and tracking links
+        run: python scripts/test_leadsleap_campaign.py
+
+      - name: Restore daily deduplication state
+        uses: actions/cache/restore@v4
+        with:
+          path: .pipeline/state/leadsleap-campaign.json
+          key: leadsleap-campaign-${{ github.run_id }}
+          restore-keys: |
+            leadsleap-campaign-
+
+      - name: Preview or publish campaign
+        env:
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          X_API_KEY: ${{ secrets.X_API_KEY || secrets.X_API }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET || secrets.CONSUMER_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN || secrets.ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET || secrets.X_SECRET }}
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.publish }}" = "true" ]; then
+            python scripts/leadsleap_campaign.py --publish
+          else
+            python scripts/leadsleap_campaign.py
+          fi
+
+      - name: Save daily deduplication state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .pipeline/state/leadsleap-campaign.json
+          key: leadsleap-campaign-${{ github.run_id }}
