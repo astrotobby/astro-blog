@@ -283,6 +283,29 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
     if any(not item.get("visual_hashes") for item in stock_sources):
         raise RuntimeError(f"Repaired render has a source without a visual fingerprint for {job_id}")
 
+    # Refresh the original video status after the long render. Its scheduled
+    # publishAt may have elapsed while scenes were being generated; in that case
+    # the replacement must go public now instead of carrying a past publishAt.
+    latest_originals = yt.videos().list(
+        part="snippet,status", id=original_video_id
+    ).execute().get("items") or []
+    if not latest_originals:
+        raise RuntimeError("Original video disappeared before replacement upload; refusing to publish")
+    latest_original = latest_originals[0]
+    if (latest_original.get("snippet") or {}).get("channelId") != identity["id"]:
+        raise RuntimeError("Safety stop: original video channel changed before replacement upload")
+    old_status = latest_original.get("status") or old_status
+    current_publish_at = old_status.get("publishAt")
+    if current_publish_at:
+        scheduled_time = datetime.fromisoformat(str(current_publish_at).replace("Z", "+00:00"))
+        if scheduled_time.tzinfo is None:
+            raise RuntimeError("Original YouTube publishAt has no timezone")
+        if scheduled_time <= datetime.now(timezone.utc) and old_status.get("privacyStatus") == "private":
+            log("Original scheduled release time elapsed during rendering; making replacement public now")
+            old_status = dict(old_status)
+            old_status["privacyStatus"] = "public"
+            old_status.pop("publishAt", None)
+
     replacement = upload_replacement(yt, video_path, package, channel, old_status)
     thumb_result = None
     try:
