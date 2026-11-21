@@ -1108,11 +1108,10 @@ def set_and_verify_thumbnail(yt, video_id, thumbnail_path):
         if not any(thumbnails.get(size, {}).get("url") for size in ("maxres", "standard", "high", "medium", "default")):
             raise RuntimeError("YouTube custom thumbnail upload could not be verified")
     except Exception:
-        # The upload has already been assigned a future publishAt. Cancel that
-        # schedule before propagating the error so a failed thumbnail gate cannot
-        # leak a partially validated video into public release.
+        # Keep the upload private and explicitly clear publishAt before propagating
+        # the error. A failed thumbnail gate must never leave a public release queued.
         yt.videos().update(part="status", body={
-            "id": video_id, "status": {"privacyStatus": "private"}
+            "id": video_id, "status": {"privacyStatus": "private", "publishAt": None}
         }).execute()
         check = yt.videos().list(part="status", id=video_id).execute().get("items") or []
         status = (check[0].get("status") or {}) if check else {}
