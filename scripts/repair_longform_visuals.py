@@ -89,8 +89,26 @@ def build_custom_thumbnail(video: Path, title: str, job_id: str) -> Path:
     return thumb
 
 
-def upload_public(yt, video: Path, package: dict, channel: str) -> dict:
+def upload_replacement(yt, video: Path, package: dict, channel: str,
+                      original_status: dict) -> dict:
+    """Upload a replacement while preserving the original video's visibility/schedule."""
     from googleapiclient.http import MediaFileUpload
+
+    original_privacy = str(original_status.get("privacyStatus") or "public")
+    original_publish_at = original_status.get("publishAt")
+    # Scheduled YouTube uploads are private until their exact publishAt timestamp.
+    # Never make a future scheduled replacement public early.
+    if original_privacy == "private" and original_publish_at:
+        expected_privacy = "private"
+    else:
+        expected_privacy = original_privacy if original_privacy in {"public", "unlisted"} else "public"
+
+    new_status = {
+        "privacyStatus": expected_privacy,
+        "selfDeclaredMadeForKids": False,
+    }
+    if expected_privacy == "private" and original_publish_at:
+        new_status["publishAt"] = original_publish_at
 
     body = {
         "snippet": {
@@ -99,10 +117,7 @@ def upload_public(yt, video: Path, package: dict, channel: str) -> dict:
             "tags": list(package.get("tags") or [])[:15],
             "categoryId": lp.CHANNELS[channel]["category"],
         },
-        "status": {
-            "privacyStatus": "public",
-            "selfDeclaredMadeForKids": False,
-        },
+        "status": new_status,
     }
     media = MediaFileUpload(str(video), mimetype="video/mp4", chunksize=8 * 1024 * 1024, resumable=True)
     request = yt.videos().insert(part="snippet,status", body=body, media_body=media)
@@ -123,10 +138,17 @@ def upload_public(yt, video: Path, package: dict, channel: str) -> dict:
     expected_id = lp.CHANNELS[channel]["channel_id"]
     if snippet.get("channelId") != expected_id:
         raise RuntimeError("Replacement video resolved to the wrong YouTube channel")
-    if status.get("privacyStatus") != "public":
+    if status.get("privacyStatus") != expected_privacy:
         raise RuntimeError(
-            f"YouTube accepted the replacement but privacy status is {status.get('privacyStatus')!r}, not public"
+            f"YouTube replacement visibility mismatch: expected {expected_privacy!r}, "
+            f"got {status.get('privacyStatus')!r}"
         )
+    if expected_privacy == "private" and original_publish_at:
+        if status.get("publishAt") != original_publish_at:
+            raise RuntimeError(
+                f"YouTube did not preserve the scheduled release time: "
+                f"expected {original_publish_at!r}, got {status.get('publishAt')!r}"
+            )
     return {"video_id": video_id, "url": f"https://youtu.be/{video_id}", "status": status}
 
 
@@ -163,9 +185,10 @@ def create_social_handoff(video: Path, job: dict, replacement: dict, channel: st
         "tags": job["package"].get("tags") or [],
         "video_id": replacement["video_id"],
         "youtube_url": replacement["url"],
-        "publish_at": datetime.now(timezone.utc).isoformat(),
+        "publish_at": str(job.get("publish_at") or replacement["status"].get("publishAt")
+                           or datetime.now(timezone.utc).isoformat()),
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "privacy_status": "public",
+        "privacy_status": str(replacement["status"].get("privacyStatus") or "public"),
     }
     tag = f"social-handoff-repair-{channel}-{job_id}-{replacement['video_id']}"
     with tempfile.TemporaryDirectory() as temporary_dir:
@@ -259,7 +282,7 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
     if any(not item.get("visual_hashes") for item in stock_sources):
         raise RuntimeError(f"Repaired render has a source without a visual fingerprint for {job_id}")
 
-    replacement = upload_public(yt, video_path, package, channel)
+    replacement = upload_replacement(yt, video_path, package, channel, old_status)
     thumb_result = None
     try:
         thumb_path = build_custom_thumbnail(video_path, package["title"], repair_slug)
@@ -277,7 +300,8 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
     except Exception as exc:
         log(f"Custom thumbnail could not be verified; YouTube's generated thumbnail remains: {str(exc)[:200]}")
 
-    # The replacement is verified public before the old public version is taken down.
+    # The replacement is verified with the original visibility and scheduled release time
+    # before the old version is made private.
     if replace_old:
         set_private_and_verify(yt, original_video_id, identity["id"])
 
@@ -289,7 +313,12 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
     job["previous_url"] = f"https://youtu.be/{original_video_id}"
     job["video_id"] = replacement["video_id"]
     job["url"] = replacement["url"]
-    job["status"] = "published"
+    replacement_status = replacement.get("status") or {}
+    job["status"] = (
+        "scheduled"
+        if replacement_status.get("privacyStatus") == "private" and replacement_status.get("publishAt")
+        else "published"
+    )
     job["package"] = package
     job["stock_sources"] = stock_sources
     job["media"] = media
@@ -314,7 +343,8 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
         "old_privacy": "private" if replace_old else old_status.get("privacyStatus"),
         "new_video_id": replacement["video_id"],
         "new_url": replacement["url"],
-        "new_privacy": "public",
+        "new_privacy": (replacement.get("status") or {}).get("privacyStatus"),
+        "new_publish_at": (replacement.get("status") or {}).get("publishAt"),
         "description": package["description"],
         "source_count": len(stock_sources),
         "media": media,
