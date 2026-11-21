@@ -1304,15 +1304,18 @@ def fetch_scene_assets(script, cfg, variant):
                 variant=variant,
             ))
         else:
-            # Generated fallback images have no stable provider ID; pHash stops
-            # identical outputs from returning under a new filename or generated URL.
-            applicable_history.append(_history_record(
-                f"generated-image:{hashes[0]}",
-                "generated-image",
-                hashes,
-                slug=post_slug,
-                variant=variant,
-            ))
+            # Generated fallback images are first-class assets in the global ledger.
+            # Record every scene, not only provider-backed stock, so an identical
+            # generated image cannot reappear under a new URL or filename.
+            generated_id = f"generated-image:{hashes[0]}"
+            generated_record = _history_record(
+                generated_id, "generated-image", hashes, slug=post_slug, variant=variant
+            )
+            applicable_history.append(generated_record)
+            provenance.append({
+                "id": generated_id, "provider": "generated-image",
+                "title": f"Generated scene {index + 1}", "visual_hashes": hashes,
+            })
 
         if alt_path:
             if alt_source:
@@ -1320,12 +1323,17 @@ def fetch_scene_assets(script, cfg, variant):
                 provenance.append(alt_source)
                 if alt_source.get("id"):
                     recent_ids.add(alt_source["id"])
+            else:
+                provenance.append({
+                    "id": f"generated-image:{alt_hashes[0]}",
+                    "provider": "generated-image",
+                    "title": f"Generated alternate scene {index + 1}",
+                    "visual_hashes": alt_hashes,
+                })
             applicable_history.append(_history_record(
                 (alt_source or {}).get("id") or f"generated-image:{alt_hashes[0]}",
                 (alt_source or {}).get("provider") or "generated-image",
-                alt_hashes,
-                slug=post_slug,
-                variant=variant,
+                alt_hashes, slug=post_slug, variant=variant,
             ))
 
     # Save immediately after this master. The Actions cache persists it between
