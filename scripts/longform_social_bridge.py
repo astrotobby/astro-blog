@@ -19,6 +19,7 @@ import requests
 
 import platforms
 from common import OUT, STATE, load_config, log
+from longform_social_relay import _make_instagram_vertical
 
 AI_GEMS_RELEASES = "https://api.github.com/repos/astrotobby/AI-GEMS/releases"
 DESTINATIONS = ("facebook", "instagram", "rumble")
@@ -201,6 +202,54 @@ def _caption_data(manifest: dict) -> tuple[dict, dict]:
     return post, platform_data
 
 
+def _destination_done(result: dict | None) -> bool:
+    """A manual Rumble handoff is complete for automation, not a published post."""
+    return isinstance(result, dict) and (
+        result.get("ok") is True or result.get("manual_handoff") is True
+    )
+
+
+def _instagram_render(render: dict, video_path: Path, job_id: str) -> dict:
+    """Attach a dedicated 1080x1920 full-frame asset for Instagram Reels."""
+    vertical_path = _make_instagram_vertical(video_path, job_id)
+    videos = dict(render.get("videos") or {})
+    videos["vertical"] = str(vertical_path)
+    return {**render, "videos": videos}
+
+
+def _publish_destination(
+    destination: str,
+    render: dict,
+    cfg: dict,
+    dry_run: bool,
+    video_path: Path,
+    job_id: str,
+    video_asset: dict,
+) -> dict:
+    """Publish supported destinations without making Rumble legal attestations."""
+    if destination == "rumble" and not dry_run:
+        return {
+            "ok": False,
+            "manual_handoff": True,
+            "skipped": (
+                "Owner action required: review and confirm Rumble rights and terms "
+                "before uploading."
+            ),
+            "video_url": str(video_asset.get("browser_download_url") or ""),
+            "youtube_url": str((render.get("post") or {}).get("url") or ""),
+        }
+
+    if destination == "instagram" and not dry_run:
+        instagram_render = _instagram_render(render, video_path, job_id)
+        instagram_video = Path(instagram_render["videos"]["vertical"])
+        try:
+            return _post_one(destination, instagram_render, cfg, False)
+        finally:
+            instagram_video.unlink(missing_ok=True)
+
+    return _post_one(destination, render, cfg, dry_run)
+
+
 def _post_one(destination: str, render: dict, cfg: dict, dry_run: bool) -> dict:
     if destination == "facebook":
         return platforms.post_facebook(render, cfg, dry_run)
@@ -266,7 +315,7 @@ def main() -> int:
                     continue
                 prior = state["jobs"].get(str(manifest["job_id"])) or {}
                 results = prior.get("results") or {}
-                if any((results.get(destination) or {}).get("ok") is not True
+                if any(not _destination_done(results.get(destination))
                        for destination in DESTINATIONS):
                     ready = True
                     break
@@ -303,7 +352,7 @@ def main() -> int:
             results = prior.setdefault("results", {})
             pending = [
                 destination for destination in DESTINATIONS
-                if not ((results.get(destination) or {}).get("ok") is True)
+                if not _destination_done(results.get(destination))
             ]
             if not pending:
                 continue
@@ -337,14 +386,21 @@ def main() -> int:
                     "platform": platform_data,
                     "videos": {
                         "horizontal": str(video_path),
-                        "vertical": str(video_path),
                         "public_url": str(video_asset.get("browser_download_url") or ""),
                     },
                 }
 
             for destination in pending:
                 try:
-                    result = _post_one(destination, render, cfg, args.dry_run)
+                    result = _publish_destination(
+                        destination,
+                        render,
+                        cfg,
+                        args.dry_run,
+                        video_path,
+                        local_slug,
+                        video_asset,
+                    )
                 except Exception as exc:
                     result = {"ok": False, "error": f"{type(exc).__name__}: {str(exc)[:300]}"}
                 print(json.dumps({
@@ -358,18 +414,27 @@ def main() -> int:
                     results[destination] = result
                     prior["updated_at"] = datetime.now(timezone.utc).isoformat()
                     _save_state(state_path, state)
-                if not result.get("ok"):
+                if not result.get("ok") and not result.get("manual_handoff"):
                     failed += 1
 
             processed += 1
             if not args.dry_run and all(
-                (results.get(destination) or {}).get("ok") is True for destination in DESTINATIONS
+                _destination_done(results.get(destination)) for destination in DESTINATIONS
             ):
-                prior["status"] = "complete"
+                has_manual_rumble = bool((results.get("rumble") or {}).get("manual_handoff"))
+                prior["status"] = (
+                    "awaiting_manual_rumble_confirmation" if has_manual_rumble else "complete"
+                )
                 prior["completed_at"] = datetime.now(timezone.utc).isoformat()
                 _save_state(state_path, state)
                 video_path.unlink(missing_ok=True)
-                log(f"All social destinations completed for {job_id}; handoff retained until scheduled cleanup.")
+                if has_manual_rumble:
+                    log(
+                        f"Facebook and Instagram handled for {job_id}; "
+                        "Rumble awaits owner rights/terms confirmation."
+                    )
+                else:
+                    log(f"All social destinations completed for {job_id}; handoff retained until scheduled cleanup.")
         except Exception as exc:
             failed += 1
             log(f"social handoff {tag} failed: {type(exc).__name__}: {str(exc)[:350]}")

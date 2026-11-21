@@ -15,6 +15,18 @@ on:
       - scripts/test_video_pipeline.py
       - scripts/test_longform_social_relay.py
       - .github/workflows/visual-duplicate-tests.yml
+  pull_request:
+    paths:
+      - scripts/generate_video.py
+      - scripts/build_script.py
+      - scripts/seed_footage_history.py
+      - scripts/longform_social_relay.py
+      - scripts/longform_social_bridge.py
+      - scripts/platforms.py
+      - scripts/test_video_pipeline.py
+      - scripts/test_longform_social_relay.py
+      - scripts/test_longform_social_bridge.py
+      - .github/workflows/visual-duplicate-tests.yml
 
 permissions:
   contents: read
@@ -40,7 +52,7 @@ jobs:
 
       - name: Compile changed visual pipeline modules
         run: |
-          python -m py_compile scripts/generate_video.py scripts/build_script.py scripts/seed_footage_history.py scripts/longform_social_relay.py scripts/platforms.py
+          python -m py_compile scripts/generate_video.py scripts/build_script.py scripts/seed_footage_history.py scripts/longform_social_relay.py scripts/longform_social_bridge.py scripts/platforms.py scripts/test_longform_social_bridge.py
 
       - name: Run visual and video pipeline regression tests
         run: python -m unittest scripts/test_video_pipeline.py scripts/test_longform_social_relay.py scripts/test_longform_social_bridge.py -v

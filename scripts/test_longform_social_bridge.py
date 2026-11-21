@@ -79,5 +79,80 @@ class LongformSocialDownloadTests(unittest.TestCase):
             self.assertFalse(destination.with_suffix(".mp4.part").exists())
 
 
+class LongformSocialDestinationSafetyTests(unittest.TestCase):
+    def test_manual_rumble_handoff_does_not_call_automated_publisher(self):
+        video_url = "https://github.com/astrotobby/AI-GEMS/releases/download/test/video_16x9.mp4"
+        render = {"post": {"url": "https://youtu.be/test-video"}}
+        with patch.object(longform_social_bridge, "_post_one") as post_one:
+            result = longform_social_bridge._publish_destination(
+                "rumble",
+                render,
+                {},
+                False,
+                Path("master-16x9.mp4"),
+                "test-job",
+                {"browser_download_url": video_url},
+            )
+
+        post_one.assert_not_called()
+        self.assertTrue(result["manual_handoff"])
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["video_url"], video_url)
+        self.assertEqual(result["youtube_url"], "https://youtu.be/test-video")
+
+    def test_manual_handoff_is_done_for_poller_but_not_claimed_as_published(self):
+        self.assertTrue(
+            longform_social_bridge._destination_done(
+                {"ok": False, "manual_handoff": True}
+            )
+        )
+        self.assertTrue(longform_social_bridge._destination_done({"ok": True}))
+        self.assertFalse(
+            longform_social_bridge._destination_done(
+                {"ok": False, "error": "temporary failure"}
+            )
+        )
+        self.assertFalse(longform_social_bridge._destination_done(None))
+
+    def test_instagram_uses_dedicated_vertical_asset_and_cleans_it_up(self):
+        with TemporaryDirectory() as tmp:
+            source = Path(tmp) / "master-16x9.mp4"
+            vertical = Path(tmp) / "master-9x16.mp4"
+            source.write_bytes(b"horizontal")
+            vertical.write_bytes(b"vertical")
+            render = {
+                "post": {"slug": "test-job", "url": "https://youtu.be/test-video"},
+                "videos": {"horizontal": str(source)},
+            }
+
+            with patch.object(
+                longform_social_bridge,
+                "_make_instagram_vertical",
+                return_value=vertical,
+            ) as make_vertical, patch.object(
+                longform_social_bridge,
+                "_post_one",
+                return_value={"ok": True, "url": "https://instagram.com/reel/example"},
+            ) as post_one:
+                result = longform_social_bridge._publish_destination(
+                    "instagram",
+                    render,
+                    {},
+                    False,
+                    source,
+                    "test-job",
+                    {},
+                )
+
+            make_vertical.assert_called_once_with(source, "test-job")
+            post_one.assert_called_once()
+            posted_render = post_one.call_args.args[1]
+            self.assertEqual(posted_render["videos"]["horizontal"], str(source))
+            self.assertEqual(posted_render["videos"]["vertical"], str(vertical))
+            self.assertEqual(render["videos"], {"horizontal": str(source)})
+            self.assertTrue(result["ok"])
+            self.assertFalse(vertical.exists())
+
+
 if __name__ == "__main__":
     unittest.main()
