@@ -80,25 +80,45 @@ class LongformSocialDownloadTests(unittest.TestCase):
 
 
 class LongformSocialDestinationSafetyTests(unittest.TestCase):
-    def test_manual_rumble_handoff_does_not_call_automated_publisher(self):
+    def test_manual_rumble_handoff_creates_owner_packet_without_accepting_terms(self):
         video_url = "https://github.com/astrotobby/AI-GEMS/releases/download/test/video_16x9.mp4"
-        render = {"post": {"url": "https://youtu.be/test-video"}}
-        with patch.object(longform_social_bridge, "_post_one") as post_one:
-            result = longform_social_bridge._publish_destination(
-                "rumble",
-                render,
-                {},
-                False,
-                Path("master-16x9.mp4"),
-                "test-job",
-                {"browser_download_url": video_url},
-            )
+        render = {
+            "post": {
+                "url": "https://youtu.be/test-video",
+                "title": "Test long-form title",
+                "description": "Test description",
+                "channel": "digital_nomad",
+                "channel_title": "DIJITOL NOMAD",
+            },
+            "platform": {"yt_desc": "Test description", "hashtags": ["AI", "Automation"]},
+        }
+        with TemporaryDirectory() as tmp:
+            with patch.object(longform_social_bridge, "OUT", Path(tmp)), \
+                 patch.object(longform_social_bridge, "_post_one") as post_one:
+                result = longform_social_bridge._publish_destination(
+                    "rumble",
+                    render,
+                    {},
+                    False,
+                    Path("master-16x9.mp4"),
+                    "test-job",
+                    {"browser_download_url": video_url},
+                )
+            packet_path = Path(result["handoff_file"])
+            packet = json.loads(packet_path.read_text(encoding="utf-8"))
 
         post_one.assert_not_called()
         self.assertTrue(result["manual_handoff"])
         self.assertFalse(result["ok"])
+        self.assertTrue(result["owner_confirmation_required"])
         self.assertEqual(result["video_url"], video_url)
         self.assertEqual(result["youtube_url"], "https://youtu.be/test-video")
+        self.assertEqual(packet["primary_category"], "Technology")
+        self.assertEqual(packet["visibility"], "public")
+        self.assertTrue(packet["owner_confirmation_required"])
+        self.assertIn("personally confirm", packet["owner_action"])
+        self.assertIn("Rumble's rights/terms", packet["owner_action"])
+        self.assertNotIn("accepted", packet["status"])
 
     def test_manual_handoff_is_done_for_poller_but_not_claimed_as_published(self):
         self.assertTrue(
