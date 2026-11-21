@@ -958,24 +958,166 @@ def find_existing(yt,title,target):
 
 
 def upload_scheduled(yt,path,package,channel,target):
+    """Upload the rendered master as private and unscheduled until all QA passes."""
     from googleapiclient.http import MediaFileUpload
-    publish_at=target.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
     body={"snippet":{"title":package["title"][:95],"description":package["description"][:4800],
                      "tags":package["tags"][:15],"categoryId":CHANNELS[channel]["category"]},
-          "status":{"privacyStatus":"private","publishAt":publish_at,"selfDeclaredMadeForKids":False}}
+          "status":{"privacyStatus":"private","selfDeclaredMadeForKids":False}}
     media=MediaFileUpload(str(path),mimetype="video/mp4",chunksize=8*1024*1024,resumable=True)
     req=yt.videos().insert(part="snippet,status",body=body,media_body=media); response=None
     while response is None:
         progress,response=req.next_chunk(num_retries=5)
-        if progress: log(f"YouTube upload {progress.progress()*100:.1f}%")
+        if progress: log(f"YouTube private upload {progress.progress()*100:.1f}%")
     vid=response.get("id")
     if not vid: raise RuntimeError("YouTube upload returned no video ID")
     result=yt.videos().list(part="status,snippet",id=vid).execute().get("items") or []
-    if not result: raise RuntimeError("Uploaded video could not be read back")
+    if not result: raise RuntimeError("Private upload could not be read back")
     status=result[0].get("status") or {}
+    snippet=result[0].get("snippet") or {}
+    if snippet.get("channelId")!=CHANNELS[channel]["channel_id"]:
+        raise RuntimeError("Private upload resolved to the wrong YouTube channel")
+    if status.get("privacyStatus")!="private" or status.get("publishAt"):
+        raise RuntimeError("Video must remain private and unscheduled until thumbnail QA passes")
+    return {"video_id":vid,"url":f"https://youtu.be/{vid}"}
+
+
+def schedule_uploaded_video(yt,video_id,target):
+    """Assign the release time only after the custom thumbnail has been verified."""
+    publish_at=target.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
+    yt.videos().update(part="status",body={
+        "id":video_id,
+        "status":{"privacyStatus":"private","publishAt":publish_at},
+    }).execute()
+    result=yt.videos().list(part="status",id=video_id).execute().get("items") or []
+    status=(result[0].get("status") or {}) if result else {}
     if status.get("privacyStatus")!="private" or status.get("publishAt")!=publish_at:
+        # Fail closed: remove any schedule if YouTube did not confirm the exact slot.
+        yt.videos().update(part="status",body={
+            "id":video_id,
+            "status":{"privacyStatus":"private","publishAt":None},
+        }).execute()
+        after=yt.videos().list(part="status",id=video_id).execute().get("items") or []
+        after_status=(after[0].get("status") or {}) if after else {}
+        if after_status.get("privacyStatus")!="private" or after_status.get("publishAt"):
+            raise RuntimeError("Schedule verification failed and the video could not be returned to private-unscheduled")
         raise RuntimeError("YouTube did not retain the requested scheduled-publication time")
-    return {"video_id":vid,"url":f"https://youtu.be/{vid}","publish_at":publish_at}
+    return {"publish_at":publish_at}
+
+
+def validate_visual_manifest(channel, job_id, scene_count, stock_sources):
+    """Fail closed unless every rendered scene has a unique, fingerprinted visual.
+
+    The renderer's shared footage history performs cross-video/cross-channel
+    duplicate rejection. This final gate independently verifies that the render
+    returned a complete manifest and contains no repeated scene fingerprints.
+    """
+    if not isinstance(stock_sources, list) or len(stock_sources) < scene_count:
+        raise RuntimeError(
+            f"Visual integrity gate: expected at least {scene_count} scene records, "
+            f"received {len(stock_sources) if isinstance(stock_sources, list) else 'invalid manifest'}"
+        )
+    seen_ids = set()
+    fingerprint_owner = {}
+    accepted_visuals = []
+    for index, asset in enumerate(stock_sources, 1):
+        asset_id = str(asset.get("id") or "").strip()
+        hashes = asset.get("visual_hashes") or []
+        if not asset_id or not hashes:
+            raise RuntimeError(f"Visual integrity gate: scene asset {index} has no stable ID or visual fingerprint")
+        if asset_id in seen_ids:
+            raise RuntimeError(f"Visual integrity gate: asset {asset_id} appears more than once in this render")
+        seen_ids.add(asset_id)
+        near_match = renderer._find_visual_duplicate(hashes, accepted_visuals)
+        if near_match:
+            raise RuntimeError(
+                f"Visual integrity gate: scene asset {asset_id} is perceptually repeated from "
+                f"{near_match.get('id', 'an earlier scene')}"
+            )
+        for value in hashes:
+            fingerprint = str(value).strip().lower()
+            if not fingerprint:
+                raise RuntimeError(f"Visual integrity gate: empty fingerprint in asset {asset_id}")
+            owner = fingerprint_owner.get(fingerprint)
+            if owner and owner != asset_id:
+                raise RuntimeError(f"Visual integrity gate: repeated visual frame across assets {owner} and {asset_id}")
+            fingerprint_owner[fingerprint] = asset_id
+        accepted_visuals.append({"id": asset_id, "visual_hashes": hashes})
+    seen_hashes = set(fingerprint_owner)
+    log(f"Visual integrity gate passed: {channel}/{job_id}; {len(stock_sources)} visual assets fingerprinted")
+    return {"channel": channel, "job_id": job_id, "asset_count": len(stock_sources),
+            "fingerprint_count": len(seen_hashes), "policy": "global-zero-reuse"}
+
+
+def build_cinematic_thumbnail(video_path, title, job_id, channel, current_scene_sources):
+    """Create and fingerprint a one-off cinematic thumbnail; reject reused visuals."""
+    from PIL import Image, ImageDraw, ImageFont
+    duration = renderer.ffprobe_duration(video_path)
+    if duration < 2:
+        raise RuntimeError("Thumbnail generation requires a valid rendered video")
+    seed = int(hashlib.sha256(f"{channel}:{job_id}".encode()).hexdigest()[:8], 16)
+    timestamp = max(0.5, min(duration - 0.5, duration * (0.18 + (seed % 6000) / 10000)))
+    frame = OUT / f"thumb-frame-{job_id}.jpg"
+    thumb = OUT / f"thumb-{job_id}.jpg"
+    subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-ss", f"{timestamp:.3f}",
+        "-i", str(video_path), "-frames:v", "1", "-vf",
+        "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,setsar=1", "-q:v", "2", str(frame)],
+        check=True, timeout=120)
+    image = Image.open(frame).convert("RGB")
+    if image.size != (1280, 720):
+        raise RuntimeError("Thumbnail frame has unexpected dimensions")
+    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    for x in range(1280):
+        alpha = int(190 * max(0, 1 - x / 1280) ** 0.72)
+        draw.line((x, 0, x, 720), fill=(5, 9, 18, alpha))
+    draw.rounded_rectangle((48, 48, 420, 104), radius=18, fill=(255, 255, 255, 35), outline=(255, 255, 255, 100), width=2)
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    small = ImageFont.truetype(font_path, 25)
+    draw.text((72, 62), "ASTRO TOBBY" if channel == "astrotobby" else "DIJITOL NOMAD", font=small, fill=(255,255,255,255))
+    label = " ".join(re.findall(r"[A-Za-z0-9$%']+", title.upper())[:7])
+    font = ImageFont.truetype(font_path, 66)
+    while draw.textbbox((0,0), label, font=font, stroke_width=1)[2] > 900 and font.size > 38:
+        font = ImageFont.truetype(font_path, font.size - 3)
+    draw.text((64, 475), label, font=font, fill=(255,255,255,255), stroke_width=2, stroke_fill=(0,0,0,220))
+    Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB").save(thumb, "JPEG", quality=91, optimize=True)
+    if thumb.stat().st_size > 2_000_000:
+        raise RuntimeError("Generated thumbnail exceeds YouTube's 2 MB limit")
+    hashes = renderer._visual_hashes(thumb)
+    history = renderer._load_footage_history()
+    # The thumbnail is a frame from this video's own footage, so the current
+    # video's scene assets are allowed as its thumbnail source. All assets from
+    # every earlier video, both channels, and all earlier thumbnails remain
+    # excluded. The thumbnail itself is then added to the global ledger.
+    current_ids = {str(item.get("id")) for item in current_scene_sources if item.get("id")}
+    prior_video_history = [item for item in history if str(item.get("id") or "") not in current_ids]
+    duplicate = renderer._find_visual_duplicate(hashes, prior_video_history)
+    if duplicate:
+        raise RuntimeError(f"Thumbnail visual duplicates previously used asset {duplicate.get('id')}; refusing upload")
+    record = renderer._history_record(f"thumbnail:{hashes[0]}", "youtube-custom-thumbnail", hashes, slug=job_id, variant="thumbnail")
+    renderer._save_footage_history(history + [record])
+    return thumb, {"id": record["id"], "provider": record["provider"], "visual_hashes": hashes}
+
+
+def set_and_verify_thumbnail(yt, video_id, thumbnail_path):
+    from googleapiclient.http import MediaFileUpload
+    try:
+        yt.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(
+            str(thumbnail_path), mimetype="image/jpeg", resumable=False)).execute()
+        rows = yt.videos().list(part="snippet", id=video_id).execute().get("items") or []
+        thumbnails = ((rows[0].get("snippet") or {}).get("thumbnails") or {}) if rows else {}
+        if not any(thumbnails.get(size, {}).get("url") for size in ("maxres", "standard", "high", "medium", "default")):
+            raise RuntimeError("YouTube custom thumbnail upload could not be verified")
+    except Exception:
+        # Keep the upload private and explicitly clear publishAt before propagating
+        # the error. A failed thumbnail gate must never leave a public release queued.
+        yt.videos().update(part="status", body={
+            "id": video_id, "status": {"privacyStatus": "private", "publishAt": None}
+        }).execute()
+        check = yt.videos().list(part="status", id=video_id).execute().get("items") or []
+        status = (check[0].get("status") or {}) if check else {}
+        if status.get("privacyStatus") != "private" or status.get("publishAt"):
+            raise RuntimeError("Thumbnail failed and YouTube schedule cancellation could not be verified")
+        raise
 
 
 def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
@@ -1028,7 +1170,10 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     assets,stock_sources=renderer.fetch_scene_assets(script,cfg,"horizontal")
     video,_duration,_words,voice=renderer.render_variant("horizontal",package["narration"],script,cfg,assets,None)
     media=check_media(Path(video))
-    job.update({"status":"rendered","media":media,"voice_provider":voice,"stock_sources":stock_sources,
+    visual_audit=validate_visual_manifest(channel,key,len(script.get("scene_prompts") or []),stock_sources)
+    thumbnail_path,thumbnail_record=build_cinematic_thumbnail(Path(video),package["title"],key,channel,stock_sources)
+    stock_sources.append(thumbnail_record)
+    job.update({"status":"rendered","media":media,"visual_audit":visual_audit,"thumbnail_path":str(thumbnail_path),"voice_provider":voice,"stock_sources":stock_sources,
                 "rendered_at":datetime.now(timezone.utc).isoformat()})
     save_ledger(ledger,dry_run)
     yt,_target,_creds,identity=yt_service(channel)
@@ -1040,7 +1185,9 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     job["status"]="uploading"; job["upload_started_at"]=datetime.now(timezone.utc).isoformat()
     save_ledger(ledger)
     uploaded=upload_scheduled(yt,Path(video),package,channel,target)
-    job.update(uploaded,status="scheduled",scheduled_at=datetime.now(timezone.utc).isoformat())
+    set_and_verify_thumbnail(yt,uploaded["video_id"],thumbnail_path)
+    scheduled=schedule_uploaded_video(yt,uploaded["video_id"],target)
+    job.update({**uploaded,**scheduled},status="scheduled",thumbnail_verified=True,scheduled_at=datetime.now(timezone.utc).isoformat())
     save_ledger(ledger); return job
 
 

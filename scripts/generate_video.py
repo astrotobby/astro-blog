@@ -43,11 +43,11 @@ MUSIC_EXTENSIONS = {".mp3", ".m4a", ".wav", ".ogg", ".flac"}
 FOOTAGE_CACHE_FILE = STATE / "footage_search_cache.json"
 FOOTAGE_CACHE_TTL_SECONDS = 24 * 60 * 60
 FOOTAGE_HISTORY_FILE = STATE / "footage_history.json"
-# Keep visual IDs and fingerprints across all daily channel slots for years.
-FOOTAGE_HISTORY_DAYS = 36500
-FOOTAGE_HISTORY_LIMIT = 100000
+# Visual history is permanent: assets never expire and the registry is never truncated.
+FOOTAGE_HISTORY_DAYS = None
+FOOTAGE_HISTORY_LIMIT = None
 VISUAL_PHASH_THRESHOLD = 5
-VISUAL_SCAN_FRAME_FRACTIONS = (0.12, 0.30, 0.50, 0.70, 0.88)
+VISUAL_SCAN_FRAME_FRACTIONS = (0.08, 0.18, 0.28, 0.38, 0.50, 0.62, 0.72, 0.82, 0.92)
 VISUAL_SELECTION_ATTEMPTS = 5
 # Bound each scene's network work so a slow stock provider cannot stall a full episode.
 FOOTAGE_SEARCH_TIMEOUT_SECONDS = 12
@@ -116,21 +116,36 @@ def _cache_put(provider, query, target_w, target_h, candidates):
         log(f"footage search cache write skipped: {exc}")
 
 
+def _history_is_required():
+    """GitHub Actions production runs must never proceed without a readable ledger."""
+    return os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
+
+
 def _load_footage_history():
-    """Load recent clip IDs used by prior posts; history is non-secret state."""
+    """Load the global, long-lived visual registry; fail closed in production."""
     try:
         raw = json.loads(FOOTAGE_HISTORY_FILE.read_text(encoding="utf-8"))
-        items = raw.get("items", []) if isinstance(raw, dict) else []
-    except (OSError, ValueError, json.JSONDecodeError):
-        items = []
-    cutoff = time.time() - FOOTAGE_HISTORY_DAYS * 24 * 60 * 60
-    return [item for item in items
-            if isinstance(item, dict) and item.get("id")
-            and float(item.get("used_at", 0)) >= cutoff]
+    except FileNotFoundError as exc:
+        if _history_is_required():
+            raise RuntimeError(
+                "Global visual history is missing; refusing production render until it is restored and seeded"
+            ) from exc
+        raw = {"items": []}
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        if _history_is_required():
+            raise RuntimeError(
+                f"Global visual history is unreadable; refusing production render: {exc}"
+            ) from exc
+        raw = {"items": []}
+    if not isinstance(raw, dict) or not isinstance(raw.get("items"), list):
+        raise RuntimeError("Global visual history has an invalid schema; refusing asset selection")
+    items = raw["items"]
+    # Do not prune by age: a used visual stays blocked permanently.
+    return [item for item in items if isinstance(item, dict) and item.get("id")]
 
 
 def _save_footage_history(items):
-    """Persist a bounded recency list so the next post can avoid visual repeats."""
+    """Persist a bounded visual registry; production must stop if the write fails."""
     deduped = []
     seen = set()
     for item in sorted(items, key=lambda value: float(value.get("used_at", 0)), reverse=True):
@@ -139,14 +154,18 @@ def _save_footage_history(items):
             continue
         seen.add(clip_id)
         deduped.append(item)
-        if len(deduped) >= FOOTAGE_HISTORY_LIMIT:
-            break
     try:
         FOOTAGE_HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
-        FOOTAGE_HISTORY_FILE.write_text(
+        temporary = FOOTAGE_HISTORY_FILE.with_suffix(".tmp")
+        temporary.write_text(
             json.dumps({"items": deduped}, ensure_ascii=False), encoding="utf-8")
+        temporary.replace(FOOTAGE_HISTORY_FILE)
     except OSError as exc:
-        log(f"footage history write skipped: {exc}")
+        if _history_is_required():
+            raise RuntimeError(
+                f"Global visual history could not be persisted; refusing production render: {exc}"
+            ) from exc
+        log(f"footage history write skipped outside production: {exc}")
 
 
 def _phash_image(image) -> str:
@@ -175,6 +194,41 @@ def _phash_image(image) -> str:
     return f"{bits:016x}"
 
 
+def _visual_frame_hashes(image) -> list[str]:
+    """Fingerprint a frame plus mirrored and percentage-based crop variants."""
+    from PIL import ImageOps
+
+    width, height = image.size
+    hashes = {_phash_image(image), _phash_image(ImageOps.mirror(image))}
+    # Store common centered reframes using the exact percentage boundaries,
+    # rather than rounded center offsets. This catches edits such as cropping
+    # the source to 90%-10% before re-encoding/resizing.
+    for inset in (0.05, 0.10, 0.15, 0.20):
+        left = int(width * inset)
+        right = int(width * (1.0 - inset))
+        top = int(height * inset)
+        bottom = int(height * (1.0 - inset))
+        if right - left < 16 or bottom - top < 16:
+            continue
+        crop = image.crop((left, top, right, bottom))
+        hashes.add(_phash_image(crop))
+        hashes.add(_phash_image(ImageOps.mirror(crop)))
+    # Also sample left/center/right (landscape) or top/center/bottom (portrait)
+    # windows so a crop shifted away from the centre can still be recognized.
+    crop_w = max(1, int(width * 0.80))
+    crop_h = max(1, int(height * 0.80))
+    center_x = max(0, (width - crop_w) // 2)
+    center_y = max(0, (height - crop_h) // 2)
+    if width >= height:
+        windows = [(left, center_y) for left in (0, center_x, max(0, width - crop_w))]
+    else:
+        windows = [(center_x, top) for top in (0, center_y, max(0, height - crop_h))]
+    for left, top in windows:
+        crop = image.crop((left, top, left + crop_w, top + crop_h))
+        hashes.add(_phash_image(crop))
+        hashes.add(_phash_image(ImageOps.mirror(crop)))
+    return sorted(hashes)
+
 def _visual_hashes(path: Path) -> list[str]:
     """Fingerprint an image or five evenly-spaced frames from a video clip."""
     from PIL import Image
@@ -187,7 +241,7 @@ def _visual_hashes(path: Path) -> list[str]:
         raise RuntimeError(f"Video asset is too small to be valid: {path}")
     if not is_video:
         with Image.open(path) as image:
-            return [_phash_image(image)]
+            return _visual_frame_hashes(image)
 
     duration = ffprobe_duration(path)
     if duration <= 0:
@@ -207,7 +261,7 @@ def _visual_hashes(path: Path) -> list[str]:
         if result.returncode != 0 or not result.stdout:
             raise RuntimeError(f"Could not extract a frame for visual duplicate checking: {path}")
         with Image.open(io.BytesIO(result.stdout)) as frame:
-            hashes.append(_phash_image(frame))
+            hashes.extend(_visual_frame_hashes(frame))
     return hashes
 
 
@@ -228,8 +282,10 @@ def _find_visual_duplicate(hashes: list[str], history: list[dict]) -> dict | Non
             if any(_hamming_distance(current_hash, old_hash) <= VISUAL_PHASH_THRESHOLD
                    for old_hash in previous)
         )
-        required = 1 if len(hashes) == 1 or len(previous) == 1 else 2
-        if matched_frames >= required:
+        # A single matching sampled frame is enough to reject a clip.
+        # Requiring multiple matches allowed a reused scene inside a longer edit
+        # to slip through, which violates the channel-wide no-reuse policy.
+        if matched_frames >= 1:
             return item
     return None
 
@@ -683,8 +739,12 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, used_creator
                  if candidate.get("id") not in used_clips
                  and candidate.get("id") not in recent_ids
                  and candidate.get("creator") not in used_creators]
+        # Relax contributor diversity only. The global historical asset-ID
+        # blocklist is absolute and must never be bypassed when search results
+        # are sparse.
         relaxed = [candidate for candidate in candidates
-                   if candidate.get("id") not in used_clips]
+                   if candidate.get("id") not in used_clips
+                   and candidate.get("id") not in recent_ids]
         ordered = fresh + [item for item in relaxed if item not in fresh]
         for position, candidate in enumerate(ordered[:FOOTAGE_MAX_DOWNLOAD_ATTEMPTS]):
             remaining = deadline - time.monotonic()
@@ -1189,16 +1249,9 @@ def fetch_scene_assets(script, cfg, variant):
     used_clips, used_creators = set(), set()
     history = _load_footage_history()
 
-    # Vertical and horizontal masters for one story may reuse their own shots.
-    # Any other story, channel, or scene must use different media.
-    applicable_history = [
-        item for item in history
-        if not (
-            item.get("slug") == post_slug
-            and item.get("variant")
-            and item.get("variant") != variant
-        )
-    ]
+    # No variant exception: once a visual has appeared in any rendered video,
+    # neither channel nor another aspect-ratio export may select it again.
+    applicable_history = list(history)
     recent_ids = {item["id"] for item in applicable_history}
     assets, provenance = [], []
     scene_count = len(script["scene_prompts"])
@@ -1304,15 +1357,18 @@ def fetch_scene_assets(script, cfg, variant):
                 variant=variant,
             ))
         else:
-            # Generated fallback images have no stable provider ID; pHash stops
-            # identical outputs from returning under a new filename or generated URL.
-            applicable_history.append(_history_record(
-                f"generated-image:{hashes[0]}",
-                "generated-image",
-                hashes,
-                slug=post_slug,
-                variant=variant,
-            ))
+            # Generated fallback images are first-class assets in the global ledger.
+            # Record every scene, not only provider-backed stock, so an identical
+            # generated image cannot reappear under a new URL or filename.
+            generated_id = f"generated-image:{hashes[0]}"
+            generated_record = _history_record(
+                generated_id, "generated-image", hashes, slug=post_slug, variant=variant
+            )
+            applicable_history.append(generated_record)
+            provenance.append({
+                "id": generated_id, "provider": "generated-image",
+                "title": f"Generated scene {index + 1}", "visual_hashes": hashes,
+            })
 
         if alt_path:
             if alt_source:
@@ -1320,24 +1376,22 @@ def fetch_scene_assets(script, cfg, variant):
                 provenance.append(alt_source)
                 if alt_source.get("id"):
                     recent_ids.add(alt_source["id"])
+            else:
+                provenance.append({
+                    "id": f"generated-image:{alt_hashes[0]}",
+                    "provider": "generated-image",
+                    "title": f"Generated alternate scene {index + 1}",
+                    "visual_hashes": alt_hashes,
+                })
             applicable_history.append(_history_record(
                 (alt_source or {}).get("id") or f"generated-image:{alt_hashes[0]}",
                 (alt_source or {}).get("provider") or "generated-image",
-                alt_hashes,
-                slug=post_slug,
-                variant=variant,
+                alt_hashes, slug=post_slug, variant=variant,
             ))
 
     # Save immediately after this master. The Actions cache persists it between
     # the four daily runs for Astro Tobby and DIJITOL NOMAD.
-    _save_footage_history(history + applicable_history[len([
-        item for item in history
-        if not (
-            item.get("slug") == post_slug
-            and item.get("variant")
-            and item.get("variant") != variant
-        )
-    ]):])
+    _save_footage_history(applicable_history)
     return assets, provenance
 
 # ---------- 3. Scene assembly ----------

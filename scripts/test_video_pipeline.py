@@ -4,6 +4,7 @@ Run from the repository root:
     python3 -m unittest scripts/test_video_pipeline.py
 """
 import copy
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -15,6 +16,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import build_script  # noqa: E402
 import generate_video  # noqa: E402
+import seed_footage_history  # noqa: E402
 from common import load_config  # noqa: E402
 
 
@@ -211,7 +213,8 @@ class FootageBriefTests(unittest.TestCase):
         ):
             assets, sources = generate_video.fetch_scene_assets(script, cfg, "horizontal")
         self.assertEqual(len(assets), 2)
-        self.assertEqual(sources, [])
+        self.assertEqual(len(sources), 2)
+        self.assertTrue(all(item["provider"] == "generated-image" for item in sources))
         self.assertEqual(fetch.call_args_list[0].args[2:4], (1920, 1080))
         self.assertEqual(fetch.call_args_list[0].args[-1], "horizontal")
 
@@ -345,6 +348,40 @@ class VisualDuplicateGuardTests(unittest.TestCase):
             self.assertIsNotNone(match)
             self.assertEqual(match["id"], "previous-channel-image")
 
+    def test_mirrored_image_is_rejected_as_reuse(self):
+        from PIL import Image, ImageOps
+        with TemporaryDirectory() as temporary_dir:
+            original = Path(temporary_dir) / "original.png"
+            mirrored = Path(temporary_dir) / "mirrored.png"
+            self._pattern_image(original)
+            with Image.open(original) as image:
+                ImageOps.mirror(image).save(mirrored)
+            original_hashes = generate_video._visual_hashes(original)
+            mirrored_hashes = generate_video._visual_hashes(mirrored)
+            match = generate_video._find_visual_duplicate(
+                mirrored_hashes, [{"id": "original-scene", "visual_hashes": original_hashes}]
+            )
+            self.assertIsNotNone(match)
+            self.assertEqual(match["id"], "original-scene")
+
+    def test_cropped_image_is_rejected_as_reuse(self):
+        from PIL import Image
+        with TemporaryDirectory() as temporary_dir:
+            original = Path(temporary_dir) / "original.png"
+            cropped = Path(temporary_dir) / "cropped.png"
+            self._pattern_image(original)
+            with Image.open(original) as image:
+                width, height = image.size
+                image.crop((int(width * 0.1), int(height * 0.1),
+                            int(width * 0.9), int(height * 0.9))).save(cropped)
+            original_hashes = generate_video._visual_hashes(original)
+            cropped_hashes = generate_video._visual_hashes(cropped)
+            match = generate_video._find_visual_duplicate(
+                cropped_hashes, [{"id": "original-scene", "visual_hashes": original_hashes}]
+            )
+            self.assertIsNotNone(match)
+            self.assertEqual(match["id"], "original-scene")
+
     def test_perceptually_different_images_are_not_duplicates(self):
         with TemporaryDirectory() as temporary_dir:
             first = Path(temporary_dir) / "gradient.png"
@@ -356,6 +393,109 @@ class VisualDuplicateGuardTests(unittest.TestCase):
             self.assertIsNone(generate_video._find_visual_duplicate(
                 second_hashes, [{"id": "different-image", "visual_hashes": first_hashes}]
             ))
+
+    def test_single_matching_video_frame_blocks_reuse(self):
+        current_hashes = [
+            "1111111111111111", "2222222222222222", "3333333333333333",
+            "4444444444444444", "5555555555555555",
+        ]
+        history = [{
+            "id": "old-video-containing-reused-scene",
+            "visual_hashes": ["1111111111111111", "aaaaaaaaaaaaaaaa",
+                              "bbbbbbbbbbbbbbbb", "cccccccccccccccc",
+                              "dddddddddddddddd"],
+        }]
+        match = generate_video._find_visual_duplicate(current_hashes, history)
+        self.assertIsNotNone(match)
+        self.assertEqual(match["id"], "old-video-containing-reused-scene")
+
+    def test_production_refuses_to_load_missing_visual_history(self):
+        with TemporaryDirectory() as temporary_dir:
+            missing = Path(temporary_dir) / "missing-history.json"
+            with (
+                patch.object(generate_video, "FOOTAGE_HISTORY_FILE", missing),
+                patch.object(generate_video, "_history_is_required", return_value=True),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "missing"):
+                    generate_video._load_footage_history()
+
+    def test_production_refuses_to_load_corrupt_visual_history(self):
+        with TemporaryDirectory() as temporary_dir:
+            corrupt = Path(temporary_dir) / "corrupt-history.json"
+            corrupt.write_text("{not-json", encoding="utf-8")
+            with (
+                patch.object(generate_video, "FOOTAGE_HISTORY_FILE", corrupt),
+                patch.object(generate_video, "_history_is_required", return_value=True),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "unreadable"):
+                    generate_video._load_footage_history()
+
+    def test_production_refuses_to_continue_when_visual_history_cannot_be_saved(self):
+        with TemporaryDirectory() as temporary_dir:
+            blocker = Path(temporary_dir) / "not-a-directory"
+            blocker.write_text("file", encoding="utf-8")
+            impossible_history_path = blocker / "history.json"
+            with (
+                patch.object(generate_video, "FOOTAGE_HISTORY_FILE", impossible_history_path),
+                patch.object(generate_video, "_history_is_required", return_value=True),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "persisted"):
+                    generate_video._save_footage_history([{
+                        "id": "asset-1", "used_at": 1, "visual_hashes": ["1111111111111111"]
+                    }])
+
+    def test_seed_merges_fingerprints_from_all_ledger_rows_with_same_asset_id(self):
+        with TemporaryDirectory() as temporary_dir:
+            state = Path(temporary_dir) / "state"
+            history_path = state / "footage_history.json"
+            state.mkdir()
+            history_path.write_text(json.dumps({"items": [{
+                "id": "openverse:historic-asset",
+                "provider": "Openverse",
+                "visual_hashes": [],
+                "used_at": 100,
+            }]}), encoding="utf-8")
+            ledger = Path(temporary_dir) / "ledger.json"
+            ledger.write_text(json.dumps({"jobs": {
+                "job-one": {"rendered_at": "2026-11-19T10:00:00+00:00",
+                            "stock_sources": [{"id": "openverse:historic-asset", "visual_hashes": []}]},
+                "job-two": {"rendered_at": "2026-11-20T10:00:00+00:00",
+                            "stock_sources": [{"id": "openverse:historic-asset",
+                                               "visual_hashes": ["1111111111111111", "2222222222222222"]}]},
+            }}), encoding="utf-8")
+            with (
+                patch.object(seed_footage_history, "STATE", state),
+                patch.object(seed_footage_history, "HISTORY", history_path),
+                patch.object(seed_footage_history, "KNOWN_DUPLICATES", []),
+                patch.object(sys, "argv", ["seed_footage_history.py", "--ledger", str(ledger)]),
+            ):
+                self.assertEqual(seed_footage_history.main(), 0)
+            rows = json.loads(history_path.read_text(encoding="utf-8"))["items"]
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(set(rows[0]["visual_hashes"]),
+                             {"1111111111111111", "2222222222222222"})
+
+    def test_stock_video_search_never_relaxes_global_history_blocklist(self):
+        from pathlib import Path
+        from unittest.mock import patch
+        with TemporaryDirectory() as temporary_dir:
+            old_candidate = {
+                "id": "pexels:already-used", "provider": "Pexels",
+                "creator": "Old Creator", "score": 1, "url": "https://example.test/old",
+            }
+            with (
+                patch.object(generate_video, "OUT", Path(temporary_dir)),
+                patch.object(generate_video, "_pexels_video_search", return_value=[old_candidate]),
+                patch.object(generate_video, "_pixabay_video_search", return_value=[]),
+                patch.object(generate_video, "_download_candidate") as download,
+            ):
+                asset, source = generate_video._fetch_video_asset(
+                    0, {"broll": "cinematic technology lab", "fallback": "technology lab"},
+                    1920, 1080, set(), set(), {"pexels:already-used"}, "horizontal",
+                )
+            self.assertIsNone(asset)
+            self.assertIsNone(source)
+            download.assert_not_called()
 
     def test_scene_fetch_retries_duplicate_asset_before_accepting_new_one(self):
         with TemporaryDirectory() as temporary_dir:
@@ -369,14 +509,14 @@ class VisualDuplicateGuardTests(unittest.TestCase):
                 "provider": "Openverse",
                 "visual_hashes": repeated_hashes,
                 "used_at": 1,
-                "slug": "previous-post",
+                "slug": "same-story",
                 "variant": "vertical",
             }]
             script = {
-                "post": {"slug": "new-post", "title": "A new story", "image_url": ""},
+                "post": {"slug": "same-story", "title": "A new story", "image_url": ""},
                 "scene_prompts": ["HOOK|broll:topic-specific image|fallback:topic image"],
             }
-            cfg = {"video": {"vertical": {"w": 1080, "h": 1920}}}
+            cfg = {"video": {"horizontal": {"w": 1920, "h": 1080}}}
 
             with (
                 patch.object(generate_video, "_load_footage_history", return_value=history),
@@ -386,7 +526,7 @@ class VisualDuplicateGuardTests(unittest.TestCase):
                     (str(unique), {}, {"id": "pixabay:unique", "provider": "Pixabay"}),
                 ]) as fetch,
             ):
-                assets, sources = generate_video.fetch_scene_assets(script, cfg, "vertical")
+                assets, sources = generate_video.fetch_scene_assets(script, cfg, "horizontal")
 
             self.assertEqual(fetch.call_count, 2)
             self.assertEqual(assets[0][0], str(unique))

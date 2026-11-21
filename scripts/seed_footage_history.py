@@ -63,18 +63,27 @@ def main() -> int:
     STATE.mkdir(parents=True, exist_ok=True)
     try:
         raw = json.loads(HISTORY.read_text(encoding="utf-8"))
-        items = raw.get("items", []) if isinstance(raw, dict) else []
-    except (OSError, ValueError, json.JSONDecodeError):
-        items = []
+    except FileNotFoundError:
+        raw = {"items": []}
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"Existing visual history is unreadable; refusing to reset it: {exc}")
+    if not isinstance(raw, dict) or not isinstance(raw.get("items"), list):
+        raise SystemExit("Existing visual history has an invalid schema; refusing to reset it")
+    items = raw["items"]
 
-    known = {item.get("id") for item in items if isinstance(item, dict)}
+    by_id = {
+        str(item.get("id")): item
+        for item in items
+        if isinstance(item, dict) and item.get("id")
+    }
     now = time.time()
     added = 0
     ledger_added = 0
+    enriched = 0
 
     # Seed every source already recorded by the two-channel long-form pipeline,
-    # not just the known duplicate pair. This prevents any previously used source
-    # image or clip from being selected again by either channel.
+    # not just known duplicates. When multiple historical records share an ID,
+    # retain any available fingerprints instead of keeping an earlier hashless row.
     if args.ledger:
         try:
             ledger = json.loads(args.ledger.read_text(encoding="utf-8"))
@@ -86,48 +95,64 @@ def main() -> int:
                 job.get("rendered_at") or job.get("created_at") or "",
                 now,
             )
-            # Include active footage plus assets from videos that have since been
-            # replaced/privated. A source must not quietly re-enter the pool later.
             historical_assets = list(job.get("stock_sources") or [])
             historical_assets.extend(job.get("original_stock_sources") or [])
             for asset in historical_assets:
                 asset_id = str(asset.get("id") or "").strip()
-                if not asset_id or asset_id in known:
+                if not asset_id:
                     continue
-                items.append({
+                fingerprints = asset.get("visual_hashes") or []
+                existing = by_id.get(asset_id)
+                if existing:
+                    # Merge fingerprints from every ledger occurrence of the same
+                    # source ID. This backfills hashless historical rows and upgrades
+                    # older, lower-density fingerprints without losing prior hashes.
+                    existing_hashes = list(existing.get("visual_hashes") or [])
+                    merged_hashes = sorted(set(existing_hashes).union(str(value) for value in fingerprints if value))
+                    if len(merged_hashes) > len(existing_hashes):
+                        existing["visual_hashes"] = merged_hashes
+                        existing["reason"] = "historical_fingerprints_merged_from_ledger"
+                        enriched += 1
+                    continue
+                record = {
                     "id": asset_id,
                     "title": str(asset.get("title") or ""),
                     "provider": str(asset.get("provider") or "historical-ledger"),
                     "creator": str(asset.get("creator") or ""),
-                    "visual_hashes": asset.get("visual_hashes") or [],
+                    "visual_hashes": fingerprints,
                     "used_at": used_at,
                     "reason": "seeded_from_longform_ledger",
-                })
-                known.add(asset_id)
+                }
+                items.append(record)
+                by_id[asset_id] = record
                 added += 1
                 ledger_added += 1
 
     # These are duplicate stock assets seen before the ledger was available.
     for asset_id, title, provider in KNOWN_DUPLICATES:
-        if asset_id not in known:
-            items.append({
+        if asset_id not in by_id:
+            record = {
                 "id": asset_id,
                 "title": title,
                 "provider": provider,
                 "used_at": now,
                 "reason": "seeded_duplicate_asset_guard",
-            })
-            known.add(asset_id)
+            }
+            items.append(record)
+            by_id[asset_id] = record
             added += 1
 
     items.sort(key=lambda item: float(item.get("used_at", 0)), reverse=True)
-    HISTORY.write_text(
-        json.dumps({"items": items[:100000]}, ensure_ascii=False),
+    temporary = HISTORY.with_suffix(".tmp")
+    temporary.write_text(
+        json.dumps({"items": items}, ensure_ascii=False),
         encoding="utf-8",
     )
+    temporary.replace(HISTORY)
     print(
         f"Visual duplicate guard ready: {added} added "
-        f"({ledger_added} from prior videos), {len(items[:100000])} historical asset IDs."
+        f"({ledger_added} from prior videos), {enriched} previously hashless IDs enriched, "
+        f"{len(items)} permanent historical asset IDs."
     )
     return 0
 
