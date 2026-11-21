@@ -195,13 +195,26 @@ def _phash_image(image) -> str:
 
 
 def _visual_frame_hashes(image) -> list[str]:
-    """Fingerprint a frame plus mirrored and reframed versions of the same scene."""
+    """Fingerprint a frame plus mirrored and percentage-based crop variants."""
     from PIL import ImageOps
 
     width, height = image.size
     hashes = {_phash_image(image), _phash_image(ImageOps.mirror(image))}
-    # Center plus side (landscape) or top/bottom (portrait) 80% crops catch
-    # common zoom/reframe edits without storing dozens of hashes per frame.
+    # Store common centered reframes using the exact percentage boundaries,
+    # rather than rounded center offsets. This catches edits such as cropping
+    # the source to 90%-10% before re-encoding/resizing.
+    for inset in (0.05, 0.10, 0.15, 0.20):
+        left = int(width * inset)
+        right = int(width * (1.0 - inset))
+        top = int(height * inset)
+        bottom = int(height * (1.0 - inset))
+        if right - left < 16 or bottom - top < 16:
+            continue
+        crop = image.crop((left, top, right, bottom))
+        hashes.add(_phash_image(crop))
+        hashes.add(_phash_image(ImageOps.mirror(crop)))
+    # Also sample left/center/right (landscape) or top/center/bottom (portrait)
+    # windows so a crop shifted away from the centre can still be recognized.
     crop_w = max(1, int(width * 0.80))
     crop_h = max(1, int(height * 0.80))
     center_x = max(0, (width - crop_w) // 2)
@@ -213,8 +226,8 @@ def _visual_frame_hashes(image) -> list[str]:
     for left, top in windows:
         crop = image.crop((left, top, left + crop_w, top + crop_h))
         hashes.add(_phash_image(crop))
+        hashes.add(_phash_image(ImageOps.mirror(crop)))
     return sorted(hashes)
-
 
 def _visual_hashes(path: Path) -> list[str]:
     """Fingerprint an image or five evenly-spaced frames from a video clip."""
