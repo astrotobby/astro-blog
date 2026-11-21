@@ -373,6 +373,28 @@ class VisualDuplicateGuardTests(unittest.TestCase):
         self.assertIsNotNone(match)
         self.assertEqual(match["id"], "old-video-containing-reused-scene")
 
+    def test_stock_video_search_never_relaxes_global_history_blocklist(self):
+        from pathlib import Path
+        from unittest.mock import patch
+        with TemporaryDirectory() as temporary_dir:
+            old_candidate = {
+                "id": "pexels:already-used", "provider": "Pexels",
+                "creator": "Old Creator", "score": 1, "url": "https://example.test/old",
+            }
+            with (
+                patch.object(generate_video, "OUT", Path(temporary_dir)),
+                patch.object(generate_video, "_pexels_video_search", return_value=[old_candidate]),
+                patch.object(generate_video, "_pixabay_video_search", return_value=[]),
+                patch.object(generate_video, "_download_candidate") as download,
+            ):
+                asset, source = generate_video._fetch_video_asset(
+                    0, {"broll": "cinematic technology lab", "fallback": "technology lab"},
+                    1920, 1080, set(), set(), {"pexels:already-used"}, "horizontal",
+                )
+            self.assertIsNone(asset)
+            self.assertIsNone(source)
+            download.assert_not_called()
+
     def test_scene_fetch_retries_duplicate_asset_before_accepting_new_one(self):
         with TemporaryDirectory() as temporary_dir:
             repeated = Path(temporary_dir) / "repeated.png"
