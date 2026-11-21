@@ -1060,12 +1060,25 @@ def build_cinematic_thumbnail(video_path, title, job_id, channel):
 
 def set_and_verify_thumbnail(yt, video_id, thumbnail_path):
     from googleapiclient.http import MediaFileUpload
-    yt.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(
-        str(thumbnail_path), mimetype="image/jpeg", resumable=False)).execute()
-    rows = yt.videos().list(part="snippet", id=video_id).execute().get("items") or []
-    thumbnails = ((rows[0].get("snippet") or {}).get("thumbnails") or {}) if rows else {}
-    if not any(thumbnails.get(size, {}).get("url") for size in ("maxres", "standard", "high", "medium", "default")):
-        raise RuntimeError("YouTube custom thumbnail upload could not be verified")
+    try:
+        yt.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(
+            str(thumbnail_path), mimetype="image/jpeg", resumable=False)).execute()
+        rows = yt.videos().list(part="snippet", id=video_id).execute().get("items") or []
+        thumbnails = ((rows[0].get("snippet") or {}).get("thumbnails") or {}) if rows else {}
+        if not any(thumbnails.get(size, {}).get("url") for size in ("maxres", "standard", "high", "medium", "default")):
+            raise RuntimeError("YouTube custom thumbnail upload could not be verified")
+    except Exception:
+        # The upload has already been assigned a future publishAt. Cancel that
+        # schedule before propagating the error so a failed thumbnail gate cannot
+        # leak a partially validated video into public release.
+        yt.videos().update(part="status", body={
+            "id": video_id, "status": {"privacyStatus": "private"}
+        }).execute()
+        check = yt.videos().list(part="status", id=video_id).execute().get("items") or []
+        status = (check[0].get("status") or {}) if check else {}
+        if status.get("privacyStatus") != "private" or status.get("publishAt"):
+            raise RuntimeError("Thumbnail failed and YouTube schedule cancellation could not be verified")
+        raise
 
 
 def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
