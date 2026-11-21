@@ -958,24 +958,50 @@ def find_existing(yt,title,target):
 
 
 def upload_scheduled(yt,path,package,channel,target):
+    """Upload the rendered master as private and unscheduled until all QA passes."""
     from googleapiclient.http import MediaFileUpload
-    publish_at=target.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
     body={"snippet":{"title":package["title"][:95],"description":package["description"][:4800],
                      "tags":package["tags"][:15],"categoryId":CHANNELS[channel]["category"]},
-          "status":{"privacyStatus":"private","publishAt":publish_at,"selfDeclaredMadeForKids":False}}
+          "status":{"privacyStatus":"private","selfDeclaredMadeForKids":False}}
     media=MediaFileUpload(str(path),mimetype="video/mp4",chunksize=8*1024*1024,resumable=True)
     req=yt.videos().insert(part="snippet,status",body=body,media_body=media); response=None
     while response is None:
         progress,response=req.next_chunk(num_retries=5)
-        if progress: log(f"YouTube upload {progress.progress()*100:.1f}%")
+        if progress: log(f"YouTube private upload {progress.progress()*100:.1f}%")
     vid=response.get("id")
     if not vid: raise RuntimeError("YouTube upload returned no video ID")
     result=yt.videos().list(part="status,snippet",id=vid).execute().get("items") or []
-    if not result: raise RuntimeError("Uploaded video could not be read back")
+    if not result: raise RuntimeError("Private upload could not be read back")
     status=result[0].get("status") or {}
+    snippet=result[0].get("snippet") or {}
+    if snippet.get("channelId")!=CHANNELS[channel]["channel_id"]:
+        raise RuntimeError("Private upload resolved to the wrong YouTube channel")
+    if status.get("privacyStatus")!="private" or status.get("publishAt"):
+        raise RuntimeError("Video must remain private and unscheduled until thumbnail QA passes")
+    return {"video_id":vid,"url":f"https://youtu.be/{vid}"}
+
+
+def schedule_uploaded_video(yt,video_id,target):
+    """Assign the release time only after the custom thumbnail has been verified."""
+    publish_at=target.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
+    yt.videos().update(part="status",body={
+        "id":video_id,
+        "status":{"privacyStatus":"private","publishAt":publish_at},
+    }).execute()
+    result=yt.videos().list(part="status",id=video_id).execute().get("items") or []
+    status=(result[0].get("status") or {}) if result else {}
     if status.get("privacyStatus")!="private" or status.get("publishAt")!=publish_at:
+        # Fail closed: remove any schedule if YouTube did not confirm the exact slot.
+        yt.videos().update(part="status",body={
+            "id":video_id,
+            "status":{"privacyStatus":"private","publishAt":None},
+        }).execute()
+        after=yt.videos().list(part="status",id=video_id).execute().get("items") or []
+        after_status=(after[0].get("status") or {}) if after else {}
+        if after_status.get("privacyStatus")!="private" or after_status.get("publishAt"):
+            raise RuntimeError("Schedule verification failed and the video could not be returned to private-unscheduled")
         raise RuntimeError("YouTube did not retain the requested scheduled-publication time")
-    return {"video_id":vid,"url":f"https://youtu.be/{vid}","publish_at":publish_at}
+    return {"publish_at":publish_at}
 
 
 def validate_visual_manifest(channel, job_id, scene_count, stock_sources):
@@ -1153,7 +1179,8 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     save_ledger(ledger)
     uploaded=upload_scheduled(yt,Path(video),package,channel,target)
     set_and_verify_thumbnail(yt,uploaded["video_id"],thumbnail_path)
-    job.update(uploaded,status="scheduled",thumbnail_verified=True,scheduled_at=datetime.now(timezone.utc).isoformat())
+    scheduled=schedule_uploaded_video(yt,uploaded["video_id"],target)
+    job.update({**uploaded,**scheduled},status="scheduled",thumbnail_verified=True,scheduled_at=datetime.now(timezone.utc).isoformat())
     save_ledger(ledger); return job
 
 
