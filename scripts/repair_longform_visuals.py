@@ -98,10 +98,11 @@ def upload_replacement(yt, video: Path, package: dict, channel: str,
     original_publish_at = original_status.get("publishAt")
     # Scheduled YouTube uploads are private until their exact publishAt timestamp.
     # Never make a future scheduled replacement public early.
-    if original_privacy == "private" and original_publish_at:
-        expected_privacy = "private"
-    else:
-        expected_privacy = original_privacy if original_privacy in {"public", "unlisted"} else "public"
+    expected_privacy = (
+        original_privacy
+        if original_privacy in {"public", "private", "unlisted"}
+        else "public"
+    )
 
     new_status = {
         "privacyStatus": expected_privacy,
@@ -314,11 +315,12 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
     job["video_id"] = replacement["video_id"]
     job["url"] = replacement["url"]
     replacement_status = replacement.get("status") or {}
-    job["status"] = (
-        "scheduled"
-        if replacement_status.get("privacyStatus") == "private" and replacement_status.get("publishAt")
-        else "published"
-    )
+    if replacement_status.get("privacyStatus") == "private" and replacement_status.get("publishAt"):
+        job["status"] = "scheduled"
+    elif replacement_status.get("privacyStatus") == "public":
+        job["status"] = "published"
+    else:
+        job["status"] = str(job.get("status") or "published")
     job["package"] = package
     job["stock_sources"] = stock_sources
     job["media"] = media
