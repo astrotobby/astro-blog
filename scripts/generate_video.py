@@ -204,16 +204,19 @@ def _visual_frame_hashes(image) -> list[str]:
 
     width, height = image.size
     hashes = {_phash_image(image), _phash_image(ImageOps.mirror(image))}
-    # Center crop catches moderate zoom/reframe edits. Side/top/bottom 80% crops
-    # catch common editorial crops that keep only one side of the source image.
+    # Center plus side (landscape) or top/bottom (portrait) 80% crops catch
+    # common zoom/reframe edits without storing dozens of hashes per frame.
     crop_w = max(1, int(width * 0.80))
     crop_h = max(1, int(height * 0.80))
-    x_positions = sorted({0, max(0, (width - crop_w) // 2), max(0, width - crop_w)})
-    y_positions = sorted({0, max(0, (height - crop_h) // 2), max(0, height - crop_h)})
-    for left in x_positions:
-        for top in y_positions:
-            crop = image.crop((left, top, left + crop_w, top + crop_h))
-            hashes.add(_phash_image(crop))
+    center_x = max(0, (width - crop_w) // 2)
+    center_y = max(0, (height - crop_h) // 2)
+    if width >= height:
+        windows = [(left, center_y) for left in (0, center_x, max(0, width - crop_w))]
+    else:
+        windows = [(center_x, top) for top in (0, center_y, max(0, height - crop_h))]
+    for left, top in windows:
+        crop = image.crop((left, top, left + crop_w, top + crop_h))
+        hashes.add(_phash_image(crop))
     return sorted(hashes)
 
 
