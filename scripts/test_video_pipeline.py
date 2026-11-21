@@ -466,6 +466,7 @@ class VisualDuplicateGuardTests(unittest.TestCase):
             with (
                 patch.object(seed_footage_history, "STATE", state),
                 patch.object(seed_footage_history, "HISTORY", history_path),
+                patch.object(seed_footage_history, "KNOWN_DUPLICATES", []),
                 patch.object(sys, "argv", ["seed_footage_history.py", "--ledger", str(ledger)]),
             ):
                 self.assertEqual(seed_footage_history.main(), 0)
