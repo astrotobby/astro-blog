@@ -47,7 +47,7 @@ FOOTAGE_HISTORY_FILE = STATE / "footage_history.json"
 FOOTAGE_HISTORY_DAYS = 36500
 FOOTAGE_HISTORY_LIMIT = 100000
 VISUAL_PHASH_THRESHOLD = 5
-VISUAL_SCAN_FRAME_FRACTIONS = (0.12, 0.30, 0.50, 0.70, 0.88)
+VISUAL_SCAN_FRAME_FRACTIONS = (0.08, 0.18, 0.28, 0.38, 0.50, 0.62, 0.72, 0.82, 0.92)
 VISUAL_SELECTION_ATTEMPTS = 5
 # Bound each scene's network work so a slow stock provider cannot stall a full episode.
 FOOTAGE_SEARCH_TIMEOUT_SECONDS = 12
@@ -198,6 +198,25 @@ def _phash_image(image) -> str:
     return f"{bits:016x}"
 
 
+def _visual_frame_hashes(image) -> list[str]:
+    """Fingerprint a frame plus mirrored and reframed versions of the same scene."""
+    from PIL import ImageOps
+
+    width, height = image.size
+    hashes = {_phash_image(image), _phash_image(ImageOps.mirror(image))}
+    # Center crop catches moderate zoom/reframe edits. Side/top/bottom 80% crops
+    # catch common editorial crops that keep only one side of the source image.
+    crop_w = max(1, int(width * 0.80))
+    crop_h = max(1, int(height * 0.80))
+    x_positions = sorted({0, max(0, (width - crop_w) // 2), max(0, width - crop_w)})
+    y_positions = sorted({0, max(0, (height - crop_h) // 2), max(0, height - crop_h)})
+    for left in x_positions:
+        for top in y_positions:
+            crop = image.crop((left, top, left + crop_w, top + crop_h))
+            hashes.add(_phash_image(crop))
+    return sorted(hashes)
+
+
 def _visual_hashes(path: Path) -> list[str]:
     """Fingerprint an image or five evenly-spaced frames from a video clip."""
     from PIL import Image
@@ -210,7 +229,7 @@ def _visual_hashes(path: Path) -> list[str]:
         raise RuntimeError(f"Video asset is too small to be valid: {path}")
     if not is_video:
         with Image.open(path) as image:
-            return [_phash_image(image)]
+            return _visual_frame_hashes(image)
 
     duration = ffprobe_duration(path)
     if duration <= 0:
@@ -230,7 +249,7 @@ def _visual_hashes(path: Path) -> list[str]:
         if result.returncode != 0 or not result.stdout:
             raise RuntimeError(f"Could not extract a frame for visual duplicate checking: {path}")
         with Image.open(io.BytesIO(result.stdout)) as frame:
-            hashes.append(_phash_image(frame))
+            hashes.extend(_visual_frame_hashes(frame))
     return hashes
 
 
