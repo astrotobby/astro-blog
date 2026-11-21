@@ -277,11 +277,9 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
     # Final gate: every source must be unique by provider ID and must include a
     # perceptual fingerprint. The renderer has already checked scene-to-scene and
     # cross-channel history before accepting each asset.
-    ids = [str(item.get("id")) for item in stock_sources if item.get("id")]
-    if len(ids) != len(set(ids)):
-        raise RuntimeError(f"Duplicate source IDs remain in repaired render for {job_id}")
-    if any(not item.get("visual_hashes") for item in stock_sources):
-        raise RuntimeError(f"Repaired render has a source without a visual fingerprint for {job_id}")
+    visual_audit = lp.validate_visual_manifest(channel, job_id, len(script.get("scene_prompts") or []), stock_sources)
+    thumb_path, thumb_record = lp.build_cinematic_thumbnail(video_path, package["title"], repair_slug, channel)
+    stock_sources.append(thumb_record)
 
     # Refresh the original video status after the long render. Its scheduled
     # publishAt may have elapsed while scenes were being generated; in that case
@@ -307,22 +305,10 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
             old_status.pop("publishAt", None)
 
     replacement = upload_replacement(yt, video_path, package, channel, old_status)
-    thumb_result = None
-    try:
-        thumb_path = build_custom_thumbnail(video_path, package["title"], repair_slug)
-        from googleapiclient.http import MediaFileUpload
-        thumb_result = yt.thumbnails().set(
-            videoId=replacement["video_id"],
-            media_body=MediaFileUpload(str(thumb_path), mimetype="image/jpeg", resumable=False),
-        ).execute()
-        thumb_check = yt.videos().list(part="snippet", id=replacement["video_id"]).execute().get("items") or []
-        if not thumb_check or not any(
-            (thumb_check[0].get("snippet") or {}).get("thumbnails", {}).get(size, {}).get("url")
-            for size in ("maxres", "standard", "high", "medium", "default")
-        ):
-            raise RuntimeError("YouTube did not return a custom thumbnail after upload")
-    except Exception as exc:
-        log(f"Custom thumbnail could not be verified; YouTube's generated thumbnail remains: {str(exc)[:200]}")
+    # Thumbnail upload is mandatory. If it cannot be verified, lp cancels the
+    # scheduled publication and raises before the original video is made private.
+    lp.set_and_verify_thumbnail(yt, replacement["video_id"], thumb_path)
+    thumb_result = {"verified": True, "visual_audit": visual_audit}
 
     # The replacement is verified with the original visibility and scheduled release time
     # before the old version is made private.
@@ -352,6 +338,7 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
     job["replacement_reason"] = "duplicate_visual_assets"
     job["replacement_original_privacy"] = old_status.get("privacyStatus")
     job["replacement_thumbnail"] = bool(thumb_result)
+    job["visual_audit"] = visual_audit
     lp.save_ledger(ledger)
 
     try:
