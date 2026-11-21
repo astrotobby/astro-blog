@@ -39,9 +39,6 @@ jobs:
       FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
       INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
       INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
-      RUMBLE_EMAIL: ${{ secrets.RUMBLE_EMAIL }}
-      RUMBLE_PASSWORD: ${{ secrets.RUMBLE_PASSWORD }}
-      RUMBLE_STORAGE_STATE: ${{ secrets.RUMBLE_STORAGE_STATE }}
       GH_TOKEN: ${{ github.token }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
       RUN_LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.limit || 4 }}
@@ -93,6 +90,38 @@ jobs:
             ARGS+=(--dry-run)
           fi
           python scripts/longform_social_bridge.py "${ARGS[@]}"
+
+      - name: Upload Rumble owner-confirmation packets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rumble-owner-handoffs-${{ github.run_id }}
+          path: .pipeline/out/rumble_handoff_*.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Add Rumble owner tasks to the workflow summary
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import glob, json
+          files = sorted(glob.glob(".pipeline/out/rumble_handoff_*.json"))
+          if not files:
+              print("### Rumble")
+              print("No new Rumble owner handoff was generated in this run.")
+          for name in files:
+              with open(name, encoding="utf-8") as handle:
+                  item = json.load(handle)
+              print(f"### Rumble handoff — {item.get('source_channel_title', 'channel')}")
+              print()
+              print(f"- **Video:** {item.get('title', 'Untitled')}")
+              print(f"- **Category:** {item.get('primary_category')} | **Visibility:** {item.get('visibility')}")
+              print(f"- **[Download the video]({item.get('video_download_url')})**")
+              print(f"- **[Open Rumble upload]({item.get('upload_page')})**")
+              print("- **Owner action:** choose the appropriate license, personally review and confirm Rumble rights/terms, then submit.")
+              print()
+          PY
 
       - name: Save social tokens, Rumble session and post ledger
         if: always()

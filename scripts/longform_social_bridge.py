@@ -190,6 +190,8 @@ def _caption_data(manifest: dict) -> tuple[dict, dict]:
         "description": description,
         "url": youtube_url,
         "tags": tags,
+        "channel": str(manifest["channel"]),
+        "channel_title": channel_label,
     }
     platform_data = {
         "caption": caption,
@@ -217,6 +219,81 @@ def _instagram_render(render: dict, video_path: Path, job_id: str) -> dict:
     return {**render, "videos": videos}
 
 
+def _write_rumble_handoff(
+    render: dict,
+    video_asset: dict,
+    job_id: str,
+    cfg: dict,
+) -> tuple[Path, dict]:
+    """Create an owner-ready Rumble upload packet without accepting legal terms."""
+    post = render.get("post") or {}
+    platform_data = render.get("platform") or {}
+    channel = str(post.get("channel") or "")
+    if channel not in ("astrotobby", "digital_nomad"):
+        raise RuntimeError(f"Rumble handoff has an unsupported source channel: {channel!r}")
+
+    video_url = str(video_asset.get("browser_download_url") or "")
+    parsed = urlparse(video_url)
+    if (
+        parsed.scheme != "https"
+        or (parsed.hostname or "").casefold() != "github.com"
+        or not parsed.path.startswith("/astrotobby/AI-GEMS/releases/download/")
+        or ".." in parsed.path
+    ):
+        raise RuntimeError("Rumble handoff refused a video URL outside the approved AI-GEMS release path")
+
+    title = str(post.get("title") or "Untitled")[:100]
+    youtube_url = str(post.get("url") or "")
+    description = str(platform_data.get("yt_desc") or post.get("description") or "").strip()
+    hashtags = platform_data.get("hashtags") or post.get("tags") or []
+    hashtag_text = " ".join(
+        "#" + re.sub(r"[^A-Za-z0-9]", "", str(tag).lstrip("#"))[:30]
+        for tag in hashtags
+        if re.sub(r"[^A-Za-z0-9]", "", str(tag).lstrip("#"))
+    )
+    if youtube_url:
+        description += f"\n\nWatch the YouTube version: {youtube_url}"
+    if hashtag_text:
+        description += f"\n\n{hashtag_text}"
+
+    rumble_cfg = (cfg.get("platforms") or {}).get("rumble") or {}
+    defaults = {"astrotobby": "Entertainment", "digital_nomad": "Technology"}
+    by_channel = rumble_cfg.get("primary_category_by_channel") or {}
+    category = str(by_channel.get(channel) or defaults[channel])
+    visibility = str(rumble_cfg.get("visibility") or "public").lower()
+    if visibility not in {"public", "unlisted", "private"}:
+        raise RuntimeError(f"Unsupported Rumble visibility in config: {visibility!r}")
+
+    packet = {
+        "schema_version": 1,
+        "job_id": job_id,
+        "source_channel": channel,
+        "source_channel_title": str(post.get("channel_title") or channel),
+        "destination": "Rumble",
+        "status": "awaiting_owner_upload_and_license_confirmation",
+        "upload_page": "https://rumble.com/upload",
+        "video_download_url": video_url,
+        "youtube_url": youtube_url,
+        "title": title,
+        "description": description,
+        "primary_category": category,
+        "visibility": visibility,
+        "owner_confirmation_required": True,
+        "owner_action": (
+            "Upload the video, choose the license that matches your rights and intended "
+            "distribution, review Rumble's rights/terms declarations, personally confirm "
+            "them, and submit. The pipeline does not tick those boxes or submit for you."
+        ),
+    }
+    OUT.mkdir(parents=True, exist_ok=True)
+    safe_job = re.sub(r"[^A-Za-z0-9_-]+", "-", job_id).strip("-")[:80] or "video"
+    path = OUT / f"rumble_handoff_{safe_job}.json"
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(packet, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(path)
+    return path, packet
+
+
 def _publish_destination(
     destination: str,
     render: dict,
@@ -226,17 +303,21 @@ def _publish_destination(
     job_id: str,
     video_asset: dict,
 ) -> dict:
-    """Publish supported destinations without making Rumble legal attestations."""
+    """Publish supported destinations while keeping Rumble license/rights confirmation with the owner."""
     if destination == "rumble" and not dry_run:
+        handoff_path, packet = _write_rumble_handoff(render, video_asset, job_id, cfg)
         return {
             "ok": False,
             "manual_handoff": True,
-            "skipped": (
-                "Owner action required: review and confirm Rumble rights and terms "
-                "before uploading."
-            ),
-            "video_url": str(video_asset.get("browser_download_url") or ""),
-            "youtube_url": str((render.get("post") or {}).get("url") or ""),
+            "status": packet["status"],
+            "handoff_file": str(handoff_path),
+            "upload_page": packet["upload_page"],
+            "video_url": packet["video_download_url"],
+            "youtube_url": packet["youtube_url"],
+            "title": packet["title"],
+            "primary_category": packet["primary_category"],
+            "visibility": packet["visibility"],
+            "owner_confirmation_required": True,
         }
 
     if destination == "instagram" and not dry_run:
@@ -283,10 +364,17 @@ def main() -> int:
         }
         results = {}
         for destination in DESTINATIONS:
-            try:
-                results[destination] = _post_one(destination, dummy, cfg, True)
-            except Exception as exc:
-                results[destination] = {"ok": False, "error": f"{type(exc).__name__}: {str(exc)[:300]}"}
+            if destination == "rumble":
+                results[destination] = {
+                    "ok": True,
+                    "manual_handoff": True,
+                    "note": "Rumble upload packet is prepared for owner upload and license/rights confirmation; no Rumble credentials are stored in this workflow.",
+                }
+            else:
+                try:
+                    results[destination] = _post_one(destination, dummy, cfg, True)
+                except Exception as exc:
+                    results[destination] = {"ok": False, "error": f"{type(exc).__name__}: {str(exc)[:300]}"}
             print(json.dumps({
                 "destination": destination,
                 "preflight": True,
