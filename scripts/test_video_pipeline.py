@@ -373,6 +373,41 @@ class VisualDuplicateGuardTests(unittest.TestCase):
         self.assertIsNotNone(match)
         self.assertEqual(match["id"], "old-video-containing-reused-scene")
 
+    def test_production_refuses_to_load_missing_visual_history(self):
+        with TemporaryDirectory() as temporary_dir:
+            missing = Path(temporary_dir) / "missing-history.json"
+            with (
+                patch.object(generate_video, "FOOTAGE_HISTORY_FILE", missing),
+                patch.object(generate_video, "_history_is_required", return_value=True),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "missing"):
+                    generate_video._load_footage_history()
+
+    def test_production_refuses_to_load_corrupt_visual_history(self):
+        with TemporaryDirectory() as temporary_dir:
+            corrupt = Path(temporary_dir) / "corrupt-history.json"
+            corrupt.write_text("{not-json", encoding="utf-8")
+            with (
+                patch.object(generate_video, "FOOTAGE_HISTORY_FILE", corrupt),
+                patch.object(generate_video, "_history_is_required", return_value=True),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "unreadable"):
+                    generate_video._load_footage_history()
+
+    def test_production_refuses_to_continue_when_visual_history_cannot_be_saved(self):
+        with TemporaryDirectory() as temporary_dir:
+            blocker = Path(temporary_dir) / "not-a-directory"
+            blocker.write_text("file", encoding="utf-8")
+            impossible_history_path = blocker / "history.json"
+            with (
+                patch.object(generate_video, "FOOTAGE_HISTORY_FILE", impossible_history_path),
+                patch.object(generate_video, "_history_is_required", return_value=True),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "persisted"):
+                    generate_video._save_footage_history([{
+                        "id": "asset-1", "used_at": 1, "visual_hashes": ["1111111111111111"]
+                    }])
+
     def test_stock_video_search_never_relaxes_global_history_blocklist(self):
         from pathlib import Path
         from unittest.mock import patch
