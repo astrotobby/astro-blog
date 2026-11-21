@@ -228,8 +228,10 @@ def _find_visual_duplicate(hashes: list[str], history: list[dict]) -> dict | Non
             if any(_hamming_distance(current_hash, old_hash) <= VISUAL_PHASH_THRESHOLD
                    for old_hash in previous)
         )
-        required = 1 if len(hashes) == 1 or len(previous) == 1 else 2
-        if matched_frames >= required:
+        # A single matching sampled frame is enough to reject a clip.
+        # Requiring multiple matches allowed a reused scene inside a longer edit
+        # to slip through, which violates the channel-wide no-reuse policy.
+        if matched_frames >= 1:
             return item
     return None
 
@@ -1189,16 +1191,9 @@ def fetch_scene_assets(script, cfg, variant):
     used_clips, used_creators = set(), set()
     history = _load_footage_history()
 
-    # Vertical and horizontal masters for one story may reuse their own shots.
-    # Any other story, channel, or scene must use different media.
-    applicable_history = [
-        item for item in history
-        if not (
-            item.get("slug") == post_slug
-            and item.get("variant")
-            and item.get("variant") != variant
-        )
-    ]
+    # No variant exception: once a visual has appeared in any rendered video,
+    # neither channel nor another aspect-ratio export may select it again.
+    applicable_history = list(history)
     recent_ids = {item["id"] for item in applicable_history}
     assets, provenance = [], []
     scene_count = len(script["scene_prompts"])
@@ -1338,14 +1333,7 @@ def fetch_scene_assets(script, cfg, variant):
 
     # Save immediately after this master. The Actions cache persists it between
     # the four daily runs for Astro Tobby and DIJITOL NOMAD.
-    _save_footage_history(history + applicable_history[len([
-        item for item in history
-        if not (
-            item.get("slug") == post_slug
-            and item.get("variant")
-            and item.get("variant") != variant
-        )
-    ]):])
+    _save_footage_history(applicable_history)
     return assets, provenance
 
 # ---------- 3. Scene assembly ----------
