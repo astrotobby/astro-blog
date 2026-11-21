@@ -59,7 +59,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install social publisher dependencies
-        run: python -m pip install --disable-pip-version-check requests PyYAML pynacl playwright
+        run: python -m pip install --disable-pip-version-check requests PyYAML pynacl
 
       - name: Restore existing blog-to-video state
         uses: actions/cache/restore@v4
@@ -77,9 +77,11 @@ jobs:
           case "$READY" in true|false) ;; *) echo "Unexpected readiness response: $READY"; exit 1 ;; esac
           echo "has_pending=$READY" >> "$GITHUB_OUTPUT"
 
-      - name: Install Chromium only when Rumble has a ready upload
-        if: env.DRY_RUN != 'true' && steps.pending.outputs.has_pending == 'true'
-        run: python -m playwright install --with-deps chromium
+      - name: Install FFmpeg only when a live social upload is pending
+        if: env.DRY_RUN != 'true' && env.CHECK_DESTINATIONS != 'true' && steps.pending.outputs.has_pending == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
 
       - name: Publish pending long-form videos to Facebook Instagram and Rumble
         run: |
