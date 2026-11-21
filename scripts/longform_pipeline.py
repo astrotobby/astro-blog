@@ -1014,7 +1014,7 @@ def validate_visual_manifest(channel, job_id, scene_count, stock_sources):
             "fingerprint_count": len(seen_hashes), "policy": "global-zero-reuse"}
 
 
-def build_cinematic_thumbnail(video_path, title, job_id, channel):
+def build_cinematic_thumbnail(video_path, title, job_id, channel, current_scene_sources):
     """Create and fingerprint a one-off cinematic thumbnail; reject reused visuals."""
     from PIL import Image, ImageDraw, ImageFont
     duration = renderer.ffprobe_duration(video_path)
@@ -1050,7 +1050,13 @@ def build_cinematic_thumbnail(video_path, title, job_id, channel):
         raise RuntimeError("Generated thumbnail exceeds YouTube's 2 MB limit")
     hashes = renderer._visual_hashes(thumb)
     history = renderer._load_footage_history()
-    duplicate = renderer._find_visual_duplicate(hashes, history)
+    # The thumbnail is a frame from this video's own footage, so the current
+    # video's scene assets are allowed as its thumbnail source. All assets from
+    # every earlier video, both channels, and all earlier thumbnails remain
+    # excluded. The thumbnail itself is then added to the global ledger.
+    current_ids = {str(item.get("id")) for item in current_scene_sources if item.get("id")}
+    prior_video_history = [item for item in history if str(item.get("id") or "") not in current_ids]
+    duplicate = renderer._find_visual_duplicate(hashes, prior_video_history)
     if duplicate:
         raise RuntimeError(f"Thumbnail visual duplicates previously used asset {duplicate.get('id')}; refusing upload")
     record = renderer._history_record(f"thumbnail:{hashes[0]}", "youtube-custom-thumbnail", hashes, slug=job_id, variant="thumbnail")
@@ -1132,7 +1138,7 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     video,_duration,_words,voice=renderer.render_variant("horizontal",package["narration"],script,cfg,assets,None)
     media=check_media(Path(video))
     visual_audit=validate_visual_manifest(channel,key,len(script.get("scene_prompts") or []),stock_sources)
-    thumbnail_path,thumbnail_record=build_cinematic_thumbnail(Path(video),package["title"],key,channel)
+    thumbnail_path,thumbnail_record=build_cinematic_thumbnail(Path(video),package["title"],key,channel,stock_sources)
     stock_sources.append(thumbnail_record)
     job.update({"status":"rendered","media":media,"visual_audit":visual_audit,"thumbnail_path":str(thumbnail_path),"voice_provider":voice,"stock_sources":stock_sources,
                 "rendered_at":datetime.now(timezone.utc).isoformat()})
