@@ -161,15 +161,18 @@ def set_private_and_verify(yt, video_id: str, expected_channel_id: str) -> None:
     if (old.get("snippet") or {}).get("channelId") != expected_channel_id:
         raise RuntimeError(f"Safety stop: original video {video_id} belongs to another channel")
     old_status = old.get("status") or {}
-    if old_status.get("privacyStatus") == "private":
+    if old_status.get("privacyStatus") == "private" and not old_status.get("publishAt"):
         return
+    # Omitting publishAt while setting privacyStatus=private cancels a pending
+    # scheduled release as well as taking a public/unlisted duplicate offline.
     yt.videos().update(
         part="status",
         body={"id": video_id, "status": {"privacyStatus": "private"}},
     ).execute()
     after = yt.videos().list(part="status", id=video_id).execute().get("items") or []
-    if not after or (after[0].get("status") or {}).get("privacyStatus") != "private":
-        raise RuntimeError(f"YouTube did not confirm that original video {video_id} became private")
+    after_status = (after[0].get("status") or {}) if after else {}
+    if after_status.get("privacyStatus") != "private" or after_status.get("publishAt"):
+        raise RuntimeError(f"YouTube did not confirm video {video_id} is private with no scheduled release")
 
 
 def create_social_handoff(video: Path, job: dict, replacement: dict, channel: str, job_id: str) -> dict:
@@ -244,6 +247,12 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
     old_status = old_item.get("status") or {}
     if old_status.get("privacyStatus") not in ("public", "private", "unlisted"):
         raise RuntimeError(f"Unexpected original YouTube status: {old_status.get('privacyStatus')!r}")
+    if replace_old:
+        # Take the known-duplicate original offline before the potentially long
+        # render. Preserve old_status in memory so the replacement can inherit
+        # its intended public/private/scheduled state after all gates pass.
+        set_private_and_verify(yt, original_video_id, identity["id"])
+        log(f"Original video {original_video_id} is private during visual replacement")
 
     package = dict(job["package"])
     package["description"] = brief_description(package.get("description", ""))
