@@ -63,9 +63,13 @@ def main() -> int:
     STATE.mkdir(parents=True, exist_ok=True)
     try:
         raw = json.loads(HISTORY.read_text(encoding="utf-8"))
-        items = raw.get("items", []) if isinstance(raw, dict) else []
-    except (OSError, ValueError, json.JSONDecodeError):
-        items = []
+    except FileNotFoundError:
+        raw = {"items": []}
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"Existing visual history is unreadable; refusing to reset it: {exc}")
+    if not isinstance(raw, dict) or not isinstance(raw.get("items"), list):
+        raise SystemExit("Existing visual history has an invalid schema; refusing to reset it")
+    items = raw["items"]
 
     known = {item.get("id") for item in items if isinstance(item, dict)}
     now = time.time()
@@ -121,10 +125,12 @@ def main() -> int:
             added += 1
 
     items.sort(key=lambda item: float(item.get("used_at", 0)), reverse=True)
-    HISTORY.write_text(
+    temporary = HISTORY.with_suffix(".tmp")
+    temporary.write_text(
         json.dumps({"items": items[:100000]}, ensure_ascii=False),
         encoding="utf-8",
     )
+    temporary.replace(HISTORY)
     print(
         f"Visual duplicate guard ready: {added} added "
         f"({ledger_added} from prior videos), {len(items[:100000])} historical asset IDs."
