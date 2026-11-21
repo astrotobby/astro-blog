@@ -346,6 +346,40 @@ class VisualDuplicateGuardTests(unittest.TestCase):
             self.assertIsNotNone(match)
             self.assertEqual(match["id"], "previous-channel-image")
 
+    def test_mirrored_image_is_rejected_as_reuse(self):
+        from PIL import Image, ImageOps
+        with TemporaryDirectory() as temporary_dir:
+            original = Path(temporary_dir) / "original.png"
+            mirrored = Path(temporary_dir) / "mirrored.png"
+            self._pattern_image(original)
+            with Image.open(original) as image:
+                ImageOps.mirror(image).save(mirrored)
+            original_hashes = generate_video._visual_hashes(original)
+            mirrored_hashes = generate_video._visual_hashes(mirrored)
+            match = generate_video._find_visual_duplicate(
+                mirrored_hashes, [{"id": "original-scene", "visual_hashes": original_hashes}]
+            )
+            self.assertIsNotNone(match)
+            self.assertEqual(match["id"], "original-scene")
+
+    def test_cropped_image_is_rejected_as_reuse(self):
+        from PIL import Image
+        with TemporaryDirectory() as temporary_dir:
+            original = Path(temporary_dir) / "original.png"
+            cropped = Path(temporary_dir) / "cropped.png"
+            self._pattern_image(original)
+            with Image.open(original) as image:
+                width, height = image.size
+                image.crop((int(width * 0.1), int(height * 0.1),
+                            int(width * 0.9), int(height * 0.9))).save(cropped)
+            original_hashes = generate_video._visual_hashes(original)
+            cropped_hashes = generate_video._visual_hashes(cropped)
+            match = generate_video._find_visual_duplicate(
+                cropped_hashes, [{"id": "original-scene", "visual_hashes": original_hashes}]
+            )
+            self.assertIsNotNone(match)
+            self.assertEqual(match["id"], "original-scene")
+
     def test_perceptually_different_images_are_not_duplicates(self):
         with TemporaryDirectory() as temporary_dir:
             first = Path(temporary_dir) / "gradient.png"
