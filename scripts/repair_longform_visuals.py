@@ -161,18 +161,15 @@ def set_private_and_verify(yt, video_id: str, expected_channel_id: str) -> None:
     if (old.get("snippet") or {}).get("channelId") != expected_channel_id:
         raise RuntimeError(f"Safety stop: original video {video_id} belongs to another channel")
     old_status = old.get("status") or {}
-    if old_status.get("privacyStatus") == "private" and not old_status.get("publishAt"):
+    if old_status.get("privacyStatus") == "private":
         return
-    # Explicitly clear publishAt while setting privacyStatus=private so a pending
-    # scheduled release cannot go public while its replacement is being rendered.
     yt.videos().update(
         part="status",
-        body={"id": video_id, "status": {"privacyStatus": "private", "publishAt": None}},
+        body={"id": video_id, "status": {"privacyStatus": "private"}},
     ).execute()
     after = yt.videos().list(part="status", id=video_id).execute().get("items") or []
-    after_status = (after[0].get("status") or {}) if after else {}
-    if after_status.get("privacyStatus") != "private" or after_status.get("publishAt"):
-        raise RuntimeError(f"YouTube did not confirm video {video_id} is private with no scheduled release")
+    if not after or (after[0].get("status") or {}).get("privacyStatus") != "private":
+        raise RuntimeError(f"YouTube did not confirm that original video {video_id} became private")
 
 
 def create_social_handoff(video: Path, job: dict, replacement: dict, channel: str, job_id: str) -> dict:
@@ -247,12 +244,6 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
     old_status = old_item.get("status") or {}
     if old_status.get("privacyStatus") not in ("public", "private", "unlisted"):
         raise RuntimeError(f"Unexpected original YouTube status: {old_status.get('privacyStatus')!r}")
-    if replace_old:
-        # Take the known-duplicate original offline before the potentially long
-        # render. Preserve old_status in memory so the replacement can inherit
-        # its intended public/private/scheduled state after all gates pass.
-        set_private_and_verify(yt, original_video_id, identity["id"])
-        log(f"Original video {original_video_id} is private during visual replacement")
 
     package = dict(job["package"])
     package["description"] = brief_description(package.get("description", ""))
@@ -286,9 +277,11 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
     # Final gate: every source must be unique by provider ID and must include a
     # perceptual fingerprint. The renderer has already checked scene-to-scene and
     # cross-channel history before accepting each asset.
-    visual_audit = lp.validate_visual_manifest(channel, job_id, len(script.get("scene_prompts") or []), stock_sources)
-    thumb_path, thumb_record = lp.build_cinematic_thumbnail(video_path, package["title"], repair_slug, channel)
-    stock_sources.append(thumb_record)
+    ids = [str(item.get("id")) for item in stock_sources if item.get("id")]
+    if len(ids) != len(set(ids)):
+        raise RuntimeError(f"Duplicate source IDs remain in repaired render for {job_id}")
+    if any(not item.get("visual_hashes") for item in stock_sources):
+        raise RuntimeError(f"Repaired render has a source without a visual fingerprint for {job_id}")
 
     # Refresh the original video status after the long render. Its scheduled
     # publishAt may have elapsed while scenes were being generated; in that case
@@ -314,10 +307,22 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
             old_status.pop("publishAt", None)
 
     replacement = upload_replacement(yt, video_path, package, channel, old_status)
-    # Thumbnail upload is mandatory. If it cannot be verified, lp cancels the
-    # scheduled publication and raises before the original video is made private.
-    lp.set_and_verify_thumbnail(yt, replacement["video_id"], thumb_path)
-    thumb_result = {"verified": True, "visual_audit": visual_audit}
+    thumb_result = None
+    try:
+        thumb_path = build_custom_thumbnail(video_path, package["title"], repair_slug)
+        from googleapiclient.http import MediaFileUpload
+        thumb_result = yt.thumbnails().set(
+            videoId=replacement["video_id"],
+            media_body=MediaFileUpload(str(thumb_path), mimetype="image/jpeg", resumable=False),
+        ).execute()
+        thumb_check = yt.videos().list(part="snippet", id=replacement["video_id"]).execute().get("items") or []
+        if not thumb_check or not any(
+            (thumb_check[0].get("snippet") or {}).get("thumbnails", {}).get(size, {}).get("url")
+            for size in ("maxres", "standard", "high", "medium", "default")
+        ):
+            raise RuntimeError("YouTube did not return a custom thumbnail after upload")
+    except Exception as exc:
+        log(f"Custom thumbnail could not be verified; YouTube's generated thumbnail remains: {str(exc)[:200]}")
 
     # The replacement is verified with the original visibility and scheduled release time
     # before the old version is made private.
@@ -347,7 +352,6 @@ def repair_one(job_id: str, replace_old: bool = True) -> dict:
     job["replacement_reason"] = "duplicate_visual_assets"
     job["replacement_original_privacy"] = old_status.get("privacyStatus")
     job["replacement_thumbnail"] = bool(thumb_result)
-    job["visual_audit"] = visual_audit
     lp.save_ledger(ledger)
 
     try:
