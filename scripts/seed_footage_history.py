@@ -127,13 +127,13 @@ def main() -> int:
     items.sort(key=lambda item: float(item.get("used_at", 0)), reverse=True)
     temporary = HISTORY.with_suffix(".tmp")
     temporary.write_text(
-        json.dumps({"items": items[:100000]}, ensure_ascii=False),
+        json.dumps({"items": items}, ensure_ascii=False),
         encoding="utf-8",
     )
     temporary.replace(HISTORY)
     print(
         f"Visual duplicate guard ready: {added} added "
-        f"({ledger_added} from prior videos), {len(items[:100000])} historical asset IDs."
+        f"({ledger_added} from prior videos), {len(items)} permanent historical asset IDs."
     )
     return 0
 
