@@ -685,8 +685,12 @@ def _fetch_video_asset(index, meta, target_w, target_h, used_clips, used_creator
                  if candidate.get("id") not in used_clips
                  and candidate.get("id") not in recent_ids
                  and candidate.get("creator") not in used_creators]
+        # Relax contributor diversity only. The global historical asset-ID
+        # blocklist is absolute and must never be bypassed when search results
+        # are sparse.
         relaxed = [candidate for candidate in candidates
-                   if candidate.get("id") not in used_clips]
+                   if candidate.get("id") not in used_clips
+                   and candidate.get("id") not in recent_ids]
         ordered = fresh + [item for item in relaxed if item not in fresh]
         for position, candidate in enumerate(ordered[:FOOTAGE_MAX_DOWNLOAD_ATTEMPTS]):
             remaining = deadline - time.monotonic()
