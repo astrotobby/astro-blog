@@ -1018,6 +1018,7 @@ def validate_visual_manifest(channel, job_id, scene_count, stock_sources):
         )
     seen_ids = set()
     fingerprint_owner = {}
+    accepted_visuals = []
     for index, asset in enumerate(stock_sources, 1):
         asset_id = str(asset.get("id") or "").strip()
         hashes = asset.get("visual_hashes") or []
@@ -1026,6 +1027,12 @@ def validate_visual_manifest(channel, job_id, scene_count, stock_sources):
         if asset_id in seen_ids:
             raise RuntimeError(f"Visual integrity gate: asset {asset_id} appears more than once in this render")
         seen_ids.add(asset_id)
+        near_match = renderer._find_visual_duplicate(hashes, accepted_visuals)
+        if near_match:
+            raise RuntimeError(
+                f"Visual integrity gate: scene asset {asset_id} is perceptually repeated from "
+                f"{near_match.get('id', 'an earlier scene')}"
+            )
         for value in hashes:
             fingerprint = str(value).strip().lower()
             if not fingerprint:
@@ -1034,6 +1041,7 @@ def validate_visual_manifest(channel, job_id, scene_count, stock_sources):
             if owner and owner != asset_id:
                 raise RuntimeError(f"Visual integrity gate: repeated visual frame across assets {owner} and {asset_id}")
             fingerprint_owner[fingerprint] = asset_id
+        accepted_visuals.append({"id": asset_id, "visual_hashes": hashes})
     seen_hashes = set(fingerprint_owner)
     log(f"Visual integrity gate passed: {channel}/{job_id}; {len(stock_sources)} visual assets fingerprinted")
     return {"channel": channel, "job_id": job_id, "asset_count": len(stock_sources),
