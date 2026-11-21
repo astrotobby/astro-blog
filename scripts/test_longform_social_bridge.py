@@ -40,6 +40,20 @@ class FakeSession:
         return self.responses.pop(0)
 
 
+class LongformSocialSessionTests(unittest.TestCase):
+    def test_github_actions_token_is_attached_to_release_polling_session(self):
+        with patch.dict("os.environ", {"GH_TOKEN": "test-workflow-token"}, clear=False):
+            session = longform_social_bridge._github_session()
+        self.assertEqual(
+            session.headers.get("Authorization"),
+            "Bearer test-workflow-token",
+        )
+        self.assertEqual(
+            session.headers.get("Accept"),
+            "application/vnd.github+json",
+        )
+
+
 class LongformSocialDownloadTests(unittest.TestCase):
     def test_incomplete_release_download_is_retried_and_atomically_saved(self):
         expected = 120_000
