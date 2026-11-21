@@ -1012,6 +1012,60 @@ def validate_visual_manifest(channel, job_id, scene_count, stock_sources):
             "fingerprint_count": len(seen_hashes), "policy": "global-zero-reuse"}
 
 
+def build_cinematic_thumbnail(video_path, title, job_id, channel):
+    """Create and fingerprint a one-off cinematic thumbnail; reject reused visuals."""
+    from PIL import Image, ImageDraw, ImageFont
+    duration = renderer.ffprobe_duration(video_path)
+    if duration < 2:
+        raise RuntimeError("Thumbnail generation requires a valid rendered video")
+    seed = int(hashlib.sha256(f"{channel}:{job_id}".encode()).hexdigest()[:8], 16)
+    timestamp = max(0.5, min(duration - 0.5, duration * (0.18 + (seed % 6000) / 10000)))
+    frame = OUT / f"thumb-frame-{job_id}.jpg"
+    thumb = OUT / f"thumb-{job_id}.jpg"
+    subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-ss", f"{timestamp:.3f}",
+        "-i", str(video_path), "-frames:v", "1", "-vf",
+        "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,setsar=1", "-q:v", "2", str(frame)],
+        check=True, timeout=120)
+    image = Image.open(frame).convert("RGB")
+    if image.size != (1280, 720):
+        raise RuntimeError("Thumbnail frame has unexpected dimensions")
+    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    for x in range(1280):
+        alpha = int(190 * max(0, 1 - x / 1280) ** 0.72)
+        draw.line((x, 0, x, 720), fill=(5, 9, 18, alpha))
+    draw.rounded_rectangle((48, 48, 420, 104), radius=18, fill=(255, 255, 255, 35), outline=(255, 255, 255, 100), width=2)
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    small = ImageFont.truetype(font_path, 25)
+    draw.text((72, 62), "ASTRO TOBBY" if channel == "astrotobby" else "DIJITOL NOMAD", font=small, fill=(255,255,255,255))
+    label = " ".join(re.findall(r"[A-Za-z0-9$%']+", title.upper())[:7])
+    font = ImageFont.truetype(font_path, 66)
+    while draw.textbbox((0,0), label, font=font, stroke_width=1)[2] > 900 and font.size > 38:
+        font = ImageFont.truetype(font_path, font.size - 3)
+    draw.text((64, 475), label, font=font, fill=(255,255,255,255), stroke_width=2, stroke_fill=(0,0,0,220))
+    Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB").save(thumb, "JPEG", quality=91, optimize=True)
+    if thumb.stat().st_size > 2_000_000:
+        raise RuntimeError("Generated thumbnail exceeds YouTube's 2 MB limit")
+    hashes = renderer._visual_hashes(thumb)
+    history = renderer._load_footage_history()
+    duplicate = renderer._find_visual_duplicate(hashes, history)
+    if duplicate:
+        raise RuntimeError(f"Thumbnail visual duplicates previously used asset {duplicate.get('id')}; refusing upload")
+    record = renderer._history_record(f"thumbnail:{hashes[0]}", "youtube-custom-thumbnail", hashes, slug=job_id, variant="thumbnail")
+    renderer._save_footage_history(history + [record])
+    return thumb, {"id": record["id"], "provider": record["provider"], "visual_hashes": hashes}
+
+
+def set_and_verify_thumbnail(yt, video_id, thumbnail_path):
+    from googleapiclient.http import MediaFileUpload
+    yt.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(
+        str(thumbnail_path), mimetype="image/jpeg", resumable=False)).execute()
+    rows = yt.videos().list(part="snippet", id=video_id).execute().get("items") or []
+    thumbnails = ((rows[0].get("snippet") or {}).get("thumbnails") or {}) if rows else {}
+    if not any(thumbnails.get(size, {}).get("url") for size in ("maxres", "standard", "high", "medium", "default")):
+        raise RuntimeError("YouTube custom thumbnail upload could not be verified")
+
+
 def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     target=publish_time(channel,slot,target_date); key=make_job_id(channel,slot,target)
     ledger=load_ledger(); jobs=ledger.setdefault("jobs",{}); job=jobs.get(key)
@@ -1063,7 +1117,9 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     video,_duration,_words,voice=renderer.render_variant("horizontal",package["narration"],script,cfg,assets,None)
     media=check_media(Path(video))
     visual_audit=validate_visual_manifest(channel,key,len(script.get("scene_prompts") or []),stock_sources)
-    job.update({"status":"rendered","media":media,"visual_audit":visual_audit,"voice_provider":voice,"stock_sources":stock_sources,
+    thumbnail_path,thumbnail_record=build_cinematic_thumbnail(Path(video),package["title"],key,channel)
+    stock_sources.append(thumbnail_record)
+    job.update({"status":"rendered","media":media,"visual_audit":visual_audit,"thumbnail_path":str(thumbnail_path),"voice_provider":voice,"stock_sources":stock_sources,
                 "rendered_at":datetime.now(timezone.utc).isoformat()})
     save_ledger(ledger,dry_run)
     yt,_target,_creds,identity=yt_service(channel)
@@ -1075,7 +1131,8 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     job["status"]="uploading"; job["upload_started_at"]=datetime.now(timezone.utc).isoformat()
     save_ledger(ledger)
     uploaded=upload_scheduled(yt,Path(video),package,channel,target)
-    job.update(uploaded,status="scheduled",scheduled_at=datetime.now(timezone.utc).isoformat())
+    set_and_verify_thumbnail(yt,uploaded["video_id"],thumbnail_path)
+    job.update(uploaded,status="scheduled",thumbnail_verified=True,scheduled_at=datetime.now(timezone.utc).isoformat())
     save_ledger(ledger); return job
 
 
