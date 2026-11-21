@@ -297,14 +297,139 @@ def post_tumblr(render, cfg, dry):
 # Facebook Page — Graph API. Posts a video to a Page you admin using a
 # long-lived Page access token (works in dev mode for your own page; no review).
 # --------------------------------------------------------------------------
+
+def _facebook_resumable_upload(requests, endpoint, page_id, token, video, caption):
+    """Upload a Page video through Meta's resumable start/transfer/finish API."""
+    import io
+    import os
+    import time
+
+    file_size = os.path.getsize(video)
+    if file_size <= 0:
+        raise RuntimeError("Facebook upload file is empty")
+
+    video_endpoint = endpoint.replace(
+        "https://graph.facebook.com/",
+        "https://graph-video.facebook.com/",
+        1,
+    )
+
+    def _payload(response):
+        try:
+            value = response.json() if response.content else {}
+        except (TypeError, ValueError):
+            value = {}
+        if response.status_code >= 300:
+            detail = value.get("error") if isinstance(value, dict) else None
+            detail = detail or getattr(response, "text", "")[:260] or "empty response"
+            raise RuntimeError(f"Facebook resumable upload HTTP {response.status_code}: {detail}")
+        if not isinstance(value, dict):
+            raise RuntimeError("Facebook resumable upload returned an invalid response")
+        return value
+
+    common = {"access_token": token}
+    started = requests.post(
+        video_endpoint,
+        data={**common, "upload_phase": "start", "file_size": str(file_size)},
+        timeout=60,
+    )
+    start_data = _payload(started)
+    session_id = str(start_data.get("upload_session_id") or "")
+    video_id = str(start_data.get("video_id") or start_data.get("id") or "")
+    if not session_id or not video_id:
+        raise RuntimeError(
+            "Facebook resumable start did not return upload_session_id and video_id"
+        )
+
+    if not start_data.get("skip_upload"):
+        start_offset = int(start_data.get("start_offset") or 0)
+        end_offset = int(start_data.get("end_offset") or 0)
+        if not (0 <= start_offset <= file_size and start_offset < end_offset <= file_size):
+            raise RuntimeError(
+                f"Facebook returned invalid initial upload offsets {start_offset}:{end_offset} "
+                f"for {file_size} bytes"
+            )
+
+        with open(video, "rb") as handle:
+            while start_offset < file_size:
+                if end_offset <= start_offset:
+                    raise RuntimeError("Facebook returned a non-progressing upload range")
+                handle.seek(start_offset)
+                chunk = handle.read(end_offset - start_offset)
+                if len(chunk) != end_offset - start_offset:
+                    raise RuntimeError("Could not read the complete Facebook upload chunk")
+
+                transfer_data = {
+                    **common,
+                    "upload_phase": "transfer",
+                    "upload_session_id": session_id,
+                    "start_offset": str(start_offset),
+                }
+                last_error = None
+                for attempt in range(1, 4):
+                    response = requests.post(
+                        video_endpoint,
+                        data=transfer_data,
+                        files={
+                            "video_file_chunk": (
+                                "video.mp4",
+                                io.BytesIO(chunk),
+                                "application/octet-stream",
+                            )
+                        },
+                        timeout=(30, 900),
+                    )
+                    try:
+                        chunk_data = _payload(response)
+                        last_error = None
+                        break
+                    except Exception as exc:
+                        last_error = exc
+                        status = getattr(response, "status_code", 0)
+                        if status and status < 500 and status != 429:
+                            raise
+                        if attempt < 3:
+                            time.sleep(5 * attempt)
+                if last_error is not None:
+                    raise last_error
+
+                next_start = int(chunk_data.get("start_offset") or end_offset)
+                next_end = int(chunk_data.get("end_offset") or min(file_size, next_start + 50 * 1024 * 1024))
+                if next_start <= start_offset or next_start > file_size:
+                    raise RuntimeError(
+                        f"Facebook upload offset did not advance ({start_offset} -> {next_start})"
+                    )
+                if next_start < file_size and not (next_start < next_end <= file_size):
+                    raise RuntimeError(
+                        f"Facebook returned invalid next upload offsets {next_start}:{next_end}"
+                    )
+                start_offset, end_offset = next_start, next_end
+
+    finished = requests.post(
+        video_endpoint,
+        data={
+            **common,
+            "upload_phase": "finish",
+            "upload_session_id": session_id,
+            "description": caption,
+        },
+        timeout=180,
+    )
+    finish_data = _payload(finished)
+    if finish_data.get("success") is False:
+        raise RuntimeError(f"Facebook did not finish the video upload: {finish_data}")
+    final_video_id = str(finish_data.get("video_id") or finish_data.get("id") or video_id)
+    return f"https://www.facebook.com/{final_video_id}"
+
+
 def post_facebook(render, cfg, dry):
     if not _has("FACEBOOK_PAGE_ID", "FACEBOOK_PAGE_TOKEN"):
         return {"ok": False, "skipped": "no creds"}
     if dry:
         return {"ok": True, "dry": True}
-    import time
 
     import requests
+
     page_id = env("FACEBOOK_PAGE_ID")
     token = env("FACEBOOK_PAGE_TOKEN")
     p = render["platform"]
@@ -328,52 +453,13 @@ def post_facebook(render, cfg, dry):
     except Exception as exc:  # noqa
         log(f"facebook: duplicate pre-check unavailable; continuing with guarded upload ({type(exc).__name__})")
 
-    last_error = "Facebook upload returned no usable video ID"
-    for attempt in range(1, 4):
-        try:
-            with open(video, "rb") as fh:
-                response = requests.post(
-                    url,
-                    data={"description": caption, "access_token": token},
-                    files={"source": ("video.mp4", fh, "video/mp4")},
-                    timeout=(30, 900),
-                )
-            try:
-                payload = response.json() if response.content else {}
-            except ValueError:
-                payload = {}
-            video_id = payload.get("id") if isinstance(payload, dict) else None
-            if response.status_code < 300 and video_id:
-                return {"ok": True, "url": f"https://www.facebook.com/{video_id}"}
-            error_obj = payload.get("error") if isinstance(payload, dict) else None
-            last_error = (
-                f"Facebook Graph API HTTP {response.status_code}: "
-                f"{error_obj or response.text[:260] or 'empty response'}"
-            )
-            # Authentication, permission, and validation errors are not transient.
-            if response.status_code < 500 and response.status_code != 429:
-                return {"ok": False, "error": last_error[:500]}
-        except Exception as exc:  # noqa
-            last_error = f"{type(exc).__name__}: {str(exc)[:300]}"
-        if attempt < 3:
-            delay = 8 * attempt
-            log(f"facebook: upload attempt {attempt}/3 failed ({last_error}); retrying in {delay}s")
-            time.sleep(delay)
-            # Re-check recent Page videos after an uncertain connection outcome.
-            try:
-                recent = requests.get(
-                    f"https://graph.facebook.com/v27.0/{page_id}/videos",
-                    params={"fields": "id,description,created_time", "limit": 30, "access_token": token},
-                    timeout=45,
-                )
-                if recent.ok:
-                    for item in (recent.json() or {}).get("data", []):
-                        if str(item.get("description") or "").strip() == caption.strip() and item.get("id"):
-                            return {"ok": True, "url": f"https://www.facebook.com/{item['id']}",
-                                    "recovered_existing_post": True}
-            except Exception:  # noqa
-                pass
-    return {"ok": False, "error": last_error[:500]}
+    try:
+        video_url = _facebook_resumable_upload(
+            requests, url, page_id, token, video, caption
+        )
+        return {"ok": True, "url": video_url, "upload": "resumable"}
+    except Exception as exc:  # noqa
+        return {"ok": False, "error": f"{type(exc).__name__}: {str(exc)[:500]}"}
 
 
 # --------------------------------------------------------------------------

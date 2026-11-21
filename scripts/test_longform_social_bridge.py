@@ -154,5 +154,120 @@ class LongformSocialDestinationSafetyTests(unittest.TestCase):
             self.assertFalse(vertical.exists())
 
 
+class FacebookResumableUploadTests(unittest.TestCase):
+    class Response:
+        def __init__(self, payload, status_code=200):
+            import json
+            self._payload = payload
+            self.status_code = status_code
+            self.content = json.dumps(payload).encode("utf-8")
+            self.text = self.content.decode("utf-8")
+
+        def json(self):
+            return self._payload
+
+    class Requests:
+        def __init__(self, responses):
+            self.responses = list(responses)
+            self.calls = []
+
+        def post(self, url, **kwargs):
+            self.calls.append((url, kwargs))
+            return self.responses.pop(0)
+
+    def test_page_video_is_uploaded_in_server_directed_chunks(self):
+        with TemporaryDirectory() as tmp:
+            video = Path(tmp) / "master.mp4"
+            video.write_bytes(b"abcdefgh")
+            requests = self.Requests([
+                self.Response({
+                    "upload_session_id": "session-1",
+                    "video_id": "video-1",
+                    "start_offset": "0",
+                    "end_offset": "4",
+                }),
+                self.Response({"start_offset": "4", "end_offset": "8"}),
+                self.Response({"start_offset": "8", "end_offset": "8"}),
+                self.Response({"success": True, "video_id": "video-1"}),
+            ])
+
+            url = longform_social_bridge.platforms._facebook_resumable_upload(
+                requests,
+                "https://graph.facebook.com/v27.0/123456/videos",
+                "123456",
+                "page-token",
+                video,
+                "Test upload",
+            )
+
+        self.assertEqual(url, "https://www.facebook.com/video-1")
+        self.assertEqual(len(requests.calls), 4)
+        expected_url = "https://graph-video.facebook.com/v27.0/123456/videos"
+        self.assertTrue(all(call[0] == expected_url for call in requests.calls))
+        self.assertEqual(requests.calls[0][1]["data"]["upload_phase"], "start")
+        self.assertEqual(requests.calls[0][1]["data"]["file_size"], "8")
+        first_transfer = requests.calls[1][1]
+        second_transfer = requests.calls[2][1]
+        self.assertEqual(first_transfer["data"]["start_offset"], "0")
+        self.assertEqual(first_transfer["data"]["upload_session_id"], "session-1")
+        self.assertEqual(first_transfer["files"]["video_file_chunk"][1].getvalue(), b"abcd")
+        self.assertEqual(second_transfer["data"]["start_offset"], "4")
+        self.assertEqual(second_transfer["files"]["video_file_chunk"][1].getvalue(), b"efgh")
+        finish = requests.calls[3][1]["data"]
+        self.assertEqual(finish["upload_phase"], "finish")
+        self.assertEqual(finish["upload_session_id"], "session-1")
+        self.assertEqual(finish["description"], "Test upload")
+
+    def test_skip_upload_session_finishes_without_transfer(self):
+        with TemporaryDirectory() as tmp:
+            video = Path(tmp) / "master.mp4"
+            video.write_bytes(b"video-data")
+            requests = self.Requests([
+                self.Response({
+                    "upload_session_id": "session-2",
+                    "video_id": "video-2",
+                    "skip_upload": True,
+                    "start_offset": "0",
+                    "end_offset": "0",
+                }),
+                self.Response({"success": True, "video_id": "video-2"}),
+            ])
+            url = longform_social_bridge.platforms._facebook_resumable_upload(
+                requests,
+                "https://graph.facebook.com/v27.0/123456/videos",
+                "123456",
+                "page-token",
+                video,
+                "Existing video",
+            )
+
+        self.assertEqual(url, "https://www.facebook.com/video-2")
+        self.assertEqual(len(requests.calls), 2)
+        self.assertEqual(requests.calls[1][1]["data"]["upload_phase"], "finish")
+
+    def test_rejects_non_advancing_server_offsets(self):
+        with TemporaryDirectory() as tmp:
+            video = Path(tmp) / "master.mp4"
+            video.write_bytes(b"abcdefgh")
+            requests = self.Requests([
+                self.Response({
+                    "upload_session_id": "session-3",
+                    "video_id": "video-3",
+                    "start_offset": "0",
+                    "end_offset": "4",
+                }),
+                self.Response({"start_offset": "0", "end_offset": "4"}),
+            ])
+            with self.assertRaisesRegex(RuntimeError, "did not advance"):
+                longform_social_bridge.platforms._facebook_resumable_upload(
+                    requests,
+                    "https://graph.facebook.com/v27.0/123456/videos",
+                    "123456",
+                    "page-token",
+                    video,
+                    "Bad offsets",
+                )
+
+
 if __name__ == "__main__":
     unittest.main()
