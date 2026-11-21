@@ -358,6 +358,21 @@ class VisualDuplicateGuardTests(unittest.TestCase):
                 second_hashes, [{"id": "different-image", "visual_hashes": first_hashes}]
             ))
 
+    def test_single_matching_video_frame_blocks_reuse(self):
+        current_hashes = [
+            "1111111111111111", "2222222222222222", "3333333333333333",
+            "4444444444444444", "5555555555555555",
+        ]
+        history = [{
+            "id": "old-video-containing-reused-scene",
+            "visual_hashes": ["1111111111111111", "aaaaaaaaaaaaaaaa",
+                              "bbbbbbbbbbbbbbbb", "cccccccccccccccc",
+                              "dddddddddddddddd"],
+        }]
+        match = generate_video._find_visual_duplicate(current_hashes, history)
+        self.assertIsNotNone(match)
+        self.assertEqual(match["id"], "old-video-containing-reused-scene")
+
     def test_scene_fetch_retries_duplicate_asset_before_accepting_new_one(self):
         with TemporaryDirectory() as temporary_dir:
             repeated = Path(temporary_dir) / "repeated.png"
@@ -370,14 +385,14 @@ class VisualDuplicateGuardTests(unittest.TestCase):
                 "provider": "Openverse",
                 "visual_hashes": repeated_hashes,
                 "used_at": 1,
-                "slug": "previous-post",
+                "slug": "same-story",
                 "variant": "vertical",
             }]
             script = {
-                "post": {"slug": "new-post", "title": "A new story", "image_url": ""},
+                "post": {"slug": "same-story", "title": "A new story", "image_url": ""},
                 "scene_prompts": ["HOOK|broll:topic-specific image|fallback:topic image"],
             }
-            cfg = {"video": {"vertical": {"w": 1080, "h": 1920}}}
+            cfg = {"video": {"horizontal": {"w": 1920, "h": 1080}}}
 
             with (
                 patch.object(generate_video, "_load_footage_history", return_value=history),
@@ -387,7 +402,7 @@ class VisualDuplicateGuardTests(unittest.TestCase):
                     (str(unique), {}, {"id": "pixabay:unique", "provider": "Pixabay"}),
                 ]) as fetch,
             ):
-                assets, sources = generate_video.fetch_scene_assets(script, cfg, "vertical")
+                assets, sources = generate_video.fetch_scene_assets(script, cfg, "horizontal")
 
             self.assertEqual(fetch.call_count, 2)
             self.assertEqual(assets[0][0], str(unique))
