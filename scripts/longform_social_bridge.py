@@ -370,11 +370,11 @@ def main() -> int:
                     "manual_handoff": True,
                     "note": "Rumble upload packet is prepared for owner upload and license/rights confirmation; no Rumble credentials are stored in this workflow.",
                 }
-                continue
-            try:
-                results[destination] = _post_one(destination, dummy, cfg, True)
-            except Exception as exc:
-                results[destination] = {"ok": False, "error": f"{type(exc).__name__}: {str(exc)[:300]}"}
+            else:
+                try:
+                    results[destination] = _post_one(destination, dummy, cfg, True)
+                except Exception as exc:
+                    results[destination] = {"ok": False, "error": f"{type(exc).__name__}: {str(exc)[:300]}"}
             print(json.dumps({
                 "destination": destination,
                 "preflight": True,
