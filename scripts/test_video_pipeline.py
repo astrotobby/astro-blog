@@ -4,6 +4,7 @@ Run from the repository root:
     python3 -m unittest scripts/test_video_pipeline.py
 """
 import copy
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -15,6 +16,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import build_script  # noqa: E402
 import generate_video  # noqa: E402
+import seed_footage_history  # noqa: E402
 from common import load_config  # noqa: E402
 
 
@@ -441,6 +443,36 @@ class VisualDuplicateGuardTests(unittest.TestCase):
                     generate_video._save_footage_history([{
                         "id": "asset-1", "used_at": 1, "visual_hashes": ["1111111111111111"]
                     }])
+
+    def test_seed_merges_fingerprints_from_all_ledger_rows_with_same_asset_id(self):
+        with TemporaryDirectory() as temporary_dir:
+            state = Path(temporary_dir) / "state"
+            history_path = state / "footage_history.json"
+            state.mkdir()
+            history_path.write_text(json.dumps({"items": [{
+                "id": "openverse:historic-asset",
+                "provider": "Openverse",
+                "visual_hashes": [],
+                "used_at": 100,
+            }]}), encoding="utf-8")
+            ledger = Path(temporary_dir) / "ledger.json"
+            ledger.write_text(json.dumps({"jobs": {
+                "job-one": {"rendered_at": "2026-11-19T10:00:00+00:00",
+                            "stock_sources": [{"id": "openverse:historic-asset", "visual_hashes": []}]},
+                "job-two": {"rendered_at": "2026-11-20T10:00:00+00:00",
+                            "stock_sources": [{"id": "openverse:historic-asset",
+                                               "visual_hashes": ["1111111111111111", "2222222222222222"]}]},
+            }}), encoding="utf-8")
+            with (
+                patch.object(seed_footage_history, "STATE", state),
+                patch.object(seed_footage_history, "HISTORY", history_path),
+                patch.object(sys, "argv", ["seed_footage_history.py", "--ledger", str(ledger)]),
+            ):
+                self.assertEqual(seed_footage_history.main(), 0)
+            rows = json.loads(history_path.read_text(encoding="utf-8"))["items"]
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(set(rows[0]["visual_hashes"]),
+                             {"1111111111111111", "2222222222222222"})
 
     def test_stock_video_search_never_relaxes_global_history_blocklist(self):
         from pathlib import Path
