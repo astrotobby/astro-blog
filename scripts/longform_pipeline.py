@@ -978,6 +978,40 @@ def upload_scheduled(yt,path,package,channel,target):
     return {"video_id":vid,"url":f"https://youtu.be/{vid}","publish_at":publish_at}
 
 
+def validate_visual_manifest(channel, job_id, scene_count, stock_sources):
+    """Fail closed unless every rendered scene has a unique, fingerprinted visual.
+
+    The renderer's shared footage history performs cross-video/cross-channel
+    duplicate rejection. This final gate independently verifies that the render
+    returned a complete manifest and contains no repeated scene fingerprints.
+    """
+    if not isinstance(stock_sources, list) or len(stock_sources) < scene_count:
+        raise RuntimeError(
+            f"Visual integrity gate: expected at least {scene_count} scene records, "
+            f"received {len(stock_sources) if isinstance(stock_sources, list) else 'invalid manifest'}"
+        )
+    seen_ids = set()
+    seen_hashes = set()
+    for index, asset in enumerate(stock_sources, 1):
+        asset_id = str(asset.get("id") or "").strip()
+        hashes = asset.get("visual_hashes") or []
+        if not asset_id or not hashes:
+            raise RuntimeError(f"Visual integrity gate: scene asset {index} has no stable ID or visual fingerprint")
+        if asset_id in seen_ids:
+            raise RuntimeError(f"Visual integrity gate: asset {asset_id} appears more than once in this render")
+        seen_ids.add(asset_id)
+        for value in hashes:
+            fingerprint = str(value).strip().lower()
+            if not fingerprint:
+                raise RuntimeError(f"Visual integrity gate: empty fingerprint in asset {asset_id}")
+            if fingerprint in seen_hashes:
+                raise RuntimeError(f"Visual integrity gate: repeated frame fingerprint in render ({asset_id})")
+            seen_hashes.add(fingerprint)
+    log(f"Visual integrity gate passed: {channel}/{job_id}; {len(stock_sources)} visual assets fingerprinted")
+    return {"channel": channel, "job_id": job_id, "asset_count": len(stock_sources),
+            "fingerprint_count": len(seen_hashes), "policy": "global-zero-reuse"}
+
+
 def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     target=publish_time(channel,slot,target_date); key=make_job_id(channel,slot,target)
     ledger=load_ledger(); jobs=ledger.setdefault("jobs",{}); job=jobs.get(key)
@@ -1028,7 +1062,8 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     assets,stock_sources=renderer.fetch_scene_assets(script,cfg,"horizontal")
     video,_duration,_words,voice=renderer.render_variant("horizontal",package["narration"],script,cfg,assets,None)
     media=check_media(Path(video))
-    job.update({"status":"rendered","media":media,"voice_provider":voice,"stock_sources":stock_sources,
+    visual_audit=validate_visual_manifest(channel,key,len(script.get("scene_prompts") or []),stock_sources)
+    job.update({"status":"rendered","media":media,"visual_audit":visual_audit,"voice_provider":voice,"stock_sources":stock_sources,
                 "rendered_at":datetime.now(timezone.utc).isoformat()})
     save_ledger(ledger,dry_run)
     yt,_target,_creds,identity=yt_service(channel)
