@@ -104,12 +104,14 @@ def main() -> int:
                 fingerprints = asset.get("visual_hashes") or []
                 existing = by_id.get(asset_id)
                 if existing:
-                    if not existing.get("visual_hashes") and fingerprints:
-                        existing["visual_hashes"] = fingerprints
-                        existing["title"] = str(asset.get("title") or existing.get("title") or "")
-                        existing["provider"] = str(asset.get("provider") or existing.get("provider") or "historical-ledger")
-                        existing["creator"] = str(asset.get("creator") or existing.get("creator") or "")
-                        existing["reason"] = "historical_fingerprint_backfilled_from_ledger"
+                    # Merge fingerprints from every ledger occurrence of the same
+                    # source ID. This backfills hashless historical rows and upgrades
+                    # older, lower-density fingerprints without losing prior hashes.
+                    existing_hashes = list(existing.get("visual_hashes") or [])
+                    merged_hashes = sorted(set(existing_hashes).union(str(value) for value in fingerprints if value))
+                    if len(merged_hashes) > len(existing_hashes):
+                        existing["visual_hashes"] = merged_hashes
+                        existing["reason"] = "historical_fingerprints_merged_from_ledger"
                         enriched += 1
                     continue
                 record = {
