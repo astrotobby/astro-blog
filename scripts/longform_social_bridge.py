@@ -23,7 +23,9 @@ AI_GEMS_RELEASES = "https://api.github.com/repos/astrotobby/AI-GEMS/releases"
 DESTINATIONS = ("facebook", "instagram", "rumble")
 MAX_PER_RUN = 4
 MIN_YOUTUBE_PUBLIC_GRACE = timedelta(minutes=2)
-DOWNLOAD_TIMEOUT = (20, 180)
+DOWNLOAD_TIMEOUT = (30, 240)
+DOWNLOAD_ATTEMPTS = 5
+DOWNLOAD_RETRY_SECONDS = 4
 
 
 def _utc(value: str) -> datetime:
@@ -81,29 +83,57 @@ def _asset(release: dict, name: str) -> dict | None:
 
 
 def _download(session: requests.Session, asset: dict, destination: Path) -> Path:
+    """Download a large release MP4 atomically, retrying incomplete streams."""
     url = str(asset.get("browser_download_url") or "")
     if urlparse(url).scheme != "https":
         raise RuntimeError(f"Refusing non-HTTPS release asset URL: {url!r}")
     expected = int(asset.get("size") or 0)
-    if destination.exists() and expected and destination.stat().st_size == expected:
-        return destination
+    if destination.exists() and destination.stat().st_size >= 100_000:
+        if not expected or destination.stat().st_size == expected:
+            return destination
     destination.parent.mkdir(parents=True, exist_ok=True)
     tmp = destination.with_suffix(destination.suffix + ".part")
-    with session.get(url, stream=True, timeout=DOWNLOAD_TIMEOUT) as response:
-        response.raise_for_status()
-        with tmp.open("wb") as handle:
-            for chunk in response.iter_content(chunk_size=8 * 1024 * 1024):
-                if chunk:
-                    handle.write(chunk)
-    if not tmp.exists() or tmp.stat().st_size < 100_000:
+    last_error = None
+
+    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
         tmp.unlink(missing_ok=True)
-        raise RuntimeError(f"Downloaded video asset is empty or too small: {destination.name}")
-    if expected and tmp.stat().st_size != expected:
-        got = tmp.stat().st_size
-        tmp.unlink(missing_ok=True)
-        raise RuntimeError(f"Release asset size mismatch for {destination.name}: expected {expected}, got {got}")
-    tmp.replace(destination)
-    return destination
+        written = 0
+        try:
+            with session.get(url, stream=True, timeout=DOWNLOAD_TIMEOUT) as response:
+                response.raise_for_status()
+                declared = int(response.headers.get("Content-Length") or expected or 0)
+                with tmp.open("wb") as handle:
+                    for chunk in response.iter_content(chunk_size=2 * 1024 * 1024):
+                        if not chunk:
+                            continue
+                        handle.write(chunk)
+                        written += len(chunk)
+                if declared and written != declared:
+                    raise IOError(
+                        f"incomplete stream ({written} bytes received; {declared} expected)"
+                    )
+            if written < 100_000:
+                raise IOError(f"downloaded video is too small ({written} bytes)")
+            if expected and written != expected:
+                raise IOError(f"asset size mismatch ({written} bytes received; {expected} expected)")
+            tmp.replace(destination)
+            log(f"Downloaded {destination.name}: {written} bytes (attempt {attempt}/{DOWNLOAD_ATTEMPTS})")
+            return destination
+        except Exception as exc:
+            last_error = exc
+            tmp.unlink(missing_ok=True)
+            if attempt < DOWNLOAD_ATTEMPTS:
+                delay = DOWNLOAD_RETRY_SECONDS * attempt
+                log(
+                    f"video download attempt {attempt}/{DOWNLOAD_ATTEMPTS} failed "
+                    f"({type(exc).__name__}: {str(exc)[:180]}); retrying in {delay}s"
+                )
+                time.sleep(delay)
+
+    raise RuntimeError(
+        f"Could not download {destination.name} after {DOWNLOAD_ATTEMPTS} attempts: "
+        f"{type(last_error).__name__}: {str(last_error)[:300]}"
+    )
 
 
 def _manifest(session: requests.Session, release: dict) -> dict:
@@ -208,7 +238,15 @@ def main() -> int:
     state_path = STATE / "longform_social_ledger.json"
     state = _load_state(state_path)
     session = requests.Session()
-    session.headers.update({"User-Agent": "AstroTobbyLongformSocialBridge/1.0"})
+    session.headers.update({
+        "User-Agent": "AstroTobbyLongformSocialBridge/1.1",
+        "Accept": "application/vnd.github+json",
+    })
+    # The AI-GEMS release listing is called every 15 minutes. Authenticate it so
+    # GitHub does not apply the low unauthenticated API rate limit to the poller.
+    github_token = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
+    if github_token:
+        session.headers["Authorization"] = f"Bearer {github_token}"
 
     releases = _releases(session)
     now = datetime.now(timezone.utc)
