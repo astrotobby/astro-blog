@@ -211,7 +211,8 @@ class FootageBriefTests(unittest.TestCase):
         ):
             assets, sources = generate_video.fetch_scene_assets(script, cfg, "horizontal")
         self.assertEqual(len(assets), 2)
-        self.assertEqual(sources, [])
+        self.assertEqual(len(sources), 2)
+        self.assertTrue(all(item["provider"] == "generated-image" for item in sources))
         self.assertEqual(fetch.call_args_list[0].args[2:4], (1920, 1080))
         self.assertEqual(fetch.call_args_list[0].args[-1], "horizontal")
 
