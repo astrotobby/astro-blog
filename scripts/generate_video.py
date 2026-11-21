@@ -43,9 +43,9 @@ MUSIC_EXTENSIONS = {".mp3", ".m4a", ".wav", ".ogg", ".flac"}
 FOOTAGE_CACHE_FILE = STATE / "footage_search_cache.json"
 FOOTAGE_CACHE_TTL_SECONDS = 24 * 60 * 60
 FOOTAGE_HISTORY_FILE = STATE / "footage_history.json"
-# Keep visual IDs and fingerprints across all daily channel slots for years.
-FOOTAGE_HISTORY_DAYS = 36500
-FOOTAGE_HISTORY_LIMIT = 100000
+# Visual history is permanent: assets never expire and the registry is never truncated.
+FOOTAGE_HISTORY_DAYS = None
+FOOTAGE_HISTORY_LIMIT = None
 VISUAL_PHASH_THRESHOLD = 5
 VISUAL_SCAN_FRAME_FRACTIONS = (0.08, 0.18, 0.28, 0.38, 0.50, 0.62, 0.72, 0.82, 0.92)
 VISUAL_SELECTION_ATTEMPTS = 5
@@ -140,10 +140,8 @@ def _load_footage_history():
     if not isinstance(raw, dict) or not isinstance(raw.get("items"), list):
         raise RuntimeError("Global visual history has an invalid schema; refusing asset selection")
     items = raw["items"]
-    cutoff = time.time() - FOOTAGE_HISTORY_DAYS * 24 * 60 * 60
-    return [item for item in items
-            if isinstance(item, dict) and item.get("id")
-            and float(item.get("used_at", 0)) >= cutoff]
+    # Do not prune by age: a used visual stays blocked permanently.
+    return [item for item in items if isinstance(item, dict) and item.get("id")]
 
 
 def _save_footage_history(items):
@@ -156,8 +154,6 @@ def _save_footage_history(items):
             continue
         seen.add(clip_id)
         deduped.append(item)
-        if len(deduped) >= FOOTAGE_HISTORY_LIMIT:
-            break
     try:
         FOOTAGE_HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
         temporary = FOOTAGE_HISTORY_FILE.with_suffix(".tmp")
