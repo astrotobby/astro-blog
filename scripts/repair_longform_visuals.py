@@ -163,11 +163,11 @@ def set_private_and_verify(yt, video_id: str, expected_channel_id: str) -> None:
     old_status = old.get("status") or {}
     if old_status.get("privacyStatus") == "private" and not old_status.get("publishAt"):
         return
-    # Omitting publishAt while setting privacyStatus=private cancels a pending
-    # scheduled release as well as taking a public/unlisted duplicate offline.
+    # Explicitly clear publishAt while setting privacyStatus=private so a pending
+    # scheduled release cannot go public while its replacement is being rendered.
     yt.videos().update(
         part="status",
-        body={"id": video_id, "status": {"privacyStatus": "private"}},
+        body={"id": video_id, "status": {"privacyStatus": "private", "publishAt": None}},
     ).execute()
     after = yt.videos().list(part="status", id=video_id).execute().get("items") or []
     after_status = (after[0].get("status") or {}) if after else {}
