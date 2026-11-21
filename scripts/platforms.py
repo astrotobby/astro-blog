@@ -302,25 +302,78 @@ def post_facebook(render, cfg, dry):
         return {"ok": False, "skipped": "no creds"}
     if dry:
         return {"ok": True, "dry": True}
+    import time
+
+    import requests
+    page_id = env("FACEBOOK_PAGE_ID")
+    token = env("FACEBOOK_PAGE_TOKEN")
+    p = render["platform"]
+    video = render["videos"].get("vertical") or render["videos"]["horizontal"]
+    caption = str(p.get("caption") or "")
+    url = f"https://graph.facebook.com/v27.0/{page_id}/videos"
+
+    # A previous upload may have reached Facebook even when the HTTP response was
+    # lost. Look for this exact caption before retrying to avoid posting duplicates.
     try:
-        import requests
-        page_id = env("FACEBOOK_PAGE_ID")
-        token = env("FACEBOOK_PAGE_TOKEN")
-        p = render["platform"]
-        video = render["videos"].get("vertical") or render["videos"]["horizontal"]
-        url = f"https://graph.facebook.com/v27.0/{page_id}/videos"
-        with open(video, "rb") as fh:
-            r = requests.post(url,
-                              data={"description": p["caption"], "access_token": token},
-                              files={"source": ("video.mp4", fh, "video/mp4")},
-                              timeout=600)
-        j = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
-        vid = j.get("id")
-        if r.status_code < 300 and vid:
-            return {"ok": True, "url": f"https://www.facebook.com/{vid}"}
-        return {"ok": False, "error": str(j or r.text)[:300]}
-    except Exception as e:  # noqa
-        return {"ok": False, "error": str(e)}
+        recent = requests.get(
+            f"https://graph.facebook.com/v27.0/{page_id}/videos",
+            params={"fields": "id,description,created_time", "limit": 30, "access_token": token},
+            timeout=45,
+        )
+        if recent.ok:
+            for item in (recent.json() or {}).get("data", []):
+                if str(item.get("description") or "").strip() == caption.strip() and item.get("id"):
+                    return {"ok": True, "url": f"https://www.facebook.com/{item['id']}",
+                            "recovered_existing_post": True}
+    except Exception as exc:  # noqa
+        log(f"facebook: duplicate pre-check unavailable; continuing with guarded upload ({type(exc).__name__})")
+
+    last_error = "Facebook upload returned no usable video ID"
+    for attempt in range(1, 4):
+        try:
+            with open(video, "rb") as fh:
+                response = requests.post(
+                    url,
+                    data={"description": caption, "access_token": token},
+                    files={"source": ("video.mp4", fh, "video/mp4")},
+                    timeout=(30, 900),
+                )
+            try:
+                payload = response.json() if response.content else {}
+            except ValueError:
+                payload = {}
+            video_id = payload.get("id") if isinstance(payload, dict) else None
+            if response.status_code < 300 and video_id:
+                return {"ok": True, "url": f"https://www.facebook.com/{video_id}"}
+            error_obj = payload.get("error") if isinstance(payload, dict) else None
+            last_error = (
+                f"Facebook Graph API HTTP {response.status_code}: "
+                f"{error_obj or response.text[:260] or 'empty response'}"
+            )
+            # Authentication, permission, and validation errors are not transient.
+            if response.status_code < 500 and response.status_code != 429:
+                return {"ok": False, "error": last_error[:500]}
+        except Exception as exc:  # noqa
+            last_error = f"{type(exc).__name__}: {str(exc)[:300]}"
+        if attempt < 3:
+            delay = 8 * attempt
+            log(f"facebook: upload attempt {attempt}/3 failed ({last_error}); retrying in {delay}s")
+            time.sleep(delay)
+            # Re-check recent Page videos after an uncertain connection outcome.
+            try:
+                recent = requests.get(
+                    f"https://graph.facebook.com/v27.0/{page_id}/videos",
+                    params={"fields": "id,description,created_time", "limit": 30, "access_token": token},
+                    timeout=45,
+                )
+                if recent.ok:
+                    for item in (recent.json() or {}).get("data", []):
+                        if str(item.get("description") or "").strip() == caption.strip() and item.get("id"):
+                            return {"ok": True, "url": f"https://www.facebook.com/{item['id']}",
+                                    "recovered_existing_post": True}
+            except Exception:  # noqa
+                pass
+    return {"ok": False, "error": last_error[:500]}
 
 
 # --------------------------------------------------------------------------
@@ -423,52 +476,114 @@ def post_instagram(render, cfg, dry):
         return {"ok": False, "skipped": "no creds"}
     if dry:
         return {"ok": True, "dry": True}
-    try:
-        import time
 
-        import requests
-        p = render["platform"]
-        video = render["videos"].get("vertical") or render["videos"]["horizontal"]
-        video_url = _host_public_url(video, render["post"]["slug"])
-        if not video_url:
-            return {"ok": False, "error": "could not host a public video URL"}
-        base = "https://graph.instagram.com/v27.0"   # Instagram-Login API
-        # 1) create a Reels container
-        caption = p.get("ig_caption") or p["caption"]   # IG: "link in bio" (links aren't clickable)
-        r = requests.post(f"{base}/{ig_id}/media",
-                          data={"media_type": "REELS", "video_url": video_url,
-                                "caption": caption, "access_token": token}, timeout=120)
-        cid = (r.json() or {}).get("id")
-        if not cid:
-            return {"ok": False, "error": str(r.json())[:300]}
-        # 2) wait for Instagram to fetch + process
-        for _ in range(25):
-            time.sleep(6)
-            st = requests.get(f"{base}/{cid}",
-                              params={"fields": "status_code", "access_token": token},
-                              timeout=60).json().get("status_code")
-            if st == "FINISHED":
-                break
-            if st == "ERROR":
-                return {"ok": False, "error": "Instagram media processing failed"}
-        # 3) publish
-        pub = requests.post(f"{base}/{ig_id}/media_publish",
-                            data={"creation_id": cid, "access_token": token}, timeout=120)
-        mid = (pub.json() or {}).get("id")
-        if mid:
-            # media_publish returns a NUMERIC media id, not the /reel/<shortcode> URL.
-            # Fetch the real permalink so the reported link actually opens the reel
-            # (using /reel/<numeric id> gives "post no longer available").
+    import time
+
+    import requests
+    p = render["platform"]
+    video = render["videos"].get("vertical") or render["videos"]["horizontal"]
+    video_url = _host_public_url(video, render["post"]["slug"])
+    if not video_url:
+        return {"ok": False, "error": "could not host a public video URL"}
+    base = "https://graph.instagram.com/v27.0"   # Instagram-Login API
+    caption = p.get("ig_caption") or p["caption"]
+
+    # Create one container for this video. Do not call media_publish until Meta
+    # explicitly reports FINISHED; publishing an IN_PROGRESS container yields
+    # OAuthException 9007 / subcode 2207027 (the failure seen in the first run).
+    create = requests.post(
+        f"{base}/{ig_id}/media",
+        data={"media_type": "REELS", "video_url": video_url,
+              "caption": caption, "access_token": token},
+        timeout=180,
+    )
+    try:
+        create_payload = create.json() if create.content else {}
+    except ValueError:
+        create_payload = {}
+    creation_id = create_payload.get("id") if isinstance(create_payload, dict) else None
+    if create.status_code >= 300 or not creation_id:
+        return {"ok": False, "error": (
+            f"Instagram container creation HTTP {create.status_code}: "
+            f"{create_payload or create.text[:300] or 'empty response'}"
+        )}
+
+    status = "UNKNOWN"
+    last_status_error = ""
+    for attempt in range(1, 37):  # up to six minutes for Meta to ingest a long video
+        if attempt > 1:
+            time.sleep(10)
+        try:
+            check = requests.get(
+                f"{base}/{creation_id}",
+                params={"fields": "status_code", "access_token": token},
+                timeout=60,
+            )
             try:
-                perm = requests.get(f"{base}/{mid}",
-                                    params={"fields": "permalink", "access_token": token},
-                                    timeout=60).json().get("permalink")
+                status_payload = check.json() if check.content else {}
+            except ValueError:
+                status_payload = {}
+            if check.status_code >= 500 or check.status_code == 429:
+                last_status_error = f"status poll HTTP {check.status_code}"
+                continue
+            if check.status_code >= 300:
+                return {"ok": False, "error": (
+                    f"Instagram status poll HTTP {check.status_code}: "
+                    f"{status_payload or check.text[:250]}"
+                )}
+            status = str(status_payload.get("status_code") or "UNKNOWN").upper()
+            if status == "FINISHED":
+                break
+            if status in {"ERROR", "EXPIRED"}:
+                return {"ok": False, "error": f"Instagram media processing ended with {status}"}
+        except Exception as exc:  # noqa
+            last_status_error = f"{type(exc).__name__}: {str(exc)[:180]}"
+
+    if status != "FINISHED":
+        return {"ok": False, "error": (
+            f"Instagram video is not ready after six minutes (status={status}; "
+            f"{last_status_error or 'Meta has not completed transcoding'}). "
+            "The bridge will retry this destination on its next run."
+        )}
+
+    # Meta sometimes reports FINISHED shortly before publish is available. Retry
+    # the known transient 9007/2207027 response without creating another container.
+    last_publish_error = ""
+    for attempt in range(1, 5):
+        publish = requests.post(
+            f"{base}/{ig_id}/media_publish",
+            data={"creation_id": creation_id, "access_token": token},
+            timeout=180,
+        )
+        try:
+            publish_payload = publish.json() if publish.content else {}
+        except ValueError:
+            publish_payload = {}
+        media_id = publish_payload.get("id") if isinstance(publish_payload, dict) else None
+        if publish.status_code < 300 and media_id:
+            try:
+                perm_response = requests.get(
+                    f"{base}/{media_id}",
+                    params={"fields": "permalink", "access_token": token},
+                    timeout=60,
+                )
+                permalink = (perm_response.json() or {}).get("permalink") if perm_response.ok else None
             except Exception:  # noqa
-                perm = None
-            return {"ok": True, "url": perm or f"https://www.instagram.com/p/{mid}/"}
-        return {"ok": False, "error": str(pub.json())[:300]}
-    except Exception as e:  # noqa
-        return {"ok": False, "error": str(e)}
+                permalink = None
+            return {"ok": True, "url": permalink or f"https://www.instagram.com/p/{media_id}/"}
+
+        error_obj = publish_payload.get("error", {}) if isinstance(publish_payload, dict) else {}
+        error_code = error_obj.get("code")
+        error_subcode = error_obj.get("error_subcode")
+        last_publish_error = (
+            f"Instagram media_publish HTTP {publish.status_code}: "
+            f"{publish_payload or publish.text[:300] or 'empty response'}"
+        )
+        if not (error_code == 9007 and error_subcode == 2207027) or attempt == 4:
+            break
+        time.sleep(12 * attempt)
+
+    return {"ok": False, "error": last_publish_error[:600]}
 
 
 # --------------------------------------------------------------------------
