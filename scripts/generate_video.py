@@ -116,13 +116,30 @@ def _cache_put(provider, query, target_w, target_h, candidates):
         log(f"footage search cache write skipped: {exc}")
 
 
+def _history_is_required():
+    """GitHub Actions production runs must never proceed without a readable ledger."""
+    return os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
+
+
 def _load_footage_history():
-    """Load recent clip IDs used by prior posts; history is non-secret state."""
+    """Load the global, long-lived visual registry; fail closed in production."""
     try:
         raw = json.loads(FOOTAGE_HISTORY_FILE.read_text(encoding="utf-8"))
-        items = raw.get("items", []) if isinstance(raw, dict) else []
-    except (OSError, ValueError, json.JSONDecodeError):
-        items = []
+    except FileNotFoundError as exc:
+        if _history_is_required():
+            raise RuntimeError(
+                "Global visual history is missing; refusing production render until it is restored and seeded"
+            ) from exc
+        raw = {"items": []}
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        if _history_is_required():
+            raise RuntimeError(
+                f"Global visual history is unreadable; refusing production render: {exc}"
+            ) from exc
+        raw = {"items": []}
+    if not isinstance(raw, dict) or not isinstance(raw.get("items"), list):
+        raise RuntimeError("Global visual history has an invalid schema; refusing asset selection")
+    items = raw["items"]
     cutoff = time.time() - FOOTAGE_HISTORY_DAYS * 24 * 60 * 60
     return [item for item in items
             if isinstance(item, dict) and item.get("id")
@@ -130,7 +147,7 @@ def _load_footage_history():
 
 
 def _save_footage_history(items):
-    """Persist a bounded recency list so the next post can avoid visual repeats."""
+    """Persist a bounded visual registry; production must stop if the write fails."""
     deduped = []
     seen = set()
     for item in sorted(items, key=lambda value: float(value.get("used_at", 0)), reverse=True):
@@ -143,10 +160,16 @@ def _save_footage_history(items):
             break
     try:
         FOOTAGE_HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
-        FOOTAGE_HISTORY_FILE.write_text(
+        temporary = FOOTAGE_HISTORY_FILE.with_suffix(".tmp")
+        temporary.write_text(
             json.dumps({"items": deduped}, ensure_ascii=False), encoding="utf-8")
+        temporary.replace(FOOTAGE_HISTORY_FILE)
     except OSError as exc:
-        log(f"footage history write skipped: {exc}")
+        if _history_is_required():
+            raise RuntimeError(
+                f"Global visual history could not be persisted; refusing production render: {exc}"
+            ) from exc
+        log(f"footage history write skipped outside production: {exc}")
 
 
 def _phash_image(image) -> str:
