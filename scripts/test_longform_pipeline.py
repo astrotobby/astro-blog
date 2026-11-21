@@ -794,5 +794,33 @@ class MediaGateTests(unittest.TestCase):
                     pipeline.check_media(path)
 
 
+class VisualManifestGateTests(unittest.TestCase):
+    def test_final_gate_rejects_one_perceptually_matching_frame(self):
+        assets = [
+            {"id": "pexels:scene-a", "visual_hashes": [
+                "1111111111111111", "2222222222222222"
+            ]},
+            {"id": "pixabay:scene-b", "visual_hashes": [
+                "aaaaaaaaaaaaaaaa", "1111111111111111"
+            ]},
+        ]
+        with self.assertRaisesRegex(RuntimeError, "perceptually repeated"):
+            pipeline.validate_visual_manifest("astrotobby", "test-job", 2, assets)
+
+    def test_final_gate_rejects_assets_without_fingerprints(self):
+        assets = [{"id": "openverse:scene-a", "visual_hashes": []}]
+        with self.assertRaisesRegex(RuntimeError, "fingerprint"):
+            pipeline.validate_visual_manifest("digital_nomad", "test-job", 1, assets)
+
+    def test_final_gate_accepts_unique_fingerprinted_scenes(self):
+        assets = [
+            {"id": "pexels:scene-a", "visual_hashes": ["1111111111111111", "2222222222222222"]},
+            {"id": "pixabay:scene-b", "visual_hashes": ["eeeeeeeeeeeeeeee", "ffffffffffffffff"]},
+        ]
+        result = pipeline.validate_visual_manifest("digital_nomad", "test-job", 2, assets)
+        self.assertEqual(result["policy"], "global-zero-reuse")
+        self.assertEqual(result["asset_count"], 2)
+
+
 if __name__ == "__main__":
     unittest.main()
