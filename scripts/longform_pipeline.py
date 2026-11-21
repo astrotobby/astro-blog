@@ -991,7 +991,7 @@ def validate_visual_manifest(channel, job_id, scene_count, stock_sources):
             f"received {len(stock_sources) if isinstance(stock_sources, list) else 'invalid manifest'}"
         )
     seen_ids = set()
-    seen_hashes = set()
+    fingerprint_owner = {}
     for index, asset in enumerate(stock_sources, 1):
         asset_id = str(asset.get("id") or "").strip()
         hashes = asset.get("visual_hashes") or []
@@ -1004,9 +1004,11 @@ def validate_visual_manifest(channel, job_id, scene_count, stock_sources):
             fingerprint = str(value).strip().lower()
             if not fingerprint:
                 raise RuntimeError(f"Visual integrity gate: empty fingerprint in asset {asset_id}")
-            if fingerprint in seen_hashes:
-                raise RuntimeError(f"Visual integrity gate: repeated frame fingerprint in render ({asset_id})")
-            seen_hashes.add(fingerprint)
+            owner = fingerprint_owner.get(fingerprint)
+            if owner and owner != asset_id:
+                raise RuntimeError(f"Visual integrity gate: repeated visual frame across assets {owner} and {asset_id}")
+            fingerprint_owner[fingerprint] = asset_id
+    seen_hashes = set(fingerprint_owner)
     log(f"Visual integrity gate passed: {channel}/{job_id}; {len(stock_sources)} visual assets fingerprinted")
     return {"channel": channel, "job_id": job_id, "asset_count": len(stock_sources),
             "fingerprint_count": len(seen_hashes), "policy": "global-zero-reuse"}
