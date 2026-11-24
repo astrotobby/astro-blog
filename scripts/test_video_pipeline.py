@@ -194,9 +194,18 @@ class FootageBriefTests(unittest.TestCase):
         self.assertIn("music executive", queries)
         self.assertLessEqual(len(queries), 7)
 
+    def test_contextual_fallback_queries_use_story_topic(self):
+        queries = generate_video._contextual_fallback_queries(
+            {"broll": "programmer typing code close up", "fallback": "digital invoice video production"},
+            "BAFTA Loses EE Sponsor as Record 38 Films Chase Oscar Glory",
+        )
+        self.assertIn("film awards ceremony", queries)
+        self.assertIn("movie production film camera set", queries)
+        self.assertLessEqual(len(queries), 3)
+
     def test_fetch_assets_uses_each_master_dimensions(self):
         script = {
-            "post": {"slug": "format-test", "image_url": ""},
+            "post": {"slug": "format-test", "title": "AI agent tooling changes", "image_url": ""},
             "scene_prompts": [
                 "scene one, scene_type:HOOK|kb:punch_in|dur:0.60|broll:software developer laptop|fallback:data center servers",
                 "scene two, scene_type:CTA|kb:gentle_zoom|dur:1.20|broll:technology office team|fallback:software developer laptop",
@@ -216,7 +225,8 @@ class FootageBriefTests(unittest.TestCase):
         self.assertEqual(len(sources), 2)
         self.assertTrue(all(item["provider"] == "generated-image" for item in sources))
         self.assertEqual(fetch.call_args_list[0].args[2:4], (1920, 1080))
-        self.assertEqual(fetch.call_args_list[0].args[-1], "horizontal")
+        self.assertEqual(fetch.call_args_list[0].args[-2], "horizontal")
+        self.assertEqual(fetch.call_args_list[0].args[-1], "AI agent tooling changes")
 
 
     def test_fetch_scene_uses_commons_when_video_and_openverse_fail(self):
@@ -236,6 +246,27 @@ class FootageBriefTests(unittest.TestCase):
         self.assertEqual(provenance, source)
         self.assertEqual(meta["broll"], "music production studio")
         commons.assert_called_once()
+
+    def test_fetch_scene_uses_story_context_after_specific_licensed_searches_fail(self):
+        asset = Path("/tmp/contextual-film-awards.jpg")
+        source = {"id": "wikimedia-commons:99", "provider": "Wikimedia Commons"}
+        commons_results = [(None, None), (asset, source)]
+        with (
+            patch.object(generate_video, "_fetch_video_asset", return_value=(None, None)),
+            patch.object(generate_video, "_fetch_openverse_scene", return_value=(None, None)) as openverse,
+            patch.object(generate_video, "_fetch_commons_scene", side_effect=commons_results) as commons,
+        ):
+            result_asset, _meta, provenance = generate_video._fetch_scene(
+                20,
+                "scene, scene_type:EXPLAIN|kb:static|dur:2|broll:programmer typing code close up|fallback:digital invoice video production pricing",
+                1920, 1080, "bafta-story", None, set(), set(), set(), "horizontal",
+                "BAFTA Loses EE Sponsor as Record 38 Films Chase Oscar Glory",
+            )
+        self.assertEqual(result_asset, asset)
+        self.assertEqual(provenance, source)
+        self.assertEqual(commons.call_count, 2)
+        self.assertEqual(commons.call_args_list[1].args[1]["broll"], "film awards ceremony")
+        self.assertEqual(openverse.call_args_list[1].args[1]["broll"], "film awards ceremony")
 
     def test_commons_cc_by_assets_receive_youtube_description_attribution(self):
         source = {
