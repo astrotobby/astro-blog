@@ -174,7 +174,7 @@ def publish(args) -> int:
         },
         "platform": {
             "caption": caption,
-                "yt_desc": description,
+            "yt_desc": description,
             "hashtags": ["#" + tag for tag in tags],
             "short_url": youtube_url,
         },
