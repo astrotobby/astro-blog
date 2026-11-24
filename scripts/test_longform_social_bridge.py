@@ -114,44 +114,19 @@ class LongformSocialDestinationSafetyTests(unittest.TestCase):
         )
         self.assertFalse(longform_social_bridge._destination_done(None))
 
-    def test_instagram_uses_dedicated_vertical_asset_and_cleans_it_up(self):
-        with TemporaryDirectory() as tmp:
-            source = Path(tmp) / "master-16x9.mp4"
-            vertical = Path(tmp) / "master-9x16.mp4"
-            source.write_bytes(b"horizontal")
-            vertical.write_bytes(b"vertical")
-            render = {
-                "post": {"slug": "test-job", "url": "https://youtu.be/test-video"},
-                "videos": {"horizontal": str(source)},
-            }
+    def test_longform_destinations_exclude_instagram(self):
+        self.assertEqual(longform_social_bridge.DESTINATIONS, ("facebook", "rumble"))
 
-            with patch.object(
-                longform_social_bridge,
-                "_make_instagram_vertical",
-                return_value=vertical,
-            ) as make_vertical, patch.object(
-                longform_social_bridge,
-                "_post_one",
-                return_value={"ok": True, "url": "https://instagram.com/reel/example"},
-            ) as post_one:
-                result = longform_social_bridge._publish_destination(
-                    "instagram",
-                    render,
-                    {},
-                    False,
-                    source,
-                    "test-job",
-                    {},
-                )
+    def test_instagram_is_explicitly_rejected_for_longform(self):
+        render = {"post": {"url": "https://youtu.be/test-video"}}
+        with patch.object(longform_social_bridge, "_post_one") as post_one:
+            result = longform_social_bridge._publish_destination(
+                "instagram", render, {}, False, Path("master-16x9.mp4"), "test-job", {}
+            )
+        post_one.assert_not_called()
+        self.assertFalse(result["ok"])
+        self.assertIn("disabled", result["skipped"])
 
-            make_vertical.assert_called_once_with(source, "test-job")
-            post_one.assert_called_once()
-            posted_render = post_one.call_args.args[1]
-            self.assertEqual(posted_render["videos"]["horizontal"], str(source))
-            self.assertEqual(posted_render["videos"]["vertical"], str(vertical))
-            self.assertEqual(render["videos"], {"horizontal": str(source)})
-            self.assertTrue(result["ok"])
-            self.assertFalse(vertical.exists())
 
 
 class FacebookResumableUploadTests(unittest.TestCase):

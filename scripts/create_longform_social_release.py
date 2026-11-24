@@ -1,7 +1,7 @@
 """Publish a temporary public handoff asset for the Astro-blog social publisher.
 
-This bridges long-form YouTube uploads in AI-GEMS to the Facebook/Instagram/Rumble
-publisher in astro-blog. The release contains the exact rendered MP4 and a short
+This bridges long-form YouTube uploads in AI-GEMS to Facebook and a manual Rumble
+handoff in astro-blog. Instagram is disabled for long-form videos. The release contains the exact rendered MP4 and a short
 manifest; no credentials are copied between repositories.
 """
 from __future__ import annotations

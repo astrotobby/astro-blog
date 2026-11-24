@@ -1,8 +1,8 @@
-"""Cross-post AI-GEMS long-form videos using the social publishers already in astro-blog.
+"""Cross-post AI-GEMS long-form videos to Facebook and prepare the Rumble handoff.
 
-The source releases are public, short-lived handoff assets. Posts are idempotent per
-(job, destination), so a failed Facebook upload does not repeat a successful Instagram
-or Rumble post on the next scheduled poll.
+Instagram is intentionally disabled for long-form video. Posts are idempotent per
+(job, destination), so a failed Facebook upload does not repeat a successful post
+on the next scheduled poll. Rumble rights and terms remain an owner action.
 """
 from __future__ import annotations
 
@@ -19,10 +19,9 @@ import requests
 
 import platforms
 from common import OUT, STATE, load_config, log
-from longform_social_relay import _make_instagram_vertical
 
 AI_GEMS_RELEASES = "https://api.github.com/repos/astrotobby/AI-GEMS/releases"
-DESTINATIONS = ("facebook", "instagram", "rumble")
+DESTINATIONS = ("facebook", "rumble")
 MAX_PER_RUN = 4
 MIN_YOUTUBE_PUBLIC_GRACE = timedelta(minutes=2)
 DOWNLOAD_TIMEOUT = (30, 240)
@@ -181,9 +180,6 @@ def _caption_data(manifest: dict) -> tuple[dict, dict]:
     youtube_url = str(manifest["youtube_url"])
     channel_label = str(manifest["channel_title"])
     caption = f"{channel_label}: {description}\n\nWatch on YouTube: {youtube_url}"
-    ig_caption = f"{channel_label}: {description}"
-    if hashtags:
-        ig_caption += "\n\n" + hashtags
     post = {
         "slug": "longform-" + re.sub(r"[^A-Za-z0-9_-]+", "-", str(manifest["job_id"])).strip("-"),
         "title": str(manifest["title"])[:100],
@@ -193,7 +189,6 @@ def _caption_data(manifest: dict) -> tuple[dict, dict]:
     }
     platform_data = {
         "caption": caption,
-        "ig_caption": ig_caption,
         "yt_desc": description,
         "hashtags": tags,
         "short_url": youtube_url,
@@ -209,14 +204,6 @@ def _destination_done(result: dict | None) -> bool:
     )
 
 
-def _instagram_render(render: dict, video_path: Path, job_id: str) -> dict:
-    """Attach a dedicated 1080x1920 full-frame asset for Instagram Reels."""
-    vertical_path = _make_instagram_vertical(video_path, job_id)
-    videos = dict(render.get("videos") or {})
-    videos["vertical"] = str(vertical_path)
-    return {**render, "videos": videos}
-
-
 def _publish_destination(
     destination: str,
     render: dict,
@@ -226,35 +213,23 @@ def _publish_destination(
     job_id: str,
     video_asset: dict,
 ) -> dict:
-    """Publish supported destinations without making Rumble legal attestations."""
+    """Publish Facebook or record a manual Rumble handoff; never post long-form to Instagram."""
+    if destination == "instagram":
+        return {"ok": False, "skipped": "Instagram is disabled for AI-GEMS long-form videos."}
     if destination == "rumble" and not dry_run:
         return {
             "ok": False,
             "manual_handoff": True,
-            "skipped": (
-                "Owner action required: review and confirm Rumble rights and terms "
-                "before uploading."
-            ),
+            "skipped": "Owner action required: review and confirm Rumble rights and terms before uploading.",
             "video_url": str(video_asset.get("browser_download_url") or ""),
             "youtube_url": str((render.get("post") or {}).get("url") or ""),
         }
-
-    if destination == "instagram" and not dry_run:
-        instagram_render = _instagram_render(render, video_path, job_id)
-        instagram_video = Path(instagram_render["videos"]["vertical"])
-        try:
-            return _post_one(destination, instagram_render, cfg, False)
-        finally:
-            instagram_video.unlink(missing_ok=True)
-
     return _post_one(destination, render, cfg, dry_run)
 
 
 def _post_one(destination: str, render: dict, cfg: dict, dry_run: bool) -> dict:
     if destination == "facebook":
         return platforms.post_facebook(render, cfg, dry_run)
-    if destination == "instagram":
-        return platforms.post_instagram(render, cfg, dry_run)
     if destination == "rumble":
         return platforms.post_rumble(render, cfg, dry_run)
     raise ValueError(f"Unsupported social destination: {destination}")
@@ -264,7 +239,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--check-destinations", action="store_true",
-                        help="check Facebook, Instagram and Rumble credentials without publishing")
+                        help="check Facebook and Rumble credentials without publishing")
     parser.add_argument("--has-pending", action="store_true",
                         help="print true if any public YouTube handoff is ready for social posting")
     parser.add_argument("--limit", type=int, default=MAX_PER_RUN)
@@ -273,12 +248,11 @@ def main() -> int:
 
     cfg = load_config()
     if args.check_destinations:
-        # Existing publishers return before upload in dry-run mode. Instagram may
-        # refresh the token cache; no media is uploaded and no post is created.
+        # Read-only credential checks; no media is uploaded and no post is created.
         dummy = {
             "post": {"slug": "credential-preflight", "title": "Credential preflight",
                      "description": "", "url": ""},
-            "platform": {"caption": "", "ig_caption": "", "yt_desc": "", "hashtags": []},
+            "platform": {"caption": "", "yt_desc": "", "hashtags": []},
             "videos": {"horizontal": "", "vertical": "", "public_url": ""},
         }
         results = {}
@@ -371,7 +345,7 @@ def main() -> int:
                 render = {
                     "post": {"slug": "longform-" + local_slug, "title": manifest["title"],
                              "description": manifest["description"], "url": manifest["youtube_url"]},
-                    "platform": {"caption": manifest["description"], "ig_caption": manifest["description"],
+                    "platform": {"caption": manifest["description"],
                                  "yt_desc": manifest["description"], "hashtags": manifest.get("tags") or [],
                                  "short_url": manifest["youtube_url"]},
                     "videos": {"horizontal": str(OUT / "_dry-run-placeholder.mp4"),
@@ -430,7 +404,7 @@ def main() -> int:
                 video_path.unlink(missing_ok=True)
                 if has_manual_rumble:
                     log(
-                        f"Facebook and Instagram handled for {job_id}; "
+                        f"Facebook handled for {job_id}; "
                         "Rumble awaits owner rights/terms confirmation."
                     )
                 else:
