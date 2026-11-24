@@ -1049,15 +1049,39 @@ def _private_unscheduled_status(current_status=None):
     return status
 
 
+def _read_video_status(yt, video_id):
+    rows = yt.videos().list(part="status", id=video_id).execute().get("items") or []
+    return (rows[0].get("status") or {}) if rows else {}
+
+
+def _wait_for_video_status(yt, video_id, predicate, attempts=12, interval_seconds=5):
+    """Poll videos.list after an update because YouTube status can lag the write response."""
+    last_status = {}
+    for attempt in range(attempts):
+        last_status = _read_video_status(yt, video_id)
+        if predicate(last_status):
+            return last_status
+        if attempt + 1 < attempts:
+            time_module.sleep(interval_seconds)
+    return last_status
+
+
 def schedule_uploaded_video(yt,video_id,target):
-    """Assign the release time only after the custom thumbnail has been verified."""
+    """Assign the release time only after thumbnail QA and poll until YouTube reflects it."""
     publish_at=target.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
     yt.videos().update(part="status",body={
         "id":video_id,
         "status":{"privacyStatus":"private","publishAt":publish_at},
     }).execute()
-    result=yt.videos().list(part="status",id=video_id).execute().get("items") or []
-    status=(result[0].get("status") or {}) if result else {}
+
+    # YouTube can briefly return the pre-update status from videos.list. Poll for
+    # up to ~55 seconds before deciding that a schedule update did not stick.
+    status = _wait_for_video_status(
+        yt,
+        video_id,
+        lambda value: value.get("privacyStatus") == "private"
+        and _same_youtube_time(value.get("publishAt"), publish_at),
+    )
     if status.get("privacyStatus")!="private" or not _same_youtube_time(status.get("publishAt"),publish_at):
         # Fail closed: clear the schedule. Omit publishAt (rather than sending null)
         # because videos.update replaces mutable fields in the selected status part.
@@ -1065,16 +1089,20 @@ def schedule_uploaded_video(yt,video_id,target):
             "id":video_id,
             "status":_private_unscheduled_status(status),
         }).execute()
-        after=yt.videos().list(part="status",id=video_id).execute().get("items") or []
-        after_status=(after[0].get("status") or {}) if after else {}
+        after_status = _wait_for_video_status(
+            yt,
+            video_id,
+            lambda value: value.get("privacyStatus") == "private" and not value.get("publishAt"),
+        )
         if after_status.get("privacyStatus")!="private" or after_status.get("publishAt"):
             raise RuntimeError(
                 "Schedule verification failed; YouTube did not confirm a private-unscheduled rollback "
-                f"(privacyStatus={after_status.get('privacyStatus')!r}, "
-                f"publishAt={after_status.get('publishAt')!r})"
+                f"after polling (privacyStatus={after_status.get('privacyStatus')!r}, "
+                f"publishAt={after_status.get('publishAt')!r}, "
+                f"uploadStatus={after_status.get('uploadStatus')!r})"
             )
         raise RuntimeError(
-            "YouTube did not retain the requested scheduled-publication time "
+            "YouTube did not retain the requested scheduled-publication time after polling "
             f"(expected={publish_at!r}, received={status.get('publishAt')!r}); "
             "video was returned to private-unscheduled"
         )
