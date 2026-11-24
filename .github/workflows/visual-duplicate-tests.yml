@@ -15,6 +15,7 @@ on:
       - scripts/crosspost_longform.py
       - scripts/test_crosspost_longform.py
       - scripts/create_longform_social_release.py
+      - scripts/longform_pipeline.py
       - .github/workflows/longform-social-bridge.yml
       - .github/workflows/longform-social-poller.yml
       - .github/workflows/longform-social-relay.yml
@@ -35,6 +36,7 @@ on:
       - scripts/crosspost_longform.py
       - scripts/test_crosspost_longform.py
       - scripts/create_longform_social_release.py
+      - scripts/longform_pipeline.py
       - .github/workflows/longform-social-bridge.yml
       - .github/workflows/longform-social-poller.yml
       - .github/workflows/longform-social-relay.yml
@@ -64,7 +66,7 @@ jobs:
 
       - name: Compile changed visual pipeline modules
         run: |
-          python -m py_compile scripts/generate_video.py scripts/build_script.py scripts/seed_footage_history.py scripts/longform_social_relay.py scripts/longform_social_bridge.py scripts/crosspost_longform.py scripts/create_longform_social_release.py scripts/platforms.py scripts/test_longform_social_bridge.py scripts/test_longform_social_relay.py scripts/test_crosspost_longform.py
+          python -m py_compile scripts/generate_video.py scripts/build_script.py scripts/seed_footage_history.py scripts/longform_social_relay.py scripts/longform_social_bridge.py scripts/crosspost_longform.py scripts/create_longform_social_release.py scripts/platforms.py scripts/test_longform_social_bridge.py scripts/test_longform_social_relay.py scripts/test_crosspost_longform.py scripts/longform_pipeline.py
 
       - name: Run visual and video pipeline regression tests
         run: python -m unittest scripts/test_video_pipeline.py scripts/test_longform_social_relay.py scripts/test_longform_social_bridge.py scripts/test_crosspost_longform.py -v
