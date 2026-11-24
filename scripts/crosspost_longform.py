@@ -1,7 +1,7 @@
-"""Publish verified AI-GEMS long-form videos to Facebook and prepare Rumble handoff.
+"""Publish verified AI-GEMS long-form videos to Facebook only.
 
-Instagram is intentionally excluded from every long-form route. This legacy manual
-receiver never uploads to YouTube and keeps a per-platform success ledger.
+Instagram is disabled for long-form videos. Rumble uploads remain an owner action
+and are handled as a manual handoff by the active social bridge.
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ REPO = "astrotobby/AI-GEMS"
 RELEASES_API = f"https://api.github.com/repos/{REPO}/releases?per_page=100"
 RELEASE_PREFIX = "social-handoff-"
 MAX_VIDEO_BYTES = 1_000_000_000
-LONGFORM_DESTINATIONS = ("facebook", "rumble")
+LONGFORM_DESTINATIONS = ("facebook",)
 MAX_RETRIES_PER_DESTINATION = 8
 POLL_RETRY_SECONDS = 20
 
@@ -199,11 +199,6 @@ def _slug(job_id: str) -> str:
 def _has_credentials(destination: str) -> bool:
     if destination == "facebook":
         return bool(os.environ.get("FACEBOOK_PAGE_ID") and os.environ.get("FACEBOOK_PAGE_TOKEN"))
-    if destination == "rumble":
-        return bool(
-            os.environ.get("RUMBLE_STORAGE_STATE")
-            or (os.environ.get("RUMBLE_EMAIL") and os.environ.get("RUMBLE_PASSWORD"))
-        )
     return False
 
 
@@ -302,7 +297,6 @@ def _publish_one(manifest: dict, video_asset: dict, cfg: dict, ledger: dict,
 
     publishers = {
         "facebook": platforms.post_facebook,
-        "rumble": platforms.post_rumble,
     }
     for destination in creds:
         try:
