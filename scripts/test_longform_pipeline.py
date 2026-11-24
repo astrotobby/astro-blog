@@ -616,6 +616,48 @@ class ScheduleTests(unittest.TestCase):
         self.assertFalse(status["selfDeclaredMadeForKids"])
         self.assertTrue(status["containsSyntheticMedia"])
 
+    def test_schedule_verification_polls_through_stale_youtube_readback(self):
+        expected = "2026-11-25T07:00:00Z"
+
+        class Request:
+            def __init__(self, result):
+                self.result = result
+
+            def execute(self):
+                return self.result
+
+        class FakeVideos:
+            def __init__(self):
+                self.updates = []
+                self.status_reads = [
+                    {"privacyStatus": "private"},
+                    {"privacyStatus": "private", "publishAt": expected},
+                ]
+
+            def update(self, **kwargs):
+                self.updates.append(kwargs)
+                return Request({})
+
+            def list(self, **kwargs):
+                status = self.status_reads.pop(0)
+                return Request({"items": [{"status": status}]})
+
+        class FakeYouTube:
+            def __init__(self):
+                self.videos_api = FakeVideos()
+
+            def videos(self):
+                return self.videos_api
+
+        yt = FakeYouTube()
+        target = datetime(2026, 11, 25, 7, 0, tzinfo=timezone.utc)
+        with patch.object(pipeline.time_module, "sleep") as sleep:
+            result = pipeline.schedule_uploaded_video(yt, "video123", target)
+
+        self.assertEqual(result["publish_at"], expected)
+        self.assertEqual(len(yt.videos_api.updates), 1)
+        sleep.assert_called_once_with(5)
+
 
 class TopicTests(unittest.TestCase):
     def test_similarity_ignores_generic_headline_words(self):
