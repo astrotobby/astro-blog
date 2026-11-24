@@ -940,24 +940,50 @@ def yt_service(channel):
     return yt,target,creds,{"id":channel_id,"title":title}
 
 
+def _upload_time_matches_target(published_at, target, max_age_hours=48):
+    """Only reconcile an exact-title private upload made shortly before its planned slot."""
+    if not published_at:
+        return False
+    try:
+        uploaded = datetime.fromisoformat(str(published_at).replace("Z", "+00:00"))
+        if uploaded.tzinfo is None:
+            uploaded = uploaded.replace(tzinfo=timezone.utc)
+        uploaded = uploaded.astimezone(timezone.utc)
+    except (TypeError, ValueError):
+        return False
+    planned = target.astimezone(timezone.utc)
+    return planned - timedelta(hours=max_age_hours) <= uploaded <= planned + timedelta(minutes=5)
+
+
 def find_existing(yt,title,target):
+    """Find a prior upload for this exact slot, including a private upload left unscheduled."""
     channels=yt.channels().list(part="contentDetails",mine=True).execute().get("items") or []
     uploads=((((channels[0].get("contentDetails") or {}).get("relatedPlaylists") or {}).get("uploads")) if channels else None)
     if not uploads: return None
     expected=target.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
     page=yt.playlistItems().list(part="snippet,contentDetails",playlistId=uploads,maxResults=50).execute()
     for row in page.get("items") or []:
-        if (row.get("snippet") or {}).get("title","").strip()!=title.strip(): continue
+        playlist_snippet=row.get("snippet") or {}
+        if str(playlist_snippet.get("title") or "").strip()!=title.strip(): continue
         vid=(row.get("contentDetails") or {}).get("videoId")
         if not vid: continue
-        data=yt.videos().list(part="status",id=vid).execute().get("items") or []
-        status=(data[0].get("status") or {}) if data else {}
-        if status.get("privacyStatus")=="private" and status.get("publishAt")==expected:
-            return {"video_id":vid,"url":f"https://youtu.be/{vid}","publish_at":expected}
+        data=yt.videos().list(part="status,snippet",id=vid).execute().get("items") or []
+        if not data: continue
+        video=data[0]
+        status=video.get("status") or {}
+        snippet=video.get("snippet") or {}
+        if str(snippet.get("title") or "").strip()!=title.strip(): continue
+        if status.get("privacyStatus")!="private": continue
+        if status.get("publishAt")==expected:
+            return {"video_id":vid,"url":f"https://youtu.be/{vid}","publish_at":expected,
+                    "existing_status":"scheduled"}
+        if not status.get("publishAt") and _upload_time_matches_target(snippet.get("publishedAt"),target):
+            return {"video_id":vid,"url":f"https://youtu.be/{vid}","publish_at":expected,
+                    "existing_status":"private_unscheduled"}
     return None
 
 
-def upload_scheduled(yt,path,package,channel,target):
+def upload_scheduled(yt,path,package,channel,target,on_uploaded=None):
     """Upload the rendered master as private and unscheduled until all QA passes."""
     from googleapiclient.http import MediaFileUpload
     body={"snippet":{"title":package["title"][:95],"description":package["description"][:4800],
@@ -970,6 +996,10 @@ def upload_scheduled(yt,path,package,channel,target):
         if progress: log(f"YouTube private upload {progress.progress()*100:.1f}%")
     vid=response.get("id")
     if not vid: raise RuntimeError("YouTube upload returned no video ID")
+    uploaded={"video_id":vid,"url":f"https://youtu.be/{vid}"}
+    log(f"YouTube private upload created; video_id={vid}. Persisting the ID before verification.")
+    if on_uploaded is not None:
+        on_uploaded(uploaded)
     result=yt.videos().list(part="status,snippet",id=vid).execute().get("items") or []
     if not result: raise RuntimeError("Private upload could not be read back")
     status=result[0].get("status") or {}
@@ -978,7 +1008,7 @@ def upload_scheduled(yt,path,package,channel,target):
         raise RuntimeError("Private upload resolved to the wrong YouTube channel")
     if status.get("privacyStatus")!="private" or status.get("publishAt"):
         raise RuntimeError("Video must remain private and unscheduled until thumbnail QA passes")
-    return {"video_id":vid,"url":f"https://youtu.be/{vid}"}
+    return uploaded
 
 
 def schedule_uploaded_video(yt,video_id,target):
@@ -1126,10 +1156,36 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     ledger["_active_job_id"] = key
     if job and job.get("status") in ("scheduled","published"):
         log(f"{key} already scheduled: {job.get('url','')}"); return job
-    if job and job.get("status")=="uploading" and not job.get("video_id"):
-        yt,_,_,identity=yt_service(channel); found=find_existing(yt,job.get("title",""),target)
+    if job and job.get("status")=="uploading":
+        yt,_,_,identity=yt_service(channel)
+        if job.get("video_id"):
+            rows=yt.videos().list(part="status,snippet",id=job["video_id"]).execute().get("items") or []
+            if not rows:
+                raise RuntimeError(f"Previous upload {job['video_id']} cannot be read; refusing to upload a duplicate.")
+            existing=rows[0]; existing_status=existing.get("status") or {}; existing_snippet=existing.get("snippet") or {}
+            if existing_snippet.get("channelId")!=CHANNELS[channel]["channel_id"]:
+                raise RuntimeError("Previous upload ID belongs to a different YouTube channel; refusing retry.")
+            expected=target.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
+            if existing_status.get("privacyStatus")=="private" and existing_status.get("publishAt")==expected:
+                job.update({"status":"scheduled","url":f"https://youtu.be/{job['video_id']}",
+                            "publish_at":expected,"reconciled":True,"scheduled_at":datetime.now(timezone.utc).isoformat()})
+                save_ledger(ledger,dry_run); return job
+            raise RuntimeError(
+                f"Previous upload {job['video_id']} exists but is not verified as scheduled for {expected}; "
+                "it remains private and no duplicate upload was attempted."
+            )
+        found=find_existing(yt,job.get("title",""),target)
         if found:
-            job.update(found,status="scheduled",reconciled=True,channel_id=identity["id"]); save_ledger(ledger,dry_run); return job
+            if found.get("existing_status")=="scheduled":
+                job.update(found,status="scheduled",reconciled=True,channel_id=identity["id"])
+                save_ledger(ledger,dry_run); return job
+            job.update({"video_id":found["video_id"],"url":found["url"],"status":"uploading",
+                        "existing_private_upload":True,"upload_reconciled_at":datetime.now(timezone.utc).isoformat()})
+            save_ledger(ledger,dry_run)
+            raise RuntimeError(
+                f"Found the existing private upload {found['video_id']} for this exact slot, but it has no "
+                "verified publishAt or completed thumbnail QA. It remains private; no duplicate was attempted."
+            )
         raise RuntimeError("Previous upload is ambiguous; no duplicate attempted. Inspect private videos before resetting the job.")
     if job and job.get("package") and job.get("lead") and job.get("sources"):
         lead,sources,package=job["lead"],job["sources"],job["package"]
@@ -1184,7 +1240,10 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
         save_ledger(ledger,True); return job
     job["status"]="uploading"; job["upload_started_at"]=datetime.now(timezone.utc).isoformat()
     save_ledger(ledger)
-    uploaded=upload_scheduled(yt,Path(video),package,channel,target)
+    def persist_uploaded_video(record):
+        job.update(record,status="uploading",upload_response_received_at=datetime.now(timezone.utc).isoformat())
+        save_ledger(ledger)
+    uploaded=upload_scheduled(yt,Path(video),package,channel,target,on_uploaded=persist_uploaded_video)
     set_and_verify_thumbnail(yt,uploaded["video_id"],thumbnail_path)
     scheduled=schedule_uploaded_video(yt,uploaded["video_id"],target)
     job.update({**uploaded,**scheduled},status="scheduled",thumbnail_verified=True,scheduled_at=datetime.now(timezone.utc).isoformat())
