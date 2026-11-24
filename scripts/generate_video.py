@@ -1197,9 +1197,19 @@ def _contextual_fallback_queries(meta, context_title=""):
     ).lower()
     queries = []
 
+    if "bafta" in context:
+        queries.extend([
+            "British Academy Film Awards",
+            "BAFTA award ceremony",
+        ])
+    if any(term in context for term in ("oscar", "academy award")):
+        queries.extend([
+            "Academy Awards ceremony",
+            "Oscar statuette",
+        ])
     if any(term in context for term in (
-        "bafta", "oscar", "academy award", "film award", "awards", "movie", "film",
-        "cinema", "animation", "actor", "director", "box office", "red carpet",
+        "film award", "awards", "movie", "film", "cinema", "animation",
+        "actor", "director", "box office", "red carpet",
     )):
         queries.extend([
             "film awards ceremony",
