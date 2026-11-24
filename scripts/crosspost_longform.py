@@ -1,8 +1,7 @@
-"""Publish verified AI-GEMS long-form videos to the existing Astro-blog social accounts.
+"""Publish verified AI-GEMS long-form videos to Facebook and prepare Rumble handoff.
 
-The source workflow creates one public social-handoff release per successful YouTube
-upload. This receiver posts only to Facebook, Instagram, and Rumble. It never uploads
-to YouTube and keeps a per-platform success ledger so a retry does not repost success.
+Instagram is intentionally excluded from every long-form route. This legacy manual
+receiver never uploads to YouTube and keeps a per-platform success ledger.
 """
 from __future__ import annotations
 
@@ -27,6 +26,7 @@ REPO = "astrotobby/AI-GEMS"
 RELEASES_API = f"https://api.github.com/repos/{REPO}/releases?per_page=100"
 RELEASE_PREFIX = "social-handoff-"
 MAX_VIDEO_BYTES = 1_000_000_000
+LONGFORM_DESTINATIONS = ("facebook", "rumble")
 MAX_RETRIES_PER_DESTINATION = 8
 POLL_RETRY_SECONDS = 20
 
@@ -140,7 +140,7 @@ def _download_video(asset: dict, slug: str) -> Path:
         response.raise_for_status()
         declared = int(response.headers.get("Content-Length") or 0)
         if declared and declared > MAX_VIDEO_BYTES:
-            raise RuntimeError(f"Long-form video is larger than Instagram's 1 GB upload limit ({declared} bytes)")
+            raise RuntimeError(f"Long-form video exceeds the 1 GB social handoff limit ({declared} bytes)")
         written = 0
         with path.open("wb") as output:
             for chunk in response.iter_content(chunk_size=8 * 1024 * 1024):
@@ -192,23 +192,6 @@ def _probe_video(path: Path) -> dict:
     }
 
 
-def _instagram_compatibility(media: dict) -> tuple[bool, str]:
-    problems = []
-    if not 3 <= media["duration"] <= 900:
-        problems.append("duration must be between 3 seconds and 15 minutes")
-    if media["size"] > MAX_VIDEO_BYTES:
-        problems.append("file exceeds 1 GB")
-    if media["video_codec"] not in ("h264", "hevc"):
-        problems.append("video codec must be H.264 or HEVC")
-    if media["audio_codec"] != "aac" or media["audio_sample_rate"] != 48000:
-        problems.append("audio must be AAC at 48 kHz")
-    if not 23 <= media["fps"] <= 60:
-        problems.append("frame rate must be 23–60 FPS")
-    if media["width"] > 1920:
-        problems.append("horizontal pixel dimension exceeds 1920")
-    return (not problems, "; ".join(problems))
-
-
 def _slug(job_id: str) -> str:
     return "longform-" + re.sub(r"[^a-zA-Z0-9_-]+", "-", job_id).strip("-")[:90]
 
@@ -216,8 +199,6 @@ def _slug(job_id: str) -> str:
 def _has_credentials(destination: str) -> bool:
     if destination == "facebook":
         return bool(os.environ.get("FACEBOOK_PAGE_ID") and os.environ.get("FACEBOOK_PAGE_TOKEN"))
-    if destination == "instagram":
-        return bool(os.environ.get("INSTAGRAM_USER_ID") and platforms.ig_token())
     if destination == "rumble":
         return bool(
             os.environ.get("RUMBLE_STORAGE_STATE")
@@ -247,7 +228,6 @@ def _platform_render(manifest: dict, video_path: Path) -> dict:
     }
     platform_data = {
         "caption": caption,
-        "ig_caption": description + "\n\nWatch the full video on YouTube — link in bio.",
         "yt_desc": description,
         "short_url": youtube_url,
         "hashtags": tags,
@@ -287,7 +267,7 @@ def _publish_one(manifest: dict, video_asset: dict, cfg: dict, ledger: dict,
     description = str(manifest["description"]).strip()[:280]
     digest = content_hash(slug, title, description)
     record, results = _load_previous_results(ledger, slug, digest)
-    requested = [name for name in ("facebook", "instagram", "rumble")
+    requested = [name for name in LONGFORM_DESTINATIONS
                  if name in set(cfg.get("platforms", {}).get("direct", []))]
     pending = [
         name for name in requested
@@ -310,7 +290,6 @@ def _publish_one(manifest: dict, video_asset: dict, cfg: dict, ledger: dict,
     log(f"{slug}: downloaded media {media}")
     render = _platform_render(manifest, video_path)
     if dry_run:
-        ig_ok, ig_reason = _instagram_compatibility(media)
         return {
             "slug": slug,
             "status": "dry_run_ready",
@@ -318,24 +297,14 @@ def _publish_one(manifest: dict, video_asset: dict, cfg: dict, ledger: dict,
             "description": description,
             "youtube_url": manifest["youtube_url"],
             "media": media,
-            "instagram_eligible": ig_ok,
-            "instagram_note": ig_reason,
             "pending_destinations": creds,
         }
 
     publishers = {
         "facebook": platforms.post_facebook,
-        "instagram": platforms.post_instagram,
         "rumble": platforms.post_rumble,
     }
     for destination in creds:
-        if destination == "instagram":
-            compatible, reason = _instagram_compatibility(media)
-            if not compatible:
-                result = {"ok": False, "error": "Instagram compatibility check failed: " + reason}
-                _save_destination_result(ledger, slug, record, results, destination, result)
-                log(f"{slug}: Instagram skipped by file compatibility guard: {reason}")
-                continue
         try:
             result = publishers[destination](render, cfg, False)
             if not isinstance(result, dict):
@@ -387,7 +356,7 @@ def main() -> int:
         slug = _slug(str(manifest["job_id"]))
         digest = content_hash(slug, str(manifest["title"]), str(manifest["description"]))
         record, results = _load_previous_results(ledger, slug, digest)
-        destinations = [name for name in ("facebook", "instagram", "rumble")
+        destinations = [name for name in LONGFORM_DESTINATIONS
                         if name in set(cfg.get("platforms", {}).get("direct", []))]
         if all((results.get(name) or {}).get("ok") is True for name in destinations):
             continue
