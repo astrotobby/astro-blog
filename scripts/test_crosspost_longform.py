@@ -13,7 +13,7 @@ import crosspost_longform  # noqa: E402
 
 class LongformCrosspostDestinationTests(unittest.TestCase):
     def test_longform_destinations_exclude_instagram(self):
-        self.assertEqual(crosspost_longform.LONGFORM_DESTINATIONS, ("facebook", "rumble"))
+        self.assertEqual(crosspost_longform.LONGFORM_DESTINATIONS, ("facebook",))
 
     def test_instagram_credentials_do_not_enable_longform_instagram(self):
         with patch.dict(
