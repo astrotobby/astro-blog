@@ -199,8 +199,9 @@ class FootageBriefTests(unittest.TestCase):
             {"broll": "programmer typing code close up", "fallback": "digital invoice video production"},
             "BAFTA Loses EE Sponsor as Record 38 Films Chase Oscar Glory",
         )
-        self.assertIn("film awards ceremony", queries)
-        self.assertIn("movie production film camera set", queries)
+        self.assertIn("British Academy Film Awards", queries)
+        self.assertIn("BAFTA award ceremony", queries)
+        self.assertIn("Academy Awards ceremony", queries)
         self.assertLessEqual(len(queries), 3)
 
     def test_fetch_assets_uses_each_master_dimensions(self):
@@ -265,8 +266,8 @@ class FootageBriefTests(unittest.TestCase):
         self.assertEqual(result_asset, asset)
         self.assertEqual(provenance, source)
         self.assertEqual(commons.call_count, 2)
-        self.assertEqual(commons.call_args_list[1].args[1]["broll"], "film awards ceremony")
-        self.assertEqual(openverse.call_args_list[1].args[1]["broll"], "film awards ceremony")
+        self.assertEqual(commons.call_args_list[1].args[1]["broll"], "British Academy Film Awards")
+        self.assertEqual(openverse.call_args_list[1].args[1]["broll"], "British Academy Film Awards")
 
     def test_commons_cc_by_assets_receive_youtube_description_attribution(self):
         source = {
