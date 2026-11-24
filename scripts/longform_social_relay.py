@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""Publish a released long-form YouTube master to the existing Astro-blog social accounts.
+"""Publish a released long-form YouTube master to Facebook and prepare Rumble handoff.
 
-This is a separate bridge for AI-GEMS long-form videos. It deliberately reuses the
-existing FB Page, Instagram Reels, and Rumble publishers in scripts/platforms.py.
+This legacy event relay is long-form-only. Instagram is disabled for long-form videos;
+Rumble rights and terms must be reviewed and accepted by the owner.
 """
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
@@ -25,7 +24,7 @@ import platforms
 
 LEDGER_PATH = STATE / "longform_social_relay_ledger.json"
 MAX_VIDEO_BYTES = 1_000_000_000
-MAX_INSTAGRAM_SECONDS = 15 * 60
+AUTOMATED_DESTINATIONS = ("facebook",)
 
 
 def _slug(value: str) -> str:
@@ -117,42 +116,6 @@ def _probe_video(path: Path) -> dict:
     }
 
 
-def _make_instagram_vertical(source: Path, job_id: str) -> Path:
-    """Create a full-frame 9:16 Reel without cropping the original 16:9 programme."""
-    target = OUT / f"longform_{_slug(job_id)}_instagram_9x16.mp4"
-    command = [
-        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-        "-i", str(source),
-        "-filter_complex",
-        (
-            "[0:v]split=2[bgsrc][fgsrc];"
-            "[bgsrc]scale=1080:1920:force_original_aspect_ratio=increase,"
-            "crop=1080:1920,boxblur=18:3,eq=brightness=-0.12[bg];"
-            "[fgsrc]scale=1080:608:force_original_aspect_ratio=decrease[fg];"
-            "[bg][fg]overlay=(W-w)/2:(H-h)/2,format=yuv420p[v]"
-        ),
-        "-map", "[v]", "-map", "0:a:0?",
-        "-r", "24", "-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
-        "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
-        "-movflags", "+faststart", "-shortest", str(target),
-    ]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=3600, check=False)
-    if result.returncode != 0 or not target.exists():
-        target.unlink(missing_ok=True)
-        raise RuntimeError(
-            "Could not create Instagram 9:16 version: "
-            + (result.stderr or result.stdout or "FFmpeg returned no output")[-450:]
-        )
-    media = _probe_video(target)
-    if media["width"] != 1080 or media["height"] != 1920:
-        raise RuntimeError(
-            f"Instagram version has unexpected dimensions: {media['width']}x{media['height']}"
-        )
-    if media["duration_seconds"] > MAX_INSTAGRAM_SECONDS or media["bytes"] > MAX_VIDEO_BYTES:
-        raise RuntimeError("Instagram version exceeds the 15-minute or 1 GB Reels API limit")
-    return target
-
-
 def _platform_call(name: str, fn, render: dict, cfg: dict) -> dict:
     try:
         result = fn(render, cfg, False)
@@ -211,8 +174,7 @@ def publish(args) -> int:
         },
         "platform": {
             "caption": caption,
-            "ig_caption": caption,
-            "yt_desc": description,
+                "yt_desc": description,
             "hashtags": ["#" + tag for tag in tags],
             "short_url": youtube_url,
         },
@@ -242,10 +204,8 @@ def publish(args) -> int:
     results = entry.setdefault("results", {})
     # Rumble's uploader requires accepting a rights/terms declaration in its UI.
     # That declaration must be completed by the owner, not accepted automatically.
-    destinations = [
-        ("facebook", platforms.post_facebook),
-        ("instagram", platforms.post_instagram),
-    ]
+    destination_publishers = {"facebook": platforms.post_facebook}
+    destinations = [(name, destination_publishers[name]) for name in AUTOMATED_DESTINATIONS]
     summary = {}
     for name, fn in destinations:
         previous = results.get(name) or {}
@@ -257,32 +217,7 @@ def publish(args) -> int:
         if previous.get("attempted") and not args.force_retry:
             summary[name] = previous_result or {"ok": False, "skipped": "previous attempt recorded; manual retry required"}
             continue
-        if name == "instagram" and (
-            media["duration_seconds"] > MAX_INSTAGRAM_SECONDS
-            or media["bytes"] > MAX_VIDEO_BYTES
-        ):
-            result = {
-                "ok": False,
-                "skipped": "Instagram Reels API supports up to 15 minutes and 1 GB per video",
-            }
-        elif name == "instagram" and not (
-            os.environ.get("INSTAGRAM_USER_ID") and platforms.ig_token()
-        ):
-            # Let the existing adapter report missing credentials; avoid unnecessary transcoding.
-            result = _platform_call(name, fn, render, cfg)
-        elif name == "instagram":
-            try:
-                instagram_video = _make_instagram_vertical(video, job_id)
-                instagram_render = {**render, "videos": {"vertical": str(instagram_video)}}
-                result = _platform_call(name, fn, instagram_render, cfg)
-            except Exception as exc:
-                # A Reel formatting failure must not block Facebook or Rumble.
-                result = {
-                    "ok": False,
-                    "error": f"Instagram vertical preparation failed: {type(exc).__name__}: {str(exc)[:240]}",
-                }
-        else:
-            result = _platform_call(name, fn, render, cfg)
+        result = _platform_call(name, fn, render, cfg)
         results[name] = {
             "attempted": True,
             "attempted_at": datetime.now(timezone.utc).isoformat(),
