@@ -30,18 +30,16 @@ jobs:
           sudo apt-get install -y -qq ffmpeg
           python -m pip install --disable-pip-version-check requests PyYAML PyNaCl
 
-      - name: Restore rotating Instagram and Rumble session state
+      - name: Restore Rumble session and long-form idempotency state
         uses: actions/cache/restore@v4
         with:
           path: |
-            .pipeline/state/ig_token.txt
-            .pipeline/state/ig_seed.txt
             .pipeline/state/longform_social_relay_ledger.json
           key: longform-social-state-${{ github.run_id }}
           restore-keys: |
             longform-social-state-
 
-      - name: Publish to Facebook, Instagram and Rumble
+      - name: Publish to Facebook and prepare manual Rumble handoff
         env:
           JOB_ID: ${{ github.event.client_payload.job_id }}
           CHANNEL: ${{ github.event.client_payload.channel }}
@@ -53,8 +51,6 @@ jobs:
           FORCE_RETRY: ${{ github.event.client_payload.force_retry }}
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
-          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
-          INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -70,13 +66,11 @@ jobs:
           if [ "$FORCE_RETRY" = "true" ]; then ARGS+=(--force-retry); fi
           python scripts/longform_social_relay.py "${ARGS[@]}"
 
-      - name: Persist rotating Instagram and Rumble session state
+      - name: Persist Rumble session and long-form idempotency state
         if: always()
         uses: actions/cache/save@v4
         with:
           path: |
             .pipeline/state/rumble_state.enc
-            .pipeline/state/ig_token.txt
-            .pipeline/state/ig_seed.txt
             .pipeline/state/longform_social_relay_ledger.json
           key: longform-social-state-${{ github.run_id }}
