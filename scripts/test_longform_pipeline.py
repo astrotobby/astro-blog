@@ -572,6 +572,50 @@ class ScheduleTests(unittest.TestCase):
             pipeline.make_job_id("digital_nomad", "12:00", target),
         )
 
+    def test_youtube_schedule_comparison_accepts_equivalent_iso8601_formats(self):
+        self.assertTrue(
+            pipeline._same_youtube_time(
+                "2026-11-25T07:00:00.000Z",
+                "2026-11-25T07:00:00Z",
+            )
+        )
+        self.assertTrue(
+            pipeline._same_youtube_time(
+                "2026-11-25T10:00:00+03:00",
+                "2026-11-25T07:00:00Z",
+            )
+        )
+
+    def test_youtube_schedule_comparison_rejects_different_or_invalid_times(self):
+        self.assertFalse(
+            pipeline._same_youtube_time(
+                "2026-11-25T07:00:01Z",
+                "2026-11-25T07:00:00Z",
+            )
+        )
+        self.assertFalse(pipeline._same_youtube_time(None, "2026-11-25T07:00:00Z"))
+        self.assertFalse(pipeline._same_youtube_time("not-a-date", "2026-11-25T07:00:00Z"))
+
+    def test_private_unscheduled_rollback_omits_publish_at_and_preserves_settings(self):
+        status = pipeline._private_unscheduled_status({
+            "privacyStatus": "private",
+            "publishAt": "2026-11-25T07:00:00Z",
+            "license": "youtube",
+            "embeddable": True,
+            "publicStatsViewable": False,
+            "selfDeclaredMadeForKids": False,
+            "containsSyntheticMedia": True,
+            "uploadStatus": "processed",
+        })
+        self.assertEqual(status["privacyStatus"], "private")
+        self.assertNotIn("publishAt", status)
+        self.assertNotIn("uploadStatus", status)
+        self.assertEqual(status["license"], "youtube")
+        self.assertTrue(status["embeddable"])
+        self.assertFalse(status["publicStatsViewable"])
+        self.assertFalse(status["selfDeclaredMadeForKids"])
+        self.assertTrue(status["containsSyntheticMedia"])
+
 
 class TopicTests(unittest.TestCase):
     def test_similarity_ignores_generic_headline_words(self):

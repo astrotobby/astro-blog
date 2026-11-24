@@ -1011,6 +1011,44 @@ def upload_scheduled(yt,path,package,channel,target,on_uploaded=None):
     return uploaded
 
 
+def _same_youtube_time(actual, expected):
+    """Compare YouTube and requested ISO-8601 timestamps as UTC instants, not strings."""
+    if not actual or not expected:
+        return False
+    try:
+        def parse(value):
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc).replace(microsecond=0)
+        return parse(actual) == parse(expected)
+    except (TypeError, ValueError, OverflowError):
+        return False
+
+
+def _private_unscheduled_status(current_status=None):
+    """Build a safe status update that removes publishAt while preserving writable settings.
+
+    For videos.update(part='status'), fields in the selected part that are omitted
+    are removed. Do not send publishAt=None: explicitly omit it from this object.
+    """
+    current_status = current_status or {}
+    preserved = (
+        "license",
+        "embeddable",
+        "publicStatsViewable",
+        "selfDeclaredMadeForKids",
+        "containsSyntheticMedia",
+    )
+    status = {
+        key: current_status[key]
+        for key in preserved
+        if key in current_status and current_status[key] is not None
+    }
+    status["privacyStatus"] = "private"
+    return status
+
+
 def schedule_uploaded_video(yt,video_id,target):
     """Assign the release time only after the custom thumbnail has been verified."""
     publish_at=target.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
@@ -1020,17 +1058,26 @@ def schedule_uploaded_video(yt,video_id,target):
     }).execute()
     result=yt.videos().list(part="status",id=video_id).execute().get("items") or []
     status=(result[0].get("status") or {}) if result else {}
-    if status.get("privacyStatus")!="private" or status.get("publishAt")!=publish_at:
-        # Fail closed: remove any schedule if YouTube did not confirm the exact slot.
+    if status.get("privacyStatus")!="private" or not _same_youtube_time(status.get("publishAt"),publish_at):
+        # Fail closed: clear the schedule. Omit publishAt (rather than sending null)
+        # because videos.update replaces mutable fields in the selected status part.
         yt.videos().update(part="status",body={
             "id":video_id,
-            "status":{"privacyStatus":"private","publishAt":None},
+            "status":_private_unscheduled_status(status),
         }).execute()
         after=yt.videos().list(part="status",id=video_id).execute().get("items") or []
         after_status=(after[0].get("status") or {}) if after else {}
         if after_status.get("privacyStatus")!="private" or after_status.get("publishAt"):
-            raise RuntimeError("Schedule verification failed and the video could not be returned to private-unscheduled")
-        raise RuntimeError("YouTube did not retain the requested scheduled-publication time")
+            raise RuntimeError(
+                "Schedule verification failed; YouTube did not confirm a private-unscheduled rollback "
+                f"(privacyStatus={after_status.get('privacyStatus')!r}, "
+                f"publishAt={after_status.get('publishAt')!r})"
+            )
+        raise RuntimeError(
+            "YouTube did not retain the requested scheduled-publication time "
+            f"(expected={publish_at!r}, received={status.get('publishAt')!r}); "
+            "video was returned to private-unscheduled"
+        )
     return {"publish_at":publish_at}
 
 
@@ -1138,10 +1185,13 @@ def set_and_verify_thumbnail(yt, video_id, thumbnail_path):
         if not any(thumbnails.get(size, {}).get("url") for size in ("maxres", "standard", "high", "medium", "default")):
             raise RuntimeError("YouTube custom thumbnail upload could not be verified")
     except Exception:
-        # Keep the upload private and explicitly clear publishAt before propagating
-        # the error. A failed thumbnail gate must never leave a public release queued.
+        # Keep the upload private and explicitly remove publishAt before propagating
+        # the error. Omit the property instead of sending null: videos.update replaces
+        # mutable properties in the selected status part.
+        check = yt.videos().list(part="status", id=video_id).execute().get("items") or []
+        current_status = (check[0].get("status") or {}) if check else {}
         yt.videos().update(part="status", body={
-            "id": video_id, "status": {"privacyStatus": "private", "publishAt": None}
+            "id": video_id, "status": _private_unscheduled_status(current_status)
         }).execute()
         check = yt.videos().list(part="status", id=video_id).execute().get("items") or []
         status = (check[0].get("status") or {}) if check else {}
@@ -1166,13 +1216,23 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
             if existing_snippet.get("channelId")!=CHANNELS[channel]["channel_id"]:
                 raise RuntimeError("Previous upload ID belongs to a different YouTube channel; refusing retry.")
             expected=target.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
-            if existing_status.get("privacyStatus")=="private" and existing_status.get("publishAt")==expected:
+            if existing_status.get("privacyStatus")=="private" and _same_youtube_time(existing_status.get("publishAt"),expected):
                 job.update({"status":"scheduled","url":f"https://youtu.be/{job['video_id']}",
                             "publish_at":expected,"reconciled":True,"scheduled_at":datetime.now(timezone.utc).isoformat()})
                 save_ledger(ledger,dry_run); return job
+            if existing_status.get("privacyStatus")=="private" and not existing_status.get("publishAt"):
+                if job.get("thumbnail_verified"):
+                    scheduled=schedule_uploaded_video(yt,job["video_id"],target)
+                    job.update({"url":f"https://youtu.be/{job['video_id']}",**scheduled,"status":"scheduled",
+                                "reconciled":True,"scheduled_at":datetime.now(timezone.utc).isoformat()})
+                    save_ledger(ledger,dry_run); return job
+                raise RuntimeError(
+                    f"Previous upload {job['video_id']} is private and unscheduled, but thumbnail verification "
+                    "was not persisted; refusing to schedule it without QA. No duplicate upload was attempted."
+                )
             raise RuntimeError(
-                f"Previous upload {job['video_id']} exists but is not verified as scheduled for {expected}; "
-                "it remains private and no duplicate upload was attempted."
+                f"Previous upload {job['video_id']} exists but is not verified as private and scheduled for {expected}; "
+                "it was not re-uploaded or made public."
             )
         found=find_existing(yt,job.get("title",""),target)
         if found:
@@ -1245,6 +1305,11 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
         save_ledger(ledger)
     uploaded=upload_scheduled(yt,Path(video),package,channel,target,on_uploaded=persist_uploaded_video)
     set_and_verify_thumbnail(yt,uploaded["video_id"],thumbnail_path)
+    # Persist successful thumbnail QA before scheduling so a later schedule/API
+    # mismatch can be repaired without re-rendering or creating another upload.
+    job["thumbnail_verified"]=True
+    job["thumbnail_verified_at"]=datetime.now(timezone.utc).isoformat()
+    save_ledger(ledger)
     scheduled=schedule_uploaded_video(yt,uploaded["video_id"],target)
     job.update({**uploaded,**scheduled},status="scheduled",thumbnail_verified=True,scheduled_at=datetime.now(timezone.utc).isoformat())
     save_ledger(ledger); return job
