@@ -1184,8 +1184,57 @@ def _fetch_commons_scene(index, meta, target_w, target_h, used_clips, recent_ids
     return None, None
 
 
+def _contextual_fallback_queries(meta, context_title=""):
+    """Build a few story-aware, concrete image searches after scene-specific media fails."""
+    context = " ".join(
+        str(value or "")
+        for value in (
+            context_title,
+            meta.get("topic_context"),
+            meta.get("broll"),
+            meta.get("fallback"),
+        )
+    ).lower()
+    queries = []
+
+    if any(term in context for term in (
+        "bafta", "oscar", "academy award", "film award", "awards", "movie", "film",
+        "cinema", "animation", "actor", "director", "box office", "red carpet",
+    )):
+        queries.extend([
+            "film awards ceremony",
+            "movie production film camera set",
+            "cinema red carpet trophy",
+        ])
+    if any(term in context for term in (
+        "music", "singer", "album", "record label", "concert", "artist", "grammy",
+    )):
+        queries.extend([
+            "live music concert stage",
+            "recording studio microphone",
+            "music awards ceremony",
+        ])
+    if any(term in context for term in (
+        "artificial intelligence", " ai ", "software", "programmer", "coding",
+        "technology", "developer", "robotics", "computer",
+    )):
+        queries.extend([
+            "computer workstation technology",
+            "software developer computer",
+            "robotics laboratory",
+        ])
+
+    # Keep these searches bounded; every accepted asset still passes licence and
+    # global visual-history checks before it can enter the render.
+    unique = []
+    for query in queries:
+        if query.lower() not in {value.lower() for value in unique}:
+            unique.append(query)
+    return unique[:3]
+
+
 def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
-                 used_creators, recent_ids, variant):
+                 used_creators, recent_ids, variant, context_title=""):
     meta = _parse_scene_meta(prompt)
     video_asset, provenance = _fetch_video_asset(
         index, meta, target_w, target_h, used_clips, used_creators, recent_ids, variant)
@@ -1218,6 +1267,21 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
     )
     if commons_asset:
         return commons_asset, meta, commons_source
+
+    # When the model's scene-level phrases are too narrow or generic, retry with
+    # searches grounded in the complete story title (e.g. BAFTA/Oscar film imagery).
+    for context_query in _contextual_fallback_queries(meta, context_title):
+        contextual_meta = {"broll": context_query, "fallback": ""}
+        openverse_asset, openverse_source = _fetch_openverse_scene(
+            index, contextual_meta, target_w, target_h, used_clips, recent_ids, variant
+        )
+        if openverse_asset:
+            return openverse_asset, meta, openverse_source
+        commons_asset, commons_source = _fetch_commons_scene(
+            index, contextual_meta, target_w, target_h, used_clips, recent_ids, variant
+        )
+        if commons_asset:
+            return commons_asset, meta, commons_source
 
     clean_prompt = _clean_image_prompt(prompt)
     seed = int(hashlib.sha256(f"{slug}:{index}:{variant}".encode()).hexdigest()[:8], 16) % 100000
@@ -1266,9 +1330,10 @@ def fetch_scene_assets(script, cfg, variant):
             # Salt the fallback filename for each retry; do not reuse the same hero image.
             retry_slug = f"{post_slug}-visual-attempt-{attempt}"
             hero_image = post.get("image_url") if index == 0 and attempt == 0 else None
+            context_title = str(post.get("title") or post.get("topic_title") or post_slug)
             asset, meta, source = _fetch_scene(
                 index, prompt, target_w, target_h, retry_slug,
-                hero_image, used_clips, used_creators, recent_ids, variant,
+                hero_image, used_clips, used_creators, recent_ids, variant, context_title,
             )
             hashes = _visual_hashes(Path(asset))
             duplicate = _find_visual_duplicate(hashes, applicable_history)
