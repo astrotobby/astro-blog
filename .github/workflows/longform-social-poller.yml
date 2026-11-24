@@ -13,8 +13,8 @@ on:
 permissions:
   contents: write
 
-# Share the same state/cache serialization with blog-to-video so Instagram tokens,
-# Rumble rolling sessions, and per-platform dedup records cannot race or be lost.
+# Share the same state/cache serialization with blog-to-video so Rumble sessions
+# and per-platform dedup records cannot race or be lost.
 concurrency:
   group: blog-to-video
   cancel-in-progress: false
@@ -50,8 +50,6 @@ jobs:
         env:
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
-          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
-          INSTAGRAM_TOKEN: ${{ secrets.INSTAGRAM_TOKEN }}
           RUMBLE_EMAIL: ${{ secrets.RUMBLE_EMAIL }}
           RUMBLE_PASSWORD: ${{ secrets.RUMBLE_PASSWORD }}
           RUMBLE_STORAGE_STATE: ${{ secrets.RUMBLE_STORAGE_STATE }}
