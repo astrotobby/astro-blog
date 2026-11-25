@@ -2,39 +2,52 @@
 
 ## Budget rule
 
-The lip-sync production budget for this project is **USD 0**. This workflow uses the open-source MuseTalk 1.5 model in a Kaggle notebook with a free GPU session. It does not use Sync Labs, a hosted inference API, a paid GPU instance, or a paid Hugging Face endpoint. Do not add paid-service API keys or enable paid billing.
+The lip-sync budget for this project is **USD 0**. The workflow uses the open-source MuseTalk 1.5 model on Kaggle's free GPU quota. It does not use Sync Labs, any paid inference API, a paid GPU instance, a paid subscription, or a paid fallback.
 
-Kaggle free GPU access is quota-limited and not guaranteed to be available on demand. If the free GPU is unavailable or the weekly/session quota is exhausted, pause and retry later. Never fall back to a paid provider.
+Kaggle free GPU access is quota-limited and is not guaranteed to be available on demand. The workflow checks the account's reported quota and the notebook checks that a GPU is actually attached. If free capacity is unavailable, the run fails/stops; retry later. Never switch to a paid provider.
 
-## First test
+## Automated preview (manual trigger only)
+
+Workflow: [MuseTalk free Kaggle preview](.github/workflows/musetalk-kaggle-preview.yml)
+
+Before running it:
+
+1. In GitHub repository **Settings → Secrets and variables → Actions**, add the Kaggle personal API token as the secret named **`KAGGLE_API_TOKEN`**. Never commit the token or paste it into a workflow input.
+2. The workflow file must be on the repository's default branch before GitHub exposes it in the Actions manual-run selector. This change is currently being reviewed in PR #67; do not merge it until the notebook and workflow review is complete.
+3. Open **Actions → MuseTalk free Kaggle preview → Run workflow**. Enter your Kaggle username (not a secret), choose an existing Kling presenter video in the repository, and provide a brief narration sentence. A free Edge TTS voice creates the sample narration; no paid voice API is used.
+4. The workflow trims the chosen video to the speech duration, creates a private Kaggle Dataset containing just the video and narration, and submits this notebook as a private Kaggle GPU kernel with Internet enabled.
+5. After the notebook finishes, the GitHub Actions run summary contains a link to the private Kaggle notebook. Sign in to Kaggle to watch or download its MP4 output.
+
+The repository is public, so the workflow deliberately does **not** upload the rendered preview as a public GitHub Actions artifact or commit media to GitHub. The source Kling videos already present in this repository are public; the workflow's newly generated narration and the Kaggle input dataset/output notebook are private to the Kaggle account.
+
+Each run creates a private, run-specific Kaggle Dataset and notebook so inputs from separate tests cannot be mixed. They remain in your Kaggle account for review and can be deleted there when no longer needed.
+
+The workflow is `workflow_dispatch` only. It does not run on a schedule, does not alter the channel publishing workflows, and does not publish or upload anything to YouTube. A completed technical run is only a preview; human review of mouth timing, eye stability, identity consistency, frame continuity, and audio alignment is still required.
+
+## Manual notebook use
 
 Notebook: [notebooks/musetalk_free_kaggle_test.ipynb](notebooks/musetalk_free_kaggle_test.ipynb)
 
-1. Sign in to Kaggle and open the notebook from this repository. Download the .ipynb file and use Kaggle's Import Notebook option if needed.
-2. In Notebook Settings, choose GPU as the accelerator and enable Internet.
-3. Create a **private Kaggle Dataset** with exactly one existing Kling presenter video (.mp4, preferably a clean 4–8 second front-facing shot) and the exact matching narration excerpt (.wav preferred; .mp3 also accepted).
-4. Add that private dataset as the notebook input. Do not place credentials, API keys, or private account information in the dataset.
-5. Run notebook cells from top to bottom. It checks for a GPU before downloading model weights or starting inference.
-6. Download the resulting MP4 from Kaggle's notebook output and inspect it before using it anywhere.
+If using Kaggle's notebook UI directly, create a **private Kaggle Dataset** containing exactly one existing presenter MP4 and its matching narration WAV or MP3. Attach it as notebook input, set Accelerator to GPU, enable Internet, and run cells in order. Use a 4–8 second test clip first. Do not upload secrets in the dataset.
 
-The notebook expects exactly one video and one audio file in /kaggle/input. This is intentionally strict to prevent accidentally syncing the wrong voice track to the wrong presenter shot.
+The notebook requires exactly one video and one audio file under `/kaggle/input`. This strict check prevents accidental pairing of the wrong speaker footage and narration. The first run downloads model checkpoints and dependencies, so it consumes Kaggle's free session/quota.
 
 ## Quality acceptance checklist
 
-Do not accept or publish the output until it passes all of these checks:
+Do not accept or publish output until all of the following pass:
 
 - Mouth movements follow the spoken words, including pauses and sentence endings.
 - No visible mouth drift or delayed lip movement.
 - Eyes remain stable; no eye sliding, flicker, or face warping.
 - Presenter identity, skin tone, hairstyle, and facial proportions remain consistent with the source Kling clip.
 - No duplicated frames, looping/boomerang behavior, or unexpected cuts.
-- Audio is unchanged, clear, and aligned to the rendered video duration.
+- Audio remains clear and aligned to the rendered video duration.
 - The face remains natural during closed-mouth sounds and silence.
 
-If it fails, retain the original source and report the failure. Do not publish a bad render and do not use an unsynchronized fallback for a presenter shot. The existing B-roll/voiceover structure can be retained while the lip-sync issue is investigated.
+If it fails, retain the original source and report the failure. Do not publish a bad render or use an unsynchronized presenter fallback. The existing B-roll/voiceover structure can remain in place while lip-sync is investigated.
 
-## Production integration is deliberately gated
+## Production integration remains gated
 
-This is a **manual proof-of-quality stage**, not yet a fully unattended daily GPU service. Kaggle free sessions have quotas and can disconnect. After the first preview is accepted, the next engineering step is to integrate a Kaggle-compatible batch handoff for short A-roll segments and keep the pipeline fail-closed when free GPU capacity is unavailable.
+This automated job is a repeatable **preview pipeline**, not yet an unattended daily production service. Kaggle can deny a GPU or disconnect when free quota/capacity is unavailable. The current task therefore stops safely rather than queueing paid compute. After the first accepted preview, integration into short A-roll segments in the two-channel production workflow must be separately tested and reviewed.
 
-The test notebook uses the official MuseTalk repository and its documented MuseTalk 1.5 inference entry point. See the official MuseTalk repository: https://github.com/TMElyralab/MuseTalk
+The notebook uses the official MuseTalk repository and MuseTalk 1.5 inference entry point: https://github.com/TMElyralab/MuseTalk
