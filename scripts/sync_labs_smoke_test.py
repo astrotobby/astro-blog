@@ -62,7 +62,7 @@ def run(args):
     audio = args.output_dir / "sync3_smoke_audio.mp3"
     subprocess.run(
         [
-            sys.executable, "-m", "edge_tts",
+            "edge-tts",
             "--voice", args.voice,
             "--text", args.text,
             "--write-media", str(audio),
@@ -74,6 +74,23 @@ def run(args):
     audio_duration = duration(audio)
     if audio_duration <= 0 or audio_duration > 15:
         raise RuntimeError(f"Sync-3 free trial accepts at most 15 seconds; test audio is {audio_duration:.2f}s.")
+    if audio_duration > video_duration + 0.05:
+        raise RuntimeError(
+            f"Speech ({audio_duration:.2f}s) is longer than the Kling source "
+            f"({video_duration:.2f}s). Choose a shorter test line; the source will not be looped."
+        )
+    synced_input = args.output_dir / "sync3_smoke_source.mp4"
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-v", "error", "-i", str(video),
+            "-t", f"{audio_duration:.3f}", "-an",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+            "-pix_fmt", "yuv420p", str(synced_input),
+        ],
+        check=True,
+    )
+    video = synced_input
+    video_duration = duration(video)
 
     generation_key = hashlib.sha256(
         f"sync3-free-smoke|{args.look}|{args.text}|{uuid.uuid4()}".encode()
