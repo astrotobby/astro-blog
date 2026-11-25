@@ -1,43 +1,29 @@
 #!/usr/bin/env bash
-# Sets up Wav2Lip for in-runner talking-avatar lip-sync.
-# Runs as a continue-on-error workflow step: if anything here fails, the pipeline
-# still renders (the avatar code sees no checkpoint and falls back to the montage).
-set -uo pipefail
-
-echo "[wav2lip] installing deps (pinned for Wav2Lip + Python 3.11)..."
-pip install --quiet \
-  numpy==1.23.5 \
-  librosa==0.9.2 \
-  numba==0.58.1 \
-  scipy==1.10.1 \
-  opencv-python==4.9.0.80
-
-echo "[wav2lip] installing torch (CPU build)..."
-pip install --quiet torch==2.2.2 torchvision==0.17.2 \
-  --index-url https://download.pytorch.org/whl/cpu
-
-if [ ! -d Wav2Lip ]; then
-  echo "[wav2lip] cloning Wav2Lip..."
-  git clone --depth 1 https://github.com/Rudrabha/Wav2Lip.git
-fi
-
-cd Wav2Lip
-# Make audio.py work with modern librosa (keyword args for filters.mel)
-sed -i 's/librosa\.filters\.mel(hp\.sample_rate, hp\.n_fft/librosa.filters.mel(sr=hp.sample_rate, n_fft=hp.n_fft/' audio.py || true
-mkdir -p checkpoints face_detection/detection/sfd
-
-echo "[wav2lip] downloading weights from Hugging Face (camenduru/Wav2Lip)..."
-python - <<'PY'
+# Python 3.11 Wav2Lip runtime isolated from the main Python 3.12 pipeline.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+VENV="$ROOT/.venv-wav2lip"
+PY="$VENV/bin/python"
+WAV2LIP="$ROOT/Wav2Lip"
+if [[ ! -x "$PY" ]]; then python3.11 -m venv "$VENV"; fi
+"$PY" -m pip install --quiet --disable-pip-version-check --upgrade pip wheel
+"$PY" -m pip install --quiet --disable-pip-version-check numpy==1.23.5 librosa==0.9.2 numba==0.58.1 scipy==1.10.1 opencv-python==4.9.0.80 huggingface_hub
+"$PY" -m pip install --quiet --disable-pip-version-check torch==2.2.2 torchvision==0.17.2 --index-url https://download.pytorch.org/whl/cpu
+if [[ ! -d "$WAV2LIP/.git" ]]; then git clone --depth 1 https://github.com/Rudrabha/Wav2Lip.git "$WAV2LIP"; fi
+sed -i 's/librosa\.filters\.mel(hp\.sample_rate, hp\.n_fft/librosa.filters.mel(sr=hp.sample_rate, n_fft=hp.n_fft/' "$WAV2LIP/audio.py" || true
+mkdir -p "$WAV2LIP/checkpoints" "$WAV2LIP/face_detection/detection/sfd"
+TOKEN="$(printenv HF_TOKEN 2>/dev/null || true)" "$PY" - <<'PY'
 import os, shutil
 from huggingface_hub import hf_hub_download
-tok = os.environ.get("HF_TOKEN") or None
-repo = "camenduru/Wav2Lip"
-shutil.copy(hf_hub_download(repo, "checkpoints/wav2lip_gan.pth", token=tok),
-            "checkpoints/wav2lip_gan.pth")
-shutil.copy(hf_hub_download(repo, "face_detection/detection/sfd/s3fd.pth", token=tok),
-            "face_detection/detection/sfd/s3fd.pth")
-print("[wav2lip] weights ready:",
-      os.path.getsize("checkpoints/wav2lip_gan.pth"), "bytes")
+repo="camenduru/Wav2Lip"
+token=os.environ.get("TOKEN") or None
+for name in ("checkpoints/wav2lip_gan.pth","face_detection/detection/sfd/s3fd.pth"):
+    target=os.path.join("Wav2Lip",name)
+    os.makedirs(os.path.dirname(target),exist_ok=True)
+    if not os.path.isfile(target) or os.path.getsize(target)<1024:
+        shutil.copy2(hf_hub_download(repo,name,token=token),target)
+        print("[wav2lip] ready",name)
 PY
-
-echo "[wav2lip] setup complete"
+test -s "$WAV2LIP/checkpoints/wav2lip_gan.pth"
+test -s "$WAV2LIP/face_detection/detection/sfd/s3fd.pth"
+"$PY" -c "import cv2,librosa,numpy,torch; print('WAV2LIP_RUNTIME_OK',torch.__version__)"

@@ -480,10 +480,15 @@ def warm_face_cache(cfg):
     Builds each face source exactly as render_talking() does, so the cache keys match."""
     from avatar_lipsync import warm_face_cache as warm
     fps = cfg["video"]["fps"]
+    failed = []
     for lk in load_looks(cfg):
         if lk.get("clip"):
             ok = warm(_face_source(lk, fps))
             log(f"facecache {lk['id']}: {'ready' if ok else 'not cached'}")
+            if not ok:
+                failed.append(lk["id"])
+    if failed:
+        raise RuntimeError("Wav2Lip face-cache preflight failed for: " + ", ".join(failed))
 
 
 if __name__ == "__main__":

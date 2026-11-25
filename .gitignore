@@ -40,3 +40,5 @@ Wav2Lip/
 
 # Rumble saved-session export (scripts/rumble_session.py) - never commit
 scripts/rumble_session.b64
+/.venv-wav2lip/
+/Wav2Lip/
