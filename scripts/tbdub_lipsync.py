@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import subprocess
 from pathlib import Path
@@ -167,13 +168,24 @@ def build_jobs(plans, voices, cfg):
                 raise RuntimeError(f"TBDub requires a video clip for look {look.get('id')}; no still-image/unsynced fallback is allowed.")
             duration = float(segment["t1"] - segment["t0"])
             source_duration = _source_duration(source)
-            if duration > source_duration - min_headroom:
-                raise RuntimeError(
-                    f"On-camera segment {tag}/{index} lasts {duration:.2f}s but "
-                    f"{look['id']} is only {source_duration:.2f}s. Shorten the A-roll; "
-                    "TBDub must not loop or boomerang the source footage."
-                )
             job_id = f"{tag}_{index:02d}"
+            # TBDub Student consumes overlapping 77-frame windows with a 72-frame
+            # stride. Keep current A-roll below one stride so it needs one window.
+            # Reserve enough real source frames after a deterministic seek so the
+            # model's own ping-pong padding is never needed.
+            audio_frames = max(1, int(duration * 25))
+            required_source_frames = max(72, math.ceil(audio_frames / 72) * 72)
+            required_window = required_source_frames / 25.0
+            needed_window = max(duration + min_headroom, required_window + 0.04)
+            max_start_frames = math.floor((source_duration - needed_window) * 25)
+            if max_start_frames < 0:
+                raise RuntimeError(
+                    f"On-camera segment {tag}/{index} ({duration:.2f}s) cannot fit "
+                    f"inside {look['id']} ({source_duration:.2f}s) without source-frame "
+                    "looping. Keep TBDub A-roll below one 72-frame window."
+                )
+            seed = int(hashlib.sha256(job_id.encode()).hexdigest()[:8], 16) & 0x7FFFFFFF
+            start_frame = seed % (max_start_frames + 1)
             audio = OUT / f"_tbdub_{job_id}.wav"
             output = OUT / f"_talk_{tag}_{index:02d}.mp4"
             _run([
@@ -186,13 +198,12 @@ def build_jobs(plans, voices, cfg):
             ], cwd=OUT)
             if not audio.is_file() or audio.stat().st_size < 1000:
                 raise RuntimeError(f"Could not extract narration audio for TBDub segment {job_id}")
-            seed = int(hashlib.sha256(job_id.encode()).hexdigest()[:8], 16) & 0x7FFFFFFF
             cache = OUT / "_tbdub_cache" / f"{look['id']}.pkl"
             report = OUT / f"_tbdub_face_{look['id']}.json"
             jobs.append({
                 "id": job_id, "tag": tag, "index": index,
                 "video": source, "audio": audio,
-                "output": output, "seed": seed,
+                "output": output, "seed": seed, "start_frame": start_frame,
                 "preprocess_cache": cache, "preprocess_report": report,
             })
     return jobs
