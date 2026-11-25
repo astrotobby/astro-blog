@@ -1,8 +1,9 @@
-"""Talking-avatar lip-sync via Wav2Lip, run INSIDE the GitHub runner — no external
-Space, no timeouts/quotas. Wav2Lip is installed by scripts/setup_wav2lip.sh.
+"""Talking-avatar lip-sync via Wav2Lip, run inside the GitHub runner.
 
-generate_talking_head(avatar_image, voice_audio, cfg, out_name=...) -> talking-head mp4, or None
-(so generate_video falls back to the image montage and the render never breaks).
+Wav2Lip is installed by scripts/setup_wav2lip.sh. generate_talking_head(...)
+returns a talking-head MP4 or None when the runtime is missing or inference fails.
+The influencer pipeline enforces influencer.require_lipsync: when enabled, a None
+result aborts the render rather than allowing unsynchronized presenter footage.
 """
 import subprocess
 
