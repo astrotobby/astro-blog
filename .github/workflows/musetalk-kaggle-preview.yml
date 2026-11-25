@@ -1,0 +1,250 @@
+name: MuseTalk free Kaggle preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      kaggle_username:
+        description: "Your Kaggle username (not an API key)"
+        required: true
+        type: string
+      presenter_video_path:
+        description: "Repository-relative path to an existing Kling presenter clip"
+        required: true
+        default: "assets/influencer/kling/kling_20261125_VIDEO_A_medium_s_613_0.mp4"
+        type: string
+      narration_text:
+        description: "Short test sentence to speak (aim for 4–8 seconds)"
+        required: true
+        default: "Welcome back. Today we are testing natural presenter lip sync."
+        type: string
+      voice:
+        description: "Free Edge TTS voice used only to create the short test narration"
+        required: true
+        default: "en-US-GuyNeural"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: musetalk-kaggle-preview
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Check out selected branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg and free clients
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade kaggle edge-tts
+
+      - name: Prepare a short private input dataset and submit MuseTalk
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+          KAGGLE_USERNAME_INPUT: ${{ inputs.kaggle_username }}
+          PRESENTER_VIDEO_PATH: ${{ inputs.presenter_video_path }}
+          NARRATION_TEXT: ${{ inputs.narration_text }}
+          TTS_VOICE: ${{ inputs.voice }}
+          RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p musetalk-run-logs
+          exec > >(tee -a musetalk-run-logs/github-run.log) 2>&1
+
+          if [[ -z "${KAGGLE_API_TOKEN:-}" ]]; then
+            echo "::error::Missing repository secret KAGGLE_API_TOKEN. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          if [[ -z "${KAGGLE_USERNAME_INPUT:-}" ]]; then
+            echo "::error::Enter your Kaggle username in the workflow form."
+            exit 1
+          fi
+          if [[ ! "$KAGGLE_USERNAME_INPUT" =~ ^[A-Za-z0-9_-]+$ ]]; then
+            echo "::error::The Kaggle username contains unsupported characters."
+            exit 1
+          fi
+          if [[ -z "${NARRATION_TEXT:-}" || ${#NARRATION_TEXT} -gt 300 ]]; then
+            echo "::error::Provide a short narration sentence (maximum 300 characters)."
+            exit 1
+          fi
+
+          OWNER="$(printf '%s' "$KAGGLE_USERNAME_INPUT" | tr '[:upper:]' '[:lower:]')"
+          DATASET_SLUG="musetalk-preview-input-$RUN_ID"
+          KERNEL_SLUG="musetalk-preview-$RUN_ID"
+          DATASET_ID="$OWNER/$DATASET_SLUG"
+          KERNEL_ID="$OWNER/$KERNEL_SLUG"
+          WORK="$(mktemp -d)"
+          DATA_DIR="$WORK/dataset"
+          KERNEL_DIR="$WORK/kernel"
+          OUTPUT_DIR="$WORK/output"
+          mkdir -p "$DATA_DIR" "$KERNEL_DIR" "$OUTPUT_DIR"
+
+          echo "Checking Kaggle authentication and free accelerator quota..."
+          kaggle quota
+
+          python - <<'PY'
+          import asyncio, json, os, pathlib, subprocess
+          from edge_tts import Communicate
+
+          root = pathlib.Path.cwd().resolve()
+          raw_video = pathlib.Path(os.environ["PRESENTER_VIDEO_PATH"])
+          video = (root / raw_video).resolve()
+          if not video.is_file() or not video.is_relative_to(root):
+              raise SystemExit("Presenter video must be an existing file inside this repository.")
+          if video.suffix.lower() not in {".mp4", ".mov", ".mkv"}:
+              raise SystemExit("Presenter video must be MP4, MOV, or MKV.")
+
+          audio = pathlib.Path(os.environ["RUN_WORK"]) / "narration.mp3"
+          asyncio.run(Communicate(
+              text=os.environ["NARRATION_TEXT"],
+              voice=os.environ["TTS_VOICE"]
+          ).save(str(audio)))
+
+          def duration(path):
+              value = subprocess.check_output([
+                  "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                  "-of", "default=noprint_wrappers=1:nokey=1", str(path)
+              ], text=True).strip()
+              return float(value)
+
+          audio_seconds = duration(audio)
+          video_seconds = duration(video)
+          if not 2.0 <= audio_seconds <= 12.0:
+              raise SystemExit(f"Generated narration is {audio_seconds:.2f}s; use a sentence that takes 2–12 seconds.")
+          if video_seconds < audio_seconds:
+              raise SystemExit(f"Presenter clip ({video_seconds:.2f}s) is shorter than narration ({audio_seconds:.2f}s). Choose a longer clip.")
+          staged_video = pathlib.Path(os.environ["RUN_WORK"]) / "presenter.mp4"
+          subprocess.run([
+              "ffmpeg", "-y", "-ss", "0", "-i", str(video), "-t", f"{audio_seconds:.3f}",
+              "-vf", "fps=25,scale=trunc(iw/2)*2:trunc(ih/2)*2",
+              "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+              "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(staged_video)
+          ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+          out = pathlib.Path(os.environ["DATA_DIR"])
+          import shutil
+          shutil.copy2(staged_video, out / "presenter.mp4")
+          shutil.copy2(audio, out / "narration.mp3")
+          metadata = {
+              "title": f"MuseTalk Preview Input {os.environ['RUN_ID']}",
+              "id": os.environ["DATASET_ID"],
+              "licenses": [{"name": "other"}],
+              "description": "Private, temporary input for the owner's MuseTalk lip-sync test. The files are not licensed for redistribution."
+          }
+          (out / "dataset-metadata.json").write_text(json.dumps(metadata, indent=2))
+          print(f"Prepared private preview inputs: video={audio_seconds:.2f}s, narration={audio_seconds:.2f}s")
+          PY
+        env:
+          RUN_WORK: ${{ runner.temp }}
+          DATA_DIR: ${{ runner.temp }}/musetalk-dataset
+          DATASET_ID: ${{ inputs.kaggle_username }}
+          RUN_ID: ${{ github.run_id }}
+
+      - name: Upload private dataset, push GPU kernel, and wait for completion
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+          KAGGLE_USERNAME_INPUT: ${{ inputs.kaggle_username }}
+          RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          OWNER="$(printf '%s' "$KAGGLE_USERNAME_INPUT" | tr '[:upper:]' '[:lower:]')"
+          DATASET_ID="$OWNER/musetalk-preview-input-$RUN_ID"
+          KERNEL_ID="$OWNER/musetalk-preview-$RUN_ID"
+          WORK="${RUNNER_TEMP}"
+          DATA_DIR="$WORK/musetalk-dataset"
+          KERNEL_DIR="$WORK/musetalk-kernel"
+          mkdir -p "$KERNEL_DIR"
+
+          # Kaggle datasets are private by default; intentionally do not pass --public.
+          kaggle datasets create -p "$DATA_DIR"
+
+          cp notebooks/musetalk_free_kaggle_test.ipynb "$KERNEL_DIR/musetalk_free_kaggle_test.ipynb"
+          python - <<'PY'
+          import json, os, pathlib
+          owner = os.environ["OWNER"]
+          run_id = os.environ["RUN_ID"]
+          meta = {
+              "id": f"{owner}/musetalk-preview-{run_id}",
+              "title": f"MuseTalk Preview {run_id}",
+              "code_file": "musetalk_free_kaggle_test.ipynb",
+              "language": "python",
+              "kernel_type": "notebook",
+              "is_private": True,
+              "enable_gpu": True,
+              "enable_internet": True,
+              "dataset_sources": [f"{owner}/musetalk-preview-input-{run_id}"]
+          }
+          pathlib.Path(os.environ["KERNEL_DIR"], "kernel-metadata.json").write_text(
+              json.dumps(meta, indent=2)
+          )
+          PY
+          kaggle kernels push -p "$KERNEL_DIR"
+
+          echo "Waiting for private Kaggle GPU kernel..."
+          completed=0
+          for attempt in $(seq 1 120); do
+            status="$(kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
+            echo "Kaggle status ($attempt/120): $status"
+            if echo "$status" | grep -Eqi '(^|[^a-z])complete([^a-z]|$)'; then
+              completed=1
+              break
+            fi
+            if echo "$status" | grep -Eqi 'error|failed|cancelled'; then
+              echo "MuseTalk kernel failed. Recent Kaggle logs:"
+              kaggle kernels logs "$KERNEL_ID" || true
+              exit 1
+            fi
+            sleep 45
+          done
+          if [[ "$completed" -ne 1 ]]; then
+            echo "::error::Kaggle did not finish within the 90-minute wait window. No paid fallback was attempted."
+            kaggle kernels logs "$KERNEL_ID" || true
+            exit 1
+          fi
+
+          mkdir -p "$WORK/musetalk-output"
+          kaggle kernels output "$KERNEL_ID" -p "$WORK/musetalk-output"
+          OUTPUT_MP4="$(find "$WORK/musetalk-output" -type f -iname '*.mp4' -print -quit)"
+          if [[ -z "$OUTPUT_MP4" ]]; then
+            echo "::error::Kaggle completed but returned no MP4."
+            kaggle kernels logs "$KERNEL_ID" || true
+            exit 1
+          fi
+          ffprobe -v error -show_entries format=duration,size -of json "$OUTPUT_MP4" | tee "$WORK/musetalk-output/preview-info.json"
+
+          {
+            echo "## MuseTalk preview finished"
+            echo
+            echo "The preview is stored in your **private Kaggle notebook output** (not in this public GitHub repository):"
+            echo
+            echo "https://www.kaggle.com/code/$KAGGLE_USERNAME_INPUT/musetalk-preview-$RUN_ID"
+            echo
+            echo "Open the notebook while signed in to Kaggle to watch/download the MP4. Nothing was posted to YouTube."
+            echo
+            echo "The project does not use paid inference, paid GPU, or a paid fallback."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preserve runner logs on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: musetalk-run-logs-${{ github.run_id }}
+          path: musetalk-run-logs/
+          if-no-files-found: ignore
+          retention-days: 3
