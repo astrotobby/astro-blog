@@ -92,7 +92,7 @@ class SyncLabsBudgetTests(unittest.TestCase):
         ):
             result = sync_labs_lipsync.generate_batch([job], {"influencer": {"sync_labs": {"model": "sync-3"}}})
         self.assertEqual(result["horizontal_00"], output)
-        self.assertAlmostEqual(sync_labs_lipsync._RESERVED_USD, 4.0 * 0.133, places=6)
+        self.assertAlmostEqual(sync_labs_lipsync._RESERVED_USD, (4.0 + 2 / 25) * 0.133, places=6)
 
     def test_budget_reservation_accumulates_across_vertical_and_horizontal_outputs(self):
         temporary = tempfile.TemporaryDirectory()
