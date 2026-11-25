@@ -51,7 +51,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
           python -m pip install --upgrade pip
-          python -m pip install --upgrade kaggle six edge-tts
+          python -m pip install --upgrade kaggle six kagglehub edge-tts
 
       - name: Prepare the short private input dataset
         env:
@@ -80,21 +80,14 @@ jobs:
             exit 1
           fi
 
-          # Read the account name from the CLI's safe configuration summary.
-          # The token itself is never printed or written to a file.
-          OWNER="$(python - <<'PY'
-          import re, subprocess
-          output = subprocess.check_output(["kaggle", "config", "view"], text=True)
-          match = re.search(r"(?im)^\s*-?\s*username\s*:\s*([^\s]+)", output)
-          if not match or match.group(1).lower() in {"none", "null", "-"}:
-              raise SystemExit("Kaggle CLI authenticated, but did not reveal the account username in config view.")
-          username = match.group(1).strip("\"'")
-          if not re.fullmatch(r"[A-Za-z0-9_-]+", username):
-              raise SystemExit("Kaggle CLI returned an unexpected username format.")
-          print(username.lower())
-          PY
-          )"
-          echo "Kaggle account detected."
+          # Resolve the account username through Kaggle's authenticated diagnostics API.
+          # The access token is never printed or persisted in the repository.
+          OWNER="$(python -c 'from kagglehub.auth import whoami; print(whoami()["username"])')"
+          if [[ ! "$OWNER" =~ ^[A-Za-z0-9_-]+$ ]]; then
+            echo "::error::Kaggle authentication did not return a valid username."
+            exit 1
+          fi
+          echo "Kaggle account authenticated."
           echo "kaggle_username=$OWNER" >> "$GITHUB_OUTPUT"
           export KAGGLE_OWNER="$OWNER"
 
