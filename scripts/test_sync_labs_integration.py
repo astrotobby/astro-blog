@@ -76,7 +76,7 @@ class SyncLabsBudgetTests(unittest.TestCase):
                 sync_labs_lipsync.preflight({"influencer": {"sync_labs": {"model": "sync-3"}}}, [])
 
     def test_zero_budget_blocks_before_any_api_request(self):
-        job = {"id": "horizontal_00", "audio": Path("audio.wav")}
+        job = {"id": "horizontal_00", "video": Path("source.mp4"), "audio": Path("audio.wav"), "output": Path("out.mp4")}
         with (
             patch.dict(os.environ, {"SYNC_API_KEY": "test-key", "SYNC_LABS_MAX_SPEND_USD_PER_RUN": "0"}),
             patch.object(sync_labs_lipsync, "_duration", return_value=4.8),
@@ -105,8 +105,8 @@ class SyncLabsBudgetTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         first = Path(temporary.name) / "one.mp4"
         second = Path(temporary.name) / "two.mp4"
-        jobs1 = [{"id": "vertical_00", "audio": Path("a.wav"), "output": first}]
-        jobs2 = [{"id": "horizontal_00", "audio": Path("b.wav"), "output": second}]
+        jobs1 = [{"id": "vertical_00", "video": Path("source-a.mp4"), "audio": Path("a.wav"), "output": first}]
+        jobs2 = [{"id": "horizontal_00", "video": Path("source-b.mp4"), "audio": Path("b.wav"), "output": second}]
         with (
             patch.dict(os.environ, {"SYNC_API_KEY": "test-key", "SYNC_LABS_MAX_SPEND_USD_PER_RUN": "1.00"}),
             patch.object(sync_labs_lipsync, "_duration", return_value=4.0),
