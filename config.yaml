@@ -207,7 +207,6 @@ influencer:
     student_steps: 2
     sigma_shift: 1.0
     cpu_offload: true
-    source_headroom_seconds: 0.18
     save_comparison: false
   # Legacy Wav2Lip implementation remains available only when explicitly selected;
   # it is not the default and is never a fallback for TBDub.
