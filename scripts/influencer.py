@@ -309,12 +309,34 @@ def _render_ltx(plans, voices, cfg):
 
 
 def render_talking(plans, voices, cfg, fps):
-    """Make every A-roll segment of every cut talk. `plans` = {tag: timeline},
-    `voices` = {tag: voiceover path}. LTX-2 (influencer.ltx) animates the whole
-    presenter per segment when the free quota allows. Remaining segments are grouped
-    by look and Wav2Lip runs ONCE per look over the concatenated audio slices (face
-    detection runs once per look, not per segment), then the result is cut back
-    apart. Returns {(tag, i): clip}."""
+    """Synchronize every on-camera narration segment with the selected provider.
+
+    Sync Labs processes each Kling clip against its own narration excerpt in the
+    provider's cloud. The local Wav2Lip implementation remains available only when
+    explicitly selected; it is never a fallback for Sync Labs.
+    """
+    inf = cfg.get("influencer", {})
+    provider = str(inf.get("lipsync_provider", "wav2lip")).lower()
+    if provider == "sync_labs":
+        from sync_labs_lipsync import build_jobs, generate_batch
+        jobs = build_jobs(plans, voices)
+        if not jobs:
+            if inf.get("require_lipsync", False):
+                raise RuntimeError("Sync Labs was selected but the influencer timeline has no A-roll segments")
+            return {}
+        outputs = generate_batch(jobs, cfg)
+        talking = {
+            (job["tag"], int(job["index"])): outputs[job["id"]]
+            for job in jobs
+        }
+        if len(talking) != len(jobs):
+            raise RuntimeError("Sync Labs did not return every requested presenter segment")
+        log(f"Sync Labs {inf.get('sync_labs', {}).get('model', 'sync-3')}: "
+            f"{len(talking)} independent A-roll clips completed")
+        return talking
+    if provider != "wav2lip":
+        raise RuntimeError(f"Unsupported influencer.lipsync_provider: {provider!r}")
+
     from avatar_lipsync import generate_talking_head
     talking = _render_ltx(plans, voices, cfg)
     by_look = {}
@@ -493,9 +515,14 @@ def compose(montage, voice, words, total, size, fps, cfg, slug, tag, out):
 
 # ---------- one-time setup ----------
 def warm_face_cache(cfg):
-    """Detect and cache the face boxes of every look's moving clip (committed under
-    assets/influencer/facecache), so renders lip-sync without re-running detection.
-    Builds each face source exactly as render_talking() does, so the cache keys match."""
+    """Provider-specific preflight for the approved moving Kling presenter clips."""
+    provider = str(cfg.get("influencer", {}).get("lipsync_provider", "wav2lip")).lower()
+    if provider == "sync_labs":
+        from sync_labs_lipsync import preflight
+        preflight(cfg, load_looks(cfg))
+        return
+    if provider != "wav2lip":
+        raise RuntimeError(f"Unsupported influencer.lipsync_provider: {provider!r}")
     from avatar_lipsync import warm_face_cache as warm
     fps = cfg["video"]["fps"]
     failed = []
