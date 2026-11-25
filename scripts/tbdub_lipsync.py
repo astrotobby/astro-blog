@@ -173,7 +173,6 @@ def build_jobs(plans, voices, cfg):
     """Extract one matching speech sample for every A-roll segment; never join disjoint audio."""
     jobs = []
     inf = cfg.get("influencer", {})
-    min_headroom = float(inf.get("tbdub", {}).get("source_headroom_seconds", 0.18))
     for tag, segments in plans.items():
         for index, segment in enumerate(segments):
             if segment.get("kind") != "A":
