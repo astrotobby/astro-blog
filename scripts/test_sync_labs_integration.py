@@ -90,7 +90,7 @@ class SyncLabsBudgetTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         output = Path(temporary.name) / "talk.mp4"
-        job = {"id": "horizontal_00", "audio": Path("audio.wav"), "output": output}
+        job = {"id": "horizontal_00", "video": Path("source.mp4"), "audio": Path("audio.wav"), "output": output}
         with (
             patch.dict(os.environ, {"SYNC_API_KEY": "test-key", "SYNC_LABS_MAX_SPEND_USD_PER_RUN": "1.00"}),
             patch.object(sync_labs_lipsync, "_duration", return_value=4.0),
@@ -115,7 +115,7 @@ class SyncLabsBudgetTests(unittest.TestCase):
             sync_labs_lipsync.generate_batch(jobs1, {"influencer": {"sync_labs": {"model": "sync-3"}}})
             with self.assertRaisesRegex(RuntimeError, "remaining authorized budget"):
                 sync_labs_lipsync.generate_batch(jobs2, {"influencer": {"sync_labs": {"model": "sync-3"}}})
-        self.assertAlmostEqual(sync_labs_lipsync._RESERVED_USD, 4.0 * 0.133, places=6)
+        self.assertAlmostEqual(sync_labs_lipsync._RESERVED_USD, (4.0 + 2 / 25) * 0.133, places=6)
 
     def test_unknown_or_different_model_is_rejected(self):
         job = {"id": "horizontal_00", "audio": Path("audio.wav")}
