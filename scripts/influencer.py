@@ -138,11 +138,26 @@ def plan_timeline(dur, looks, cfg, slug, words=None):
             s["kind"] = "B"
         return segs
     if segs[-1]["kind"] == "B":
-        if len(segs) > 1 and segs[-1]["t1"] - segs[-1]["t0"] < min_seg * 2:
-            segs[-2]["t1"] = segs[-1]["t1"]  # fold a short tail into the previous A
+        if str(inf.get("lipsync_provider", "wav2lip")).lower() == "tbdub":
+            # Never stretch a 5-second source clip into a long CTA. Keep the last
+            # B-roll interval and reserve a final, source-length-matched presenter cut.
+            tail = segs[-1]
+            tail_duration = tail["t1"] - tail["t0"]
+            a_max = float(a_rng[1])
+            a_min = float(a_rng[0])
+            if tail_duration >= min_seg + a_min:
+                a_duration = min(a_max, tail_duration - min_seg)
+                a_duration = max(a_min, a_duration)
+                if tail_duration - a_duration >= min_seg:
+                    tail["t1"] -= a_duration
+                    segs.append({"kind": "A", "t0": tail["t1"], "t1": dur})
+            # If there is not enough room for a clean final A-roll and B-roll,
+            # leave the timeline on B-roll rather than create an invalid long A-roll.
+        elif len(segs) > 1 and segs[-1]["t1"] - segs[-1]["t0"] < min_seg * 2:
+            segs[-2]["t1"] = segs[-1]["t1"]  # legacy provider: fold a short tail into the previous A
             segs.pop()
         else:
-            segs[-1]["kind"] = "A"           # end on camera for the CTA
+            segs[-1]["kind"] = "A"           # legacy provider: end on camera for the CTA
     seen = {}
     a_idx = 0
     for s in segs:
