@@ -47,6 +47,21 @@ def _source_duration(path):
     return float(value)
 
 
+def _source_frame_count(path):
+    value = subprocess.check_output([
+        "ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0",
+        "-show_entries", "stream=nb_read_frames",
+        "-of", "default=nw=1:nk=1", str(path)
+    ], text=True).strip()
+    try:
+        count = int(value)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"Cannot determine decoded frame count for TBDub source {path}: {value!r}") from exc
+    if count <= 0:
+        raise RuntimeError(f"TBDub source has no decoded video frames: {path}")
+    return count
+
+
 def _runtime():
     python = _python()
     ckpt = checkpoint_dir()
@@ -169,21 +184,23 @@ def build_jobs(plans, voices, cfg):
                 raise RuntimeError(f"TBDub requires a video clip for look {look.get('id')}; no still-image/unsynced fallback is allowed.")
             duration = float(segment["t1"] - segment["t0"])
             source_duration = _source_duration(source)
+            source_frames = _source_frame_count(source)
             job_id = f"{tag}_{index:02d}"
             # TBDub Student consumes overlapping 77-frame windows with a 72-frame
-            # stride. Keep current A-roll below one stride so it needs one window.
-            # Reserve enough real source frames after a deterministic seek so the
-            # model's own ping-pong padding is never needed.
+            # stride. Keep each audio excerpt below 72 frames and seek using the
+            # ACTUAL decoded source-frame count (Kling clips may be 24 fps, not 25).
+            # Requiring one complete 72-frame source window prevents upstream
+            # make_pingpong_indices() from repeating/bouncing the input.
             audio_frames = max(1, int(duration * 25))
             required_source_frames = max(72, math.ceil(audio_frames / 72) * 72)
-            required_window = required_source_frames / 25.0
-            needed_window = max(duration + min_headroom, required_window + 0.04)
-            max_start_frames = math.floor((source_duration - needed_window) * 25)
+            max_start_frames = source_frames - required_source_frames
             if max_start_frames < 0:
                 raise RuntimeError(
-                    f"On-camera segment {tag}/{index} ({duration:.2f}s) cannot fit "
-                    f"inside {look['id']} ({source_duration:.2f}s) without source-frame "
-                    "looping. Keep TBDub A-roll below one 72-frame window."
+                    f"On-camera segment {tag}/{index} ({duration:.2f}s) needs "
+                    f"{required_source_frames} source frames, but {look['id']} has "
+                    f"only {source_frames} decoded frames ({source_duration:.2f}s). "
+                    "Cannot proceed without source-frame looping. Keep each A-roll "
+                    "below one 72-frame window."
                 )
             seed = int(hashlib.sha256(job_id.encode()).hexdigest()[:8], 16) & 0x7FFFFFFF
             start_frame = seed % (max_start_frames + 1)
