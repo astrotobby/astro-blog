@@ -57,7 +57,19 @@ def _duration(path: Path) -> float:
 
 def preflight(cfg: dict, looks: list[dict]) -> bool:
     """Validate API credentials, budget authorization and source clips without billing."""
-    _api_key()
+    api_key = _api_key()
+    # A low-cost authenticated read verifies the key before the full video render.
+    auth_check = requests.get(
+        f"{API_BASE}/v2/assets",
+        headers={"x-api-key": api_key},
+        params={"limit": 1},
+        timeout=(15, 30),
+    )
+    if auth_check.status_code >= 400:
+        raise RuntimeError(
+            f"Sync Labs API key preflight failed (HTTP {auth_check.status_code}): "
+            f"{auth_check.text[:800]}"
+        )
     budget = _max_spend()
     if budget <= 0:
         raise RuntimeError(
@@ -220,7 +232,7 @@ def generate_one(video: Path, audio: Path, output: Path, job_id: str, model: str
 
     target_duration = _duration(audio)
     output_duration = _duration(output)
-    if abs(output_duration - target_duration) > 0.50:
+    if abs(output_duration - target_duration) > 0.20:
         output.unlink(missing_ok=True)
         raise RuntimeError(
             f"Sync Labs output duration {output_duration:.2f}s does not match "
