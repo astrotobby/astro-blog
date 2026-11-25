@@ -42,8 +42,10 @@ presenter. No cloud GPU service or paid endpoint is started automatically.
 - Uses only the two existing approved Kling video clips in
   `assets/influencer/looks.yaml`.
 - Runs TBDub Student (two inference steps) against one matching audio excerpt per
-  presenter segment. It never concatenates unrelated narration segments or boomerangs
-  the source clip.
+  presenter segment. It never concatenates unrelated narration segments or pre-loops
+  the source clip to fill the narration. TBDub may internally pad frames to align its
+  overlapping inference windows; short audio slices and source-duration checks keep
+  that padding bounded.
 - Caps presenter shots at 4.8 seconds for the current approximately 5.04-second source
   clips and verifies generated video duration against the target speech.
 - Checks GPU/model availability and MediaPipe face preprocessing before a render.
