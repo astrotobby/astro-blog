@@ -1,3 +1,4 @@
+# Re-triggered after Kaggle phone verification; keep preview GPU-only and free.
 name: MuseTalk free Kaggle preview
 
 on:
