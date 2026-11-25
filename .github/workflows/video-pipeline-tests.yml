@@ -14,6 +14,9 @@ on:
       - "scripts/setup_wav2lip.sh"
       - "scripts/longform_pipeline.py"
       - "scripts/avatar_lipsync.py"
+      - "scripts/sync_labs_*.py"
+      - "scripts/test_sync_labs_integration.py"
+      - "config.yaml"
       - ".github/workflows/video-pipeline-tests.yml"
   workflow_dispatch:
 
@@ -61,9 +64,10 @@ jobs:
           print(f"Rendered {rendered} ({Path(rendered).stat().st_size} bytes)")
           PY
       - name: Compile modified Python modules
-        run: python -m py_compile scripts/influencer.py scripts/gen_influencer_motion.py scripts/generate_video.py scripts/motion_cards.py
+        run: python -m py_compile scripts/influencer.py scripts/gen_influencer_motion.py scripts/generate_video.py scripts/motion_cards.py scripts/sync_labs_lipsync.py scripts/sync_labs_smoke_test.py scripts/test_sync_labs_integration.py
       - name: Test LTX and VoiceStudio integration contracts
         run: |
           python -m unittest discover -s tests -p 'test_influencer_ltx.py' -v
           python -m unittest discover -s tests -p 'test_voicestudio_endpoint.py' -v
           python -m unittest discover -s tests -p 'test_kling_influencer_assets.py' -v
+          python scripts/test_sync_labs_integration.py
