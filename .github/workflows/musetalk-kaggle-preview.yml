@@ -51,7 +51,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
           python -m pip install --upgrade pip
-          python -m pip install --upgrade kaggle kagglehub edge-tts
+          python -m pip install --upgrade kaggle edge-tts
 
       - name: Prepare the short private input dataset
         env:
@@ -73,22 +73,35 @@ jobs:
             echo "::error::Missing repository secret KAGGLE_API_TOKEN. Add it under Settings > Secrets and variables > Actions."
             exit 1
           fi
-          # Resolve the username from Kaggle's authenticated API identity rather than
-          # asking the user to type it or assuming it matches the GitHub username.
-          OWNER="$(python -c 'from kagglehub.auth import whoami; print(whoami()["username"])')"
-          if [[ ! "$OWNER" =~ ^[A-Za-z0-9_-]+$ ]]; then
-            echo "::error::Kaggle token authentication did not return a valid username."
+          # Validate the token with the official Kaggle CLI. This call contacts Kaggle.
+          if ! kaggle quota > "$RUN_WORK/kaggle-quota.log" 2>&1; then
+            cat "$RUN_WORK/kaggle-quota.log"
+            echo "::error::Kaggle CLI rejected KAGGLE_API_TOKEN. Replace it with a valid token from kaggle.com/settings/api."
             exit 1
           fi
+
+          # Read the account name from the CLI's safe configuration summary.
+          # The token itself is never printed or written to a file.
+          OWNER="$(python - <<'PY'
+          import re, subprocess
+          output = subprocess.check_output(["kaggle", "config", "view"], text=True)
+          match = re.search(r"(?im)^\\s*-?\\s*username\\s*:\\s*([^\\s]+)", output)
+          if not match or match.group(1).lower() in {"none", "null", "-"}:
+              raise SystemExit("Kaggle CLI authenticated, but did not reveal the account username in config view.")
+          username = match.group(1).strip("\\\"'")
+          if not re.fullmatch(r"[A-Za-z0-9_-]+", username):
+              raise SystemExit("Kaggle CLI returned an unexpected username format.")
+          print(username.lower())
+          PY
+          )"
+          echo "Kaggle account detected."
           echo "kaggle_username=$OWNER" >> "$GITHUB_OUTPUT"
           export KAGGLE_OWNER="$OWNER"
+
           if [[ -z "${NARRATION_TEXT:-}" || ${#NARRATION_TEXT} -gt 300 ]]; then
             echo "::error::Provide a short narration sentence (maximum 300 characters)."
             exit 1
           fi
-
-          echo "Checking Kaggle authentication and reported accelerator quota..."
-          kaggle quota
 
           python - <<'PY'
           import asyncio, json, os, pathlib, shutil, subprocess
