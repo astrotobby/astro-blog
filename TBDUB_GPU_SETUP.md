@@ -13,14 +13,18 @@ review those terms before monetizing output.
 The automated setup deliberately fails before downloading the large model files unless
 the runner has:
 
-- Linux and an NVIDIA CUDA GPU with BF16 support
+- Linux and an NVIDIA Ampere-class (compute capability 8.0+) CUDA GPU with native BF16 support
 - At least 16 GiB total VRAM and approximately 15 GiB free VRAM
 - At least 24 GiB host RAM and approximately 21 GiB available RAM
 - At least 26 GB free persistent disk space
 - Python 3.10, Git, curl, FFmpeg and CUDA-compatible drivers
 
-A 24 GiB GPU and 32 GiB system RAM are recommended to leave some headroom. The
-standard GitHub-hosted `ubuntu-24.04` runner is CPU-only and cannot execute TBDub.
+A 24 GiB GPU and 32 GiB system RAM are recommended to leave some headroom.
+Examples of compatible architectures include NVIDIA A100, RTX 30-series, RTX 40-series,
+L4 and newer BF16-capable devices with enough available memory. NVIDIA T4 (compute
+capability 7.5) and P100 do not meet TBDub's native BF16 requirement, despite some
+free notebook tiers offering those cards. The standard GitHub-hosted `ubuntu-24.04`
+runner is CPU-only and cannot execute TBDub.
 
 ## Configure the AI-GEMS repository
 
