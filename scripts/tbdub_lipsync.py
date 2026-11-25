@@ -192,7 +192,8 @@ def build_jobs(plans, voices, fps, cfg):
             cache = OUT / "_tbdub_cache" / f"{look['id']}.pkl"
             report = OUT / f"_tbdub_face_{look['id']}.json"
             jobs.append({
-                "id": job_id, "video": source, "audio": audio,
+                "id": job_id, "tag": tag, "index": index,
+                "video": source, "audio": audio,
                 "output": output, "seed": seed,
                 "preprocess_cache": cache, "preprocess_report": report,
             })
