@@ -13,7 +13,8 @@ Per video:
                           so the outfit/location changes inside the video like a vlog
   3. render_talking()  -> TBDub Student synchronizes every A-roll independently
                           against its exact narration excerpt. One persistent worker
-                          loads the model once; no concatenated disjoint audio or loops.
+                          loads the model once; no concatenated disjoint narration or
+                          application-level boomerang/loop of source footage.
 
   4. build_aroll()     -> full-screen presenter shot with handheld drift, a slow push-in
                           and alternating wide / punch-in framing (creator jump-cut style)
@@ -335,12 +336,12 @@ def _render_ltx(plans, voices, cfg):
 
 
 def render_talking(plans, voices, cfg, fps):
-    """Make every A-roll segment of every cut talk. `plans` = {tag: timeline},
-    `voices` = {tag: voiceover path}. LTX-2 (influencer.ltx) animates the whole
-    presenter per segment when the free quota allows. Remaining segments are grouped
-    by look and Wav2Lip runs ONCE per look over the concatenated audio slices (face
-    detection runs once per look, not per segment), then the result is cut back
-    apart. Returns {(tag, i): clip}."""
+    """Lip-sync every A-roll segment using the configured provider.
+
+    TBDub processes each exact narration excerpt independently in a persistent worker.
+    The legacy Wav2Lip provider remains available only when explicitly selected.
+    Returns {(tag, segment_index): generated_clip}.
+    """
     inf = cfg.get("influencer", {})
     provider = str(inf.get("lipsync_provider", "wav2lip")).lower()
     if provider == "tbdub":
