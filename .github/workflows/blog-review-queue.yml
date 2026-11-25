@@ -1,0 +1,80 @@
+name: blog-review-queue
+
+# Draft articles are committed under review-queue/ on main. This workflow validates
+# them and moves them on a separate PR branch; only merging that PR publishes them.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "review-queue/**/*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: blog-review-queue
+  cancel-in-progress: false
+
+jobs:
+  prepare-review-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the default branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install article validator dependency
+        run: python -m pip install --disable-pip-version-check python-frontmatter
+
+      - name: Validate drafts and stage them for review
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          drafts=(review-queue/*.md)
+          if ((${#drafts[@]} == 0)); then
+            echo "No queued article drafts found."
+            exit 0
+          fi
+
+          for draft in "${drafts[@]}"; do
+            echo "Validating $draft"
+            python - "$draft" <<'PY'
+          import sys
+          from scripts.blog_quality import validate_blog_post
+          path = sys.argv[1]
+          result = validate_blog_post(path)
+          print(f"PASS: {result['title']} ({result['word_count']} words)")
+          PY
+
+            filename="$(basename "$draft")"
+            destination="src/content/blog/$filename"
+            if [[ -e "$destination" ]]; then
+              echo "Refusing to overwrite an existing live article: $destination" >&2
+              exit 1
+            fi
+            mkdir -p src/content/blog
+            git mv "$draft" "$destination"
+          done
+
+      - name: Open or update a draft pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          branch: automation/blog-review-queue
+          delete-branch: true
+          commit-message: "Prepare queued blog articles for editorial review"
+          title: "Review queued Astro Signal articles"
+          body: |
+            This draft PR contains article(s) from `review-queue/`, validated against the blog's existing article contract.
+
+            **Review before publication:** verify factual claims against the cited source video, edit as needed, and check the title, images, links, and wording. Do not merge until the articles are approved. Merging moves them into `src/content/blog/`, which publishes them and triggers the existing blog-to-video and social-pack workflows.
+
+            This workflow does not publish or merge automatically.
+          draft: true
