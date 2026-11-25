@@ -112,8 +112,9 @@ def pick_looks(looks, slug, n):
 # ---------- 2. timeline ----------
 def plan_timeline(dur, looks, cfg, slug, words=None):
     """Alternating A (on camera) / B (b-roll) segments covering [0, dur]. Opens on
-    camera (the face is the scroll-stopper) and closes on camera (CTA). Each A
-    segment gets the next look in rotation and alternates wide / punch-in framing.
+    camera (the face is the scroll-stopper). The legacy provider closes on camera;
+    TBDub can leave a short final B-roll rather than stretch a shot past one window.
+    Each A segment gets the next look in rotation and alternates wide / punch-in framing.
     Cuts snap to the end of a spoken word when word timings are available."""
     inf = cfg.get("influencer", {})
     a_rng = inf.get("aroll_seconds", [4.0, 7.0])
