@@ -195,8 +195,8 @@ influencer:
   looks_file: "assets/influencer/looks.yaml"
   looks_per_video: 2
   lipsync_provider: "tbdub"
-  aroll_seconds: [4.0, 4.8]        # keep each A-roll shorter than the ~5.04s source clips
-  broll_seconds: [30.0, 42.0]      # reduce repetitive presenter footage
+  aroll_seconds: [2.4, 2.8]        # one 72-frame TBDub Student window at 25 fps
+  broll_seconds: [45.0, 60.0]      # reduce repeated use of the two short source clips
   min_segment: 4.0
   punch_in: 1.10
   push_in: 0.025
