@@ -21,6 +21,13 @@ MIN_GPU_TOTAL = 16 * GIB
 MIN_GPU_FREE = 15 * GIB
 MIN_RAM_TOTAL = 24 * GIB
 MIN_RAM_AVAILABLE = 21 * GIB
+OUTPUT_FPS = 25
+
+
+def _audio_duration_seconds(core, audio_path: str) -> float:
+    """TBDub's get_audio_length returns frames at 25 fps, not seconds."""
+    return float(core.get_audio_length(str(audio_path))) / OUTPUT_FPS
+
 
 
 def _ram_bytes():
@@ -184,7 +191,7 @@ def run_batch(manifest_path: Path, tbdub_dir: Path, checkpoint_dir: Path):
             "ffprobe", "-v", "error", "-show_entries", "format=duration",
             "-of", "default=nw=1:nk=1", str(output)
         ], text=True).strip())
-        target_duration = float(core.get_audio_length(str(job["audio"])))
+        target_duration = _audio_duration_seconds(core, job["audio"])
         if abs(output_duration - target_duration) > 0.20:
             raise RuntimeError(
                 f"TBDub output length {output_duration:.3f}s does not match "
