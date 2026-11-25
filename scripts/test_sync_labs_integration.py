@@ -42,6 +42,33 @@ class SyncLabsBudgetTests(unittest.TestCase):
     def tearDown(self):
         sync_labs_lipsync.reset_run_budget_for_tests()
 
+    def test_preflight_checks_sync3_model_access_without_generating(self):
+        fake_models = type("Response", (), {
+            "status_code": 200,
+            "json": staticmethod(lambda: [{"id": "sync-3", "name": "sync-3"}]),
+            "text": "",
+        })()
+        with (
+            patch.dict(os.environ, {"SYNC_API_KEY": "test-key", "SYNC_LABS_MAX_SPEND_USD_PER_RUN": "0"}),
+            patch.object(sync_labs_lipsync.requests, "get", return_value=fake_models) as get,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "Paid Sync-3 production is disabled"):
+                sync_labs_lipsync.preflight({"influencer": {"sync_labs": {"model": "sync-3"}}}, [])
+        self.assertEqual(get.call_args.args[0], "https://api.sync.so/v2/models")
+
+    def test_preflight_blocks_when_sync3_not_enabled_for_key(self):
+        fake_models = type("Response", (), {
+            "status_code": 200,
+            "json": staticmethod(lambda: [{"id": "lipsync-2", "name": "lipsync-2"}]),
+            "text": "",
+        })()
+        with (
+            patch.dict(os.environ, {"SYNC_API_KEY": "test-key", "SYNC_LABS_MAX_SPEND_USD_PER_RUN": "0"}),
+            patch.object(sync_labs_lipsync.requests, "get", return_value=fake_models),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "does not currently have access to Sync-3"):
+                sync_labs_lipsync.preflight({"influencer": {"sync_labs": {"model": "sync-3"}}}, [])
+
     def test_zero_budget_blocks_before_any_api_request(self):
         job = {"id": "horizontal_00", "audio": Path("audio.wav")}
         with (
