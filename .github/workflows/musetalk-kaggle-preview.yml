@@ -70,7 +70,7 @@ jobs:
           fi
           # Resolve the username from Kaggle's authenticated API identity rather than
           # asking the user to type it or assuming it matches the GitHub username.
-          OWNER="$(python -c 'import kagglehub; print(kagglehub.auth.whoami()["username"])')"
+          OWNER="$(python -c 'from kagglehub.auth import whoami; print(whoami()["username"])')"
           if [[ ! "$OWNER" =~ ^[A-Za-z0-9_-]+$ ]]; then
             echo "::error::Kaggle token authentication did not return a valid username."
             exit 1
