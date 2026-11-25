@@ -10,6 +10,10 @@ on:
       - "scripts/setup_hyperframes.sh"
       - "tests/test_influencer_ltx.py"
       - "tests/test_voicestudio_endpoint.py"
+      - "tests/test_kling_influencer_assets.py"
+      - "scripts/setup_wav2lip.sh"
+      - "scripts/longform_pipeline.py"
+      - "scripts/avatar_lipsync.py"
       - ".github/workflows/video-pipeline-tests.yml"
   workflow_dispatch:
 
@@ -62,3 +66,4 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_influencer_ltx.py' -v
           python -m unittest discover -s tests -p 'test_voicestudio_endpoint.py' -v
+          python -m unittest discover -s tests -p 'test_kling_influencer_assets.py' -v

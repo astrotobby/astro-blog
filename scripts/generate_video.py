@@ -1969,15 +1969,15 @@ def render_variant(name, narration, script, cfg, scene_assets, music):
     build_clip(scene_assets, windows, size, cfg["video"]["fps"], montage, cfg, total)
     log(f"Montage render completed in {time.monotonic() - montage_started:.1f}s")
     if cfg.get("influencer", {}).get("enabled"):
-        # The AI presenter cuts in over the montage; the stock footage stays as B-roll.
-        try:
-            from influencer import compose
-            presented = compose(montage, voice, word_timings, total, size, cfg["video"]["fps"],
-                                cfg, script["post"]["slug"], name,
-                                OUT / f"presented_{name}.mp4")
-            montage = presented or montage
-        except Exception as exc:  # noqa  the presenter must never break the render
-            log(f"influencer cut failed -> plain montage: {exc}")
+        # The same on-camera narrator must be present and lip-synced in production.
+        # A generic stock montage is not an acceptable silent fallback for this project.
+        from influencer import compose
+        presented = compose(montage, voice, word_timings, total, size, cfg["video"]["fps"],
+                            cfg, script["post"]["slug"], name,
+                            OUT / f"presented_{name}.mp4")
+        if presented is None or not Path(presented).is_file() or Path(presented).stat().st_size < 1000:
+            raise RuntimeError("Required influencer presenter render did not produce a valid video")
+        montage = presented
     captions = word_timings if cfg["video"].get("captions") else None
     final_started = time.monotonic()
     finalize(montage, voiced, captions, music, size, final_path, cfg, scene_assets,

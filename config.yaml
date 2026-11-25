@@ -194,18 +194,17 @@ influencer:
   enabled: true
   looks_file: "assets/influencer/looks.yaml"
   looks_per_video: 3               # outfit/location changes per video (if that many exist)
-  aroll_seconds: [4.0, 7.0]        # on-camera segment length range
-  broll_seconds: [3.5, 6.0]        # b-roll segment length range
-  min_segment: 2.5                 # never leave a shorter sliver at the end
-  punch_in: 1.22                   # 2nd appearance of a look = tighter "jump-cut" framing
-  push_in: 0.045                   # slow push-in over each on-camera shot
-  handheld_px: 7                   # subtle handheld drift (0 = locked-off tripod)
-  # LTX-2 adds real facial/head/hand motion and audio sync via the free HF Space.
-  # It accepts 1-6s segments; longer cuts fall back to Wav2Lip automatically.
-  # Keep the free ZeroGPU budget conservative: one generated segment per post, vertical first.
-  # Increase only after checking the account's current free GPU allowance.
-  ltx: true
-  ltx_max_segments: 1
+  aroll_seconds: [4.0, 5.5]        # on-camera segment length range
+  broll_seconds: [30.0, 42.0]       # longer cutaways reduce visible reuse of the short source clips
+  min_segment: 4.0                 # never leave a shorter sliver at the end
+  punch_in: 1.10                   # 2nd appearance of a look = tighter "jump-cut" framing
+  push_in: 0.025                   # slow push-in over each on-camera shot
+  handheld_px: 4                   # subtle handheld drift (0 = locked-off tripod)
+  require_lipsync: true             # fail the render rather than show a visibly mismatched narrator
+  # Use only existing Kling clips in assets/influencer/looks.yaml; no new generation.
+  # Wav2Lip locally synchronizes presenter footage to the narration audio.
+  ltx: false
+  ltx_max_segments: 0
 
 # ---- Animated stat / key-point scenes (scripts/motion_cards.py, HyperFrames) ----
 # The post's own facts as branded motion graphics in place of a few stock clips:

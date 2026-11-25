@@ -11,6 +11,9 @@ from common import OUT, ROOT, log
 WAV2LIP_DIR = ROOT / "Wav2Lip"
 # Runs Wav2Lip's inference.py with a persistent face-box cache (see that file).
 CACHED_RUNNER = ROOT / "scripts" / "wav2lip_cached.py"
+WAV2LIP_PYTHON = ROOT / ".venv-wav2lip" / "bin" / "python"
+def _wav2lip_python():
+    return str(WAV2LIP_PYTHON) if WAV2LIP_PYTHON.exists() else "python"
 
 
 def _is_video(path):
@@ -19,7 +22,7 @@ def _is_video(path):
 
 def _wav2lip_cmd(face, audio, outfile, warm=False):
     cmd = [
-        "python", str(CACHED_RUNNER), *(["--warm-only"] if warm else []),
+        _wav2lip_python(), str(CACHED_RUNNER), *(["--warm-only"] if warm else []),
         "--checkpoint_path", "checkpoints/wav2lip_gan.pth",
         "--face", str(face),
         "--audio", str(audio),
