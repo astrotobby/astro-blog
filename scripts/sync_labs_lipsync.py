@@ -6,6 +6,7 @@ runner is required. Production calls are guarded by a user-set maximum spend.
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 import subprocess
 import time
@@ -200,6 +201,7 @@ def _wait_for_generation(generation_id: str, timeout_seconds: int = 900) -> dict
                     f"{last.get('error') or last.get('errorCode') or 'no details'}"
                 )
             return last
+        time.sleep(10)
     raise TimeoutError(
         f"Sync Labs generation {generation_id} did not finish within "
         f"{timeout_seconds}s; latest state: {str(last)[:800]}"
@@ -264,7 +266,12 @@ def generate_batch(jobs: list[dict], cfg: dict) -> dict[str, Path]:
     if model != MODEL:
         raise RuntimeError(f"Unsupported Sync Labs model {model!r}.")
 
-    estimate = sum(_duration(Path(job["audio"])) for job in jobs) * MAX_UNIT_RATE_USD
+    # Billing is frame-based. Round each job up to the next 25-fps frame and
+    # reserve two additional frames per job for output-duration rounding.
+    estimate = sum(
+        (math.ceil(_duration(Path(job["audio"])) * 25) + 2) / 25 * MAX_UNIT_RATE_USD
+        for job in jobs
+    )
     remaining = budget - _RESERVED_USD
     if budget <= 0 or estimate > remaining + 0.0001:
         raise RuntimeError(
