@@ -20,7 +20,9 @@ class KlingInfluencerAssetsTests(unittest.TestCase):
         inf = self.cfg["influencer"]
         self.assertTrue(inf["enabled"])
         self.assertFalse(inf["ltx"], "LTX video generation must remain disabled")
-        self.assertEqual(len(self.looks), 3)
+        self.assertEqual(len(self.looks), 2)
+        self.assertEqual({row['id'] for row in self.looks}, {'kling_studio_front', 'kling_studio_monitor'})
+        self.assertEqual(self.cfg['influencer']['looks_per_video'], 2)
         self.assertEqual(len({row["clip"] for row in self.looks}), 3)
         for row in self.looks:
             self.assertTrue(row["clip"].endswith(".mp4"))
