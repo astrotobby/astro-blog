@@ -24,8 +24,8 @@ class TBDubTimelineTests(unittest.TestCase):
         cfg = {
             "influencer": {
                 "lipsync_provider": "tbdub",
-                "aroll_seconds": [4.0, 4.8],
-                "broll_seconds": [30.0, 42.0],
+                "aroll_seconds": [2.4, 2.8],
+                "broll_seconds": [45.0, 60.0],
                 "min_segment": 4.0,
             }
         }
@@ -40,7 +40,7 @@ class TBDubTimelineTests(unittest.TestCase):
             self.assertEqual(segments[0]["kind"], "A")
             self.assertIn(segments[-1]["kind"], {"A", "B"})
             for segment in a_roll:
-                self.assertLessEqual(segment["t1"] - segment["t0"], 4.800001)
+                self.assertLessEqual(segment["t1"] - segment["t0"], 2.800001)
 
 
 class TBDubJobTests(unittest.TestCase):
@@ -51,7 +51,7 @@ class TBDubJobTests(unittest.TestCase):
                 return 120  # 4.8 seconds at TBDub's 25 fps
         self.assertAlmostEqual(tbdub_worker._audio_duration_seconds(StubCore, "voice.wav"), 4.8)
 
-    def _inputs(self, duration=4.5):
+    def _inputs(self, duration=2.6):
         temporary = tempfile.TemporaryDirectory()
         root = Path(temporary.name)
         video = root / "source.mp4"
@@ -86,9 +86,11 @@ class TBDubJobTests(unittest.TestCase):
         self.assertEqual(jobs[0]["audio"].suffix, ".wav")
         self.assertTrue(jobs[0]["audio"].is_file())
         self.assertIn(str(voice.resolve()), run.call_args.args[0])
+        self.assertGreaterEqual(jobs[0]["start_frame"], 0)
+        self.assertLessEqual(jobs[0]["start_frame"], 53)
 
-    def test_build_jobs_refuses_to_loop_or_boomerang_short_source(self):
-        temporary, root, _video, voice, segment, cfg = self._inputs(duration=4.9)
+    def test_build_jobs_refuses_audio_that_needs_more_than_one_72_frame_window(self):
+        temporary, root, _video, voice, segment, cfg = self._inputs(duration=3.2)
         self.addCleanup(temporary.cleanup)
         out = root / "out"
         out.mkdir()
@@ -97,7 +99,7 @@ class TBDubJobTests(unittest.TestCase):
             patch.object(tbdub_lipsync, "_source_duration", return_value=5.04),
             patch.object(tbdub_lipsync, "_run") as run,
         ):
-            with self.assertRaisesRegex(RuntimeError, "must not loop or boomerang"):
+            with self.assertRaisesRegex(RuntimeError, "without source-frame looping"):
                 tbdub_lipsync.build_jobs({"horizontal": [segment]}, {"horizontal": voice}, cfg)
         run.assert_not_called()
 
