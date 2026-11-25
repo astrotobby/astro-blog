@@ -47,7 +47,14 @@ class KlingInfluencerAssetsTests(unittest.TestCase):
     def test_presenter_is_not_overused_against_broll(self):
         inf = self.cfg["influencer"]
         self.assertLessEqual(float(inf["aroll_seconds"][1]), 6.0)
-        self.assertGreaterEqual(float(inf["broll_seconds"][0]), 15.0)
+        self.assertGreaterEqual(float(inf["broll_seconds"][0]), 25.0)
+        self.assertTrue(inf["require_lipsync"])
+
+    def test_longform_pipeline_keeps_the_influencer_enabled(self):
+        pipeline = (ROOT / "scripts/longform_pipeline.py").read_text(encoding="utf-8")
+        self.assertIn('cfg["influencer"]["enabled"]=True', pipeline)
+        self.assertIn('cfg["influencer"]["ltx"]=False', pipeline)
+        self.assertNotIn('cfg["influencer"]["enabled"]=False', pipeline)
 
 
 if __name__ == "__main__":
