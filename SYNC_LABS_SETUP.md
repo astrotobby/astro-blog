@@ -68,8 +68,13 @@ It never switches to Wav2Lip or unsynchronized presenter footage when blocked.
 
 The variable is a per-workflow-run ceiling, not a monthly quota. With four scheduled
 long-form runs per day, a $2.60 ceiling on every run would permit up to about $10.40/day
-or $312/month. Keep the variable at `0` until the free preview has passed visual review
-and you have explicitly approved a recurring budget.
+or $312/month in generation usage. For clean, watermark-free published output, Sync Labs
+currently requires Creator or higher; Creator is listed at $19/month. That makes this
+illustrative upper bound approximately $331/month including the Creator subscription,
+before any taxes or currency conversion. Free and Hobbyist outputs have a watermark, so
+the free preview is for lip-sync quality evaluation, not a final upload. Keep the variable
+at `0` until the free preview has passed visual review and you have explicitly approved
+a recurring budget.
 
 ## Operational requirements
 
