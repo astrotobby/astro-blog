@@ -32,8 +32,14 @@ class SyncLabsBudgetTests(unittest.TestCase):
         segments = influencer.plan_timeline(840.0, looks, cfg, "sync3-cap-test")
         a_roll = [segment for segment in segments if segment["kind"] == "A"]
         self.assertEqual(len(a_roll), 2)
-        self.assertEqual(segments[-1]["kind"], "B")
+        self.assertEqual(segments[0]["kind"], "A")
+        self.assertEqual(segments[0]["t0"], 0.0)
+        self.assertEqual(segments[-2]["kind"], "B")
+        self.assertEqual(segments[-1]["kind"], "A")
+        self.assertAlmostEqual(segments[-1]["t1"], 840.0)
+        self.assertEqual(sum(1 for segment in segments if segment["kind"] == "B"), 1)
         for segment in a_roll:
+            self.assertGreaterEqual(segment["t1"] - segment["t0"], 4.0)
             self.assertLessEqual(segment["t1"] - segment["t0"], 4.800001)
 
     def setUp(self):
