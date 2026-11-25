@@ -118,6 +118,7 @@ def generate_tbdub_batch(jobs, cfg):
             "audio": str(Path(job["audio"]).resolve()),
             "output": str(Path(job["output"]).resolve()),
             "seed": int(job.get("seed", 42)),
+            "start_frame": int(job.get("start_frame", 0)),
             "preprocess_cache": str(Path(job["preprocess_cache"]).resolve()) if job.get("preprocess_cache") else None,
             "preprocess_report": str(Path(job["preprocess_report"]).resolve()) if job.get("preprocess_report") else None,
             "save_comparison": bool(model_cfg.get("save_comparison", False)),
