@@ -193,7 +193,7 @@ avatar:
 influencer:
   enabled: true
   looks_file: "assets/influencer/looks.yaml"
-  looks_per_video: 3               # outfit/location changes per video (if that many exist)
+  looks_per_video: 2               # only clips that passed Wav2Lip face-detection preflight
   aroll_seconds: [4.0, 5.5]        # on-camera segment length range
   broll_seconds: [30.0, 42.0]       # longer cutaways reduce visible reuse of the short source clips
   min_segment: 4.0                 # never leave a shorter sliver at the end
