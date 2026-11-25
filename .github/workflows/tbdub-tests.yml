@@ -1,0 +1,37 @@
+name: TBDub integration unit tests
+
+on:
+  pull_request:
+    paths:
+      - "scripts/influencer.py"
+      - "scripts/tbdub_*.py"
+      - "scripts/test_tbdub_integration.py"
+      - "config.yaml"
+      - ".github/workflows/tbdub-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tbdub-unit-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out pipeline
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test-only dependency
+        run: python -m pip install --disable-pip-version-check PyYAML
+
+      - name: Compile integration modules
+        run: |
+          python -m py_compile scripts/influencer.py scripts/tbdub_lipsync.py scripts/tbdub_worker.py scripts/test_tbdub_integration.py
+
+      - name: Run CPU-only TBDub regression tests
+        run: python scripts/test_tbdub_integration.py
