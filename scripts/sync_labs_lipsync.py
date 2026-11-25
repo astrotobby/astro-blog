@@ -60,15 +60,23 @@ def preflight(cfg: dict, looks: list[dict]) -> bool:
     api_key = _api_key()
     # A low-cost authenticated read verifies the key before the full video render.
     auth_check = requests.get(
-        f"{API_BASE}/v2/assets",
+        f"{API_BASE}/v2/models",
         headers={"x-api-key": api_key},
-        params={"limit": 1},
         timeout=(15, 30),
     )
     if auth_check.status_code >= 400:
         raise RuntimeError(
             f"Sync Labs API key preflight failed (HTTP {auth_check.status_code}): "
             f"{auth_check.text[:800]}"
+        )
+    available_models = auth_check.json()
+    if not isinstance(available_models, list) or not any(
+        str(item.get("id") or item.get("name") or "") == MODEL
+        for item in available_models if isinstance(item, dict)
+    ):
+        raise RuntimeError(
+            "This Sync Labs API key does not currently have access to Sync-3. "
+            "Check the free-trial allowance and available models in the Sync Labs dashboard."
         )
     budget = _max_spend()
     if budget <= 0:
@@ -176,7 +184,6 @@ def _wait_for_generation(generation_id: str, timeout_seconds: int = 900) -> dict
         response = requests.get(
             f"{API_BASE}/v2/generate/{generation_id}",
             headers=headers,
-            params={"wait": "true", "timeout": "10"},
             timeout=(20, 30),
         )
         if response.status_code >= 400:
