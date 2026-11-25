@@ -77,7 +77,6 @@ class TBDubJobTests(unittest.TestCase):
             patch.object(tbdub_lipsync, "OUT", out),
             patch.object(tbdub_lipsync, "_source_duration", return_value=5.04),
             patch.object(tbdub_lipsync, "_source_frame_count", return_value=121),
-            patch.object(tbdub_lipsync, "_source_frame_count", return_value=121),
             patch.object(tbdub_lipsync, "_run", side_effect=fake_run) as run,
         ):
             jobs = tbdub_lipsync.build_jobs({"horizontal": [segment]}, {"horizontal": voice}, cfg)
@@ -99,6 +98,7 @@ class TBDubJobTests(unittest.TestCase):
         with (
             patch.object(tbdub_lipsync, "OUT", out),
             patch.object(tbdub_lipsync, "_source_duration", return_value=5.04),
+            patch.object(tbdub_lipsync, "_source_frame_count", return_value=121),
             patch.object(tbdub_lipsync, "_run") as run,
         ):
             with self.assertRaisesRegex(RuntimeError, "Cannot proceed without source-frame looping"):
