@@ -125,8 +125,43 @@ def plan_timeline(dur, looks, cfg, slug, words=None):
         near = [g for g in gaps if abs(g - t) <= 0.7]
         return min(near, key=lambda g: abs(g - t)) if near else t
 
-    segs, t, kind = [], 0.0, "A"
     provider = str(inf.get("lipsync_provider", "wav2lip")).lower()
+    if provider == "sync_labs":
+        sync_cfg = inf.get("sync_labs", {})
+        max_sync_segments = max(1, int(sync_cfg.get("max_segments_per_variant", 2)))
+        a_min, a_max = float(a_rng[0]), float(a_rng[1])
+        opening = min(a_max, max(a_min, snap(rng.uniform(a_min, a_max))))
+        opening = min(opening, a_max)
+        a_rolls = [{"kind": "A", "t0": 0.0, "t1": opening}]
+        if max_sync_segments >= 2 and dur >= (2 * a_min + min_seg):
+            closing_duration = rng.uniform(a_min, a_max)
+            target_start = dur - closing_duration
+            candidates = [
+                gap for gap in gaps
+                if a_min <= dur - gap <= a_max
+                and gap - opening >= min_seg
+                and abs(gap - target_start) <= 0.7
+            ]
+            closing_start = min(candidates, key=lambda gap: abs(gap - target_start)) if candidates else target_start
+            closing_start = min(dur - a_min, max(opening + min_seg, closing_start))
+            a_rolls.append({"kind": "A", "t0": closing_start, "t1": dur})
+        elif max_sync_segments >= 2:
+            log("Sync Labs timeline too short for opening, B-roll and closing; using one on-camera opening only")
+        segs = [a_rolls[0]]
+        if len(a_rolls) == 2:
+            segs.append({"kind": "B", "t0": a_rolls[0]["t1"], "t1": a_rolls[1]["t0"]})
+            segs.append(a_rolls[1])
+        elif a_rolls[0]["t1"] < dur:
+            segs.append({"kind": "B", "t0": a_rolls[0]["t1"], "t1": dur})
+        for index, segment in enumerate(a_rolls):
+            segment["look"] = looks[index % len(looks)] if looks else None
+            segment["close"] = index == len(a_rolls) - 1
+        log("timeline: " + " | ".join(
+            f"{segment['kind']}{'/' + segment['look']['id'] + ('*' if segment.get('close') else '') if segment['kind'] == 'A' else ''}"
+            f" {segment['t1'] - segment['t0']:.1f}s" for segment in segs))
+        return segs
+
+    segs, t, kind = [], 0.0, "A"
     sync_cfg = inf.get("sync_labs", {})
     max_sync_segments = max(1, int(sync_cfg.get("max_segments_per_variant", 2)))
     a_count = 0
