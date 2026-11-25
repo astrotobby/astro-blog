@@ -179,7 +179,20 @@ def run_batch(manifest_path: Path, tbdub_dir: Path, checkpoint_dir: Path):
             shutil.copy2(generated, output)
         if not output.is_file() or output.stat().st_size < 10_000:
             raise RuntimeError(f"TBDub output verification failed for {sample_name}")
-        results.append({"id": sample_name, "output": str(output), "bytes": output.stat().st_size})
+        output_duration = float(__import__("subprocess").check_output([
+            "ffprobe", "-v", "error", "-show_entries", "format=duration",
+            "-of", "default=nw=1:nk=1", str(output)
+        ], text=True).strip())
+        target_duration = float(core.get_audio_length(str(job["audio"])))
+        if abs(output_duration - target_duration) > 0.20:
+            raise RuntimeError(
+                f"TBDub output length {output_duration:.3f}s does not match "
+                f"its {target_duration:.3f}s narration for {sample_name}."
+            )
+        results.append({
+            "id": sample_name, "output": str(output),
+            "bytes": output.stat().st_size, "duration": output_duration,
+        })
         print(f"[TBDub] completed {sample_name}: {output}", flush=True)
         del sample
         gc.collect()
