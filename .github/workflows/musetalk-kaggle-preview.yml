@@ -3,10 +3,6 @@ name: MuseTalk free Kaggle preview
 on:
   workflow_dispatch:
     inputs:
-      kaggle_username:
-        description: "Your Kaggle username (not an API key)"
-        required: true
-        type: string
       presenter_video_path:
         description: "Repository-relative path to an existing Kling presenter clip"
         required: true
@@ -50,18 +46,19 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
           python -m pip install --upgrade pip
-          python -m pip install --upgrade kaggle edge-tts
+          python -m pip install --upgrade kaggle kagglehub edge-tts
 
       - name: Prepare the short private input dataset
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
-          KAGGLE_USERNAME_INPUT: ${{ inputs.kaggle_username }}
           PRESENTER_VIDEO_PATH: ${{ inputs.presenter_video_path }}
           NARRATION_TEXT: ${{ inputs.narration_text }}
           TTS_VOICE: ${{ inputs.voice }}
           RUN_ID: ${{ github.run_id }}
+          KAGGLE_OWNER: ${{ steps.prepare.outputs.kaggle_username }}
           RUN_WORK: ${{ runner.temp }}/musetalk-work
           DATA_DIR: ${{ runner.temp }}/musetalk-dataset
+        id: prepare
         shell: bash
         run: |
           set -euo pipefail
@@ -72,14 +69,14 @@ jobs:
             echo "::error::Missing repository secret KAGGLE_API_TOKEN. Add it under Settings > Secrets and variables > Actions."
             exit 1
           fi
-          if [[ -z "${KAGGLE_USERNAME_INPUT:-}" ]]; then
-            echo "::error::Enter your Kaggle username in the workflow form."
+          # Resolve the username from Kaggle's authenticated API identity rather than
+          # asking the user to type it or assuming it matches the GitHub username.
+          OWNER="$(python -c 'import kagglehub; print(kagglehub.auth.whoami()["username"])')"
+          if [[ ! "$OWNER" =~ ^[A-Za-z0-9_-]+$ ]]; then
+            echo "::error::Kaggle token authentication did not return a valid username."
             exit 1
           fi
-          if [[ ! "$KAGGLE_USERNAME_INPUT" =~ ^[A-Za-z0-9_-]+$ ]]; then
-            echo "::error::The Kaggle username contains unsupported characters."
-            exit 1
-          fi
+          echo "kaggle_username=$OWNER" >> "$GITHUB_OUTPUT"
           if [[ -z "${NARRATION_TEXT:-}" || ${#NARRATION_TEXT} -gt 300 ]]; then
             echo "::error::Provide a short narration sentence (maximum 300 characters)."
             exit 1
@@ -133,7 +130,7 @@ jobs:
 
           shutil.copy2(staged_video, dataset / "presenter.mp4")
           shutil.copy2(audio, dataset / "narration.mp3")
-          owner = os.environ["KAGGLE_USERNAME_INPUT"].lower()
+          owner = os.environ["KAGGLE_OWNER"]
           run_id = os.environ["RUN_ID"]
           metadata = {
               "title": f"MuseTalk Preview Input {run_id}",
@@ -148,14 +145,14 @@ jobs:
       - name: Upload private dataset, submit GPU kernel, and collect the preview
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
-          KAGGLE_USERNAME_INPUT: ${{ inputs.kaggle_username }}
+          KAGGLE_OWNER: ${{ steps.prepare.outputs.kaggle_username }}
           RUN_ID: ${{ github.run_id }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p musetalk-run-logs
           exec > >(tee -a musetalk-run-logs/kaggle-submit.log) 2>&1
-          OWNER="$(printf '%s' "$KAGGLE_USERNAME_INPUT" | tr '[:upper:]' '[:lower:]')"
+          OWNER="$KAGGLE_OWNER"
           DATASET_ID="$OWNER/musetalk-preview-input-$RUN_ID"
           KERNEL_ID="$OWNER/musetalk-preview-$RUN_ID"
           DATA_DIR="$RUNNER_TEMP/musetalk-dataset"
@@ -170,7 +167,7 @@ jobs:
           cp notebooks/musetalk_free_kaggle_test.ipynb "$KERNEL_DIR/musetalk_free_kaggle_test.ipynb"
           python - <<'PY'
           import json, os, pathlib
-          owner = os.environ["KAGGLE_USERNAME_INPUT"].lower()
+          owner = os.environ["KAGGLE_OWNER"]
           run_id = os.environ["RUN_ID"]
           meta = {
               "id": f"{owner}/musetalk-preview-{run_id}",
@@ -225,7 +222,7 @@ jobs:
             echo
             echo "The preview is stored in your **private Kaggle notebook output**:"
             echo
-            echo "https://www.kaggle.com/code/$KAGGLE_USERNAME_INPUT/musetalk-preview-$RUN_ID"
+            echo "https://www.kaggle.com/code/$KAGGLE_OWNER/musetalk-preview-$RUN_ID"
             echo
             echo "Open the notebook while signed in to Kaggle to watch or download the MP4. Nothing was posted to YouTube or uploaded to this public GitHub repository."
             echo
