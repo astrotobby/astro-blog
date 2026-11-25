@@ -11,9 +11,31 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import sync_labs_lipsync
+import influencer
 
 
 class SyncLabsBudgetTests(unittest.TestCase):
+    def test_timeline_caps_sync3_to_two_presenter_segments_per_master(self):
+        cfg = {
+            "influencer": {
+                "lipsync_provider": "sync_labs",
+                "aroll_seconds": [4.0, 4.8],
+                "broll_seconds": [45.0, 60.0],
+                "min_segment": 4.0,
+                "sync_labs": {"max_segments_per_variant": 2},
+            }
+        }
+        looks = [
+            {"id": "front", "location": "front", "clip": Path("/tmp/front.mp4")},
+            {"id": "monitor", "location": "monitor", "clip": Path("/tmp/monitor.mp4")},
+        ]
+        segments = influencer.plan_timeline(840.0, looks, cfg, "sync3-cap-test")
+        a_roll = [segment for segment in segments if segment["kind"] == "A"]
+        self.assertEqual(len(a_roll), 2)
+        self.assertEqual(segments[-1]["kind"], "B")
+        for segment in a_roll:
+            self.assertLessEqual(segment["t1"] - segment["t0"], 4.800001)
+
     def setUp(self):
         sync_labs_lipsync.reset_run_budget_for_tests()
 
