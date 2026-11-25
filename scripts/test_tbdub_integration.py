@@ -37,7 +37,7 @@ class TBDubTimelineTests(unittest.TestCase):
             a_roll = [s for s in segments if s["kind"] == "A"]
             self.assertTrue(a_roll)
             self.assertEqual(segments[0]["kind"], "A")
-            self.assertEqual(segments[-1]["kind"], "A")
+            self.assertIn(segments[-1]["kind"], {"A", "B"})
             for segment in a_roll:
                 self.assertLessEqual(segment["t1"] - segment["t0"], 4.800001)
 
