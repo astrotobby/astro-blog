@@ -1,4 +1,4 @@
-# Two approved Kling clips that passed Wav2Lip face-detection preflight.
+# Two approved existing Kling presenter clips; TBDub MediaPipe preflight validates their faces.
 # The side-profile original remains archived in the source folder, but is excluded
 # from speaking shots because its face is not detected reliably in every frame.
 # No new still-image or video generation is used by this library.
