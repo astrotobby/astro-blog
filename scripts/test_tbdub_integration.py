@@ -76,6 +76,8 @@ class TBDubJobTests(unittest.TestCase):
         with (
             patch.object(tbdub_lipsync, "OUT", out),
             patch.object(tbdub_lipsync, "_source_duration", return_value=5.04),
+            patch.object(tbdub_lipsync, "_source_frame_count", return_value=121),
+            patch.object(tbdub_lipsync, "_source_frame_count", return_value=121),
             patch.object(tbdub_lipsync, "_run", side_effect=fake_run) as run,
         ):
             jobs = tbdub_lipsync.build_jobs({"horizontal": [segment]}, {"horizontal": voice}, cfg)
@@ -87,7 +89,7 @@ class TBDubJobTests(unittest.TestCase):
         self.assertTrue(jobs[0]["audio"].is_file())
         self.assertIn(str(voice.resolve()), run.call_args.args[0])
         self.assertGreaterEqual(jobs[0]["start_frame"], 0)
-        self.assertLessEqual(jobs[0]["start_frame"], 53)
+        self.assertLessEqual(jobs[0]["start_frame"], 49)
 
     def test_build_jobs_refuses_audio_that_needs_more_than_one_72_frame_window(self):
         temporary, root, _video, voice, segment, cfg = self._inputs(duration=3.2)
@@ -99,7 +101,7 @@ class TBDubJobTests(unittest.TestCase):
             patch.object(tbdub_lipsync, "_source_duration", return_value=5.04),
             patch.object(tbdub_lipsync, "_run") as run,
         ):
-            with self.assertRaisesRegex(RuntimeError, "without source-frame looping"):
+            with self.assertRaisesRegex(RuntimeError, "Cannot proceed without source-frame looping"):
                 tbdub_lipsync.build_jobs({"horizontal": [segment]}, {"horizontal": voice}, cfg)
         run.assert_not_called()
 
