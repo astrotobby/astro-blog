@@ -85,10 +85,10 @@ jobs:
           OWNER="$(python - <<'PY'
           import re, subprocess
           output = subprocess.check_output(["kaggle", "config", "view"], text=True)
-          match = re.search(r"(?im)^\\s*-?\\s*username\\s*:\\s*([^\\s]+)", output)
+          match = re.search(r"(?im)^\s*-?\s*username\s*:\s*([^\s]+)", output)
           if not match or match.group(1).lower() in {"none", "null", "-"}:
               raise SystemExit("Kaggle CLI authenticated, but did not reveal the account username in config view.")
-          username = match.group(1).strip("\\\"'")
+          username = match.group(1).strip("\"'")
           if not re.fullmatch(r"[A-Za-z0-9_-]+", username):
               raise SystemExit("Kaggle CLI returned an unexpected username format.")
           print(username.lower())
