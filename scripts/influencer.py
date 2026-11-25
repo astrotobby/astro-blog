@@ -11,16 +11,17 @@ Per video:
                           B-roll (topic visuals, voice-over) segments, cut on word gaps,
                           opening AND closing on camera; each A segment cycles the look,
                           so the outfit/location changes inside the video like a vlog
-  3. render_talking()  -> Wav2Lip lip-syncs ONLY the A-roll audio, ONE run per look
-                          covering every cut (vertical + horizontal), then splits it back
-                          into per-segment clips. Wav2Lip time ~= half a voiceover.
+  3. render_talking()  -> TBDub Student synchronizes every A-roll independently
+                          against its exact narration excerpt. One persistent worker
+                          loads the model once; no concatenated disjoint audio or loops.
+
   4. build_aroll()     -> full-screen presenter shot with handheld drift, a slow push-in
                           and alternating wide / punch-in framing (creator jump-cut style)
   5. compose()         -> cuts the A-roll into the finished stock-footage montage, which
                           stays as the B-roll (so scene cuts remain locked to the words)
 
-Every step degrades gracefully: no Wav2Lip -> the look's own talking clip is used
-unsynced; a still-only look -> animated still. The render never breaks here.
+Production lip-sync is fail-closed: the configured provider must finish every
+on-camera segment or the render stops. TBDub never falls back to unsynchronized footage.
 """
 import hashlib
 import random
@@ -315,6 +316,26 @@ def render_talking(plans, voices, cfg, fps):
     by look and Wav2Lip runs ONCE per look over the concatenated audio slices (face
     detection runs once per look, not per segment), then the result is cut back
     apart. Returns {(tag, i): clip}."""
+    inf = cfg.get("influencer", {})
+    provider = str(inf.get("lipsync_provider", "wav2lip")).lower()
+    if provider == "tbdub":
+        from tbdub_lipsync import build_jobs, generate_tbdub_batch
+        jobs = build_jobs(plans, voices, fps, cfg)
+        if not jobs:
+            if inf.get("require_lipsync", False):
+                raise RuntimeError("TBDub was selected but the influencer timeline has no A-roll segments")
+            return {}
+        outputs = generate_tbdub_batch(jobs, cfg)
+        talking = {
+            (job["tag"], int(job["index"])): outputs[job["id"]]
+            for job in jobs
+        }
+        if len(talking) != len(jobs):
+            raise RuntimeError("TBDub did not return every requested A-roll segment")
+        log(f"TBDub Student: {len(talking)} independent A-roll clips completed")
+        return talking
+    if provider != "wav2lip":
+        raise RuntimeError(f"Unsupported influencer.lipsync_provider: {provider!r}")
     from avatar_lipsync import generate_talking_head
     talking = _render_ltx(plans, voices, cfg)
     by_look = {}
@@ -496,6 +517,13 @@ def warm_face_cache(cfg):
     """Detect and cache the face boxes of every look's moving clip (committed under
     assets/influencer/facecache), so renders lip-sync without re-running detection.
     Builds each face source exactly as render_talking() does, so the cache keys match."""
+    provider = str(cfg.get("influencer", {}).get("lipsync_provider", "wav2lip")).lower()
+    if provider == "tbdub":
+        from tbdub_lipsync import preflight
+        preflight(cfg, load_looks(cfg))
+        return
+    if provider != "wav2lip":
+        raise RuntimeError(f"Unsupported influencer.lipsync_provider: {provider!r}")
     from avatar_lipsync import warm_face_cache as warm
     fps = cfg["video"]["fps"]
     failed = []
