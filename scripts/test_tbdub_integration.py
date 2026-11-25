@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import influencer
 import tbdub_lipsync
+import tbdub_worker
 
 
 class TBDubTimelineTests(unittest.TestCase):
@@ -43,6 +44,13 @@ class TBDubTimelineTests(unittest.TestCase):
 
 
 class TBDubJobTests(unittest.TestCase):
+    def test_tbdub_frame_count_is_converted_to_seconds(self):
+        class StubCore:
+            @staticmethod
+            def get_audio_length(_audio_path):
+                return 120  # 4.8 seconds at TBDub's 25 fps
+        self.assertAlmostEqual(tbdub_worker._audio_duration_seconds(StubCore, "voice.wav"), 4.8)
+
     def _inputs(self, duration=4.5):
         temporary = tempfile.TemporaryDirectory()
         root = Path(temporary.name)
