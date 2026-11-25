@@ -23,6 +23,16 @@ if [[ -z "$GPU_MB" || "$GPU_MB" -lt 16384 ]]; then
   echo "TBDub Student CPU-offload requires at least 16 GiB GPU memory." >&2
   exit 1
 fi
+if [[ ! -r /proc/meminfo ]]; then
+  echo "Cannot verify Linux host RAM before downloading TBDub weights." >&2
+  exit 1
+fi
+RAM_TOTAL_KB="$(awk '$1 == "MemTotal:" {print $2}' /proc/meminfo)"
+RAM_AVAILABLE_KB="$(awk '$1 == "MemAvailable:" {print $2}' /proc/meminfo)"
+if [[ -z "$RAM_TOTAL_KB" || "$RAM_TOTAL_KB" -lt 25165824 || -z "$RAM_AVAILABLE_KB" || "$RAM_AVAILABLE_KB" -lt 22020096 ]]; then
+  echo "TBDub Student CPU-offload needs at least 24 GiB total RAM and 21 GiB available. Refusing to download 15.3 GB of weights on an undersized runner." >&2
+  exit 1
+fi
 command -v python3.10 >/dev/null 2>&1 || {
   echo "Python 3.10 is required. Install it on the GPU runner first." >&2
   exit 1
