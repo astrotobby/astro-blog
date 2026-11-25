@@ -146,7 +146,7 @@ def run(args):
     else:
         raise TimeoutError(f"Sync-3 generation {generation_id} did not finish within 15 minutes.")
 
-    if state.get("status") != "COMPLETED":
+    if str(state.get("status", "")).upper() != "COMPLETED":
         raise RuntimeError(
             f"Sync-3 generation ended as {state.get('status')}: "
             f"{state.get('error') or state.get('errorCode') or 'no details'}"
