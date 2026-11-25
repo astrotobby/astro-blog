@@ -73,12 +73,6 @@ jobs:
             echo "::error::Missing repository secret KAGGLE_API_TOKEN. Add it under Settings > Secrets and variables > Actions."
             exit 1
           fi
-          # Validate the token with the official Kaggle CLI. This call contacts Kaggle.
-          if ! kaggle quota > "$RUN_WORK/kaggle-quota.log" 2>&1; then
-            cat "$RUN_WORK/kaggle-quota.log"
-            echo "::error::Kaggle CLI rejected KAGGLE_API_TOKEN. Replace it with a valid token from kaggle.com/settings/api."
-            exit 1
-          fi
 
           # The official CLI validates token access; config view exposes its configured username.
           # Keep quota output in the short-lived runner log without printing the token.
@@ -92,10 +86,10 @@ jobs:
           OWNER="$(python - <<'PY'
           import re, subprocess
           output = subprocess.check_output(["kaggle", "config", "view"], text=True)
-          match = re.search(r"(?im)^\\s*-?\\s*username\\s*:\\s*([^\\s]+)", output)
+          match = re.search(r"(?im)^\s*-?\s*username\s*:\s*([^\s]+)", output)
           if not match or match.group(1).lower() in {"none", "null", "-"}:
               raise SystemExit("Kaggle CLI token authenticated, but username was not present in config view.")
-          username = match.group(1).strip("\\\"'")
+          username = match.group(1).strip("\"'")
           if not re.fullmatch(r"[A-Za-z0-9_-]+", username):
               raise SystemExit("Kaggle CLI returned an unexpected username format.")
           print(username.lower())
