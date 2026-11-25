@@ -311,11 +311,38 @@ def build_jobs(plans: dict, voices: dict) -> list[dict]:
                     f"Sync-3 free-trial input limit is 15 seconds; segment {tag}/{index} "
                     f"is {audio_duration:.2f}s."
                 )
+            source_path = Path(source)
+            source_duration = _duration(source_path)
+            if audio_duration > source_duration + 0.05:
+                raise RuntimeError(
+                    f"Sync Labs will not loop or extend the source clip for {tag}/{index}: "
+                    f"speech is {audio_duration:.2f}s but the Kling clip is "
+                    f"{source_duration:.2f}s. Shorten the presenter segment."
+                )
+            # Trim the existing Kling clip to the narration length and vary the
+            # starting offset slightly between appearances. No frame looping.
+            max_offset = max(0.0, source_duration - audio_duration)
+            seed = int(hashlib.sha256(f"{tag}|{index}|{look.get('id')}".encode()).hexdigest()[:8], 16)
+            start_offset = (seed % 10000) / 10000.0 * max_offset if max_offset else 0.0
+            sync_video = OUT / f"_sync_labs_source_{tag}_{index:02d}.mp4"
+            subprocess.run(
+                [
+                    "ffmpeg", "-y", "-v", "error",
+                    "-ss", f"{start_offset:.3f}", "-i", str(source_path),
+                    "-t", f"{audio_duration:.3f}", "-an",
+                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+                    "-pix_fmt", "yuv420p", str(sync_video),
+                ],
+                cwd=str(OUT),
+                check=True,
+            )
+            if not sync_video.is_file() or sync_video.stat().st_size < 1000:
+                raise RuntimeError(f"Could not prepare the source shot for Sync Labs segment {tag}/{index}.")
             jobs.append({
                 "id": f"{tag}_{index:02d}",
                 "tag": tag,
                 "index": index,
-                "video": Path(source),
+                "video": sync_video,
                 "audio": audio,
                 "output": output,
             })
