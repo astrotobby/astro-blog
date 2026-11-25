@@ -206,7 +206,7 @@ influencer:
   sync_labs:
     model: "sync-3"
     max_segments_per_variant: 2    # one opening and one closing presenter beat per master
-    max_unit_rate_usd: 0.133        # upper end of published Sync-3 pricing; budget guard uses this
+    max_unit_rate_usd: 0.1334        # upper end of published Sync-3 pricing; budget guard uses this
     input_limit_seconds: 15.0      # free-account Sync-3 generation limit
     local_input_limit_mb: 20
   # Legacy Wav2Lip implementation remains available only when explicitly selected.
