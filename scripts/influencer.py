@@ -343,6 +343,11 @@ def render_talking(plans, voices, cfg, fps):
             synced = generate_talking_head(face_src, audio, cfg, out_name=f"_lk_{lid}_talk.mp4")
         except Exception as e:  # noqa
             log(f"look {lid}: lip-sync errored ({e})")
+        if not synced:
+            if cfg.get("influencer", {}).get("require_lipsync", False):
+                raise RuntimeError(
+                    f"look {lid}: required lip-sync failed; refusing to use unsynchronized presenter footage"
+                )
         cursor = 0.0
         for k, (tag, i, s) in enumerate(items):
             seg_dur = _dur(parts[k])
@@ -353,11 +358,15 @@ def render_talking(plans, voices, cfg, fps):
                           "-t", f"{seg_dur:.3f}", "-an", "-r", str(fps), "-c:v", "libx264",
                           "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p",
                           out.name], cwd=OUT)
+                    if not out.exists() or out.stat().st_size < 1000:
+                        raise RuntimeError("lip-synced segment was not created")
                     talking[(tag, i)] = out
                 else:
                     talking[(tag, i)] = _unsynced(face_src, cursor * 1.7 + s["t0"],
                                                   seg_dur, fps, out)
             except Exception as e:  # noqa
+                if cfg.get("influencer", {}).get("require_lipsync", False):
+                    raise RuntimeError(f"look {lid}: segment {tag}/{i} lip-sync cut failed: {e}") from e
                 log(f"look {lid}: segment {tag}/{i} cut failed ({e})")
             cursor += seg_dur
         log(f"look {lid}: {len(items)} on-camera segments "
@@ -436,9 +445,18 @@ def compose(montage, voice, words, total, size, fps, cfg, slug, tag, out):
     inf = cfg.get("influencer", {})
     looks = pick_looks(load_looks(cfg), slug, int(inf.get("looks_per_video", 3)))
     if not looks:
+        if inf.get("require_lipsync", False):
+            raise RuntimeError("Required Kling influencer media is missing; refusing to render a presenter-free video")
         log("influencer enabled but no look media found -> plain montage")
         return None
+    if inf.get("require_lipsync", False) and len(looks) < int(inf.get("looks_per_video", 3)):
+        raise RuntimeError(
+            f"Only {len(looks)} influencer looks are available; "
+            f"need {inf.get('looks_per_video', 3)} approved Kling clips"
+        )
     segs = plan_timeline(total, looks, cfg, f"{slug}|{tag}", words)
+    if inf.get("require_lipsync", False) and not any(s.get("kind") == "A" for s in segs):
+        raise RuntimeError("Influencer timeline contains no on-camera narration segments")
     talking = render_talking({tag: segs}, {tag: voice}, cfg, fps)
 
     total_frames = int(round(total * fps))
