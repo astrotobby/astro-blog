@@ -22,7 +22,7 @@ The repository is public, so the workflow deliberately does **not** upload the r
 
 Each run creates a private, run-specific Kaggle Dataset and notebook so inputs from separate tests cannot be mixed. They remain in your Kaggle account for review and can be deleted there when no longer needed.
 
-The workflow starts one private preview automatically when this narrowly scoped PR is merged into `main` (it only watches changes to the MuseTalk workflow and notebook). It also retains `workflow_dispatch` for later previews. It has no schedule, does not alter the channel publishing workflows, and does not publish or upload anything to YouTube. A completed technical run is only a preview; human review of mouth timing, eye stability, identity consistency, frame continuity, and audio alignment is still required.
+The workflow starts a private preview whenever the MuseTalk workflow or notebook is pushed to `main` (including a merge that changes either watched path). It also retains `workflow_dispatch` for later previews. It has no schedule, does not alter the channel publishing workflows, and does not publish or upload anything to YouTube. A completed technical run is only a preview; human review of mouth timing, eye stability, identity consistency, frame continuity, and audio alignment is still required.
 
 ## Manual notebook use
 
