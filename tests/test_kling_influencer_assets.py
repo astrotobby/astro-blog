@@ -23,7 +23,7 @@ class KlingInfluencerAssetsTests(unittest.TestCase):
         self.assertEqual(len(self.looks), 2)
         self.assertEqual({row['id'] for row in self.looks}, {'kling_studio_front', 'kling_studio_monitor'})
         self.assertEqual(self.cfg['influencer']['looks_per_video'], 2)
-        self.assertEqual(len({row["clip"] for row in self.looks}), 3)
+        self.assertEqual(len({row["clip"] for row in self.looks}), 2)
         for row in self.looks:
             self.assertTrue(row["clip"].endswith(".mp4"))
             self.assertTrue((ROOT / row["clip"]).is_file(), row["clip"])
