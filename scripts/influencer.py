@@ -132,8 +132,15 @@ def plan_timeline(dur, looks, cfg, slug, words=None):
         if kind == "A" and str(inf.get("lipsync_provider", "wav2lip")).lower() == "tbdub":
             # Word snapping must never extend an A-roll beyond the source Kling clip.
             end = min(end, t + float(a_rng[1]))
-        if dur - end < min_seg:              # don't leave a sliver at the end
-            end = dur
+        if dur - end < min_seg:
+            is_tbdub_a_roll = (
+                kind == "A"
+                and str(inf.get("lipsync_provider", "wav2lip")).lower() == "tbdub"
+            )
+            # A short ending can remain B-roll; never extend the final presenter
+            # shot beyond the approved Kling source duration to force an on-camera CTA.
+            if not is_tbdub_a_roll or dur - t <= float(a_rng[1]):
+                end = dur
         segs.append({"kind": kind, "t0": t, "t1": end})
         t, kind = end, ("B" if kind == "A" else "A")
     if not looks:
