@@ -41,7 +41,7 @@ AI-GEMS. Do not commit the key to either repository, a config file, or a log.
 
 ## Production spending guard
 
-Sync-3 is priced at approximately $0.107–$0.133 per generated second (the exact rate
+Sync-3 is priced at approximately $0.1066–$0.1334 per generated second (the exact rate
 depends on the account plan). A 4.8-second presenter shot therefore has an upper-bound
 estimate of about $0.64. A long-form video may contain multiple presenter cuts, and the
 pipeline may create both horizontal and vertical masters.
@@ -49,8 +49,8 @@ pipeline may create both horizontal and vertical masters.
 Production API calls are disabled by default. The current config caps the timeline
 at two presenter shots per master (opening and closing). Because the workflow renders
 both vertical and horizontal masters, that is at most four 4.8-second generations per
-long-form video. At the published Sync-3 rate, the raw estimate is `4 × 4.8 × $0.133 = $2.56`.
-The spend guard adds two frames of safety per job, so it reserves up to about $2.60
+long-form video. At the published Sync-3 rate, the raw estimate is `4 × 4.8 × $0.1334 = $2.56`.
+The spend guard adds two frames of safety per job, so it reserves up to about $2.61
 for a complete long-form run. Actual spend can be lower when shots are shorter. The
 free Sync-3 allowance does not cover a complete run.
 
@@ -67,10 +67,10 @@ shared across the vertical and horizontal renders in the same Python workflow pr
 It never switches to Wav2Lip or unsynchronized presenter footage when blocked.
 
 The variable is a per-workflow-run ceiling, not a monthly quota. With four scheduled
-long-form runs per day, a $2.60 ceiling on every run would permit up to about $10.40/day
-or $312/month in generation usage. For clean, watermark-free published output, Sync Labs
+long-form runs per day, a $2.60 ceiling on every run would permit up to about $10.42/day
+or $312.48/month in generation usage. For clean, watermark-free published output, Sync Labs
 currently requires Creator or higher; Creator is listed at $19/month. That makes this
-illustrative upper bound approximately $331/month including the Creator subscription,
+illustrative upper bound approximately $332/month including the Creator subscription,
 before any taxes or currency conversion. Free and Hobbyist outputs have a watermark, so
 the free preview is for lip-sync quality evaluation, not a final upload. Keep the variable
 at `0` until the free preview has passed visual review and you have explicitly approved
