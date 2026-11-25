@@ -50,6 +50,6 @@ If it fails, retain the original source and report the failure. Do not publish a
 
 This automated job is a repeatable **preview pipeline**, not yet an unattended daily production service. Kaggle can deny a GPU or disconnect when free quota/capacity is unavailable. The current task therefore stops safely rather than queueing paid compute. After the first accepted preview, integration into short A-roll segments in the two-channel production workflow must be separately tested and reviewed.
 
-The notebook creates a seeded Python 3.10 virtual environment (including `pip`), installs the pinned PyTorch CUDA 11.8 build plus MuseTalk requirements, the editable Whisper module, and the documented OpenMMLab components. It validates CUDA and dependency imports before downloading weights or starting inference.
+The notebook creates a seeded Python 3.10 virtual environment (including `pip`), installs the pinned PyTorch CUDA 11.8 build, MuseTalk requirements, and documented OpenMMLab components. The upstream `musetalk/whisper` source folder has no Python package metadata, so the workflow does not attempt an editable pip install; inference uses `transformers.WhisperModel`. It adds `musetalk/utils` to `PYTHONPATH` for MuseTalk's bundled `face_detection` module, and validates CUDA and imports before downloading weights or starting inference.
 
 The notebook uses the official MuseTalk repository and MuseTalk 1.5 inference entry point: https://github.com/TMElyralab/MuseTalk
