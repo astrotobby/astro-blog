@@ -150,10 +150,11 @@ jobs:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
           KAGGLE_USERNAME_INPUT: ${{ inputs.kaggle_username }}
           RUN_ID: ${{ github.run_id }}
-          RUNNER_TEMP: ${{ runner.temp }}
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p musetalk-run-logs
+          exec > >(tee -a musetalk-run-logs/kaggle-submit.log) 2>&1
           OWNER="$(printf '%s' "$KAGGLE_USERNAME_INPUT" | tr '[:upper:]' '[:lower:]')"
           DATASET_ID="$OWNER/musetalk-preview-input-$RUN_ID"
           KERNEL_ID="$OWNER/musetalk-preview-$RUN_ID"
@@ -177,9 +178,9 @@ jobs:
               "code_file": "musetalk_free_kaggle_test.ipynb",
               "language": "python",
               "kernel_type": "notebook",
-              "is_private": True,
-              "enable_gpu": True,
-              "enable_internet": True,
+              "is_private": "true",
+              "enable_gpu": "true",
+              "enable_internet": "true",
               "dataset_sources": [f"{owner}/musetalk-preview-input-{run_id}"]
           }
           pathlib.Path(os.environ["KERNEL_DIR"], "kernel-metadata.json").write_text(
