@@ -196,13 +196,14 @@ jobs:
               "is_private": "true",
               "enable_gpu": "true",
               "enable_internet": "true",
+              "machine_shape": "NvidiaTeslaT4",
               "dataset_sources": [f"{owner}/musetalk-preview-input-{run_id}"]
           }
           pathlib.Path(os.environ["KERNEL_DIR"], "kernel-metadata.json").write_text(
               json.dumps(meta, indent=2)
           )
           PY
-          kaggle kernels push -p "$KERNEL_DIR"
+          kaggle kernels push -p "$KERNEL_DIR" --accelerator NvidiaTeslaT4
 
           echo "Waiting for private Kaggle GPU kernel..."
           completed=0
