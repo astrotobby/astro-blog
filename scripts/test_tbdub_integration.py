@@ -62,7 +62,7 @@ class TBDubJobTests(unittest.TestCase):
             "kind": "A", "t0": 2.0, "t1": 2.0 + duration,
             "look": {"id": "front", "clip": video},
         }
-        cfg = {"influencer": {"tbdub": {"source_headroom_seconds": 0.18}}}
+        cfg = {"influencer": {"tbdub": {}}}
         return temporary, root, video, voice, segment, cfg
 
     def test_build_jobs_extracts_one_audio_excerpt_per_a_roll(self):
