@@ -76,6 +76,12 @@ def _check_runtime(checkpoint_dir: Path):
             f"about 15 GiB free. Detected {props.name}: "
             f"{total_vram / GIB:.2f} GiB total, {free_vram / GIB:.2f} GiB free."
         )
+    capability = torch.cuda.get_device_capability(0)
+    if capability < (8, 0):
+        raise RuntimeError(
+            f"{props.name} has compute capability {capability[0]}.{capability[1]}; "
+            "TBDub BF16 inference requires NVIDIA Ampere (8.0) or newer."
+        )
     if not torch.cuda.is_bf16_supported():
         raise RuntimeError(f"{props.name} does not report BF16 support required by TBDub.")
     ram_total, ram_available = _ram_bytes()
