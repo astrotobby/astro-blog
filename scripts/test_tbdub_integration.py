@@ -103,6 +103,41 @@ class TBDubJobTests(unittest.TestCase):
                 tbdub_lipsync.build_jobs({"horizontal": [segment]}, {"horizontal": voice}, cfg)
         run.assert_not_called()
 
+    def test_batch_manifest_preserves_varied_source_start_frame(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        out = root / "out"
+        out.mkdir()
+        video, audio, output = root / "source.mp4", root / "voice.wav", out / "talk.mp4"
+        video.write_bytes(b"video")
+        audio.write_bytes(b"audio")
+        output.write_bytes(b"rendered video" * 1000)
+        jobs = [{
+            "id": "horizontal_00", "video": video, "audio": audio, "output": output,
+            "tag": "horizontal", "index": 0, "seed": 42, "start_frame": 17,
+        }]
+
+        def fake_run(command, **kwargs):
+            manifest = Path(command[command.index("--manifest") + 1])
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            self.assertEqual(data["jobs"][0]["start_frame"], 17)
+            results = manifest.with_suffix(".results.json")
+            results.write_text(json.dumps({"jobs": [{
+                "id": "horizontal_00", "output": str(output), "bytes": output.stat().st_size,
+                "duration": 2.6,
+            }]}), encoding="utf-8")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        cfg = {"influencer": {"tbdub": {}}}
+        with (
+            patch.object(tbdub_lipsync, "OUT", out),
+            patch.object(tbdub_lipsync, "_runtime", return_value=(Path(sys.executable), root)),
+            patch.object(tbdub_lipsync.subprocess, "run", side_effect=fake_run),
+        ):
+            result = tbdub_lipsync.generate_tbdub_batch(jobs, cfg)
+        self.assertEqual(result["horizontal_00"], output)
+
     def test_missing_gpu_or_inference_failure_blocks_tbdub_batch(self):
         temporary, root, video, voice, segment, cfg = self._inputs()
         self.addCleanup(temporary.cleanup)
