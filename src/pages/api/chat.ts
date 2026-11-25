@@ -40,9 +40,10 @@ export const POST: APIRoute = async (context) => {
       messages.push({ role: 'user', content: String(directContent || '') });
     }
 
-    // Call Cloudflare Workers AI with streaming enabled
-    // llama-3.1-8b-instruct was deprecated on 2026-05-30; fp8 is its current replacement.
-    const stream = await ai.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
+    // Call Cloudflare Workers AI with streaming enabled.
+    // The previous Llama 3.1 FP8 model was deprecated on 2026-11-20.
+    // gpt-oss-120b is the current supported general-purpose chat model.
+    const stream = await ai.run('@cf/openai/gpt-oss-120b', {
       messages,
       stream: true,
       // Replies are meant to be brief (see system prompt); this cap is headroom so
