@@ -1,6 +1,11 @@
 name: MuseTalk free Kaggle preview
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/musetalk-kaggle-preview.yml"
+      - "notebooks/musetalk_free_kaggle_test.ipynb"
   workflow_dispatch:
     inputs:
       presenter_video_path:
@@ -51,9 +56,9 @@ jobs:
       - name: Prepare the short private input dataset
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
-          PRESENTER_VIDEO_PATH: ${{ inputs.presenter_video_path }}
-          NARRATION_TEXT: ${{ inputs.narration_text }}
-          TTS_VOICE: ${{ inputs.voice }}
+          PRESENTER_VIDEO_PATH: ${{ github.event_name == 'workflow_dispatch' && inputs.presenter_video_path || 'assets/influencer/kling/kling_20261125_VIDEO_A_medium_s_613_0.mp4' }}
+          NARRATION_TEXT: ${{ github.event_name == 'workflow_dispatch' && inputs.narration_text || 'Welcome back. This is our natural lip sync test.' }}
+          TTS_VOICE: ${{ github.event_name == 'workflow_dispatch' && inputs.voice || 'en-US-GuyNeural' }}
           RUN_ID: ${{ github.run_id }}
           RUN_WORK: ${{ runner.temp }}/musetalk-work
           DATA_DIR: ${{ runner.temp }}/musetalk-dataset
