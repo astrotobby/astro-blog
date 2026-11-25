@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import gc
 import json
+import math
 import pickle
 import shutil
 import subprocess
@@ -173,12 +174,25 @@ def run_batch(manifest_path: Path, tbdub_dir: Path, checkpoint_dir: Path):
         args.audio = str(Path(job["audio"]).expanduser().resolve())
         args.output_dir = str(output.parent)
         args.sample_name = sample_name
-        args.start_frame = 0
+        args.start_frame = int(job.get("start_frame", 0))
         args.seed = int(job.get("seed", 42))
         args.save_comparison = bool(job.get("save_comparison", False))
 
-        print(f"[TBDub] job {index}/{len(jobs)}: {sample_name}", flush=True)
+        print(
+            f"[TBDub] job {index}/{len(jobs)}: {sample_name}; "
+            f"source_start_frame={args.start_frame}", flush=True
+        )
         sample = _load_sample(core, job, args)
+        audio_frames = int(core.get_audio_length(str(job["audio"])))
+        stride = int(core.CLIP_NUM_FRAMES - core.MOTION_NUM_FRAMES)
+        required_source_frames = max(1, math.ceil(audio_frames / stride)) * stride
+        available_source_frames = len(sample.reference_video) - args.start_frame
+        if available_source_frames < required_source_frames:
+            raise RuntimeError(
+                f"TBDub would need to repeat source frames for {sample_name}: "
+                f"{available_source_frames} available, {required_source_frames} required. "
+                "Rejecting this shot instead of using ping-pong padding."
+            )
         with torch.inference_mode():
             generated = core.run_inference(pipeline, prompt_embedding, sample, sample_name, args)
         if not generated.is_file() or generated.stat().st_size < 10_000:
