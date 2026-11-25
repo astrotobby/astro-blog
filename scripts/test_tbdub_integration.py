@@ -19,7 +19,7 @@ import tbdub_lipsync
 
 
 class TBDubTimelineTests(unittest.TestCase):
-    def test_tbdub_a_roll_never_exceeds_source_clip_and_closes_on_camera(self):
+    def test_tbdub_a_roll_never_exceeds_source_clip_duration(self):
         cfg = {
             "influencer": {
                 "lipsync_provider": "tbdub",
