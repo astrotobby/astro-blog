@@ -184,25 +184,32 @@ avatar:
   face_cy: 0.48                    # face centre Y (0=top, 1=bottom)
 
 # ---- AI influencer presenter (scripts/influencer.py) ----
-# ONE consistent person (the assets/avatar.png identity) in rotating outfits/locations.
-# Full-screen, lip-synced ON-CAMERA segments cut into the stock-footage montage, which
-# stays as the B-roll. Opens and closes on camera; each on-camera segment switches to
-# the next look. Looks live in assets/influencer/looks.yaml; a look whose image/clip is
-# missing is skipped (scripts/gen_influencer_looks.py generates missing stills).
-# Wav2Lip settings (timeout) come from the avatar: section above.
+# One consistent presenter built from the existing approved Kling clips.
+# TBDub Student processes each short A-roll clip against its own matching narration;
+# it does not concatenate unrelated audio slices or boomerang/loop the source clip.
+# Code and weights are free/open-source (Apache-2.0); inference requires a Linux
+# NVIDIA GPU runner and a persistent model directory configured outside Git.
 influencer:
   enabled: true
   looks_file: "assets/influencer/looks.yaml"
-  looks_per_video: 2               # only clips that passed Wav2Lip face-detection preflight
-  aroll_seconds: [4.0, 5.5]        # on-camera segment length range
-  broll_seconds: [30.0, 42.0]       # longer cutaways reduce visible reuse of the short source clips
-  min_segment: 4.0                 # never leave a shorter sliver at the end
-  punch_in: 1.10                   # 2nd appearance of a look = tighter "jump-cut" framing
-  push_in: 0.025                   # slow push-in over each on-camera shot
-  handheld_px: 4                   # subtle handheld drift (0 = locked-off tripod)
-  require_lipsync: true             # fail the render rather than show a visibly mismatched narrator
-  # Use only existing Kling clips in assets/influencer/looks.yaml; no new generation.
-  # Wav2Lip locally synchronizes presenter footage to the narration audio.
+  looks_per_video: 2
+  lipsync_provider: "tbdub"
+  aroll_seconds: [4.0, 4.8]        # keep each A-roll shorter than the ~5.04s source clips
+  broll_seconds: [30.0, 42.0]      # reduce repetitive presenter footage
+  min_segment: 4.0
+  punch_in: 1.10
+  push_in: 0.025
+  handheld_px: 4
+  require_lipsync: true             # block the render if any TBDub segment fails
+  tbdub:
+    mode: "student"
+    student_steps: 2
+    sigma_shift: 1.0
+    cpu_offload: true
+    source_headroom_seconds: 0.18
+    save_comparison: false
+  # Legacy Wav2Lip implementation remains available only when explicitly selected;
+  # it is not the default and is never a fallback for TBDub.
   ltx: false
   ltx_max_segments: 0
 
