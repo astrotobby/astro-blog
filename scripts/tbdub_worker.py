@@ -11,6 +11,7 @@ import gc
 import json
 import pickle
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -179,7 +180,7 @@ def run_batch(manifest_path: Path, tbdub_dir: Path, checkpoint_dir: Path):
             shutil.copy2(generated, output)
         if not output.is_file() or output.stat().st_size < 10_000:
             raise RuntimeError(f"TBDub output verification failed for {sample_name}")
-        output_duration = float(__import__("subprocess").check_output([
+        output_duration = float(subprocess.check_output([
             "ffprobe", "-v", "error", "-show_entries", "format=duration",
             "-of", "default=nw=1:nk=1", str(output)
         ], text=True).strip())
