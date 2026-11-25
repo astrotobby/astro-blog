@@ -104,9 +104,15 @@ def _post_generation(video: Path, audio: Path, job_id: str, model: str) -> dict:
                 f"Sync Labs input {path.name} exceeds the safe 20 MB upload limit."
             )
 
+    def file_hash(path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as source_file:
+            for chunk in iter(lambda: source_file.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
     key_material = hashlib.sha256(
-        f"{model}|{job_id}|{video.stat().st_size}|{audio.stat().st_size}|"
-        f"{video.name}|{audio.name}".encode()
+        f"{model}|{job_id}|{file_hash(video)}|{file_hash(audio)}".encode()
     ).hexdigest()
     headers = {
         "x-api-key": api_key,
