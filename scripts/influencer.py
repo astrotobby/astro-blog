@@ -335,7 +335,7 @@ def render_talking(plans, voices, cfg, fps):
     provider = str(inf.get("lipsync_provider", "wav2lip")).lower()
     if provider == "tbdub":
         from tbdub_lipsync import build_jobs, generate_tbdub_batch
-        jobs = build_jobs(plans, voices, fps, cfg)
+        jobs = build_jobs(plans, voices, cfg)
         if not jobs:
             if inf.get("require_lipsync", False):
                 raise RuntimeError("TBDub was selected but the influencer timeline has no A-roll segments")
