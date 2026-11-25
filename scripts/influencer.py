@@ -129,6 +129,9 @@ def plan_timeline(dur, looks, cfg, slug, words=None):
     while dur - t > 0.05:
         lo, hi = a_rng if kind == "A" else b_rng
         end = snap(t + rng.uniform(lo, hi))
+        if kind == "A" and str(inf.get("lipsync_provider", "wav2lip")).lower() == "tbdub":
+            # Word snapping must never extend an A-roll beyond the source Kling clip.
+            end = min(end, t + float(a_rng[1]))
         if dur - end < min_seg:              # don't leave a sliver at the end
             end = dur
         segs.append({"kind": kind, "t0": t, "t1": end})
