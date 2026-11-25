@@ -108,7 +108,12 @@
         const data = line.slice(5).trim();
         if (!data || data === '[DONE]') continue;
         try {
-          const chunk = JSON.parse(data).response;
+          const payload = JSON.parse(data);
+          // Older Workers AI models used `response`; gpt-oss uses the
+          // OpenAI-compatible `choices[0].delta.content` shape.
+          const chunk = typeof payload.response === 'string'
+            ? payload.response
+            : payload.choices?.[0]?.delta?.content;
           if (typeof chunk === 'string') {
             text += chunk;
             target.textContent = text;
