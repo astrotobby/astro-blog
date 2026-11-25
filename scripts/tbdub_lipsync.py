@@ -152,10 +152,8 @@ def generate_tbdub_batch(jobs, cfg):
     return outputs
 
 
-def build_jobs(plans, voices, fps, cfg):
+def build_jobs(plans, voices, cfg):
     """Extract one matching speech sample for every A-roll segment; never join disjoint audio."""
-    import random
-
     jobs = []
     inf = cfg.get("influencer", {})
     min_headroom = float(inf.get("tbdub", {}).get("source_headroom_seconds", 0.18))
@@ -182,7 +180,7 @@ def build_jobs(plans, voices, fps, cfg):
                 "ffmpeg", "-y", "-v", "error",
                 "-ss", f"{float(segment['t0']):.3f}",
                 "-t", f"{duration:.3f}",
-                "-i", str(voices[tag]),
+                "-i", str(Path(voices[tag]).resolve()),
                 "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le",
                 audio.name,
             ], cwd=OUT)
