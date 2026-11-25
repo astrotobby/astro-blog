@@ -59,6 +59,23 @@ if [[ ! -x "$PYTHON" ]]; then
 fi
 "$PYTHON" -m pip install --disable-pip-version-check --upgrade pip wheel
 "$PYTHON" -m pip install --disable-pip-version-check torch==2.9.0 torchvision==0.24.0 --index-url https://download.pytorch.org/whl/cu128
+# Reject non-BF16 architectures (e.g. free T4/P100 notebook GPUs) before downloading
+# the ~15.3 GB Student/VAE/Hubert checkpoints.
+"$PYTHON" - <<'PY'
+import torch
+if not torch.cuda.is_available():
+    raise SystemExit("TBDub requires CUDA; no NVIDIA GPU is visible.")
+name = torch.cuda.get_device_name(0)
+major, minor = torch.cuda.get_device_capability(0)
+if (major, minor) < (8, 0):
+    raise SystemExit(f"{name} has compute capability {major}.{minor}; native BF16 requires NVIDIA Ampere (8.0) or newer.")
+if not torch.cuda.is_bf16_supported():
+    raise SystemExit(f"{name} does not support BF16 required by TBDub.")
+free_vram, total_vram = torch.cuda.mem_get_info(0)
+if total_vram < 16 * 1024**3 or free_vram < 15 * 1024**3:
+    raise SystemExit(f"TBDub needs >=16 GiB total and ~15 GiB free VRAM; detected {free_vram/1024**3:.1f}/{total_vram/1024**3:.1f} GiB free/total.")
+print("TBDub compatible GPU:", name, f"({major}.{minor})")
+PY
 "$PYTHON" -m pip install --disable-pip-version-check -r "$TBDUB_DIR/requirements.txt"
 
 # Public model weights; choose Student only. hf download is resumable and skips files
