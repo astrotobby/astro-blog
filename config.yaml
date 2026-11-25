@@ -142,9 +142,10 @@ video:
   # Animated 1-3 word karaoke captions, the spoken word highlighted. Captions are
   # the only on-screen text — no hook card, lower third, or end card.
 
-# ---- Talking avatar (Wav2Lip, runs inside the GitHub runner — no external Space) ----
-# Needs the HF_TOKEN secret (to download weights) + an avatar image at the path below.
-# If Wav2Lip setup/inference fails, the render falls back to the image montage.
+# ---- Legacy talking-avatar inset (disabled; not used by the full-screen influencer) ----
+# Kept for compatibility with older renders. The active influencer provider is
+# configured below as TBDub Student; it has its own Linux/NVIDIA GPU setup and
+# fail-closed inference path. Wav2Lip is not a fallback when TBDub is selected.
 # The avatar is composited as a NON-circular, soft-feathered head-and-shoulders
 # figure that blends into the scene (no hard bubble/ring) and gently bobs in sync
 # with the motion so it reads as a live presenter rather than a pasted-on circle.
