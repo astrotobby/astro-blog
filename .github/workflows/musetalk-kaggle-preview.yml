@@ -165,6 +165,8 @@ jobs:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
           KAGGLE_OWNER: ${{ steps.prepare.outputs.kaggle_username }}
           RUN_ID: ${{ github.run_id }}
+          DATASET_ID: ${{ steps.prepare.outputs.kaggle_username }}/musetalk-preview-input-${{ github.run_id }}
+          META_DIR: ${{ runner.temp }}/musetalk-kernel-metadata
         shell: bash
         run: |
           set -euo pipefail
@@ -181,6 +183,27 @@ jobs:
 
           # Kaggle datasets are private by default; intentionally do not pass --public.
           kaggle datasets create -p "$DATA_DIR"
+
+          # Dataset creation is asynchronous. Do not submit the notebook until Kaggle
+          # confirms both expected private files are visible to kernels.
+          DATASET_READY=0
+          for attempt in $(seq 1 30); do
+            if FILES_OUTPUT="$(kaggle datasets files "$DATASET_ID" --page-size 20 2>&1)"; then
+              if echo "$FILES_OUTPUT" | grep -q "presenter.mp4" && echo "$FILES_OUTPUT" | grep -q "narration.mp3"; then
+                DATASET_READY=1
+                echo "Private input dataset is ready:"
+                echo "$FILES_OUTPUT"
+                break
+              fi
+            else
+              echo "Waiting for Kaggle private dataset publication ($attempt/30): $FILES_OUTPUT"
+            fi
+            sleep 10
+          done
+          if [[ "$DATASET_READY" -ne 1 ]]; then
+            echo "::error::Kaggle did not publish both private input files in time; kernel was not submitted."
+            exit 1
+          fi
 
           cp notebooks/musetalk_free_kaggle_test.ipynb "$KERNEL_DIR/musetalk_free_kaggle_test.ipynb"
           python - <<'PY'
@@ -204,6 +227,31 @@ jobs:
           )
           PY
           kaggle kernels push -p "$KERNEL_DIR" --accelerator NvidiaTeslaT4
+
+          # Read back the server-persisted settings so a CPU kernel cannot pass
+          # silently when this job is intended to be a GPU-only preview.
+          META_DIR="$RUNNER_TEMP/musetalk-kernel-metadata"
+          mkdir -p "$META_DIR"
+          kaggle kernels pull "$KERNEL_ID" -p "$META_DIR" -m
+          python - <<'PY'
+          import json, os, pathlib
+          p = pathlib.Path(os.environ["META_DIR"]) / "kernel-metadata.json"
+          meta = json.loads(p.read_text())
+          summary = {
+              "is_private": meta.get("is_private"),
+              "enable_gpu": meta.get("enable_gpu"),
+              "enable_internet": meta.get("enable_internet"),
+              "machine_shape": meta.get("machine_shape"),
+              "dataset_sources": meta.get("dataset_sources", []),
+          }
+          print("Kaggle-persisted kernel settings:", json.dumps(summary))
+          if str(meta.get("enable_gpu", "")).lower() != "true":
+              raise SystemExit("Kaggle did not persist enable_gpu=true.")
+          if meta.get("machine_shape") != "NvidiaTeslaT4":
+              raise SystemExit("Kaggle did not persist the NvidiaTeslaT4 accelerator request.")
+          if os.environ["DATASET_ID"] not in meta.get("dataset_sources", []):
+              raise SystemExit("Kaggle did not attach the private input dataset.")
+          PY
 
           echo "Waiting for private Kaggle GPU kernel..."
           completed=0
