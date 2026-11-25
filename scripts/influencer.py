@@ -110,9 +110,10 @@ def pick_looks(looks, slug, n):
 # ---------- 2. timeline ----------
 def plan_timeline(dur, looks, cfg, slug, words=None):
     """Alternating A (on camera) / B (b-roll) segments covering [0, dur]. Opens on
-    camera (the face is the scroll-stopper) and closes on camera (CTA). Each A
-    segment gets the next look in rotation and alternates wide / punch-in framing.
-    Cuts snap to the end of a spoken word when word timings are available."""
+    camera. Legacy providers close on camera; Sync-3 can cap the number of speaking
+    shots and leave the rest as B-roll to control paid API usage. Each A segment gets
+    the next look in rotation and alternates wide / punch-in framing. Cuts snap to
+    the end of a spoken word when word timings are available."""
     inf = cfg.get("influencer", {})
     a_rng = inf.get("aroll_seconds", [4.0, 7.0])
     b_rng = inf.get("broll_seconds", [3.5, 6.0])
