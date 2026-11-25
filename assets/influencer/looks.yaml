@@ -1,5 +1,7 @@
-# Three approved Kling clips from the same November 25 presenter set.
-# This library uses only existing source video, never new AI video generation.
+# Two approved Kling clips that passed Wav2Lip face-detection preflight.
+# The side-profile original remains archived in the source folder, but is excluded
+# from speaking shots because its face is not detected reliably in every frame.
+# No new still-image or video generation is used by this library.
 looks:
   - id: kling_studio_front
     location: studio_front
@@ -12,13 +14,6 @@ looks:
     location: studio_monitor
     outfit: "black collared shirt"
     clip: assets/influencer/kling/kling_20261125_VIDEO_The_young__745_0.mp4
-    lip_sync: true
-    face_cx: 0.50
-    face_cy: 0.34
-  - id: kling_studio_side
-    location: studio_side
-    outfit: "black collared shirt"
-    clip: assets/influencer/kling/kling_20261125_VIDEO_Create_a_p_539_0.mp4
     lip_sync: true
     face_cx: 0.50
     face_cy: 0.34
