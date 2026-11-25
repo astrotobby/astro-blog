@@ -134,7 +134,6 @@ def run(args):
         poll = requests.get(
             f"{API}/v2/generate/{generation_id}",
             headers={"x-api-key": api_key},
-            params={"wait": "true", "timeout": "10"},
             timeout=(20, 30),
         )
         poll.raise_for_status()
@@ -143,6 +142,7 @@ def run(args):
         print(f"Sync-3 status: {status or 'PENDING'}", flush=True)
         if status in TERMINAL:
             break
+        time.sleep(10)
     else:
         raise TimeoutError(f"Sync-3 generation {generation_id} did not finish within 15 minutes.")
 
