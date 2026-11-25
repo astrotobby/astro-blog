@@ -55,7 +55,6 @@ jobs:
           NARRATION_TEXT: ${{ inputs.narration_text }}
           TTS_VOICE: ${{ inputs.voice }}
           RUN_ID: ${{ github.run_id }}
-          KAGGLE_OWNER: ${{ steps.prepare.outputs.kaggle_username }}
           RUN_WORK: ${{ runner.temp }}/musetalk-work
           DATA_DIR: ${{ runner.temp }}/musetalk-dataset
         id: prepare
@@ -77,6 +76,7 @@ jobs:
             exit 1
           fi
           echo "kaggle_username=$OWNER" >> "$GITHUB_OUTPUT"
+          export KAGGLE_OWNER="$OWNER"
           if [[ -z "${NARRATION_TEXT:-}" || ${#NARRATION_TEXT} -gt 300 ]]; then
             echo "::error::Provide a short narration sentence (maximum 300 characters)."
             exit 1
