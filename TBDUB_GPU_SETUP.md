@@ -43,11 +43,12 @@ presenter. No cloud GPU service or paid endpoint is started automatically.
   `assets/influencer/looks.yaml`.
 - Runs TBDub Student (two inference steps) against one matching audio excerpt per
   presenter segment. It never concatenates unrelated narration segments or pre-loops
-  the source clip to fill the narration. TBDub may internally pad frames to align its
-  overlapping inference windows; short audio slices and source-duration checks keep
-  that padding bounded.
-- Caps presenter shots at 4.8 seconds for the current approximately 5.04-second source
-  clips and verifies generated video duration against the target speech.
+  the source clip to fill the narration.
+- Caps presenter shots at 2.8 seconds so each fits one 72-frame Student stride at 25
+  fps. It chooses a deterministic, varied starting frame from the existing Kling clip,
+  then verifies at least 72 real source frames remain after that seek. Any segment
+  that would require TBDub's internal ping-pong frame padding is rejected.
+- Verifies generated video duration against the matching speech excerpt.
 - Checks GPU/model availability and MediaPipe face preprocessing before a render.
 - Aborts on any missing model, face detection failure, inference error, missing segment,
   or duration mismatch. There is no unsynchronized-video fallback.
