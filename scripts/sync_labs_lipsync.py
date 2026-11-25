@@ -18,7 +18,7 @@ from common import OUT, log
 
 API_BASE = "https://api.sync.so"
 MODEL = "sync-3"
-MAX_UNIT_RATE_USD = 0.133  # upper end of the published Sync-3 per-second range
+MAX_UNIT_RATE_USD = 0.1334  # current published Creator-tier Sync-3 rate
 MAX_LOCAL_FILE_BYTES = 20 * 1024 * 1024
 TERMINAL = {"COMPLETED", "NO_OP", "FAILED", "REJECTED"}
 _RESERVED_USD = 0.0
