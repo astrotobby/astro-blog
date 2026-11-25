@@ -125,23 +125,34 @@ def plan_timeline(dur, looks, cfg, slug, words=None):
         return min(near, key=lambda g: abs(g - t)) if near else t
 
     segs, t, kind = [], 0.0, "A"
+    provider = str(inf.get("lipsync_provider", "wav2lip")).lower()
+    sync_cfg = inf.get("sync_labs", {})
+    max_sync_segments = max(1, int(sync_cfg.get("max_segments_per_variant", 2)))
+    a_count = 0
     while dur - t > 0.05:
+        if provider == "sync_labs" and kind == "B" and a_count >= max_sync_segments:
+            # After the approved presenter beats, keep the remaining duration as B-roll.
+            segs.append({"kind": "B", "t0": t, "t1": dur})
+            t = dur
+            break
         lo, hi = a_rng if kind == "A" else b_rng
         end = snap(t + rng.uniform(lo, hi))
         if dur - end < min_seg:              # don't leave a sliver at the end
             end = dur
         segs.append({"kind": kind, "t0": t, "t1": end})
+        if kind == "A":
+            a_count += 1
         t, kind = end, ("B" if kind == "A" else "A")
     if not looks:
         for s in segs:
             s["kind"] = "B"
         return segs
-    if segs[-1]["kind"] == "B":
+    if segs[-1]["kind"] == "B" and provider != "sync_labs":
         if len(segs) > 1 and segs[-1]["t1"] - segs[-1]["t0"] < min_seg * 2:
             segs[-2]["t1"] = segs[-1]["t1"]  # fold a short tail into the previous A
             segs.pop()
         else:
-            segs[-1]["kind"] = "A"           # end on camera for the CTA
+            segs[-1]["kind"] = "A"           # legacy provider: end on camera for the CTA
     seen = {}
     a_idx = 0
     for s in segs:
