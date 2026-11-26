@@ -8,6 +8,8 @@ on:
       - "scripts/test_longform_social_bridge.py"
       - "scripts/leadsleap_campaign.py"
       - "scripts/test_leadsleap_campaign.py"
+      - "scripts/kaggle_mcp_download_output.py"
+      - "scripts/test_kaggle_mcp_download_output.py"
       - "config/leadsleap-campaign.json"
       - ".github/workflows/musetalk-kaggle-preview.yml"
       - ".github/workflows/musetalk-collect-existing-preview.yml"
@@ -90,3 +92,6 @@ jobs:
 
       - name: Run LeadsLeap publisher regression tests
         run: python -m unittest discover -s scripts -p "test_leadsleap_campaign.py" -v
+
+      - name: Run Kaggle MCP output downloader tests
+        run: python -m unittest discover -s scripts -p "test_kaggle_mcp_download_output.py" -v
