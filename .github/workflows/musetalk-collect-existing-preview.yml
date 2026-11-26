@@ -76,16 +76,19 @@ jobs:
           mkdir -p preview-output
           echo "Kernel is complete. Trying Kaggle's direct single-file MCP download first."
           MCP_READY=0
-          for OUTPUT_NAME in musetalk_preview.mp4 presenter_narration.mp4; do
-            if python scripts/kaggle_mcp_download_output.py \
-              --kernel-ref "$KERNEL_REF" \
-              --file-path "$OUTPUT_NAME" \
-              --output "preview-output/$OUTPUT_NAME"; then
-              MCP_READY=1
-              break
+          OUTPUT_NAME="musetalk_preview.mp4"
+          if python scripts/kaggle_mcp_download_output.py \
+            --kernel-ref "$KERNEL_REF" \
+            --file-path "$OUTPUT_NAME" \
+            --output "preview-output/$OUTPUT_NAME"; then
+            MCP_READY=1
+          else
+            MCP_EXIT=$?
+            if [[ "$MCP_EXIT" -eq 2 ]]; then
+              echo "::error::Kaggle MCP rejected kernels.get. Update KAGGLE_API_TOKEN to a new KGAT_ bearer token; do not repeatedly retry this credential."
+              exit 1
             fi
-            echo "Direct MCP download did not find $OUTPUT_NAME; checking the alternate known MuseTalk export name."
-          done
+          fi
 
           if [[ "$MCP_READY" -ne 1 ]]; then
             echo "Direct MCP retrieval was unavailable. Falling back to the official Kaggle CLI output endpoint with bounded 429 retries."
