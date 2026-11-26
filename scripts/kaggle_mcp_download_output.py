@@ -64,6 +64,15 @@ def _parse_rpc_response(response: requests.Response, request_id: int) -> dict[st
                         for item in result.get("content", [])
                         if isinstance(item, dict)
                     )
+                    if "kernels.get" in details.lower() and "denied" in details.lower():
+                        raise RuntimeError(
+                            "Kaggle MCP authorization denied kernels.get. The current "
+                            "KAGGLE_API_TOKEN is not accepted for this MCP permission. "
+                            "Generate a new Kaggle API token beginning KGAT_ at "
+                            "https://www.kaggle.com/settings, then replace the GitHub "
+                            "Actions secret KAGGLE_API_TOKEN. Never paste the token into "
+                            "chat or commit it to the repository."
+                        )
                     raise RuntimeError(f"Kaggle MCP tool error: {details or 'unspecified error'}")
                 return result
 
@@ -214,6 +223,8 @@ def download_output(kernel_ref: str, file_path: str, destination: Path) -> None:
     token = os.getenv("KAGGLE_API_TOKEN", "").strip()
     if not token:
         raise RuntimeError("KAGGLE_API_TOKEN is not configured.")
+    token_kind = "KGAT_ bearer token" if token.startswith("KGAT_") else "legacy/unrecognized credential"
+    print(f"Kaggle MCP credential format: {token_kind} (credential value hidden).")
 
     parts = kernel_ref.strip("/").split("/")
     if len(parts) != 2 or not all(parts):
@@ -295,7 +306,7 @@ def main() -> int:
         download_output(args.kernel_ref, args.file_path, args.output)
     except (requests.RequestException, RuntimeError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
+        return 2 if "authorization denied kernels.get" in str(exc).lower() else 1
     return 0
 
 
