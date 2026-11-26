@@ -1,6 +1,9 @@
 name: Recover completed private MuseTalk preview
 
 on:
+  push:
+    paths:
+      - '.github/workflows/recover-musetalk-preview.yml'
   workflow_dispatch:
     inputs:
       kernel_id:
@@ -34,8 +37,8 @@ jobs:
       - name: Inspect completed Kaggle run and retrieve only the rendered MP4
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
-          KERNEL_ID: ${{ inputs.kernel_id }}
-          EXPECTED_SECONDS: ${{ inputs.expected_seconds }}
+          KERNEL_ID: ${{ inputs.kernel_id || 'astrotobby/musetalk-preview-45816547632' }}
+          EXPECTED_SECONDS: ${{ inputs.expected_seconds || '4.6' }}
         shell: bash
         run: |
           set -euo pipefail
