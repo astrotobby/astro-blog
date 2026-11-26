@@ -300,10 +300,33 @@ jobs:
           OUTPUT_READY=0
           for attempt in $(seq 1 7); do
             OUTPUT_LOG="$OUTPUT_DIR/kaggle-output-attempt-$attempt.log"
-            if kaggle kernels output "$KERNEL_ID" --path "$OUTPUT_DIR" --file-pattern '^musetalk_preview\.mp4
+            if kaggle kernels output "$KERNEL_ID" --path "$OUTPUT_DIR" --file-pattern '(^|/)(musetalk_preview|presenter_narration)[.]mp4$' --page-size 1 >"$OUTPUT_LOG" 2>&1; then
+              cat "$OUTPUT_LOG"
+              OUTPUT_READY=1
+              break
+            fi
+            cat "$OUTPUT_LOG"
+            if ! grep -Eqi '429|too many requests|rate.?limit' "$OUTPUT_LOG"; then
+              echo "::error::Kaggle output retrieval failed for a non-rate-limit reason."
+              exit 1
+            fi
+            delay=$((60 * (2 ** (attempt - 1))))
+            (( delay > 600 )) && delay=600
+            echo "Kaggle output API rate-limited; retry $attempt/7 in $delay seconds."
+            sleep "$delay"
+          done
+          if [[ "$OUTPUT_READY" -ne 1 ]]; then
+            echo "::error::Kaggle output API remained rate-limited after seven attempts. The completed kernel is preserved; rerun retrieval only, not inference."
+            exit 1
+          fi
+
+          OUTPUT_MP4="$OUTPUT_DIR/musetalk_preview.mp4"
+          if [[ ! -s "$OUTPUT_MP4" && -s "$OUTPUT_DIR/presenter_narration.mp4" ]]; then
+            OUTPUT_MP4="$OUTPUT_DIR/presenter_narration.mp4"
+          fi
           if [[ ! -s "$OUTPUT_MP4" ]]; then
-            echo "::error::The completed Kaggle kernel did not expose musetalk_preview.mp4."
-            find "$OUTPUT_DIR" -maxdepth 3 -type f -printf '%p (%s bytes)\\n' | head -50
+            echo "::error::The completed Kaggle kernel did not expose the expected MP4."
+            find "$OUTPUT_DIR" -maxdepth 3 -type f -printf '%p (%s bytes)\n' | head -50
             exit 1
           fi
 
