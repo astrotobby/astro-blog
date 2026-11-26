@@ -42,6 +42,23 @@ class MuseTalkKaggleBatchTests(unittest.TestCase):
         command.assert_called_once()
         self.assertNotIn("DO_NOT_PRINT_THIS_VALUE", captured.getvalue())
 
+    def test_dataset_readiness_retries_transient_403_after_successful_upload(self):
+        denied = SimpleNamespace(returncode=1, stdout="", stderr="403 Forbidden. You don't have access to this resource.")
+        visible = SimpleNamespace(returncode=0, stdout="presenter_0.mp4 narration_0.wav musetalk_manifest.json", stderr="")
+        with patch.object(batch, "_run", side_effect=[denied, visible]) as command:
+            with patch.object(batch.time, "sleep") as sleep:
+                batch._wait_for_dataset("astrotobby/musetalk-input-test", {"presenter_0.mp4", "narration_0.wav", "musetalk_manifest.json"})
+        self.assertEqual(command.call_count, 2)
+        sleep.assert_called_once_with(10)
+
+    def test_dataset_readiness_403_times_out_after_bounded_retries(self):
+        denied = SimpleNamespace(returncode=1, stdout="", stderr="403 Forbidden. You don't have access to this resource.")
+        with patch.object(batch, "_run", return_value=denied) as command:
+            with patch.object(batch.time, "sleep"):
+                with self.assertRaisesRegex(TimeoutError, "within five minutes"):
+                    batch._wait_for_dataset("astrotobby/musetalk-input-test", {"presenter_0.mp4"})
+        self.assertEqual(command.call_count, 30)
+
     def test_username_parser_rejects_unexpected_account_format(self):
         with patch.dict(os.environ, {"KAGGLE_USERNAME": "bad/owner"}, clear=True):
             with self.assertRaisesRegex(RuntimeError, "invalid account username"):
