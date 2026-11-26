@@ -143,11 +143,18 @@ def plan_timeline(dur, looks, cfg, slug, words=None):
         return segs
 
     if segs[-1]["kind"] == "B":
-        if len(segs) > 1 and segs[-1]["t1"] - segs[-1]["t0"] < min_seg * 2:
-            segs[-2]["t1"] = segs[-1]["t1"]
-            segs.pop()
-        else:
-            segs[-1]["kind"] = "A"
+        # Keep the supporting-footage interval, then reserve a short on-camera
+        # closing line. Do not turn the whole final B-roll segment into A-roll:
+        # that would create two adjacent full-screen cuts with no contextual flow.
+        available = segs[-1]["t1"] - segs[-1]["t0"]
+        close_seconds = min(
+            6.0,
+            max(min_seg, float(inf.get("closing_aroll_seconds", 4.5))),
+        )
+        if len(segs) > 1 and available >= min_seg + close_seconds:
+            close_start = segs[-1]["t1"] - close_seconds
+            segs[-1]["t1"] = close_start
+            segs.append({"kind": "A", "t0": close_start, "t1": float(dur)})
 
     seen = {}
     a_idx = 0
