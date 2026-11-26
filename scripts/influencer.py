@@ -490,9 +490,12 @@ def build_aroll(src, look, size, fps, seg_dur, close, out, cfg):
     blurred fill of the same shot."""
     inf = cfg.get("influencer", {})
     w, h = size["w"], size["h"]
-    punch = float(inf.get("punch_in", 1.22)) if close else 1.0
-    shake = float(inf.get("handheld_px", 7))
-    push = float(inf.get("push_in", 0.045))
+    muse_source = str(inf.get("lipsync_backend", "")).strip().lower() == "musetalk"
+    # Keep MuseTalk face frames stable after inference. Animated zoom interpolation
+    # and punch-in crops can make the mouth look as if it wobbles or changes shape.
+    punch = 1.0 if muse_source else (float(inf.get("punch_in", 1.22)) if close else 1.0)
+    shake = 0.0 if muse_source else float(inf.get("handheld_px", 7))
+    push = 0.0 if muse_source else float(inf.get("push_in", 0.045))
     fcx = float(look.get("face_cx", 0.5))
     fcy = float(look.get("face_cy", 0.32))
     frames = max(1, int(seg_dur * fps))
