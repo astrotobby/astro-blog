@@ -9,8 +9,11 @@ Default mode is preview-only; pass --publish to send social posts.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import re
+import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -59,15 +62,55 @@ def tracked_url(base_url: str, platform: str, campaign_id: str) -> str:
 
 
 def load_state(path: Path, today: date) -> dict:
+    """Reset daily post records, but retain destination blocks until credentials change."""
     if path.exists():
         try:
-            state = load_json(path)
-            if state.get("date") == today.isoformat():
-                state.setdefault("posted", {})
-                return state
+            previous = load_json(path)
+            if isinstance(previous, dict):
+                blocked = previous.get("blocked")
+                if not isinstance(blocked, dict):
+                    blocked = {}
+                posted = previous.get("posted", {}) if previous.get("date") == today.isoformat() else {}
+                if not isinstance(posted, dict):
+                    posted = {}
+                return {"date": today.isoformat(), "posted": posted, "blocked": blocked}
         except (OSError, ValueError, TypeError):
             pass
-    return {"date": today.isoformat(), "posted": {}}
+    return {"date": today.isoformat(), "posted": {}, "blocked": {}}
+
+
+def _platform_credential_fingerprint(platform: str) -> str:
+    """Return a non-reversible fingerprint so blocks clear automatically when keys rotate."""
+    keys = {
+        "facebook": ("FACEBOOK_PAGE_ID", "FACEBOOK_PAGE_TOKEN"),
+        "threads": ("THREADS_USER_ID", "THREADS_ACCESS_TOKEN"),
+        "x": ("X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET"),
+    }.get(platform, ())
+    values = [os.getenv(key, "") or "" for key in keys]
+    return hashlib.sha256("\\0".join(values).encode("utf-8")).hexdigest()
+
+
+def _permanent_block_reason(platform: str, result: dict) -> str | None:
+    error = str(result.get("error") or "")
+    if platform == "facebook" and (
+        re.search(r"""(?:\bcode['"]?\\s*:\\s*190\\b|error_subcode['"]?\\s*:\\s*460\\b)""", error)
+        or "session has been invalidated" in error.lower()
+        or "error validating access token" in error.lower()
+    ):
+        return "Facebook Page token was invalidated by Meta; replace FACEBOOK_PAGE_TOKEN before retrying."
+    if platform == "x" and (
+        "402 payment required" in error.lower() or "credits depleted" in error.lower()
+    ):
+        return "X API returned 402 because API credits are depleted; restore billing/credits before retrying."
+    return None
+
+
+def _threads_result(response) -> tuple[int, dict]:
+    try:
+        body = response.json() if response.content else {}
+    except (TypeError, ValueError):
+        body = {}
+    return int(response.status_code), body if isinstance(body, dict) else {}
 
 
 def save_state(path: Path, state: dict) -> None:
@@ -104,25 +147,104 @@ def publish_threads(message: str, link: str) -> dict:
     base = "https://graph.threads.net/v1.0"
     created = requests.post(
         f"{base}/{user_id}/threads",
-        data={"media_type": "TEXT", "text": f"{message}\n\n{link}",
+        data={"media_type": "TEXT", "text": f"{message}\\n\\n{link}",
               "access_token": token},
         timeout=45,
     )
-    data = created.json() if created.content else {}
+    status_code, data = _threads_result(created)
     creation_id = data.get("id")
-    if not created.ok or not creation_id:
-        return {"ok": False, "error": f"Threads create HTTP {created.status_code}: {str(data)[:240]}"}
+    if status_code >= 300 or not creation_id:
+        return {"ok": False, "error": f"Threads create HTTP {status_code}: {str(data)[:300]}"}
 
-    published = requests.post(
-        f"{base}/{user_id}/threads_publish",
-        data={"creation_id": creation_id, "access_token": token},
-        timeout=45,
-    )
-    result = published.json() if published.content else {}
-    post_id = result.get("id")
-    if published.ok and post_id:
-        return {"ok": True, "url": f"https://www.threads.net/t/{post_id}"}
-    return {"ok": False, "error": f"Threads publish HTTP {published.status_code}: {str(result)[:240]}"}
+    def container_status(max_attempts: int = 12) -> tuple[str | None, dict]:
+        """Wait for Meta's container index/processing state before publishing."""
+        last_body: dict = {}
+        for attempt in range(1, max_attempts + 1):
+            response = requests.get(
+                f"{base}/{creation_id}",
+                params={"fields": "id,status,error_message", "access_token": token},
+                timeout=30,
+            )
+            code, body = _threads_result(response)
+            last_body = body
+            if code == 404 or (
+                str(body.get("error", {}).get("code", "")) == "24"
+                if isinstance(body.get("error"), dict) else False
+            ):
+                # A newly-created container can take a short time to become readable.
+                if attempt < max_attempts:
+                    time.sleep(5)
+                    continue
+                return None, body
+            if code >= 300:
+                return None, body
+            state = str(body.get("status") or "").upper()
+            if state in {"FINISHED", "PUBLISHED", "ERROR", "EXPIRED"}:
+                return state, body
+            if attempt < max_attempts:
+                time.sleep(5)
+        return None, last_body
+
+    state, status_body = container_status()
+    if state == "PUBLISHED":
+        # The create/publish response can be lost after Meta has already published.
+        permalink = status_body.get("permalink") or f"https://www.threads.net/t/{creation_id}"
+        return {"ok": True, "url": permalink, "recovered": True}
+    if state != "FINISHED":
+        return {
+            "ok": False,
+            "error": f"Threads container {creation_id} did not reach FINISHED "
+                     f"(status={state or 'unavailable'}): {str(status_body)[:260]}",
+        }
+
+    # Retry only Meta's explicit 'container not found' propagation error, and
+    # re-check the same container before retrying so we never create duplicate posts.
+    for attempt in range(1, 4):
+        try:
+            published = requests.post(
+                f"{base}/{user_id}/threads_publish",
+                data={"creation_id": creation_id, "access_token": token},
+                timeout=45,
+            )
+        except requests.RequestException:
+            # A network timeout has an ambiguous publish outcome. Inspect the same
+            # container rather than creating a second one or blindly reposting.
+            state, status_body = container_status(max_attempts=6)
+            if state == "PUBLISHED":
+                return {
+                    "ok": True,
+                    "url": status_body.get("permalink") or f"https://www.threads.net/t/{creation_id}",
+                    "recovered": True,
+                }
+            return {"ok": False, "error": "Threads publish outcome is uncertain; container status "
+                    f"is {state or 'unavailable'}. Manual status check required."}
+
+        code, result = _threads_result(published)
+        post_id = result.get("id")
+        if code < 300 and post_id:
+            return {"ok": True, "url": f"https://www.threads.net/t/{post_id}"}
+
+        error = result.get("error") if isinstance(result.get("error"), dict) else {}
+        is_propagation_race = (
+            str(error.get("code", "")) == "24"
+            and str(error.get("error_subcode", "")) == "4279009"
+        )
+        if not is_propagation_race:
+            return {"ok": False, "error": f"Threads publish HTTP {code}: {str(result)[:300]}"}
+
+        state, status_body = container_status(max_attempts=6)
+        if state == "PUBLISHED":
+            return {
+                "ok": True,
+                "url": status_body.get("permalink") or f"https://www.threads.net/t/{creation_id}",
+                "recovered": True,
+            }
+        if state != "FINISHED" or attempt == 3:
+            return {"ok": False, "error": f"Threads publish HTTP {code}: {str(result)[:240]}; "
+                    f"container status is {state or 'unavailable'}."}
+        time.sleep(5)
+
+    return {"ok": False, "error": "Threads publish did not complete after bounded retries."}
 
 
 def publish_x(message: str, link: str) -> dict:
@@ -169,6 +291,10 @@ def run(args: argparse.Namespace) -> int:
 
     index, variant = campaign_day(cfg, today)
     state = load_state(args.state, today)
+    state.setdefault("blocked", {})
+    if args.retry_blocked:
+        state["blocked"] = {}
+        print("[RETRY] Cleared saved destination blocks at operator request.")
     campaign_id = cfg["campaign_id"]
     landing_url = cfg["landing_url"]
     errors = 0
@@ -186,6 +312,14 @@ def run(args: argparse.Namespace) -> int:
             print(f"[SKIP] {platform}: no copy for this day")
             continue
         link = tracked_url(landing_url, platform, campaign_id)
+        fingerprint = _platform_credential_fingerprint(platform)
+        blocked = state["blocked"].get(platform)
+        if blocked and blocked.get("fingerprint") == fingerprint:
+            print(f"[PAUSED] {platform}: {blocked.get('reason', 'destination is blocked')}")
+            continue
+        if blocked:
+            # Credentials changed since the block was recorded; allow this destination again.
+            state["blocked"].pop(platform, None)
         prior = state["posted"].get(platform, {})
         if prior.get("ok"):
             print(f"[SKIP] {platform}: already published successfully today ({prior.get('url', 'link saved')})")
@@ -210,8 +344,19 @@ def run(args: argparse.Namespace) -> int:
         elif result.get("skipped"):
             print(f"[SKIPPED] {platform}: {result['skipped']}")
         else:
-            errors += 1
-            print(f"[FAILED] {platform}: {result.get('error', 'unknown error')}")
+            block_reason = _permanent_block_reason(platform, result)
+            if block_reason:
+                state["blocked"][platform] = {
+                    "fingerprint": fingerprint,
+                    "reason": block_reason,
+                    "blocked_at": datetime.now(timezone.utc).isoformat(),
+                }
+                print(f"[PAUSED] {platform}: {block_reason}")
+                if args.publish:
+                    save_state(args.state, state)
+            else:
+                errors += 1
+                print(f"[FAILED] {platform}: {result.get('error', 'unknown error')}")
 
     if args.publish:
         save_state(args.state, state)
@@ -225,6 +370,8 @@ def main() -> int:
     parser.add_argument("--date", help="override local campaign date (YYYY-MM-DD), for testing")
     parser.add_argument("--publish", action="store_true",
                         help="actually publish; without this flag the script only previews")
+    parser.add_argument("--retry-blocked", action="store_true",
+                        help="clear saved permanent destination blocks; use only after fixing credentials/billing")
     return run(parser.parse_args())
 
 
