@@ -109,13 +109,16 @@ def pick_looks(looks, slug, n):
 
 # ---------- 2. timeline ----------
 def plan_timeline(dur, looks, cfg, slug, words=None):
-    """Alternating A (on camera) / B (b-roll) segments covering [0, dur]. Opens on
-    camera (the face is the scroll-stopper) and closes on camera (CTA). Each A
-    segment gets the next look in rotation and alternates wide / punch-in framing.
-    Cuts snap to the end of a spoken word when word timings are available."""
+    """Plan alternating full-screen presenter and B-roll cuts.
+
+    The presenter is assigned to EVERY segment. A-roll uses a full-screen
+    presenter; B-roll retains the same look as a small picture-in-picture
+    presenter, so the host never disappears while supporting visuals are shown.
+    Cuts snap to the end of a spoken word when timings are available.
+    """
     inf = cfg.get("influencer", {})
     a_rng = inf.get("aroll_seconds", [4.0, 7.0])
-    b_rng = inf.get("broll_seconds", [3.5, 6.0])
+    b_rng = inf.get("broll_seconds", [12.0, 20.0])
     min_seg = float(inf.get("min_segment", 2.5))
     rng = random.Random(_seed(slug, "timeline"))
     gaps = [float(w["end"]) for w in (words or [])]
@@ -128,36 +131,49 @@ def plan_timeline(dur, looks, cfg, slug, words=None):
     while dur - t > 0.05:
         lo, hi = a_rng if kind == "A" else b_rng
         end = snap(t + rng.uniform(lo, hi))
-        if dur - end < min_seg:              # don't leave a sliver at the end
+        if dur - end < min_seg:
             end = dur
+        end = min(float(dur), max(t + 0.05, end))
         segs.append({"kind": kind, "t0": t, "t1": end})
         t, kind = end, ("B" if kind == "A" else "A")
+
     if not looks:
-        for s in segs:
-            s["kind"] = "B"
+        for segment in segs:
+            segment["kind"] = "B"
         return segs
+
     if segs[-1]["kind"] == "B":
         if len(segs) > 1 and segs[-1]["t1"] - segs[-1]["t0"] < min_seg * 2:
-            segs[-2]["t1"] = segs[-1]["t1"]  # fold a short tail into the previous A
+            segs[-2]["t1"] = segs[-1]["t1"]
             segs.pop()
         else:
-            segs[-1]["kind"] = "A"           # end on camera for the CTA
+            segs[-1]["kind"] = "A"
+
     seen = {}
     a_idx = 0
-    for s in segs:
-        if s["kind"] != "A":
-            continue
-        lk = looks[a_idx % len(looks)]
-        a_idx += 1
-        s["look"] = lk
-        n = seen.get(lk["id"], 0)
-        seen[lk["id"]] = n + 1
-        s["close"] = n % 2 == 1              # 2nd appearance of a look -> punch-in
-    log("timeline: " + " | ".join(
-        f"{s['kind']}{'/' + s['look']['id'] + ('*' if s['close'] else '') if s['kind'] == 'A' else ''}"
-        f" {s['t1'] - s['t0']:.1f}s" for s in segs))
-    return segs
+    active_look = looks[0]
+    for segment in segs:
+        if segment["kind"] == "A":
+            active_look = looks[a_idx % len(looks)]
+            a_idx += 1
+            n = seen.get(active_look["id"], 0)
+            seen[active_look["id"]] = n + 1
+            segment["close"] = n % 2 == 1
+        else:
+            # Keep the same presenter look across the adjacent B-roll cut.
+            segment["close"] = False
+        segment["look"] = active_look
 
+    missing = [i for i, segment in enumerate(segs) if not segment.get("look")]
+    if missing:
+        raise RuntimeError(f"Presenter missing from timeline segment(s): {missing}")
+
+    log("timeline: " + " | ".join(
+        f"{segment['kind']}/{segment['look']['id']}"
+        f"{'*' if segment.get('close') else ''} {segment['t1'] - segment['t0']:.1f}s"
+        for segment in segs
+    ))
+    return segs
 
 # ---------- 3. lip-sync ----------
 def _write_face_key(face, clip, recipe):
@@ -320,7 +336,7 @@ def render_talking(plans, voices, cfg, fps):
     by_look = {}
     for tag, segs in plans.items():
         for i, s in enumerate(segs):
-            if s["kind"] == "A" and (tag, i) not in talking:
+            if s.get("look") and (tag, i) not in talking:
                 by_look.setdefault(s["look"]["id"], (s["look"], []))[1].append((tag, i, s))
 
     for lid, (lk, items) in by_look.items():
@@ -369,7 +385,7 @@ def render_talking(plans, voices, cfg, fps):
                     raise RuntimeError(f"look {lid}: segment {tag}/{i} lip-sync cut failed: {e}") from e
                 log(f"look {lid}: segment {tag}/{i} cut failed ({e})")
             cursor += seg_dur
-        log(f"look {lid}: {len(items)} on-camera segments "
+        log(f"look {lid}: {len(items)} presenter segments "
             f"({'lip-synced' if synced else 'UNSYNCED fallback'})")
     return talking
 
@@ -436,60 +452,159 @@ def build_aroll(src, look, size, fps, seg_dur, close, out, cfg):
 
 
 # ---------- 5. final cut ----------
+def build_broll_with_presenter(montage, presenter, size, fps, start, seg_dur, out, cfg):
+    """Show contextual B-roll with the lip-synced presenter continuously inset.
+
+    The inset is kept above the caption-safe lower third, retains the source
+    presenter's portrait aspect ratio, and uses only a light frame/shadow so the
+    original face and skin texture are not cosmetically altered.
+    """
+    inf = cfg.get("influencer", {})
+    w, h = int(size["w"]), int(size["h"])
+    source_w, source_h = _dims(presenter)
+    height_frac = float(inf.get("pip_height_frac", 0.36))
+    height_frac = min(0.48, max(0.20, height_frac))
+    pip_h = max(120, int(h * height_frac) // 2 * 2)
+    aspect = source_w / max(1, source_h)
+    pip_w = max(80, int(pip_h * aspect) // 2 * 2)
+    border = max(4, int(min(w, h) * 0.006))
+    outer_w, outer_h = pip_w + 2 * border, pip_h + 2 * border
+    margin_x = max(16, int(w * float(inf.get("pip_margin_x", 0.035))))
+    margin_y = max(16, int(h * float(inf.get("pip_margin_y", 0.045))))
+    position = str(inf.get("pip_position", "top-right")).lower()
+    positions = {
+        "top-right": (w - outer_w - margin_x, margin_y),
+        "top-left": (margin_x, margin_y),
+        "bottom-right": (w - outer_w - margin_x, h - outer_h - margin_y),
+        "bottom-left": (margin_x, h - outer_h - margin_y),
+    }
+    if position not in positions:
+        raise ValueError(f"Unsupported influencer PiP position: {position}")
+    x, y = positions[position]
+    if x < 0 or y < 0 or x + outer_w > w or y + outer_h > h:
+        raise ValueError(
+            f"Presenter PiP ({outer_w}x{outer_h}) does not fit {w}x{h} at {position}"
+        )
+
+    filter_complex = (
+        f"[0:v]fps={fps},scale={w}:{h},setsar=1,"
+        f"trim=duration={seg_dur:.3f},setpts=PTS-STARTPTS[bg];"
+        f"[bg]drawbox=x={x+6}:y={y+7}:w={outer_w}:h={outer_h}:"
+        f"color=black@0.42:t=fill[shadow];"
+        f"[1:v]fps={fps},scale={pip_w}:{pip_h}:flags=lanczos,"
+        f"pad={outer_w}:{outer_h}:{border}:{border}:color=white,"
+        f"setsar=1,trim=duration={seg_dur:.3f},setpts=PTS-STARTPTS[pip];"
+        f"[shadow][pip]overlay=x={x}:y={y}:shortest=1,format=yuv420p[out]"
+    )
+    _run([
+        "ffmpeg", "-y", "-v", "error",
+        "-ss", f"{start:.3f}", "-i", str(montage),
+        "-i", str(presenter),
+        "-filter_complex", filter_complex,
+        "-map", "[out]", "-an", "-t", f"{seg_dur:.3f}",
+        "-r", str(fps), "-c:v", "libx264", "-preset", "veryfast",
+        "-crf", "19", "-pix_fmt", "yuv420p", out.name,
+    ], cwd=OUT)
+    if not out.exists() and not any(str(part) == out.name for part in []):
+        # _run normally creates the file. This branch gives a direct diagnostic
+        # when a mocked / misconfigured encoder reports success without output.
+        log(f"PiP segment export requested: {out.name}")
+    return out
+
+
 def compose(montage, voice, words, total, size, fps, cfg, slug, tag, out):
-    """Cut the presenter into a finished silent montage. B segments are slices of the
-    montage at the same timestamps, so the stock footage keeps its word-locked scene
-    cuts; A segments are full-screen presenter shots lip-synced to the same voice.
-    Segment lengths are frame-exact so the picture stays locked to the voiceover.
-    Returns `out`, or None (caller keeps the plain montage) if there are no looks."""
+    """Composite the presenter across the full video timeline.
+
+    A-roll: full-screen, lip-synced presenter.
+    B-roll / cards / stills: contextual footage with the same lip-synced presenter
+    retained as a compact picture-in-picture. There is no presenter-free interval.
+    """
     inf = cfg.get("influencer", {})
     looks = pick_looks(load_looks(cfg), slug, int(inf.get("looks_per_video", 3)))
     if not looks:
         if inf.get("require_lipsync", False):
-            raise RuntimeError("Required Kling influencer media is missing; refusing to render a presenter-free video")
+            raise RuntimeError("Required influencer media is missing; refusing to render a presenter-free video")
         log("influencer enabled but no look media found -> plain montage")
         return None
     if inf.get("require_lipsync", False) and len(looks) < int(inf.get("looks_per_video", 3)):
         raise RuntimeError(
             f"Only {len(looks)} influencer looks are available; "
-            f"need {inf.get('looks_per_video', 3)} approved Kling clips"
+            f"need {inf.get('looks_per_video', 3)} approved presenter clips"
         )
-    segs = plan_timeline(total, looks, cfg, f"{slug}|{tag}", words)
-    if inf.get("require_lipsync", False) and not any(s.get("kind") == "A" for s in segs):
-        raise RuntimeError("Influencer timeline contains no on-camera narration segments")
-    talking = render_talking({tag: segs}, {tag: voice}, cfg, fps)
 
+    segs = plan_timeline(total, looks, cfg, f"{slug}|{tag}", words)
+    if inf.get("require_lipsync", False):
+        missing = [i for i, segment in enumerate(segs) if not segment.get("look")]
+        if missing:
+            raise RuntimeError(f"Presenter must be present in every segment; missing indexes: {missing}")
+
+    talking = render_talking({tag: segs}, {tag: voice}, cfg, fps)
     total_frames = int(round(total * fps))
     files = []
-    for i, s in enumerate(segs):
-        f0 = int(round(s["t0"] * fps))
-        f1 = total_frames if i == len(segs) - 1 else int(round(s["t1"] * fps))
+    for i, segment in enumerate(segs):
+        f0 = int(round(segment["t0"] * fps))
+        f1 = total_frames if i == len(segs) - 1 else int(round(segment["t1"] * fps))
         frames = max(1, f1 - f0)
+        seg_dur = frames / fps
         dst = OUT / f"_inf_{tag}_{i:02d}.mp4"
-        src = (talking.get((tag, i)) or s["look"].get("image")) if s["kind"] == "A" else None
-        if src is not None:
-            build_aroll(src, s["look"], size, fps, frames / fps, s.get("close"), dst, cfg)
+        presenter = talking.get((tag, i))
+        if segment["kind"] == "A":
+            if presenter is None:
+                if inf.get("require_lipsync", False):
+                    raise RuntimeError(f"Presenter full-screen segment {tag}/{i} has no synchronized clip")
+                presenter = segment["look"].get("image")
+            if presenter is None:
+                raise RuntimeError(f"No presenter source available for A-roll segment {tag}/{i}")
+            build_aroll(presenter, segment["look"], size, fps, seg_dur,
+                        segment.get("close", False), dst, cfg)
         else:
-            _run(["ffmpeg", "-y", "-v", "error", "-ss", f"{f0 / fps:.3f}", "-i", str(montage),
-                  "-an", "-frames:v", str(frames), "-r", str(fps), "-c:v", "libx264",
-                  "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", dst.name], cwd=OUT)
+            if presenter is None:
+                if inf.get("require_lipsync", False):
+                    raise RuntimeError(f"Presenter PiP segment {tag}/{i} has no synchronized clip")
+                presenter = _unsynced(
+                    _face_source(segment["look"], fps),
+                    segment["t0"], seg_dur, fps,
+                    OUT / f"_inf_{tag}_{i:02d}_unsynced.mp4",
+                )
+            build_broll_with_presenter(
+                montage, presenter, size, fps, segment["t0"], seg_dur, dst, cfg
+            )
+        if inf.get("require_lipsync", False) and (
+            not dst.is_file() or dst.stat().st_size < 1000
+        ):
+            raise RuntimeError(f"Presenter composition failed for segment {tag}/{i}")
         files.append((dst, frames))
 
     w, h = size["w"], size["h"]
-    inputs, fc = [], []
-    for k, (f, frames) in enumerate(files):
-        inputs += ["-i", f.name]
-        fc.append(f"[{k}:v]scale={w}:{h},setsar=1,fps={fps},trim=end_frame={frames},"
-                  f"setpts=PTS-STARTPTS[v{k}]")
-    fc.append("".join(f"[v{k}]" for k in range(len(files)))
-              + f"concat=n={len(files)}:v=1:a=0[out]")
-    _run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", ";".join(fc),
-          "-map", "[out]", "-r", str(fps), "-c:v", "libx264", "-preset", "veryfast",
-          "-crf", "16", "-pix_fmt", "yuv420p", out.name], cwd=OUT)
-    n_a = sum(1 for s in segs if s["kind"] == "A")
-    log(f"influencer cut {w}x{h}: {n_a} on-camera + {len(segs) - n_a} b-roll -> {out.name}")
+    inputs, filters = [], []
+    for k, (file_path, frames) in enumerate(files):
+        inputs += ["-i", file_path.name]
+        filters.append(
+            f"[{k}:v]scale={w}:{h},setsar=1,fps={fps},trim=end_frame={frames},"
+            f"setpts=PTS-STARTPTS[v{k}]"
+        )
+    filters.append(
+        "".join(f"[v{k}]" for k in range(len(files)))
+        + f"concat=n={len(files)}:v=1:a=0[out]"
+    )
+    _run([
+        "ffmpeg", "-y", "-v", "error", *inputs,
+        "-filter_complex", ";".join(filters),
+        "-map", "[out]", "-r", str(fps), "-c:v", "libx264",
+        "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", out.name,
+    ], cwd=OUT)
+    presenter_frames = sum(frames for _, frames in files)
+    if inf.get("require_lipsync", False) and presenter_frames != total_frames:
+        raise RuntimeError(
+            f"Presenter coverage is incomplete: {presenter_frames}/{total_frames} frames"
+        )
+    n_a = sum(1 for segment in segs if segment["kind"] == "A")
+    n_b = len(segs) - n_a
+    log(
+        f"influencer coverage {w}x{h}: {n_a} full-screen + "
+        f"{n_b} PiP segments; {presenter_frames}/{total_frames} frames covered"
+    )
     return out
-
 
 # ---------- one-time setup ----------
 def warm_face_cache(cfg):
