@@ -2,11 +2,7 @@
 name: MuseTalk free Kaggle preview
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/musetalk-kaggle-preview.yml"
-      - "notebooks/musetalk_free_kaggle_test.ipynb"
+  # Manual-only: code edits must not start extra paid/quota-limited GPU sessions.
   workflow_dispatch:
     inputs:
       presenter_video_path:
@@ -257,9 +253,26 @@ jobs:
 
           echo "Waiting for private Kaggle GPU kernel..."
           completed=0
-          for attempt in $(seq 1 120); do
-            status="$(kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
-            echo "Kaggle status ($attempt/120): $status"
+          for attempt in $(seq 1 60); do
+            status=""
+            for api_attempt in 1 2 3 4; do
+              if status="$(kaggle kernels status "$KERNEL_ID" 2>&1)"; then
+                break
+              fi
+              if ! grep -Eqi '429|too many requests|rate.?limit' <<< "$status"; then
+                echo "$status"
+                exit 1
+              fi
+              delay=$((60 * (2 ** (api_attempt - 1))))
+              (( delay > 300 )) && delay=300
+              echo "Kaggle status API rate-limited; retry $api_attempt/4 in $delay seconds."
+              sleep "$delay"
+            done
+            if [[ -z "$status" ]]; then
+              echo "::error::Kaggle status API remained rate-limited after retries."
+              exit 1
+            fi
+            echo "Kaggle status ($attempt/60): $status"
             if echo "$status" | grep -Eqi '(^|[^a-z])complete([^a-z]|$)'; then
               completed=1
               break
@@ -269,7 +282,7 @@ jobs:
               kaggle kernels logs "$KERNEL_ID" || true
               exit 1
             fi
-            sleep 45
+            sleep 90
           done
           if [[ "$completed" -ne 1 ]]; then
             echo "::error::Kaggle did not finish within the 90-minute wait window. No paid fallback was attempted."
@@ -279,7 +292,80 @@ jobs:
 
           # Download only the single known export. Do not pull the cloned repository,
           # model weights, venv, or example videos from the Kaggle workspace.
-          kaggle kernels output "$KERNEL_ID" --path "$OUTPUT_DIR" --file-pattern '^musetalk_preview\.mp4$' --page-size 1
+          # Kaggle can publish a completed kernel before its output index is ready,
+          # and may return 429 while other account requests are cooling down.
+          # Wait once, then retry only the download request with bounded backoff.
+          echo "Kernel completed. Allowing Kaggle output indexing to settle."
+          sleep 60
+          OUTPUT_READY=0
+          for attempt in $(seq 1 7); do
+            OUTPUT_LOG="$OUTPUT_DIR/kaggle-output-attempt-$attempt.log"
+            if kaggle kernels output "$KERNEL_ID" --path "$OUTPUT_DIR" --file-pattern '^musetalk_preview\.mp4
+          if [[ ! -s "$OUTPUT_MP4" ]]; then
+            echo "::error::The completed Kaggle kernel did not expose musetalk_preview.mp4."
+            find "$OUTPUT_DIR" -maxdepth 3 -type f -printf '%p (%s bytes)\\n' | head -50
+            exit 1
+          fi
+
+          # Require a real video and audio stream before declaring the preview successful.
+          python - "$OUTPUT_MP4" <<'PY'
+          import json, pathlib, subprocess, sys
+          path = pathlib.Path(sys.argv[1])
+          probe = json.loads(subprocess.check_output([
+              "ffprobe", "-v", "error", "-show_streams", "-show_format",
+              "-of", "json", str(path)
+          ], text=True))
+          stream_types = {stream.get("codec_type") for stream in probe.get("streams", [])}
+          duration = float(probe.get("format", {}).get("duration", 0))
+          size = path.stat().st_size
+          if size < 100_000 or not 2 <= duration <= 30:
+              raise SystemExit(f"Invalid preview size/duration: {size} bytes, {duration:.2f}s")
+          if not {"video", "audio"}.issubset(stream_types):
+              raise SystemExit(f"Preview must contain audio and video; got {sorted(stream_types)}")
+          print(json.dumps({"file": str(path), "bytes": size, "duration_seconds": duration,
+                            "streams": sorted(stream_types)}, indent=2))
+          PY
+          ffprobe -v error -show_entries format=duration,size -of json "$OUTPUT_MP4" | tee "$OUTPUT_DIR/preview-info.json"
+
+          {
+            echo "## MuseTalk preview finished"
+            echo
+            echo "The preview is stored in your **private Kaggle notebook output**:"
+            echo
+            echo "https://www.kaggle.com/code/$KAGGLE_OWNER/musetalk-preview-$RUN_ID"
+            echo
+            echo "The verified MP4 remains in private Kaggle output. It is not uploaded to this public GitHub repository or a GitHub Actions artifact."
+            echo
+            echo "The workflow uses no paid inference or paid GPU fallback."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preserve runner logs on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: musetalk-run-logs-${{ github.run_id }}
+          path: musetalk-run-logs/
+          if-no-files-found: ignore
+          retention-days: 3
+ --page-size 1 >"$OUTPUT_LOG" 2>&1; then
+              cat "$OUTPUT_LOG"
+              OUTPUT_READY=1
+              break
+            fi
+            cat "$OUTPUT_LOG"
+            if ! grep -Eqi '429|too many requests|rate.?limit' "$OUTPUT_LOG"; then
+              echo "::error::Kaggle output retrieval failed for a non-rate-limit reason."
+              exit 1
+            fi
+            delay=$((60 * (2 ** (attempt - 1))))
+            (( delay > 600 )) && delay=600
+            echo "Kaggle output API rate-limited; retry $attempt/7 in $delay seconds."
+            sleep "$delay"
+          done
+          if [[ "$OUTPUT_READY" -ne 1 ]]; then
+            echo "::error::Kaggle output API remained rate-limited after seven attempts. The completed kernel is preserved; rerun retrieval only, not inference."
+            exit 1
+          fi
 
           OUTPUT_MP4="$OUTPUT_DIR/musetalk_preview.mp4"
           if [[ ! -s "$OUTPUT_MP4" ]]; then
