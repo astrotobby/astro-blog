@@ -1,3 +1,4 @@
+import json
 import sys
 import unittest
 from datetime import date
@@ -7,9 +8,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from leadsleap_campaign import (
+    _permanent_block_reason,
     campaign_active,
     campaign_day,
     load_json,
+    load_state,
+    publish_threads,
     tracked_url,
 )
 
@@ -75,6 +79,108 @@ class LeadsLeapCampaignTests(unittest.TestCase):
         self.assertIn("lltrco.com", self.cfg["coop_url"])
         self.assertIn("leadsleap.com", self.cfg["affiliate_url"])
         self.assertNotEqual(self.cfg["coop_url"], self.cfg["affiliate_url"])
+
+
+
+    def test_permanent_provider_blocks_are_classified_without_hiding_them(self):
+        self.assertIn(
+            "invalidated",
+            _permanent_block_reason(
+                "facebook",
+                {"error": "Facebook OAuthException code: 190 error_subcode: 460"},
+            ),
+        )
+        self.assertIn(
+            "credits are depleted",
+            _permanent_block_reason(
+                "x",
+                {"error": "X publish failed: HTTPException: 402 Payment Required: credits depleted"},
+            ),
+        )
+        self.assertIsNone(
+            _permanent_block_reason("threads", {"error": "temporary transport error"})
+        )
+
+    def test_blocked_destinations_survive_a_new_campaign_day(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "state.json"
+            path.write_text(json.dumps({
+                "date": "2026-11-25",
+                "posted": {"facebook": {"ok": True, "url": "https://example.test/1"}},
+                "blocked": {"x": {"fingerprint": "opaque", "reason": "credits depleted"}},
+            }), encoding="utf-8")
+            state = load_state(path, date(2026, 11, 26))
+        self.assertEqual(state["date"], "2026-11-26")
+        self.assertEqual(state["posted"], {})
+        self.assertEqual(state["blocked"]["x"]["fingerprint"], "opaque")
+
+    def test_threads_waits_for_container_to_finish_before_publishing(self):
+        class Response:
+            def __init__(self, body, status_code=200):
+                self._body = body
+                self.status_code = status_code
+                self.content = json.dumps(body).encode("utf-8")
+
+            def json(self):
+                return self._body
+
+        post_responses = [
+            Response({"id": "container-123"}),
+            Response({"id": "post-456"}),
+        ]
+        get_responses = [
+            Response({"id": "container-123", "status": "IN_PROGRESS"}),
+            Response({"id": "container-123", "status": "FINISHED"}),
+        ]
+        with patch.dict("os.environ", {
+            "THREADS_USER_ID": "user-1", "THREADS_ACCESS_TOKEN": "test-token"
+        }), patch("requests.post", side_effect=post_responses) as post, \
+             patch("requests.get", side_effect=get_responses) as get, \
+             patch("leadsleap_campaign.time.sleep"):
+            result = publish_threads("Test message", "https://example.test")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["url"], "https://www.threads.net/t/post-456")
+        self.assertEqual(get.call_count, 2)
+        self.assertEqual(post.call_count, 2)
+        self.assertEqual(post.call_args_list[1].kwargs["data"]["creation_id"], "container-123")
+        self.assertIn("\\n\\n", post.call_args_list[0].kwargs["data"]["text"])
+
+    def test_threads_retries_same_container_after_meta_propagation_error(self):
+        class Response:
+            def __init__(self, body, status_code=200):
+                self._body = body
+                self.status_code = status_code
+                self.content = json.dumps(body).encode("utf-8")
+
+            def json(self):
+                return self._body
+
+        post_responses = [
+            Response({"id": "container-123"}),
+            Response({"error": {"code": 24, "error_subcode": 4279009,
+                                "message": "The media with id cannot be found"}}, 400),
+            Response({"id": "post-456"}),
+        ]
+        get_responses = [
+            Response({"id": "container-123", "status": "FINISHED"}),
+            Response({"id": "container-123", "status": "FINISHED"}),
+        ]
+        with patch.dict("os.environ", {
+            "THREADS_USER_ID": "user-1", "THREADS_ACCESS_TOKEN": "test-token"
+        }), patch("requests.post", side_effect=post_responses) as post, \
+             patch("requests.get", side_effect=get_responses), \
+             patch("leadsleap_campaign.time.sleep"):
+            result = publish_threads("Test message", "https://example.test")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["url"], "https://www.threads.net/t/post-456")
+        self.assertEqual(post.call_count, 3)
+        self.assertEqual(
+            post.call_args_list[1].kwargs["data"]["creation_id"],
+            post.call_args_list[2].kwargs["data"]["creation_id"],
+        )
 
 
 if __name__ == "__main__":
