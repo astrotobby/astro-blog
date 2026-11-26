@@ -697,7 +697,7 @@ Source bundle:
 
 Return ONLY valid JSON: title, description, tags (array), narration (string).
 Title: compelling, accurate, <=95 characters. Description: exactly 1-2 short, natural sentences, maximum 280 characters total. Keep it brief and viewer-focused. Do not include source names, citations, references, footnotes, URLs, links, bibliography, hashtags, bullets or markdown in the description. Tags: 10-15 items.
-Narration must be 2,050-2,250 spoken words, target about 2,150, absolute minimum 1,900.
+Narration must be 2,050-2,250 spoken words, target about 2,150, absolute minimum 1,850.
 Build a complete 10+ minute episode as eight fully developed spoken segments: hook and stakes (about 150 words),
 verified event and timeline (about 300), context and background (about 300), key people and organisations (about 250),
 verified specifics and examples (about 350), competing perspectives and analysis (about 300), why it matters and
@@ -715,13 +715,13 @@ No markdown headings, bullets, timecodes, stage directions or URLs in the spoken
         words=narration_word_count(narration)
         log(f"Trimmed initial narration to the 2,500-word ceiling: {words} words")
     log(f"Initial generated narration length: {words} words")
-    if words<1900:
-        minimum_additions=1900-words
+    if words<1850:
+        minimum_additions=1850-words
         target_additions=min(1200,max(500,minimum_additions+200))
         source_context="\n\n".join(evidence)[:18000]
         expansion_prompt=(
             f"Write only {target_additions} additional spoken words to append to the existing narration. "
-            f"The current narration has {words} words; the final script must contain at least 1,900 words. "
+            f"The current narration has {words} words; the final script must contain at least 1,850 words. "
             "Continue naturally from its final sentence. Do not repeat its hook, timeline or any paragraph. "
             "Add concrete, specific details supported by the source bundle below; do not invent dates, quotes, numbers, motives or events. "
             "Return only the additional narration, with no headings, bullets, labels or preamble.\n\n"
@@ -740,7 +740,7 @@ No markdown headings, bullets, timecodes, stage directions or URLs in the spoken
         narration=f"{narration} {expanded}".strip()
         words=narration_word_count(narration)
         log(f"Appended sourced narration; final length: {words} words")
-    if not 1900<=words<=2500: raise RuntimeError(f"Script word count outside bounds: {words} (minimum 1,900)")
+    if not 1850<=words<=2500: raise RuntimeError(f"Script word count outside bounds: {words} (minimum 1,850)")
     title=re.sub(r"\s+"," ",str(data.get("title") or lead["title"])).strip()[:95]
     desc=str(data.get("description") or "").strip()
     # Keep YouTube descriptions concise and free of citations/source lists for both channels.
