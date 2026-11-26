@@ -80,6 +80,11 @@ class KlingInfluencerAssetsTests(unittest.TestCase):
         self.assertGreater(float(inf["pip_height_frac"]), 0.25)
         self.assertEqual(inf["pip_position"], "top-right")
 
+    def test_lipsync_uses_the_exact_master_audio_mixed_into_final_video(self):
+        renderer = (ROOT / "scripts/generate_video.py").read_text(encoding="utf-8")
+        self.assertIn("presented = compose(montage, voiced, word_timings", renderer)
+        self.assertNotIn("presented = compose(montage, voice, word_timings", renderer)
+
     def test_longform_pipeline_keeps_the_influencer_enabled(self):
         pipeline = (ROOT / "scripts/longform_pipeline.py").read_text(encoding="utf-8")
         self.assertIn('cfg["influencer"]["enabled"]=True', pipeline)
