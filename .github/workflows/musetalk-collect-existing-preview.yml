@@ -81,7 +81,7 @@ jobs:
             OUTPUT_LOG="preview-output/kaggle-output-attempt-$attempt.log"
             if kaggle kernels output "$KERNEL_REF" \
               --path preview-output \
-              --file-pattern '(^|/)(musetalk_preview|presenter_narration)\\.mp4$' \
+              --file-pattern '(^|/)(musetalk_preview|presenter_narration)[.]mp4$' \
               --page-size 1 >"$OUTPUT_LOG" 2>&1; then
               cat "$OUTPUT_LOG"
               OUTPUT_READY=1
