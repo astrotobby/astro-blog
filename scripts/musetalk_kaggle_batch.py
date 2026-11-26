@@ -7,6 +7,7 @@ once for up to four presenter/audio pairs. No paid fallback is permitted.
 """
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import re
@@ -18,6 +19,8 @@ import time
 import uuid
 from pathlib import Path
 from typing import Any
+
+from musetalk_output_relay import OutputRelay
 
 ROOT = Path(__file__).resolve().parents[1]
 NOTEBOOK = ROOT / "notebooks" / "musetalk_free_kaggle_test.ipynb"
@@ -166,9 +169,20 @@ def _wait_for_kernel(kernel_id: str) -> None:
 
 
 def _download_outputs(kernel_id: str, filenames: set[str], destination: Path) -> None:
-    """Fetch each exact MuseTalk result via MCP first, then bounded CLI fallback."""
+    """Fetch only the result files that the private relay did not already return."""
     destination.mkdir(parents=True, exist_ok=True)
-    missing = set(filenames)
+    missing = set()
+    for filename in filenames:
+        local = destination / filename
+        if local.is_file():
+            try:
+                _probe(local)
+                continue
+            except Exception:
+                local.unlink(missing_ok=True)
+        missing.add(filename)
+    if not missing:
+        return
 
     # The direct per-file MCP route first tries Kaggle's session-output listing,
     # avoiding the older kernels.get metadata permission that failed on preview #53.
@@ -322,9 +336,35 @@ def generate_batch(tasks: list[dict[str, Any]], output_dir: Path | None = None) 
             expected_files.update({video_name, audio_name})
             output_map[task["id"]] = task["output"]
 
+        expected_outputs = {item["result_name"] for item in manifest_tasks}
+        relay = OutputRelay(expected_outputs, downloads)
+        relay_config = None
+        try:
+            relay_config = relay.start_quick_tunnel(temp_root / "cloudflared")
+            # The server and random bearer token are per-run only. The callback
+            # is stored in the private Kaggle input dataset and is never logged.
+            atexit.register(relay.close)
+            print(
+                "Temporary private output relay active for this one render; "
+                "Kaggle CLI remains the fallback if transfer fails.",
+                flush=True,
+            )
+        except Exception as exc:  # noqa - keep the supported CLI output fallback
+            relay.close()
+            relay = None
+            print(
+                f"Temporary output relay could not start ({str(exc)[:220]}); "
+                "will use the Kaggle output API fallback.",
+                file=sys.stderr,
+                flush=True,
+            )
+
+        manifest_payload = {"tasks": manifest_tasks}
+        if relay_config:
+            manifest_payload["return"] = relay_config
         manifest_path = dataset_dir / "musetalk_manifest.json"
         manifest_path.write_text(
-            json.dumps({"tasks": manifest_tasks}, indent=2),
+            json.dumps(manifest_payload, indent=2),
             encoding="utf-8",
         )
         (dataset_dir / "dataset-metadata.json").write_text(
@@ -375,7 +415,30 @@ def generate_batch(tasks: list[dict[str, Any]], output_dir: Path | None = None) 
 
         _wait_for_kernel(kernel_id)
         expected_outputs = {f"musetalk_preview_{index}.mp4" for index in range(len(clean_tasks))}
-        _download_outputs(kernel_id, expected_outputs, downloads)
+
+        relay_delivered = False
+        if relay is not None:
+            relay_delivered = relay.wait_for_outputs(expected_outputs, timeout=180)
+            if relay_delivered:
+                for filename in sorted(expected_outputs):
+                    _probe(downloads / filename)
+                print(
+                    f"Private output relay received all {len(expected_outputs)} MP4 file(s).",
+                    flush=True,
+                )
+            else:
+                print(
+                    "Private output relay did not receive every MP4; "
+                    "trying the Kaggle exact-file/CLI download fallback.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+        if not relay_delivered:
+            _download_outputs(kernel_id, expected_outputs, downloads)
+
+        if relay is not None:
+            relay.close()
+            atexit.unregister(relay.close)
 
         for index, task in enumerate(clean_tasks):
             filename = f"musetalk_preview_{index}.mp4"
