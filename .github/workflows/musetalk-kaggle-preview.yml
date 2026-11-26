@@ -305,65 +305,52 @@ jobs:
             exit 1
           fi
 
-          # Retrieve the rendered file after inference. This token can run
-          # kernels through the official CLI, but Kaggle MCP's separate kernels.get
-          # permission is denied; do not turn that export-only restriction into a
-          # false inference failure.
+          # Use Kaggle MCP session output listing first; unlike get_notebook_info,
+          # this endpoint can return signed URLs without the denied kernels.get permission.
           mkdir -p "$OUTPUT_DIR"
-          echo "Using the official Kaggle CLI output endpoint after a cooldown."
           OUTPUT_READY=0
-          for attempt in 1 2; do
-            if [[ "$attempt" -eq 1 ]]; then
-              delay=180
-            else
-              delay=300
-            fi
-            echo "Waiting ${delay}s before targeted MP4 retrieval (attempt ${attempt}/2)."
-            sleep "$delay"
-            OUTPUT_LOG="$OUTPUT_DIR/kaggle-output-attempt-$attempt.log"
-            if kaggle kernels output "$KERNEL_ID" \
-              --path "$OUTPUT_DIR" \
-              --file-pattern '(^|/)(musetalk_preview|presenter_narration)[.]mp4$' \
-              --page-size 200 >"$OUTPUT_LOG" 2>&1; then
-              cat "$OUTPUT_LOG"
-              OUTPUT_READY=1
-              break
-            fi
-            cat "$OUTPUT_LOG"
-            if ! grep -Eqi '429|too many requests|rate.?limit' "$OUTPUT_LOG"; then
-              echo "::warning::Kaggle did not return the video file. The completed private notebook remains available."
-              break
-            fi
-          done
-
+          if python scripts/kaggle_mcp_download_output.py --kernel-ref "$KERNEL_ID" --file-path "musetalk_preview.mp4" --output "$OUTPUT_DIR/musetalk_preview.mp4"; then
+            OUTPUT_READY=1
+          else
+            MCP_EXIT=$?
+            echo "Kaggle MCP exact-file retrieval unavailable (exit $MCP_EXIT); falling back to CLI output retrieval."
+          fi
           if [[ "$OUTPUT_READY" -ne 1 ]]; then
-            echo "::warning::MuseTalk inference completed, but Kaggle's MP4 download endpoint is not currently returning the file."
+            for attempt in 1 2; do
+              if [[ "$attempt" -eq 1 ]]; then delay=180; else delay=300; fi
+              echo "Waiting ${delay}s before Kaggle CLI output request (attempt ${attempt}/2)."
+              sleep "$delay"
+              OUTPUT_LOG="$OUTPUT_DIR/kaggle-output-attempt-$attempt.log"
+              if kaggle kernels output "$KERNEL_ID" --path "$OUTPUT_DIR" --file-pattern ".*(musetalk_preview|presenter_narration)[.]mp4$" --page-size 200 >"$OUTPUT_LOG" 2>&1; then
+                cat "$OUTPUT_LOG"
+                OUTPUT_READY=1
+                break
+              fi
+              cat "$OUTPUT_LOG"
+              if ! grep -Eqi "429|too many requests|rate.?limit" "$OUTPUT_LOG"; then
+                break
+              fi
+            done
+          fi
+          if [[ "$OUTPUT_READY" -ne 1 ]]; then
+            echo "::warning::MuseTalk inference completed, but the MP4 download endpoint is still unavailable."
             {
               echo "## MuseTalk inference completed — output download unavailable"
               echo
-              echo "The private Kaggle GPU kernel reached COMPLETE. The video is in its notebook output; no inference rerun was started."
+              echo "The private Kaggle GPU kernel reached COMPLETE. No second inference was started."
               echo
-              echo "Open and play the private render here:"
-              echo
-              echo "https://www.kaggle.com/code/$KAGGLE_OWNER/musetalk-preview-$RUN_ID"
-              echo
-              echo "Only the separate export-download operation was unavailable."
+              echo "Play the private render here: https://www.kaggle.com/code/$KAGGLE_OWNER/musetalk-preview-$RUN_ID"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-
           OUTPUT_MP4="$OUTPUT_DIR/musetalk_preview.mp4"
-          if [[ ! -s "$OUTPUT_MP4" && -s "$OUTPUT_DIR/presenter_narration.mp4" ]]; then
-            OUTPUT_MP4="$OUTPUT_DIR/presenter_narration.mp4"
-          fi
           if [[ ! -s "$OUTPUT_MP4" ]]; then
-            echo "::warning::Kaggle returned no matching MP4 file. The inference itself is complete."
-            {
-              echo "## MuseTalk inference completed — MP4 not returned"
-              echo
-              echo "Play the private notebook output: https://www.kaggle.com/code/$KAGGLE_OWNER/musetalk-preview-$RUN_ID"
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+            mapfile -t CANDIDATES < <(find "$OUTPUT_DIR" -type f \( -name "musetalk_preview.mp4" -o -name "presenter_narration.mp4" \) -size +100k | sort)
+            if [[ "${#CANDIDATES[@]}" -ne 1 ]]; then
+              echo "::warning::Kaggle returned an unexpected number of MP4 files; the notebook is still available."
+              exit 0
+            fi
+            cp "${CANDIDATES[0]}" "$OUTPUT_MP4"
           fi
 
           # Require a real video and audio stream before declaring the preview successful.
