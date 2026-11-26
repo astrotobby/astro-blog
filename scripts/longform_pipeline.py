@@ -1109,6 +1109,80 @@ def schedule_uploaded_video(yt,video_id,target):
     return {"publish_at":publish_at}
 
 
+def publish_uploaded_video_now(yt, video_id, channel, max_wait_seconds=900):
+    """Wait for completed YouTube processing, then publish only the exact newly uploaded channel video."""
+    expected_channel_id = CHANNELS[channel]["channel_id"]
+    deadline = time_module.monotonic() + max_wait_seconds
+    latest = {}
+    while time_module.monotonic() < deadline:
+        rows = yt.videos().list(
+            part="id,snippet,status,processingDetails", id=video_id
+        ).execute(num_retries=2).get("items") or []
+        if len(rows) != 1 or rows[0].get("id") != video_id:
+            raise RuntimeError("YouTube did not return the exact uploaded video during processing verification")
+        latest = rows[0]
+        snippet = latest.get("snippet") or {}
+        status = latest.get("status") or {}
+        processing = latest.get("processingDetails") or {}
+        if snippet.get("channelId") != expected_channel_id:
+            raise RuntimeError("Safety stop: uploaded video belongs to a different YouTube channel")
+        if status.get("privacyStatus") != "private" or status.get("publishAt"):
+            raise RuntimeError("Safety stop: new upload is not private and unscheduled before immediate publication")
+        upload_status = str(status.get("uploadStatus") or "").casefold()
+        processing_status = str(processing.get("processingStatus") or "").casefold()
+        if upload_status in {"failed", "rejected", "deleted"} or processing_status in {"failed", "terminated"}:
+            raise RuntimeError(
+                f"YouTube processing failed (upload={upload_status or 'unknown'}, "
+                f"processing={processing_status or 'unknown'}); video remains private"
+            )
+        if upload_status == "processed" and processing_status == "succeeded":
+            break
+        time_module.sleep(min(10, max(0, deadline - time_module.monotonic())))
+    else:
+        raise RuntimeError(
+            "YouTube has not completed processing within 15 minutes; video remains private and unpublished"
+        )
+
+    # Only change the privacy setting after channel ownership, completed processing,
+    # and the custom thumbnail have already been verified by the caller.
+    preserved = {
+        key: status[key]
+        for key in ("selfDeclaredMadeForKids", "license", "embeddable", "publicStatsViewable", "containsSyntheticMedia")
+        if key in status and status[key] is not None
+    }
+    preserved["privacyStatus"] = "public"
+    yt.videos().update(
+        part="status", body={"id": video_id, "status": preserved}
+    ).execute()
+    final_status = _wait_for_video_status(
+        yt, video_id,
+        lambda value: value.get("privacyStatus") == "public",
+        attempts=12, interval_seconds=5,
+    )
+    final_rows = yt.videos().list(
+        part="id,snippet,status,processingDetails", id=video_id
+    ).execute(num_retries=2).get("items") or []
+    if len(final_rows) != 1:
+        raise RuntimeError("YouTube did not return the video after public visibility update")
+    final_video = final_rows[0]
+    final_snippet = final_video.get("snippet") or {}
+    final_status = final_video.get("status") or final_status
+    final_processing = final_video.get("processingDetails") or {}
+    if final_snippet.get("channelId") != expected_channel_id:
+        raise RuntimeError("Safety stop: video channel ownership changed during publication verification")
+    if final_status.get("privacyStatus") != "public":
+        raise RuntimeError(
+            f"YouTube did not confirm public visibility (privacyStatus={final_status.get('privacyStatus')!r})"
+        )
+    if final_status.get("uploadStatus") != "processed" or final_processing.get("processingStatus") != "succeeded":
+        raise RuntimeError("YouTube reports the video public but its processing state is no longer verified")
+    return {
+        "published_at": datetime.now(timezone.utc).isoformat(),
+        "publication_mode": "immediate",
+        "privacy_status_verified": "public",
+    }
+
+
 def validate_visual_manifest(channel, job_id, scene_count, stock_sources):
     """Fail closed unless every rendered scene has a unique, fingerprinted visual.
 
@@ -1228,10 +1302,24 @@ def set_and_verify_thumbnail(yt, video_id, thumbnail_path):
         raise
 
 
-def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
+def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False,publish_now=False):
+    if publish_now and dry_run:
+        raise ValueError("--publish-now cannot be combined with --dry-run")
     target=publish_time(channel,slot,target_date); key=make_job_id(channel,slot,target)
     ledger=load_ledger(); jobs=ledger.setdefault("jobs",{}); job=jobs.get(key)
     ledger["_active_job_id"] = key
+    current_run_id = os.environ.get("GITHUB_RUN_ID", "")
+    if publish_now and job:
+        if str(job.get("workflow_run_id") or "") != current_run_id or not current_run_id:
+            raise RuntimeError(
+                f"Immediate publication requires a fresh job created by this workflow run; "
+                f"{key} belongs to a different or unknown run. No existing upload was changed."
+            )
+        if job.get("status") in ("scheduled","published","uploading"):
+            raise RuntimeError(
+                f"{key} already has an upload in state {job.get('status')!r}; "
+                "refusing to expose or duplicate an existing video."
+            )
     if job and job.get("status") in ("scheduled","published"):
         log(f"{key} already scheduled: {job.get('url','')}"); return job
     if job and job.get("status")=="uploading":
@@ -1265,6 +1353,11 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
         found=find_existing(yt,job.get("title",""),target)
         if found:
             if found.get("existing_status")=="scheduled":
+                if publish_now:
+                    raise RuntimeError(
+                        f"An existing scheduled upload already occupies {key}; refusing to make it public "
+                        "as the new quality-test video."
+                    )
                 job.update(found,status="scheduled",reconciled=True,channel_id=identity["id"])
                 save_ledger(ledger,dry_run); return job
             job.update({"video_id":found["video_id"],"url":found["url"],"status":"uploading",
@@ -1345,6 +1438,16 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     job["thumbnail_verified"]=True
     job["thumbnail_verified_at"]=datetime.now(timezone.utc).isoformat()
     save_ledger(ledger)
+    if publish_now:
+        publication = publish_uploaded_video_now(yt,uploaded["video_id"],channel)
+        job.update(
+            {**uploaded,**publication},
+            status="published",
+            thumbnail_verified=True,
+            published_verified_at=datetime.now(timezone.utc).isoformat(),
+        )
+        save_ledger(ledger)
+        return job
     scheduled=schedule_uploaded_video(yt,uploaded["video_id"],target)
     job.update({**uploaded,**scheduled},status="scheduled",thumbnail_verified=True,scheduled_at=datetime.now(timezone.utc).isoformat())
     save_ledger(ledger); return job
@@ -1357,12 +1460,14 @@ def main():
     ap.add_argument("--target-date",help="Kenya date YYYY-MM-DD")
     ap.add_argument("--dry-run",action="store_true",help="render, validate and verify channel, but never upload")
     ap.add_argument("--skip-render",action="store_true",help="research and script only")
+    ap.add_argument("--publish-now",action="store_true",help="make this run's newly uploaded video public after processing and thumbnail QA")
     args=ap.parse_args()
     try:
-        job=run_job(args.channel,args.slot,args.target_date,args.dry_run,args.skip_render)
+        job=run_job(args.channel,args.slot,args.target_date,args.dry_run,args.skip_render,args.publish_now)
         print(json.dumps({"job_id":job.get("job_id"),"status":job.get("status"),"channel":job.get("channel_title"),
           "owner_account":job.get("owner_account"),"title":job.get("title"),"url":job.get("url"),
-          "publish_at":job.get("publish_at"),"media":job.get("media")},indent=2,ensure_ascii=False))
+          "video_id":job.get("video_id"),"workflow_run_id":job.get("workflow_run_id"),
+          "publish_at":job.get("publish_at"),"published_at":job.get("published_at"),"media":job.get("media")},indent=2,ensure_ascii=False))
         return 0
     except Exception as exc:
         log(f"LONGFORM PIPELINE FAILED: {type(exc).__name__}: {str(exc)[:600]}")
