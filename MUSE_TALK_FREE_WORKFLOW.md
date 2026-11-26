@@ -30,7 +30,7 @@ Notebook: [notebooks/musetalk_free_kaggle_test.ipynb](notebooks/musetalk_free_ka
 
 If using Kaggle's notebook UI directly, create a **private Kaggle Dataset** containing exactly one existing presenter MP4 and its matching narration WAV or MP3. Attach it as notebook input, set Accelerator to GPU, enable Internet, and run cells in order. Use a 4–8 second test clip first. Do not upload secrets in the dataset.
 
-The notebook requires exactly one video and one audio file under `/kaggle/input`. This strict check prevents accidental pairing of the wrong speaker footage and narration. The first run downloads model checkpoints and dependencies, so it consumes Kaggle's free session/quota.
+The notebook requires exactly one video and one audio file under `/kaggle/input`, plus an optional `lip_sync_settings.json`. This strict check prevents accidental pairing of the wrong speaker footage and narration. The settings file controls MuseTalk's `bbox_shift` value from -9 to +9; the preview workflow defaults to **+4** as a moderate openness adjustment. MuseTalk's own guidance says positive values generally increase mouth opening, but the best setting is face-specific. Avoid aggressive values and never post-stretch the rendered lips. The first run downloads model checkpoints and dependencies, so it consumes Kaggle's free session/quota.
 
 ## Quality acceptance checklist
 
@@ -43,6 +43,8 @@ Do not accept or publish output until all of the following pass:
 - No duplicated frames, looping/boomerang behavior, or unexpected cuts.
 - Audio remains clear and aligned to the rendered video duration.
 - The face remains natural during closed-mouth sounds and silence.
+- Vowels show a natural jaw drop and mouth opening; lips keep their original width and shape without being squeezed, stretched or pinched.
+- The speaker's existing confident head movement, smile, eye expression and body gestures remain stable; MuseTalk should modify only the lip-sync region.
 
 If it fails, retain the original source and report the failure. Do not publish a bad render or use an unsynchronized presenter fallback. The existing B-roll/voiceover structure can remain in place while lip-sync is investigated.
 
