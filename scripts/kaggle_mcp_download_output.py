@@ -23,7 +23,8 @@ import requests
 # Parse one JSON-RPC event and close the stream without waiting for EOF.
 # The collector runner checks out this script before invoking it.
 MCP_URL = "https://www.kaggle.com/mcp"
-TIMEOUT = (20, 120)
+TIMEOUT = (20, 35)
+MCP_RESPONSE_WALL_SECONDS = 45
 
 
 def _parse_rpc_response(response: requests.Response, request_id: int) -> dict[str, Any]:
@@ -37,8 +38,15 @@ def _parse_rpc_response(response: requests.Response, request_id: int) -> dict[st
         else:
             candidates = []
             # Streamable HTTP may keep the SSE response open. Do not wait for EOF:
-            # return as soon as this request's JSON-RPC result arrives.
+            # return on the matching event, or stop after a hard wall-clock deadline
+            # even if the server continues to send keep-alive lines.
+            deadline = time.monotonic() + MCP_RESPONSE_WALL_SECONDS
             for raw_line in response.iter_lines(decode_unicode=True):
+                if time.monotonic() > deadline:
+                    raise RuntimeError(
+                        f"Kaggle MCP did not return JSON-RPC id {request_id} "
+                        f"within {MCP_RESPONSE_WALL_SECONDS} seconds."
+                    )
                 if isinstance(raw_line, bytes):
                     line = raw_line.decode("utf-8", errors="replace")
                 else:
@@ -151,12 +159,18 @@ def _result_value(result: dict[str, Any]) -> Any:
             for item in content
             if isinstance(item, dict) and isinstance(item.get("text"), str)
         ]
+        parsed_values = []
         for text in texts:
             try:
-                return json.loads(text)
+                parsed_values.append(json.loads(text))
             except json.JSONDecodeError:
-                if text:
-                    return text
+                continue
+        if len(parsed_values) == 1:
+            return parsed_values[0]
+        if parsed_values:
+            return parsed_values
+        if texts:
+            return "\\n".join(texts)
     return result
 
 
