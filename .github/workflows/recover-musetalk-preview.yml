@@ -45,71 +45,70 @@ jobs:
           set -euo pipefail
           mkdir -p recovered-preview
           python - <<'PY'
-          import json, os, pathlib, requests, av, re, sys
+          import json, os, pathlib, requests, av
 
           token = os.environ["KAGGLE_API_TOKEN"]
           owner, slug = os.environ["KERNEL_ID"].split("/", 1)
           expected = float(os.environ["EXPECTED_SECONDS"])
-          base = "https://api.kaggle.com/v1/kernels.KernelsApiService"
+          endpoint = "https://api.kaggle.com/v1/kernels.KernelsApiService/DownloadKernelOutput"
           headers = {
               "Authorization": f"Bearer {token}",
               "Content-Type": "application/json",
               "Accept": "application/json",
           }
           session = requests.Session()
+          download_url = None
+          selected_version = None
+          last_error = None
 
-          def post(method, payload):
+          # The preview kernel was first saved as version 1; probe a few versions
+          # in case Kaggle auto-incremented the notebook version during dispatch.
+          for version in (1, 2, 3, 4):
+              payload = {
+                  "ownerSlug": owner,
+                  "kernelSlug": slug,
+                  "filePath": "musetalk_preview.mp4",
+                  "versionNumber": version,
+              }
               response = session.post(
-                  f"{base}/{method}",
+                  endpoint,
                   headers=headers,
                   json=payload,
                   timeout=45,
                   allow_redirects=False,
               )
+              if response.status_code == 404:
+                  last_error = f"Output not found for notebook version {version}."
+                  continue
               if response.status_code >= 400:
-                  message = response.text[:1000]
-                  raise RuntimeError(f"Kaggle {method} returned HTTP {response.status_code}: {message}")
-              return response
+                  raise RuntimeError(
+                      f"Kaggle DownloadKernelOutput returned HTTP {response.status_code}: "
+                      f"{response.text[:700]}"
+                  )
+              candidate = response.headers.get("Location")
+              if not candidate:
+                  try:
+                      body = response.json()
+                  except ValueError:
+                      body = {}
+                  if isinstance(body, dict):
+                      if body.get("code", 0) and int(body.get("code", 0)) >= 400:
+                          last_error = str(body.get("message", "Kaggle reported an API error."))
+                          continue
+                      candidate = body.get("url") or body.get("downloadUrl") or body.get("download_url")
+              if candidate:
+                  download_url = candidate
+                  selected_version = version
+                  break
+              last_error = f"Kaggle returned HTTP {response.status_code} without a file URL."
 
-          print("Getting the saved notebook version.")
-          meta_response = post("GetKernel", {
-              "userName": owner,
-              "kernelSlug": slug,
-          })
-          try:
-              meta = meta_response.json()
-          except ValueError:
-              raise RuntimeError("Kaggle GetKernel returned a non-JSON response.")
-          metadata = meta.get("metadata", {}) if isinstance(meta, dict) else {}
-          version = metadata.get("currentVersionNumber") or metadata.get("current_version_number")
-          if not version:
-              blob = json.dumps(meta)
-              found = re.search(r'"currentVersionNumber"\s*:\s*(\d+)', blob)
-              version = int(found.group(1)) if found else None
-          if not version:
-              raise RuntimeError(f"Could not determine the notebook output version. Response keys: {list(meta) if isinstance(meta, dict) else type(meta).__name__}")
-          version = int(version)
-          print(f"Requesting only musetalk_preview.mp4 from notebook version {version}.")
-
-          output_response = post("DownloadKernelOutput", {
-              "ownerSlug": owner,
-              "kernelSlug": slug,
-              "filePath": "musetalk_preview.mp4",
-              "versionNumber": version,
-          })
-
-          download_url = output_response.headers.get("Location")
           if not download_url:
-              try:
-                  body = output_response.json()
-              except ValueError:
-                  body = {}
-              if isinstance(body, dict):
-                  download_url = body.get("url") or body.get("downloadUrl") or body.get("download_url")
-          if not download_url:
-              raise RuntimeError(f"Kaggle did not return a redirect URL for the file (HTTP {output_response.status_code}).")
+              raise RuntimeError(
+                  "Kaggle's direct DownloadKernelOutput endpoint did not return the MP4. "
+                  + (last_error or "No version was available.")
+              )
 
-          print("Kaggle returned a signed file location; retrieving the MP4.")
+          print(f"Downloading the private MP4 output from notebook version {selected_version}.")
           file_response = session.get(download_url, timeout=120, stream=True)
           file_response.raise_for_status()
           output_path = pathlib.Path("recovered-preview/musetalk_preview.mp4")
@@ -139,7 +138,7 @@ jobs:
               "audio_codec": audio.codec_context.name,
               "resolution": f"{video.width}x{video.height}",
               "source_kernel": f"{owner}/{slug}",
-              "source_version": version,
+              "source_version": selected_version,
           }
           pathlib.Path("recovered-preview/preview-summary.json").write_text(json.dumps(summary, indent=2))
           print(json.dumps(summary, indent=2))
