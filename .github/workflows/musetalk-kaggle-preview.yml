@@ -281,7 +281,7 @@ jobs:
           # source code, multi-GB model weights, the Python venv and sample videos.
           kaggle kernels output "$KERNEL_ID" \
             --path "$OUTPUT_DIR" \
-            --file-pattern '^musetalk_preview\\.mp4
+            --file-pattern '^musetalk_preview\.mp4
           {
             echo "## MuseTalk preview finished"
             echo
