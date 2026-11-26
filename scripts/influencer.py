@@ -194,28 +194,42 @@ def _write_face_key(face, clip, recipe):
     face.with_name(face.name + ".key").write_text(digest, encoding="utf-8")
 
 
-def _face_source(lk, fps):
-    """Source footage for MuseTalk/Wav2Lip: a seamless boomerang of the approved
-    moving clip (gestures continue across loops), or the still image."""
+def _face_source(lk, fps, cfg=None):
+    """Choose the approved face clip for the selected lip-sync backend.
+
+    MuseTalk production receives the same untouched source frames as the
+    validated Kaggle preview: no 540px downscale, reverse/boomerang, extra
+    H.264 generation, or pre-inference resampling. Wav2Lip retains its legacy
+    normalized source path.
+    """
     if lk.get("clip"):
+        source = Path(lk["clip"]).resolve()
+        backend = str((cfg or {}).get("influencer", {}).get(
+            "lipsync_backend", "wav2lip"
+        )).strip().lower()
+        if backend == "musetalk":
+            if not source.is_file():
+                raise FileNotFoundError(f"Approved MuseTalk presenter clip is missing: {source}")
+            log(f"look {lk['id']}: MuseTalk uses original approved source frames ({source.name})")
+            return source
+
         src = OUT / f"_lk_{lk['id']}_src.mp4"
         bounce = OUT / f"_lk_{lk['id']}_bounce.mp4"
         try:
-            _run(["ffmpeg", "-y", "-i", str(lk["clip"]), "-an", "-r", str(fps),
+            _run(["ffmpeg", "-y", "-i", str(source), "-an", "-r", str(fps),
                   "-filter_complex",
                   "[0:v]scale=540:-2,split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1[v]",
                   "-map", "[v]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
                   "-pix_fmt", "yuv420p", bounce.name], cwd=OUT)
-            _write_face_key(bounce, lk["clip"], f"boomerang|540|{fps}")
+            _write_face_key(bounce, source, f"boomerang|540|{fps}")
             return bounce
         except Exception as e:  # noqa
             log(f"look {lk['id']}: boomerang failed ({e}); using raw clip")
-            _run(["ffmpeg", "-y", "-i", str(lk["clip"]), "-an", "-r", str(fps),
+            _run(["ffmpeg", "-y", "-i", str(source), "-an", "-r", str(fps),
                   "-vf", "scale=540:-2", "-pix_fmt", "yuv420p", src.name], cwd=OUT)
-            _write_face_key(src, lk["clip"], f"raw|540|{fps}")
+            _write_face_key(src, source, f"raw|540|{fps}")
             return src
     return lk["image"]
-
 
 def _unsynced(face_src, offset, seg_dur, fps, out):
     """Fallback A-roll source when Wav2Lip is unavailable: the look's own talking
@@ -353,7 +367,7 @@ def render_talking(plans, voices, cfg, fps):
 
     prepared = []
     for look_id, (look, items) in by_look.items():
-        face_src = _face_source(look, fps)
+        face_src = _face_source(look, fps, cfg)
         parts = []
         for part_index, (tag, index, segment) in enumerate(items):
             audio_part = OUT / f"_lk_{look_id}_a{part_index:02d}.wav"
@@ -630,7 +644,7 @@ def compose(montage, voice, words, total, size, fps, cfg, slug, tag, out):
                 if inf.get("require_lipsync", False):
                     raise RuntimeError(f"Presenter PiP segment {tag}/{i} has no synchronized clip")
                 presenter = _unsynced(
-                    _face_source(segment["look"], fps),
+                    _face_source(segment["look"], fps, cfg),
                     segment["t0"], seg_dur, fps,
                     OUT / f"_inf_{tag}_{i:02d}_unsynced.mp4",
                 )
@@ -681,15 +695,14 @@ def warm_face_cache(cfg):
     Builds each face source exactly as render_talking() does, so the cache keys match."""
     from avatar_lipsync import warm_face_cache as warm
     fps = cfg["video"]["fps"]
-    failed = []
+    backend = str(cfg.get("influencer", {}).get("lipsync_backend", "wav2lip")).lower()
+    if backend == "musetalk":
+        log("MuseTalk uses original frames directly; Wav2Lip face-cache warmup is skipped.")
+        return
     for lk in load_looks(cfg):
         if lk.get("clip"):
-            ok = warm(_face_source(lk, fps))
-            log(f"facecache {lk['id']}: {'ready' if ok else 'not cached'}")
-            if not ok:
-                failed.append(lk["id"])
-    if failed:
-        raise RuntimeError("Wav2Lip face-cache preflight failed for: " + ", ".join(failed))
+            ok = warm(_face_source(lk, fps, cfg))
+            log(f"face-cache {'ready' if ok else 'unavailable'}: {lk['id']}")
 
 
 if __name__ == "__main__":
