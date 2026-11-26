@@ -30,7 +30,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
-          python -m pip install --disable-pip-version-check --upgrade kaggle
+          python -m pip install --disable-pip-version-check --upgrade kaggle six
       - name: Inspect completed Kaggle run and retrieve only the rendered MP4
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
