@@ -74,24 +74,42 @@ jobs:
           fi
 
           mkdir -p preview-output
-          # The current KGAT_ token can authenticate CLI kernel operations while
-          # Kaggle MCP separately denies kernels.get. Skip that known-failing MCP
-          # lookup and use the official CLI output endpoint after a cooldown.
-          echo "Kernel is complete. Using Kaggle CLI for the single private video output."
+          # Current KGAT_ credentials work with the official CLI, while the separate
+          # Kaggle MCP kernels.get permission is denied for this token. Avoid that
+          # known-failing MCP call and try the CLI output endpoint after a cooldown.
+          echo "Kernel is complete. Retrieving only the private MuseTalk MP4 using Kaggle CLI."
           mkdir -p preview-output
           OUTPUT_READY=0
           for attempt in 1 2; do
-            if [[ "$attempt" -eq 1 ]]; then
-              delay=180
-            else
-              delay=300
-            fi
-            echo "Waiting ${delay}s before targeted output request (attempt ${attempt}/2)."
+            if [[ "$attempt" -eq 1 ]]; then delay=180; else delay=300; fi
+            echo "Waiting ${delay}s before output request (attempt ${attempt}/2)."
             sleep "$delay"
             OUTPUT_LOG="preview-output/kaggle-output-attempt-$attempt.log"
-            if kaggle kernels output "$KERNEL_REF" \
-              --path preview-output \
-              --file-pattern '(^|/)(musetalk_preview|presenter_narration)[.]mp4
+            if kaggle kernels output "$KERNEL_REF" --path preview-output --file-pattern ".*(musetalk_preview|presenter_narration)[.]mp4$" --page-size 200 >"$OUTPUT_LOG" 2>&1; then
+              cat "$OUTPUT_LOG"
+              OUTPUT_READY=1
+              break
+            fi
+            cat "$OUTPUT_LOG"
+            if ! grep -Eqi "429|too many requests|rate.?limit" "$OUTPUT_LOG"; then
+              echo "::warning::Kaggle did not return the MP4 file. The completed private notebook remains available."
+              break
+            fi
+          done
+          if [[ "$OUTPUT_READY" -ne 1 ]]; then
+            echo "::warning::Inference completed successfully, but Kaggle still blocks the separate output download."
+            {
+              echo "## MuseTalk inference completed — output download unavailable"
+              echo
+              echo "The kernel reached COMPLETE; inference was not repeated."
+              echo
+              echo "Play the private video in the Kaggle notebook:"
+              echo
+              echo "https://www.kaggle.com/code/$KERNEL_REF"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
           PREVIEW="$(find preview-output -type f -name 'musetalk_preview.mp4' -size +100k -print -quit)"
           if [[ -z "$PREVIEW" ]]; then
             mapfile -t LEGACY < <(find preview-output -type f -name 'presenter_narration.mp4' -size +100k | sort)
