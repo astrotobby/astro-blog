@@ -37,12 +37,22 @@ jobs:
         run: python -m pip install --disable-pip-version-check --upgrade kaggle six av
       - name: Download and validate the completed MuseTalk MP4
         env:
-          KAGGLE_API_TOKEN: \${{ secrets.KAGGLE_API_TOKEN }}
-          KERNEL_ID: \${{ inputs.kernel_id || 'astrotobby/musetalk-preview-45816547632' }}
-          EXPECTED_SECONDS: \${{ inputs.expected_seconds || '4.6' }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+          KERNEL_ID: ${{ inputs.kernel_id || 'astrotobby/musetalk-preview-45816547632' }}
+          EXPECTED_SECONDS: ${{ inputs.expected_seconds || '4.6' }}
         shell: bash
         run: |
           set -euo pipefail
+          # Current KGAT_ tokens use KAGGLE_API_TOKEN. A pre-KGAT legacy API
+          # key must instead be paired with the Kaggle username as KAGGLE_KEY.
+          if [[ -n "${KAGGLE_API_TOKEN:-}" && "$KAGGLE_API_TOKEN" != KGAT_* ]]; then
+            export KAGGLE_USERNAME="astrotobby"
+            export KAGGLE_KEY="$KAGGLE_API_TOKEN"
+            unset KAGGLE_API_TOKEN
+            echo "Using legacy Kaggle API-key authentication."
+          else
+            echo "Using current Kaggle access-token authentication."
+          fi
           mkdir -p recovered-preview
           echo "Retrieving only the already-rendered MuseTalk MP4 from $KERNEL_ID."
           downloaded=0
