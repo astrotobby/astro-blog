@@ -74,40 +74,50 @@ jobs:
           fi
 
           mkdir -p preview-output
-          # Current KGAT_ credentials work with the official CLI, while the separate
-          # Kaggle MCP kernels.get permission is denied for this token. Avoid that
-          # known-failing MCP call and try the CLI output endpoint after a cooldown.
-          echo "Kernel is complete. Retrieving only the private MuseTalk MP4 using Kaggle CLI."
-          mkdir -p preview-output
+          # Prefer Kaggle MCP session output listing, which can return a signed URL
+          # without the separate kernels.get permission that this token lacks.
           OUTPUT_READY=0
-          for attempt in 1 2; do
-            if [[ "$attempt" -eq 1 ]]; then delay=180; else delay=300; fi
-            echo "Waiting ${delay}s before output request (attempt ${attempt}/2)."
-            sleep "$delay"
-            OUTPUT_LOG="preview-output/kaggle-output-attempt-$attempt.log"
-            if kaggle kernels output "$KERNEL_REF" --path preview-output --file-pattern ".*(musetalk_preview|presenter_narration)[.]mp4$" --page-size 200 >"$OUTPUT_LOG" 2>&1; then
-              cat "$OUTPUT_LOG"
-              OUTPUT_READY=1
-              break
-            fi
-            cat "$OUTPUT_LOG"
-            if ! grep -Eqi "429|too many requests|rate.?limit" "$OUTPUT_LOG"; then
-              echo "::warning::Kaggle did not return the MP4 file. The completed private notebook remains available."
-              break
-            fi
-          done
+          if python scripts/kaggle_mcp_download_output.py --kernel-ref "$KERNEL_REF" --file-path "musetalk_preview.mp4" --output "preview-output/musetalk_preview.mp4"; then
+            OUTPUT_READY=1
+          else
+            MCP_EXIT=$?
+            echo "Kaggle MCP exact-file retrieval unavailable (exit $MCP_EXIT); falling back to the official CLI."
+          fi
           if [[ "$OUTPUT_READY" -ne 1 ]]; then
-            echo "::warning::Inference completed successfully, but Kaggle still blocks the separate output download."
+            for attempt in 1 2; do
+              if [[ "$attempt" -eq 1 ]]; then delay=180; else delay=300; fi
+              echo "Waiting ${delay}s before Kaggle CLI output request (attempt ${attempt}/2)."
+              sleep "$delay"
+              OUTPUT_LOG="preview-output/kaggle-output-attempt-$attempt.log"
+              if kaggle kernels output "$KERNEL_REF" --path preview-output --file-pattern ".*(musetalk_preview|presenter_narration)[.]mp4$" --page-size 200 >"$OUTPUT_LOG" 2>&1; then
+                cat "$OUTPUT_LOG"
+                OUTPUT_READY=1
+                break
+              fi
+              cat "$OUTPUT_LOG"
+              if ! grep -Eqi "429|too many requests|rate.?limit" "$OUTPUT_LOG"; then
+                break
+              fi
+            done
+          fi
+          if [[ "$OUTPUT_READY" -ne 1 ]]; then
+            echo "::warning::Inference completed successfully, but the separate MP4 download endpoint is still unavailable."
             {
               echo "## MuseTalk inference completed — output download unavailable"
               echo
-              echo "The kernel reached COMPLETE; inference was not repeated."
+              echo "The private Kaggle kernel reached COMPLETE; inference was not repeated."
               echo
-              echo "Play the private video in the Kaggle notebook:"
-              echo
-              echo "https://www.kaggle.com/code/$KERNEL_REF"
+              echo "Play the output in the private Kaggle notebook: https://www.kaggle.com/code/$KERNEL_REF"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
+          fi
+          if [[ ! -s preview-output/musetalk_preview.mp4 ]]; then
+            mapfile -t CANDIDATES < <(find preview-output -type f \( -name "musetalk_preview.mp4" -o -name "presenter_narration.mp4" \) -size +100k | sort)
+            if [[ "${#CANDIDATES[@]}" -ne 1 ]]; then
+              echo "::warning::Kaggle returned an unexpected number of MP4 files; leaving the completed notebook available for playback."
+              exit 0
+            fi
+            cp "${CANDIDATES[0]}" preview-output/musetalk_preview.mp4
           fi
 
           PREVIEW="$(find preview-output -type f -name 'musetalk_preview.mp4' -size +100k -print -quit)"
