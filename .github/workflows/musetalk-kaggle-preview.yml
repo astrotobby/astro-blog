@@ -241,29 +241,19 @@ jobs:
           PY
           kaggle kernels push -p "$KERNEL_DIR" --accelerator NvidiaTeslaT4
 
-          # Read back the server-persisted settings so a CPU kernel cannot pass
-          # silently when this job is intended to be a GPU-only preview.
-          META_DIR="$RUNNER_TEMP/musetalk-kernel-metadata"
-          mkdir -p "$META_DIR"
-          kaggle kernels pull "$KERNEL_ID" -p "$META_DIR" -m
+          # Validate submitted metadata locally: kernels.pull -m uses GetKernel,
+          # which returned 403 for an owner-created private kernel after push.
           python - <<'PY'
           import json, os, pathlib
-          p = pathlib.Path(os.environ["META_DIR"]) / "kernel-metadata.json"
+          p = pathlib.Path(os.environ["KERNEL_DIR"]) / "kernel-metadata.json"
           meta = json.loads(p.read_text())
-          summary = {
-              "is_private": meta.get("is_private"),
-              "enable_gpu": meta.get("enable_gpu"),
-              "enable_internet": meta.get("enable_internet"),
-              "machine_shape": meta.get("machine_shape"),
-              "dataset_sources": meta.get("dataset_sources", []),
-          }
-          print("Kaggle-persisted kernel settings:", json.dumps(summary))
           if str(meta.get("enable_gpu", "")).lower() != "true":
-              raise SystemExit("Kaggle did not persist enable_gpu=true.")
+              raise SystemExit("Submitted Kaggle metadata does not enable GPU.")
           if meta.get("machine_shape") != "NvidiaTeslaT4":
-              raise SystemExit("Kaggle did not persist the NvidiaTeslaT4 accelerator request.")
+              raise SystemExit("Submitted Kaggle metadata is not NvidiaTeslaT4.")
           if os.environ["DATASET_ID"] not in meta.get("dataset_sources", []):
-              raise SystemExit("Kaggle did not attach the private input dataset.")
+              raise SystemExit("Submitted Kaggle metadata does not attach the private dataset.")
+          print("Submitted private GPU metadata verified locally; continuing to kernel status.")
           PY
 
           echo "Waiting for private Kaggle GPU kernel..."
