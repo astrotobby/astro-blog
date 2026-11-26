@@ -221,7 +221,10 @@ def _facebook_token_invalid(result: dict) -> bool:
     return (
         "session has been invalidated" in error
         or "error validating access token" in error
-        or bool(re.search(r"""(?:\\bcode['"]?\\s*:\\s*190\\b|error_subcode['"]?\\s*:\\s*460\\b)""", error))
+        or "code': 190" in error
+        or '"code": 190' in error
+        or "error_subcode': 460" in error
+        or '"error_subcode": 460' in error
     )
 
 
