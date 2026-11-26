@@ -114,6 +114,39 @@ class LongformSocialDestinationSafetyTests(unittest.TestCase):
         )
         self.assertFalse(longform_social_bridge._destination_done(None))
 
+    def test_revoked_facebook_token_is_detected(self):
+        self.assertTrue(
+            longform_social_bridge._facebook_token_invalid({
+                "error": "Facebook resumable upload HTTP 400: "
+                         "{'code': 190, 'error_subcode': 460, "
+                         "'message': 'The session has been invalidated'}"
+            })
+        )
+        self.assertFalse(
+            longform_social_bridge._facebook_token_invalid({
+                "error": "Facebook upload failed due to a temporary network error"
+            })
+        )
+
+    def test_facebook_block_applies_only_to_the_same_credential_fingerprint(self):
+        with patch.dict("os.environ", {
+            "FACEBOOK_PAGE_ID": "page-123",
+            "FACEBOOK_PAGE_TOKEN": "invalid-token",
+        }):
+            fingerprint = longform_social_bridge._facebook_credential_fingerprint()
+            state = {"destination_blocks": {
+                "facebook": {"fingerprint": fingerprint, "reason": "reauthorize"}
+            }}
+            self.assertTrue(longform_social_bridge._destination_blocked(state, "facebook"))
+            self.assertTrue(longform_social_bridge._destination_done(None, "facebook", state))
+        with patch.dict("os.environ", {
+            "FACEBOOK_PAGE_ID": "page-123",
+            "FACEBOOK_PAGE_TOKEN": "new-token",
+        }):
+            self.assertFalse(longform_social_bridge._destination_blocked(state, "facebook"))
+            self.assertFalse(longform_social_bridge._destination_done(None, "facebook", state))
+
+
     def test_longform_destinations_exclude_instagram(self):
         self.assertEqual(longform_social_bridge.DESTINATIONS, ("facebook", "rumble"))
 
