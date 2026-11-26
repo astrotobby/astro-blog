@@ -32,6 +32,17 @@ The existing pipeline already provides reusable components:
 
 The new pipeline should reuse stable code where practical, but should not change the existing short-form defaults globally. Long-form behavior should be an explicit profile/job mode.
 
+## Presenter composition and lip-sync
+
+MuseTalk 1.5 is the production lip-sync backend for long-form videos. The pipeline groups all speech intervals for each approved presenter look, sends them together to one private Kaggle free-T4 inference session, and cuts the synced outputs back into the original word-timed timeline. The two approved Kling clips remain the only presenter sources.
+
+The presenter must be present in every segment:
+- Direct-to-camera sections show the presenter full-screen.
+- B-roll, data scenes, screenshots, diagrams and stills keep the same synchronized presenter visible in a top-right PiP window.
+- The presenter PiP is approximately 36% of frame height, above the lower-third caption-safe zone.
+- The original presenter skin tone and texture are preserved without a cosmetic colour grade.
+- Any missing presenter clip, MuseTalk failure, or uncovered frame fails the render; no unsynchronized or presenter-free fallback may be uploaded.
+
 ## Daily schedule
 
 Confirmed publication timetable in Africa/Nairobi (UTC+3):
@@ -158,6 +169,9 @@ Implemented workflow/scripts:
 - AI-GEMS `.github/workflows/longform-youtube.yml`: four UTC pre-render schedule triggers plus manual dispatch; cron execution is gated by the `LONGFORM_LIVE_ENABLED` repository variable until the first successful end-to-end dry run.
 - `scripts/longform_pipeline.py`: topic discovery, source corroboration, long-form script generation, rendering, channel validation, scheduled upload, reconciliation, and durable state transitions in one resumable worker.
 - `scripts/build_script.py` and `scripts/generate_video.py`: reused for 16:9 scene planning, TTS, footage/still generation, captions, and FFmpeg assembly.
+- The long-form influencer stage uses **MuseTalk 1.5** on Kaggle's free NVIDIA T4 pool. Approved presenter/audio slices are batched by look into one private GPU kernel per video; the result is cut back into the timeline. Wav2Lip remains available for the separate legacy short-form path.
+- The influencer remains visible for every frame: full-screen during direct-to-camera sections and a synchronized picture-in-picture over B-roll, diagrams, screenshots and stills. Missing or failed presenter sync is a hard render failure; no unsynchronized fallback is allowed.
+- Picture-in-picture defaults to top-right at 36% of frame height, leaving the lower third clear for captions. The presenter source receives no cosmetic colour grade so the original skin tone and texture are preserved.
 - `config/channel_profiles.yaml`: owner accounts, channel IDs, editorial source pools, minimum duration, script word range, and publication slots.
 - AI-GEMS `whop-clipper/state/longform/ledger.json`: durable job ledger persisted to the AI-GEMS repository by the scheduler.
 
