@@ -1934,7 +1934,7 @@ def finalize(video_path, voice_path, word_timings, music, size, out_path, cfg, s
            # compression at the same visual quality. CRF controls quality while
            # maxrate/bufsize prevent unusually complex scenes bloating the upload.
            "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-maxrate", "12M",
-           "-bufsize, "24M", "-profile:v", "high",
+           "-bufsize", "24M", "-profile:v", "high",
            "-pix_fmt", "yuv420p", "-r", str(fps), "-g", str(fps * 2),
            "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
            "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
