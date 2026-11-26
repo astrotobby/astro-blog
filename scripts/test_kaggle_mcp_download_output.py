@@ -43,8 +43,8 @@ class KaggleMcpDownloadOutputTests(unittest.TestCase):
         response.status_code = 200
         response.headers = {"content-type": "text/event-stream"}
         response.text = (
-            'event: message\\n'
-            'data: {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"ok"}]}}\\n'
+            'event: message\n'
+            'data: {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"ok"}]}}\n'
         )
         response.raise_for_status.return_value = None
 
