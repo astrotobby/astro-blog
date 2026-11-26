@@ -33,7 +33,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
 
-      - name: Download only the rendered MP4 from the existing kernel
+      - name: Download only the MuseTalk render (not model files or samples)
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
           KERNEL_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_ref || 'astrotobby/musetalk-preview-45674076900' }}
@@ -44,28 +44,61 @@ jobs:
             echo "::error::Missing KAGGLE_API_TOKEN secret."
             exit 1
           fi
-          mkdir -p preview-output
-          echo "Retrieving MP4 only from ${KERNEL_REF}; no kernel will be submitted or rerun."
-          kaggle kernels output "${KERNEL_REF}" \
-            --path preview-output \
-            --file-pattern '.*\.mp4$' \
-            --page-size 50
-          mapfile -t videos < <(find preview-output -type f -iname '*.mp4' -size +100k | sort)
-          if [[ "${#videos[@]}" -eq 0 ]]; then
-            echo "::error::The completed kernel did not expose an MP4 in its downloadable output."
+
+          STATUS="$(kaggle kernels status "$KERNEL_REF" 2>&1 || true)"
+          echo "Existing Kaggle kernel status: $STATUS"
+          if ! grep -Eqi 'complete' <<< "$STATUS"; then
+            echo "::error::The selected Kaggle kernel is not complete; refusing to download partial output."
+            if grep -Eqi 'error|failed|cancelled' <<< "$STATUS"; then
+              kaggle kernels logs "$KERNEL_REF" || true
+            fi
             exit 1
           fi
-          for video in "${videos[@]}"; do
-            echo "Verified candidate: ${video}"
-            ffprobe -v error -show_entries format=duration,size -of json "${video}" | tee "${video}.info.json"
-          done
 
-      - name: Upload private preview artifact
+          mkdir -p preview-output
+          echo "Retrieving only the named MuseTalk render from $KERNEL_REF."
+          # Old completed kernels use presenter_narration.mp4 inside the results tree.
+          # New kernels export the stable root-level name musetalk_preview.mp4.
+          # Never enumerate/download the whole Kaggle workspace or sample videos.
+          kaggle kernels output "$KERNEL_REF" \
+            --path preview-output \
+            --file-pattern '(^|/)(musetalk_preview|presenter_narration)\\.mp4$' \
+            --page-size 5
+
+          PREVIEW="$(find preview-output -type f -name 'musetalk_preview.mp4' -size +100k -print -quit)"
+          if [[ -z "$PREVIEW" ]]; then
+            mapfile -t LEGACY < <(find preview-output -type f -name 'presenter_narration.mp4' -size +100k | sort)
+            if [[ "${#LEGACY[@]}" -ne 1 ]]; then
+              echo "::error::Expected one MuseTalk render (musetalk_preview.mp4 or presenter_narration.mp4); found ${#LEGACY[@]} legacy candidate(s)."
+              find preview-output -maxdepth 5 -type f -printf '%p (%s bytes)\\n' | head -50
+              exit 1
+            fi
+            cp "${LEGACY[0]}" preview-output/musetalk_preview.mp4
+          fi
+
+          OUTPUT_MP4=preview-output/musetalk_preview.mp4
+          python - "$OUTPUT_MP4" <<'PY'
+          import json, pathlib, subprocess, sys
+          path = pathlib.Path(sys.argv[1])
+          probe = json.loads(subprocess.check_output([
+              "ffprobe", "-v", "error", "-show_streams", "-show_format",
+              "-of", "json", str(path)
+          ], text=True))
+          stream_types = {stream.get("codec_type") for stream in probe.get("streams", [])}
+          duration = float(probe.get("format", {}).get("duration", 0))
+          size = path.stat().st_size
+          if size < 100_000 or duration < 2 or duration > 30:
+              raise SystemExit(f"Invalid preview size/duration: {size} bytes, {duration:.2f}s")
+          if not {"video", "audio"}.issubset(stream_types):
+              raise SystemExit(f"Preview must contain both audio and video streams; found {sorted(stream_types)}")
+          print(json.dumps({"file": str(path), "bytes": size, "duration_seconds": duration,
+                            "streams": sorted(stream_types)}, indent=2))
+          PY
+
+      - name: Upload verified private preview artifact
         uses: actions/upload-artifact@v4
         with:
-          name: musetalk-preview-from-kernel-45674076900
-          path: |
-            preview-output/**/*.mp4
-            preview-output/**/*.mp4.info.json
+          name: musetalk-preview-retrieved-${{ github.run_id }}
+          path: preview-output/musetalk_preview.mp4
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7
