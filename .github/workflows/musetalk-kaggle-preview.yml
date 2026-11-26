@@ -13,7 +13,7 @@ on:
       narration_text:
         description: "Short test sentence to speak (aim for 4–8 seconds)"
         required: true
-        default: "Welcome back! Today, we are creating, learning, and growing together."
+        default: "Welcome back. Create, learn, and grow together."
         type: string
       voice:
         description: "Free Edge TTS voice used only to create the short test narration"
@@ -59,7 +59,7 @@ jobs:
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
           PRESENTER_VIDEO_PATH: ${{ github.event_name == 'workflow_dispatch' && inputs.presenter_video_path || 'assets/influencer/kling/kling_20261125_VIDEO_A_medium_s_613_0.mp4' }}
-          NARRATION_TEXT: ${{ github.event_name == 'workflow_dispatch' && inputs.narration_text || 'Welcome back! Today, we are creating, learning, and growing together.' }}
+          NARRATION_TEXT: ${{ github.event_name == 'workflow_dispatch' && inputs.narration_text || 'Welcome back. Create, learn, and grow together.' }}
           TTS_VOICE: ${{ github.event_name == 'workflow_dispatch' && inputs.voice || 'en-US-GuyNeural' }}
           BBOX_SHIFT: ${{ github.event_name == 'workflow_dispatch' && inputs.bbox_shift || '4' }}
           RUN_ID: ${{ github.run_id }}
