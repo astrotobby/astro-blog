@@ -3,6 +3,11 @@ from pathlib import Path
 import json
 import subprocess
 import unittest
+import sys
+from unittest.mock import patch
+
+sys.path.insert(0, str(ROOT / "scripts"))
+from influencer import _face_source
 
 import yaml
 
@@ -47,6 +52,15 @@ class KlingInfluencerAssetsTests(unittest.TestCase):
             duration = float(data["format"]["duration"])
             self.assertGreaterEqual(duration, 3.0)
             self.assertLessEqual(duration, 8.0)
+
+    def test_musetalk_receives_original_approved_frames_without_reencoding(self):
+        clip = self.looks[0]["clip"]
+        source = ROOT / clip
+        cfg = {"influencer": {"lipsync_backend": "musetalk"}}
+        with patch("influencer._run") as ffmpeg:
+            result = _face_source({"id": "approved", "clip": str(source)}, 24, cfg)
+        self.assertEqual(result, source.resolve())
+        ffmpeg.assert_not_called()
 
     def test_presenter_grade_preserves_source_skin_without_colour_effects(self):
         source = (ROOT / "scripts/influencer.py").read_text(encoding="utf-8")
