@@ -1,7 +1,11 @@
 name: Retrieve completed MuseTalk preview
 
 on:
-  # Manual-only: do not create extra Kaggle API requests on code edits.
+  # One-time path-scoped test of the incremental direct MCP stream reader.
+  push:
+    branches: [main]
+    paths:
+      - "scripts/kaggle_mcp_download_output.py"
   workflow_dispatch:
     inputs:
       kernel_ref:
