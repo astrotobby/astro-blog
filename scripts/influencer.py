@@ -462,11 +462,9 @@ def render_talking(plans, voices, cfg, fps):
     return talking
 
 # ---------- 4. full-screen presenter shot ----------
-# Subtle, skin-friendly grade for the presenter (the glass grade is for b-roll only:
-# its mint tint and lifted blacks would make real skin look plastic).
-_SKIN_GRADE = ("eq=contrast=1.05:saturation=1.06:gamma=0.99,"
-               "colorbalance=rm=0.02:bm=-0.02:rh=0.02,unsharp=5:5:0.55:5:5:0.0,"
-               "noise=alls=3:allf=t")
+# Preserve the source presenter's real skin tone, texture and lighting.
+# Do not apply a cosmetic grade, saturation shift, noise overlay or sharpening here.
+_SKIN_GRADE = "format=yuv420p"
 
 
 def build_aroll(src, look, size, fps, seg_dur, close, out, cfg):
