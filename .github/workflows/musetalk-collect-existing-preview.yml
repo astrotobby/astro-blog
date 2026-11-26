@@ -1,0 +1,71 @@
+name: Retrieve completed MuseTalk preview
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/musetalk-collect-existing-preview.yml"
+  workflow_dispatch:
+    inputs:
+      kernel_ref:
+        description: "Existing completed Kaggle kernel (owner/slug)"
+        required: true
+        default: "astrotobby/musetalk-preview-45674076900"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  retrieve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Kaggle CLI and FFmpeg
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "kaggle==2.2.5"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Download only the rendered MP4 from the existing kernel
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+          KERNEL_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_ref || 'astrotobby/musetalk-preview-45674076900' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${KAGGLE_API_TOKEN:-}" ]]; then
+            echo "::error::Missing KAGGLE_API_TOKEN secret."
+            exit 1
+          fi
+          mkdir -p preview-output
+          echo "Retrieving MP4 only from ${KERNEL_REF}; no kernel will be submitted or rerun."
+          kaggle kernels output "${KERNEL_REF}" \
+            --path preview-output \
+            --file-pattern '.*\\.mp4$' \
+            --page-size 50
+          mapfile -t videos < <(find preview-output -type f -iname '*.mp4' -size +100k | sort)
+          if [[ "${#videos[@]}" -eq 0 ]]; then
+            echo "::error::The completed kernel did not expose an MP4 in its downloadable output."
+            exit 1
+          fi
+          for video in "${videos[@]}"; do
+            echo "Verified candidate: ${video}"
+            ffprobe -v error -show_entries format=duration,size -of json "${video}" | tee "${video}.info.json"
+          done
+
+      - name: Upload private preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: musetalk-preview-from-kernel-45674076900
+          path: |
+            preview-output/**/*.mp4
+            preview-output/**/*.mp4.info.json
+          if-no-files-found: error
+          retention-days: 3
