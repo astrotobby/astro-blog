@@ -7,6 +7,8 @@ on:
       - "scripts/influencer.py"
       - "scripts/musetalk_kaggle_batch.py"
       - "scripts/test_video_pipeline.py"
+      - "tests/test_kling_influencer_assets.py"
+      - "scripts/longform_pipeline.py"
       - "config.yaml"
       - ".github/workflows/video-pipeline-tests.yml"
   pull_request:
