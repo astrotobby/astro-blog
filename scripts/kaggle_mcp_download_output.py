@@ -20,6 +20,7 @@ import requests
 
 # Direct single-file output endpoint; avoids the throttled ListKernelSessionOutput call.
 # Prefer direct MCP file retrieval over paginated session-output listing.
+# The collector runner checks out this script before invoking it.
 MCP_URL = "https://www.kaggle.com/mcp"
 TIMEOUT = (20, 120)
 
