@@ -145,7 +145,7 @@ class LeadsLeapCampaignTests(unittest.TestCase):
         self.assertEqual(get.call_count, 2)
         self.assertEqual(post.call_count, 2)
         self.assertEqual(post.call_args_list[1].kwargs["data"]["creation_id"], "container-123")
-        self.assertIn("\\n\\n", post.call_args_list[0].kwargs["data"]["text"])
+        self.assertIn("\n\n", post.call_args_list[0].kwargs["data"]["text"])
 
     def test_threads_retries_same_container_after_meta_propagation_error(self):
         class Response:
