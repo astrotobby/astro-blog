@@ -1972,7 +1972,7 @@ def render_variant(name, narration, script, cfg, scene_assets, music):
         # The same on-camera narrator must be present and lip-synced in production.
         # A generic stock montage is not an acceptable silent fallback for this project.
         from influencer import compose
-        presented = compose(montage, voice, word_timings, total, size, cfg["video"]["fps"],
+        presented = compose(montage, voiced, word_timings, total, size, cfg["video"]["fps"],
                             cfg, script["post"]["slug"], name,
                             OUT / f"presented_{name}.mp4")
         if presented is None or not Path(presented).is_file() or Path(presented).stat().st_size < 1000:
