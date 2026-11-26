@@ -42,14 +42,20 @@ class KaggleMcpDownloadOutputTests(unittest.TestCase):
         response = Mock()
         response.status_code = 200
         response.headers = {"content-type": "text/event-stream"}
-        response.text = (
-            'event: message\n'
-            'data: {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"ok"}]}}\n'
-        )
+        def event_lines():
+            yield b"event: message"
+            yield (
+                b'data: {"jsonrpc":"2.0","id":2,'
+                b'"result":{"content":[{"type":"text","text":"ok"}]}}'
+            )
+            raise AssertionError("Parser should stop after the matching JSON-RPC event.")
+
+        response.iter_lines.return_value = event_lines()
         response.raise_for_status.return_value = None
 
         result = _parse_rpc_response(response, 2)
         self.assertEqual(result["content"][0]["text"], "ok")
+        response.close.assert_called_once()
 
     def test_rejects_mismatched_json_rpc_id(self):
         response = Mock()
@@ -60,6 +66,7 @@ class KaggleMcpDownloadOutputTests(unittest.TestCase):
 
         with self.assertRaises(RuntimeError):
             _parse_rpc_response(response, 2)
+        response.close.assert_called_once()
 
 
 if __name__ == "__main__":
