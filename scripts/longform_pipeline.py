@@ -1302,6 +1302,13 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False):
     if skip_render:
         job["status"]="script_ready"; save_ledger(ledger,dry_run); return job
     cfg=load_config()
+    cfg["influencer"]["lipsync_backend"]="musetalk"
+    if cfg["influencer"].get("require_lipsync", True) and not os.environ.get("KAGGLE_API_TOKEN"):
+        raise RuntimeError(
+            "The production influencer backend is MuseTalk 1.5, but AI-GEMS is missing "
+            "the KAGGLE_API_TOKEN Actions secret. Add the Kaggle token to astrotobby/AI-GEMS "
+            "Settings > Secrets and variables > Actions. No Wav2Lip or unsynchronized fallback is permitted."
+        )
     cfg["visuals"]["scenes"]=28; cfg["video"]["fps"]=24; cfg["video"]["shot_seconds"]=6.5
     cfg["video"]["tail_seconds"]=0.8; cfg["video"]["music"]=False; cfg["video"]["captions"]=True
     cfg["influencer"]["enabled"]=True; cfg["influencer"]["ltx"]=False; cfg["motion_cards"]["enabled"]=False
