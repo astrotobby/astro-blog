@@ -18,6 +18,7 @@ from typing import Any
 
 import requests
 
+# Direct single-file output endpoint; avoids the throttled ListKernelSessionOutput call.
 MCP_URL = "https://www.kaggle.com/mcp"
 TIMEOUT = (20, 120)
 
