@@ -62,6 +62,36 @@ class KaggleMcpDownloadOutputTests(unittest.TestCase):
         self.assertEqual(result["content"][0]["text"], "ok")
         self.assertTrue(response.closed)
 
+    def test_explains_missing_kaggle_mcp_permission_with_kgat_token_remediation(self):
+        class FakeResponse:
+            status_code = 200
+            headers = {"content-type": "application/json"}
+
+            def __init__(self):
+                self.closed = False
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "result": {
+                        "isError": True,
+                        "content": [{
+                            "type": "text",
+                            "text": "Permission 'kernels.get' was denied",
+                        }],
+                    },
+                }
+
+            def close(self):
+                self.closed = True
+
+        with self.assertRaisesRegex(RuntimeError, "KGAT_"):
+            _parse_rpc_response(FakeResponse(), 1)
+
     def test_rejects_mismatched_json_rpc_id(self):
         response = Mock()
         response.status_code = 200
