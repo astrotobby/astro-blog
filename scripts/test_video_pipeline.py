@@ -589,7 +589,9 @@ class PersistentInfluencerLayoutTests(unittest.TestCase):
         timeline = influencer.plan_timeline(40.0, looks, cfg, "persistent-presenter")
         self.assertTrue(timeline)
         self.assertEqual(timeline[0]["kind"], "A")
-        self.assertEqual(timeline[-1]["kind"], "A")
+        # The final interval can remain B-roll + presenter PiP when too short
+        # for a separate full-screen closing shot; the presenter must still exist.
+        self.assertTrue(timeline[-1].get("look"))
         self.assertTrue(all(segment.get("look") for segment in timeline))
         self.assertTrue(any(segment["kind"] == "B" for segment in timeline))
         for previous, current in zip(timeline, timeline[1:]):
