@@ -1,11 +1,7 @@
 name: Retrieve completed MuseTalk preview
 
 on:
-  # One-time test for the bounded finite-response Kaggle MCP downloader.
-  push:
-    branches: [main]
-    paths:
-      - "scripts/kaggle_mcp_download_output.py"
+  # Manual-only: do not create extra Kaggle API requests on code edits.
   workflow_dispatch:
     inputs:
       kernel_ref:
