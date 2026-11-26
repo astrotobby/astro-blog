@@ -195,8 +195,12 @@ influencer:
   looks_file: "assets/influencer/looks.yaml"
   looks_per_video: 2               # only clips that passed Wav2Lip face-detection preflight
   aroll_seconds: [4.0, 5.5]        # on-camera segment length range
-  broll_seconds: [30.0, 42.0]       # longer cutaways reduce visible reuse of the short source clips
+  broll_seconds: [12.0, 20.0]       # supporting visuals play with the presenter kept in PiP
   min_segment: 4.0                 # never leave a shorter sliver at the end
+  pip_height_frac: 0.36            # presenter inset is ~36% of frame height
+  pip_position: "top-right"        # above the lower-third caption safe area
+  pip_margin_x: 0.035
+  pip_margin_y: 0.045
   punch_in: 1.10                   # 2nd appearance of a look = tighter "jump-cut" framing
   push_in: 0.025                   # slow push-in over each on-camera shot
   handheld_px: 4                   # subtle handheld drift (0 = locked-off tripod)
