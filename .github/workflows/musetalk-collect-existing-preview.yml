@@ -10,6 +10,10 @@ on:
         default: "astrotobby/musetalk-preview-45767212996"
         type: string
 
+concurrency:
+  group: completed-musetalk-output-retrieval
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -86,7 +90,7 @@ jobs:
           if [[ "$MCP_READY" -ne 1 ]]; then
             echo "Direct MCP retrieval was unavailable. Falling back to the official Kaggle CLI output endpoint with bounded 429 retries."
             OUTPUT_READY=0
-            for attempt in $(seq 1 7); do
+            for attempt in $(seq 1 2); do
               OUTPUT_LOG="preview-output/kaggle-output-attempt-$attempt.log"
               if kaggle kernels output "$KERNEL_REF" \
                 --path preview-output \
@@ -101,9 +105,8 @@ jobs:
                 echo "::error::Kaggle CLI output retrieval failed for a non-rate-limit reason."
                 exit 1
               fi
-              delay=$((60 * (2 ** (attempt - 1))))
-              (( delay > 600 )) && delay=600
-              echo "Kaggle CLI output API rate-limited; retry $attempt/7 in $delay seconds."
+              delay=$((60 * attempt))
+              echo "Kaggle CLI output API rate-limited; retry $attempt/2 in $delay seconds."
               sleep "$delay"
             done
             if [[ "$OUTPUT_READY" -ne 1 ]]; then
