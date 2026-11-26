@@ -9,6 +9,10 @@ on:
       - "scripts/leadsleap_campaign.py"
       - "scripts/test_leadsleap_campaign.py"
       - "config/leadsleap-campaign.json"
+      - ".github/workflows/musetalk-kaggle-preview.yml"
+      - ".github/workflows/musetalk-collect-existing-preview.yml"
+      - ".github/workflows/leadsleap-traffic-campaign.yml"
+      - ".github/workflows/longform-social-bridge.yml"
       - ".github/workflows/social-publisher-regression.yml"
   pull_request:
     branches: [main]
@@ -18,6 +22,10 @@ on:
       - "scripts/leadsleap_campaign.py"
       - "scripts/test_leadsleap_campaign.py"
       - "config/leadsleap-campaign.json"
+      - ".github/workflows/musetalk-kaggle-preview.yml"
+      - ".github/workflows/musetalk-collect-existing-preview.yml"
+      - ".github/workflows/leadsleap-traffic-campaign.yml"
+      - ".github/workflows/longform-social-bridge.yml"
   workflow_dispatch:
 
 permissions:
@@ -44,6 +52,37 @@ jobs:
             scripts/test_longform_social_bridge.py \
             scripts/leadsleap_campaign.py \
             scripts/test_leadsleap_campaign.py
+
+      - name: Parse and validate automation workflow YAML
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          root = Path(".github/workflows")
+          files = sorted(root.glob("*.yml"))
+          failures = []
+          for path in files:
+              try:
+                  document = yaml.safe_load(path.read_text(encoding="utf-8"))
+                  if not isinstance(document, dict):
+                      raise ValueError("workflow root must be a mapping")
+                  # PyYAML's YAML 1.1 resolver treats the plain key 'on' as True.
+                  triggers = document.get("on", document.get(True))
+                  if not isinstance(triggers, dict):
+                      raise ValueError("missing or invalid 'on' trigger mapping")
+                  jobs = document.get("jobs")
+                  if not isinstance(jobs, dict) or not jobs:
+                      raise ValueError("missing or empty jobs mapping")
+              except Exception as exc:
+                  failures.append(f"{path}: {type(exc).__name__}: {exc}")
+              else:
+                  print(f"VALID {path}")
+          if failures:
+              raise SystemExit("\\n".join(failures))
+          print(f"Validated {len(files)} GitHub Actions workflow files.")
+          PY
+
 
       - name: Run long-form social bridge regression tests
         run: python -m unittest discover -s scripts -p "test_longform_social_bridge.py" -v
