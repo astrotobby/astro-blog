@@ -124,20 +124,46 @@ def _probe(path: Path) -> dict[str, Any]:
 
 
 def _wait_for_dataset(dataset_id: str, expected_names: set[str]) -> None:
+    """Wait for Kaggle private dataset indexing after create and upload.
+
+    Kaggle can report a dataset as still being created while its files endpoint
+    temporarily responds with 403/404. Since create and the file uploads already
+    succeeded, retry these visibility responses with a bounded wait. Preserve any
+    final response to make persistent permission failures diagnosable.
+    """
+    last_response = ""
     for attempt in range(1, 31):
-        result = _run(["datasets", "files", dataset_id, "--page-size", "100"],
-                      timeout=90, check=False)
-        visible = result.stdout + "\n" + result.stderr
+        result = _run(
+            ["datasets", "files", dataset_id, "--page-size", "100"],
+            timeout=90,
+            check=False,
+        )
+        visible = (result.stdout or "") + "\n" + (result.stderr or "")
+        last_response = visible.strip()[-1000:]
         if result.returncode == 0 and all(name in visible for name in expected_names):
             print(f"Private Kaggle input dataset is ready: {dataset_id}", flush=True)
             return
-        if result.returncode and not re.search(
-            r"429|too many requests|rate.?limit", visible, re.I
-        ):
-            raise RuntimeError("Kaggle could not list the private input dataset.")
-        print(f"Waiting for private Kaggle dataset publication ({attempt}/30).", flush=True)
+        transient_visibility = bool(re.search(
+            r"429|too many requests|rate.?limit|403|forbidden|"
+            r"you do not have access|you don't have access|404|not found|"
+            r"still being created|being created",
+            visible,
+            re.I,
+        ))
+        if result.returncode and not transient_visibility:
+            raise RuntimeError(
+                "Kaggle could not list the private input dataset. "
+                f"Response: {last_response[:500]}"
+            )
+        print(
+            f"Private Kaggle dataset is not fully visible yet ({attempt}/30); retrying shortly.",
+            flush=True,
+        )
         time.sleep(10)
-    raise TimeoutError("Kaggle did not publish all private input files within five minutes.")
+    raise TimeoutError(
+        "Kaggle did not make all private input files visible within five minutes. "
+        f"Last response: {last_response[:700]}"
+    )
 
 
 def _wait_for_kernel(kernel_id: str) -> None:
