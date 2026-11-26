@@ -2,7 +2,12 @@
 name: MuseTalk free Kaggle preview
 
 on:
-  # Manual-only: code edits must not start extra paid/quota-limited GPU sessions.
+  # One controlled private regression preview is triggered by this workflow update;
+  # subsequent GPU previews remain manual to protect free Kaggle quota.
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/musetalk-kaggle-preview.yml
   workflow_dispatch:
     inputs:
       presenter_video_path:
@@ -23,7 +28,7 @@ on:
       bbox_shift:
         description: "MuseTalk mouth openness adjustment (-9 to +9; positive values generally increase mouth opening)"
         required: true
-        default: "4"
+        default: "0"
         type: string
 
 permissions:
@@ -61,7 +66,7 @@ jobs:
           PRESENTER_VIDEO_PATH: ${{ github.event_name == 'workflow_dispatch' && inputs.presenter_video_path || 'assets/influencer/kling/kling_20261125_VIDEO_A_medium_s_613_0.mp4' }}
           NARRATION_TEXT: ${{ github.event_name == 'workflow_dispatch' && inputs.narration_text || 'Welcome back. Create, learn, and grow together.' }}
           TTS_VOICE: ${{ github.event_name == 'workflow_dispatch' && inputs.voice || 'en-US-GuyNeural' }}
-          BBOX_SHIFT: ${{ github.event_name == 'workflow_dispatch' && inputs.bbox_shift || '4' }}
+          BBOX_SHIFT: ${{ github.event_name == 'workflow_dispatch' && inputs.bbox_shift || '0' }}
           RUN_ID: ${{ github.run_id }}
           RUN_WORK: ${{ runner.temp }}/musetalk-work
           DATA_DIR: ${{ runner.temp }}/musetalk-dataset
