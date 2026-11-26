@@ -12,6 +12,7 @@ import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -84,17 +85,43 @@ def _tool_call(
             "arguments": {"request": request_args},
         },
     }
-    response = session.post(
-        MCP_URL,
-        json=body,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json, text/event-stream",
-        },
-        timeout=TIMEOUT,
-    )
-    return _parse_rpc_response(response, request_id)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+    }
+    last_error: Exception | None = None
+    for attempt in range(1, 5):
+        response = session.post(
+            MCP_URL,
+            json=body,
+            headers=headers,
+            timeout=TIMEOUT,
+        )
+        if response.status_code == 429 and attempt < 4:
+            delay = min(30 * (2 ** (attempt - 1)), 180)
+            print(
+                f"Kaggle MCP returned HTTP 429 for {name}; retrying in {delay}s "
+                f"({attempt}/4).",
+                file=sys.stderr,
+            )
+            time.sleep(delay)
+            continue
+        try:
+            return _parse_rpc_response(response, request_id)
+        except RuntimeError as exc:
+            last_error = exc
+            if attempt < 4 and re.search(r"rate.?limit|too many requests|http 429", str(exc), re.I):
+                delay = min(30 * (2 ** (attempt - 1)), 180)
+                print(
+                    f"Kaggle MCP tool {name} was throttled; retrying in {delay}s "
+                    f"({attempt}/4).",
+                    file=sys.stderr,
+                )
+                time.sleep(delay)
+                continue
+            raise
+    raise RuntimeError(f"Kaggle MCP tool {name} failed after retries: {last_error}")
 
 
 def _result_value(result: dict[str, Any]) -> Any:
@@ -138,7 +165,7 @@ def _find_int(value: Any, keys: set[str]) -> int | None:
 def _find_download_url(value: Any) -> str | None:
     if isinstance(value, dict):
         for key, item in value.items():
-            if key.lower() in {"url", "downloadurl", "download_url"} and isinstance(item, str):
+            if key.lower() in {"url", "downloadurl", "download_url", "redirecturl", "redirect_url"} and isinstance(item, str):
                 if item.startswith("https://"):
                     return item
         for item in value.values():
