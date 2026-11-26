@@ -7,6 +7,7 @@ on the next scheduled poll. Rumble rights and terms remain an owner action.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -197,11 +198,51 @@ def _caption_data(manifest: dict) -> tuple[dict, dict]:
     return post, platform_data
 
 
-def _destination_done(result: dict | None) -> bool:
-    """A manual Rumble handoff is complete for automation, not a published post."""
-    return isinstance(result, dict) and (
-        result.get("ok") is True or result.get("manual_handoff") is True
+def _facebook_credential_fingerprint() -> str:
+    """Fingerprint the Page identity/token without storing or logging either credential."""
+    values = (
+        os.environ.get("FACEBOOK_PAGE_ID", "") or "",
+        os.environ.get("FACEBOOK_PAGE_TOKEN", "") or "",
     )
+    return hashlib.sha256("\\0".join(values).encode("utf-8")).hexdigest()
+
+
+def _destination_blocked(state: dict, destination: str) -> bool:
+    block = (state.get("destination_blocks") or {}).get(destination)
+    return (
+        destination == "facebook"
+        and isinstance(block, dict)
+        and block.get("fingerprint") == _facebook_credential_fingerprint()
+    )
+
+
+def _facebook_token_invalid(result: dict) -> bool:
+    error = str(result.get("error") or "").lower()
+    return (
+        "session has been invalidated" in error
+        or "error validating access token" in error
+        or bool(re.search(r"""(?:\\bcode['"]?\\s*:\\s*190\\b|error_subcode['"]?\\s*:\\s*460\\b)""", error))
+    )
+
+
+def _destination_done(
+    result: dict | None,
+    destination: str | None = None,
+    state: dict | None = None,
+) -> bool:
+    """A manual Rumble handoff or a currently-blocked credential is done for polling."""
+    if isinstance(result, dict) and (
+        result.get("ok") is True or result.get("manual_handoff") is True
+    ):
+        return True
+    if (
+        destination == "facebook"
+        and isinstance(result, dict)
+        and result.get("auth_blocked") is True
+        and result.get("blocked_fingerprint") == _facebook_credential_fingerprint()
+    ):
+        return True
+    return bool(state is not None and destination and _destination_blocked(state, destination))
 
 
 def _publish_destination(
@@ -289,7 +330,7 @@ def main() -> int:
                     continue
                 prior = state["jobs"].get(str(manifest["job_id"])) or {}
                 results = prior.get("results") or {}
-                if any(not _destination_done(results.get(destination))
+                if any(not _destination_done(results.get(destination), destination, state)
                        for destination in DESTINATIONS):
                     ready = True
                     break
@@ -304,6 +345,14 @@ def main() -> int:
     for release in releases:
         tag = str(release.get("tag_name") or "")
         try:
+            # The release is created before its assets are uploaded. Treat that
+            # short publication window as "not ready", not as a failed handoff.
+            if not _asset(release, "manifest.json"):
+                log(f"social handoff {tag} is still being assembled; manifest.json is not uploaded yet")
+                continue
+            if not _asset(release, "video_16x9.mp4"):
+                log(f"social handoff {tag} is still being assembled; video_16x9.mp4 is not uploaded yet")
+                continue
             manifest = _manifest(session, release)
             job_id = str(manifest["job_id"])
             try:
@@ -326,7 +375,7 @@ def main() -> int:
             results = prior.setdefault("results", {})
             pending = [
                 destination for destination in DESTINATIONS
-                if not _destination_done(results.get(destination))
+                if not _destination_done(results.get(destination), destination, state)
             ]
             if not pending:
                 continue
@@ -353,13 +402,16 @@ def main() -> int:
                                "public_url": str(video_asset.get("browser_download_url") or "")},
                 }
             else:
-                _download(session, video_asset, video_path)
+                # Rumble is a manual owner handoff; it only needs the source URL.
+                # Avoid downloading a 300 MB file when Facebook is credential-blocked.
+                if "facebook" in pending:
+                    _download(session, video_asset, video_path)
                 post, platform_data = _caption_data(manifest)
                 render = {
                     "post": post,
                     "platform": platform_data,
                     "videos": {
-                        "horizontal": str(video_path),
+                        "horizontal": str(video_path) if "facebook" in pending else "",
                         "public_url": str(video_asset.get("browser_download_url") or ""),
                     },
                 }
@@ -384,29 +436,58 @@ def main() -> int:
                     "dry_run": args.dry_run,
                     "result": result,
                 }, ensure_ascii=False))
+                if destination == "facebook" and (
+                    _facebook_token_invalid(result)
+                    or result.get("skipped") in {"no creds", "Facebook credentials not configured"}
+                ):
+                    reason = (
+                        "Meta invalidated the Facebook Page token; replace FACEBOOK_PAGE_TOKEN to resume."
+                        if _facebook_token_invalid(result)
+                        else "Facebook Page credentials are missing; add them to resume."
+                    )
+                    fingerprint = _facebook_credential_fingerprint()
+                    state.setdefault("destination_blocks", {})["facebook"] = {
+                        "fingerprint": fingerprint,
+                        "reason": reason,
+                        "blocked_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                    result["auth_blocked"] = True
+                    result["blocked_fingerprint"] = fingerprint
+                    result["blocked_reason"] = reason
+                    log(f"Facebook paused for current credential fingerprint: {reason}")
                 if not args.dry_run:
                     results[destination] = result
                     prior["updated_at"] = datetime.now(timezone.utc).isoformat()
                     _save_state(state_path, state)
-                if not result.get("ok") and not result.get("manual_handoff"):
+                if not result.get("ok") and not result.get("manual_handoff") and not result.get("auth_blocked"):
                     failed += 1
 
             processed += 1
             if not args.dry_run and all(
-                _destination_done(results.get(destination)) for destination in DESTINATIONS
+                _destination_done(results.get(destination), destination, state)
+                for destination in DESTINATIONS
             ):
                 has_manual_rumble = bool((results.get("rumble") or {}).get("manual_handoff"))
+                has_auth_block = any(
+                    (results.get(destination) or {}).get("auth_blocked")
+                    or _destination_blocked(state, destination)
+                    for destination in DESTINATIONS
+                )
                 prior["status"] = (
-                    "awaiting_manual_rumble_confirmation" if has_manual_rumble else "complete"
+                    "blocked_pending_facebook_reauthorization" if has_auth_block
+                    else "awaiting_manual_rumble_confirmation" if has_manual_rumble
+                    else "complete"
                 )
                 prior["completed_at"] = datetime.now(timezone.utc).isoformat()
                 _save_state(state_path, state)
                 video_path.unlink(missing_ok=True)
-                if has_manual_rumble:
+                if has_auth_block:
                     log(
-                        f"Facebook handled for {job_id}; "
-                        "Rumble awaits owner rights/terms confirmation."
+                        f"Social handoff {job_id} is paused until Facebook Page credentials are renewed; "
+                        "Rumble manual handoff is retained where applicable."
                     )
+                elif has_manual_rumble:
+                    log(f"Facebook handled for {job_id}; Rumble awaits owner rights/terms confirmation.")
                 else:
                     log(f"All social destinations completed for {job_id}; handoff retained until scheduled cleanup.")
         except Exception as exc:
