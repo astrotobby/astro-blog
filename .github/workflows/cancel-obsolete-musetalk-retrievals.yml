@@ -1,10 +1,7 @@
 name: Cancel obsolete MuseTalk retrieval attempts
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/cancel-obsolete-musetalk-retrievals.yml"
+  # Manual-only maintenance utility.
   workflow_dispatch:
 
 permissions:
