@@ -35,7 +35,7 @@ jobs:
           python-version: "3.11"
       - name: Install MP4 parser and HTTP client
         run: python -m pip install --disable-pip-version-check --upgrade requests av
-      - name: Download and validate the exact completed MP4 through Kaggle MCP
+      - name: Download exact completed MP4 using Kaggle output endpoint
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
           KERNEL_ID: ${{ inputs.kernel_id || 'astrotobby/musetalk-preview-45816547632' }}
@@ -45,126 +45,100 @@ jobs:
           set -euo pipefail
           mkdir -p recovered-preview
           python - <<'PY'
-          import json, os, pathlib, re, sys, requests, av
+          import json, os, pathlib, requests, av, re, sys
 
           token = os.environ["KAGGLE_API_TOKEN"]
-          kernel = os.environ["KERNEL_ID"]
-          owner, slug = kernel.split("/", 1)
+          owner, slug = os.environ["KERNEL_ID"].split("/", 1)
           expected = float(os.environ["EXPECTED_SECONDS"])
-          endpoint = "https://www.kaggle.com/mcp"
+          base = "https://api.kaggle.com/v1/kernels.KernelsApiService"
           headers = {
               "Authorization": f"Bearer {token}",
               "Content-Type": "application/json",
-              "Accept": "application/json, text/event-stream",
+              "Accept": "application/json",
           }
           session = requests.Session()
 
-          def parse_response(resp):
-              resp.raise_for_status()
-              raw = resp.text.strip()
-              if "text/event-stream" in resp.headers.get("Content-Type", ""):
-                  messages = []
-                  for line in raw.splitlines():
-                      if line.startswith("data:"):
-                          payload = line[5:].strip()
-                          if payload:
-                              try:
-                                  messages.append(json.loads(payload))
-                              except json.JSONDecodeError:
-                                  pass
-                  if not messages:
-                      raise RuntimeError("Kaggle MCP returned an empty event stream.")
-                  return messages[-1]
-              return resp.json()
+          def post(method, payload):
+              response = session.post(
+                  f"{base}/{method}",
+                  headers=headers,
+                  json=payload,
+                  timeout=45,
+                  allow_redirects=False,
+              )
+              if response.status_code >= 400:
+                  message = response.text[:1000]
+                  raise RuntimeError(f"Kaggle {method} returned HTTP {response.status_code}: {message}")
+              return response
 
-          def rpc(method, params=None):
-              payload = {"jsonrpc": "2.0", "id": 1, "method": method}
-              if params is not None:
-                  payload["params"] = params
-              resp = session.post(endpoint, headers=headers, json=payload, timeout=60)
-              message = parse_response(resp)
-              if message.get("error"):
-                  raise RuntimeError(f"Kaggle MCP {method} failed: {message['error']}")
-              return message.get("result", message)
-
-          print("Connecting to Kaggle's direct notebook-output interface.")
-          inventory = rpc("tools/list")
-          tools = inventory.get("tools", [])
-          by_name = {tool.get("name"): tool for tool in tools}
-          for required in ("get_notebook_info", "download_notebook_output"):
-              if required not in by_name:
-                  raise RuntimeError(f"Kaggle MCP does not expose {required}.")
-
-          print("Reading notebook version metadata.")
-          info_result = rpc("tools/call", {
-              "name": "get_notebook_info",
-              "arguments": {"userName": owner, "kernelSlug": slug},
+          print("Getting the saved notebook version.")
+          meta_response = post("GetKernel", {
+              "userName": owner,
+              "kernelSlug": slug,
           })
-          if info_result.get("isError"):
-              raise RuntimeError(f"Could not read notebook metadata: {info_result}")
-          info_blob = json.dumps(info_result, ensure_ascii=False)
-          matches = re.findall(r'"(?:currentVersionNumber|current_version_number)"\s*:\s*(\d+)', info_blob)
-          version = int(matches[0]) if matches else 1
-          print(f"Requesting the exact MP4 output from notebook version {version}.")
+          try:
+              meta = meta_response.json()
+          except ValueError:
+              raise RuntimeError("Kaggle GetKernel returned a non-JSON response.")
+          metadata = meta.get("metadata", {}) if isinstance(meta, dict) else {}
+          version = metadata.get("currentVersionNumber") or metadata.get("current_version_number")
+          if not version:
+              blob = json.dumps(meta)
+              found = re.search(r'"currentVersionNumber"\s*:\s*(\d+)', blob)
+              version = int(found.group(1)) if found else None
+          if not version:
+              raise RuntimeError(f"Could not determine the notebook output version. Response keys: {list(meta) if isinstance(meta, dict) else type(meta).__name__}")
+          version = int(version)
+          print(f"Requesting only musetalk_preview.mp4 from notebook version {version}.")
 
-          download_result = rpc("tools/call", {
-              "name": "download_notebook_output",
-              "arguments": {
-                  "ownerSlug": owner,
-                  "kernelSlug": slug,
-                  "filePath": "musetalk_preview.mp4",
-                  "versionNumber": version,
-              },
+          output_response = post("DownloadKernelOutput", {
+              "ownerSlug": owner,
+              "kernelSlug": slug,
+              "filePath": "musetalk_preview.mp4",
+              "versionNumber": version,
           })
-          if download_result.get("isError"):
-              raise RuntimeError(f"Kaggle refused the MP4 output download: {download_result}")
 
-          def collect_urls(value, found):
-              if isinstance(value, dict):
-                  for key, item in value.items():
-                      if key.lower() in ("url", "downloadurl", "download_url") and isinstance(item, str):
-                          if item.startswith("http://") or item.startswith("https://"):
-                              found.append(item)
-                      collect_urls(item, found)
-              elif isinstance(value, list):
-                  for item in value:
-                      collect_urls(item, found)
-              elif isinstance(value, str):
-                  found.extend(re.findall(r'https?://[^\s"\\<>]+', value))
-          urls = []
-          collect_urls(download_result, urls)
-          # Keep only unique candidates and prefer signed storage URLs over API endpoints.
-          urls = list(dict.fromkeys(urls))
-          if not urls:
-              raise RuntimeError("Kaggle returned no downloadable URL for musetalk_preview.mp4.")
-          file_url = next((u for u in urls if "kaggle.com/api" not in u), urls[0])
-          print("Kaggle returned a file URL; downloading the rendered MP4.")
-          response = session.get(file_url, timeout=120)
-          response.raise_for_status()
-          path = pathlib.Path("recovered-preview/musetalk_preview.mp4")
-          path.write_bytes(response.content)
-          size = path.stat().st_size
+          download_url = output_response.headers.get("Location")
+          if not download_url:
+              try:
+                  body = output_response.json()
+              except ValueError:
+                  body = {}
+              if isinstance(body, dict):
+                  download_url = body.get("url") or body.get("downloadUrl") or body.get("download_url")
+          if not download_url:
+              raise RuntimeError(f"Kaggle did not return a redirect URL for the file (HTTP {output_response.status_code}).")
+
+          print("Kaggle returned a signed file location; retrieving the MP4.")
+          file_response = session.get(download_url, timeout=120, stream=True)
+          file_response.raise_for_status()
+          output_path = pathlib.Path("recovered-preview/musetalk_preview.mp4")
+          with output_path.open("wb") as handle:
+              for chunk in file_response.iter_content(chunk_size=1024 * 1024):
+                  if chunk:
+                      handle.write(chunk)
+          size = output_path.stat().st_size
           if size < 100_000:
-              raise RuntimeError(f"The downloaded output is too small to be the MP4 ({size} bytes).")
+              raise RuntimeError(f"Downloaded output is unexpectedly small ({size} bytes).")
 
-          video_file = av.open(str(path))
-          streams = {stream.type for stream in video_file.streams}
-          duration = float(video_file.duration) / av.time_base if video_file.duration else 0.0
+          media = av.open(str(output_path))
+          streams = {stream.type for stream in media.streams}
+          duration = float(media.duration) / av.time_base if media.duration else 0.0
           if not {"video", "audio"}.issubset(streams):
-              raise RuntimeError(f"Downloaded file does not contain both audio and video: {sorted(streams)}")
+              raise RuntimeError(f"Output did not contain both audio and video streams: {sorted(streams)}.")
           if not expected - 1.5 <= duration <= expected + 3.0:
-              raise RuntimeError(f"Unexpected preview duration {duration:.2f}s.")
-          video = next(stream for stream in video_file.streams if stream.type == "video")
-          audio = next(stream for stream in video_file.streams if stream.type == "audio")
+              raise RuntimeError(f"Unexpected preview duration {duration:.3f}s.")
+          video = next(stream for stream in media.streams if stream.type == "video")
+          audio = next(stream for stream in media.streams if stream.type == "audio")
           summary = {
-              "file": path.name,
+              "file": output_path.name,
               "bytes": size,
               "duration_seconds": round(duration, 3),
               "streams": sorted(streams),
               "video_codec": video.codec_context.name,
               "audio_codec": audio.codec_context.name,
               "resolution": f"{video.width}x{video.height}",
-              "source_kernel": kernel,
+              "source_kernel": f"{owner}/{slug}",
               "source_version": version,
           }
           pathlib.Path("recovered-preview/preview-summary.json").write_text(json.dumps(summary, indent=2))
