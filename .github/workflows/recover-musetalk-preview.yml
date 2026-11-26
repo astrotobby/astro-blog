@@ -1,0 +1,113 @@
+name: Recover completed private MuseTalk preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_id:
+        description: Completed Kaggle kernel ID (owner/name)
+        required: true
+        default: astrotobby/musetalk-preview-45816547632
+        type: string
+      expected_seconds:
+        description: Expected preview length, seconds (approx)
+        required: true
+        default: "4.6"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Set up Python and FFmpeg
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Kaggle CLI and FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install --disable-pip-version-check --upgrade kaggle
+      - name: Inspect completed Kaggle run and retrieve only the rendered MP4
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+          KERNEL_ID: ${{ inputs.kernel_id }}
+          EXPECTED_SECONDS: ${{ inputs.expected_seconds }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovered-preview
+          kaggle quota
+          echo "Kaggle kernel status:"
+          kaggle kernels status "$KERNEL_ID"
+          echo "Kaggle kernel execution log (tail):"
+          kaggle kernels logs "$KERNEL_ID" > recovered-preview/kaggle-kernel.log 2>&1 || true
+          tail -n 160 recovered-preview/kaggle-kernel.log
+          if grep -Eqi 'Traceback \(most recent call last\)|RuntimeError:|ERROR:' recovered-preview/kaggle-kernel.log; then
+            echo "::error::The MuseTalk notebook log contains an execution error."
+            exit 1
+          fi
+          echo "Downloading the completed inference output through the Kaggle CLI."
+          downloaded=0
+          for attempt in 1 2 3; do
+            rm -f recovered-preview/musetalk_preview.mp4
+            if kaggle kernels output "$KERNEL_ID" \
+              --path recovered-preview \
+              --file-pattern '(^|/)(musetalk_preview)[.]mp4$' \
+              --page-size 1 > recovered-preview/download-attempt.log 2>&1; then
+              cat recovered-preview/download-attempt.log
+              if [ -s recovered-preview/musetalk_preview.mp4 ]; then
+                downloaded=1
+                break
+              fi
+            else
+              cat recovered-preview/download-attempt.log
+            fi
+            sleep $((attempt * 20))
+          done
+          if [ "$downloaded" -ne 1 ]; then
+            echo "::error::Kaggle CLI did not return the completed MuseTalk MP4."
+            exit 1
+          fi
+          ffprobe -v error -show_streams -show_format -of json recovered-preview/musetalk_preview.mp4 > recovered-preview/ffprobe.json
+          python - <<'PY'
+          import json, pathlib, os
+          p = pathlib.Path("recovered-preview/musetalk_preview.mp4")
+          meta = json.loads(pathlib.Path("recovered-preview/ffprobe.json").read_text())
+          streams = {s.get("codec_type") for s in meta.get("streams", [])}
+          duration = float(meta.get("format", {}).get("duration", 0))
+          size = p.stat().st_size
+          expected = float(os.environ["EXPECTED_SECONDS"])
+          if size < 100_000:
+              raise SystemExit(f"Preview is too small: {size} bytes.")
+          if not {"video", "audio"}.issubset(streams):
+              raise SystemExit(f"Preview needs both audio and video; got {sorted(streams)}.")
+          if not expected - 1.5 <= duration <= expected + 3.0:
+              raise SystemExit(f"Unexpected preview duration {duration:.2f}s; expected about {expected:.2f}s.")
+          summary = {
+              "file": p.name, "bytes": size, "duration_seconds": duration,
+              "streams": sorted(streams),
+              "video": next(s for s in meta["streams"] if s.get("codec_type") == "video").get("codec_name"),
+              "audio": next(s for s in meta["streams"] if s.get("codec_type") == "audio").get("codec_name")
+          }
+          pathlib.Path("recovered-preview/preview-summary.json").write_text(json.dumps(summary, indent=2))
+          print(json.dumps(summary, indent=2))
+          PY
+      - name: Preserve the private preview for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: muse-talk-private-quality-preview
+          path: recovered-preview/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Write recovery summary
+        if: always()
+        run: |
+          {
+            echo "## MuseTalk completed preview recovery"
+            echo "The recovered MP4 is provided as a private workflow artifact for quality review."
+          } >> "$GITHUB_STEP_SUMMARY"
