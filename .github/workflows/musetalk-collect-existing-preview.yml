@@ -1,11 +1,7 @@
 name: Retrieve completed MuseTalk preview
 
 on:
-  # One-time path-scoped trigger used to test direct file retrieval without re-running inference.
-  push:
-    branches: [main]
-    paths:
-      - "scripts/kaggle_mcp_download_output.py"
+  # Manual-only: code edits must not create extra Kaggle API requests.
   workflow_dispatch:
     inputs:
       kernel_ref:
