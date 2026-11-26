@@ -197,6 +197,41 @@ def _find_int(value: Any, keys: set[str]) -> int | None:
     return None
 
 
+def _find_matching_output(value: Any, file_path: str) -> tuple[str | None, str | None]:
+    """Find an exact output filename and its signed URL in Kaggle's session listing."""
+    wanted = Path(file_path).name
+    if isinstance(value, dict):
+        name = next(
+            (value.get(key) for key in ("fileName", "file_name", "name", "filename")
+             if isinstance(value.get(key), str)),
+            None,
+        )
+        url = next(
+            (value.get(key) for key in ("url", "downloadUrl", "download_url")
+             if isinstance(value.get(key), str) and value.get(key).startswith("https://")),
+            None,
+        )
+        if name and Path(name).name == wanted and url:
+            return str(name), url
+        for item in value.values():
+            found = _find_matching_output(item, file_path)
+            if found[1]:
+                return found
+    elif isinstance(value, list):
+        for item in value:
+            found = _find_matching_output(item, file_path)
+            if found[1]:
+                return found
+    elif isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            parsed = None
+        if parsed is not None:
+            return _find_matching_output(parsed, file_path)
+    return None, None
+
+
 def _find_download_url(value: Any) -> str | None:
     if isinstance(value, dict):
         for key, item in value.items():
@@ -233,41 +268,73 @@ def download_output(kernel_ref: str, file_path: str, destination: Path) -> None:
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     with requests.Session() as session:
-        info_result = _tool_call(
-            session,
-            token,
-            1,
-            "get_notebook_info",
-            {"userName": owner, "kernelSlug": slug},
-        )
-        info = _result_value(info_result)
-        version = _find_int(
-            info,
-            {"currentVersionNumber", "current_version_number", "versionNumber", "version_number"},
-        )
-        if version is None:
-            raise RuntimeError(
-                "Kaggle MCP did not return currentVersionNumber for the requested notebook."
+        # Prefer the session-output listing: it returns signed URLs for the exact
+        # output without calling get_notebook_info / kernels.get. Some current
+        # KGAT_ credentials can submit and inspect kernels through the CLI while
+        # Kaggle MCP separately denies kernels.get permission.
+        download_url = None
+        version = None
+        try:
+            listing_result = _tool_call(
+                session,
+                token,
+                1,
+                "list_notebook_session_output",
+                {"userName": owner, "kernelSlug": slug, "pageSize": 200},
+            )
+            listing = _result_value(listing_result)
+            listed_name, download_url = _find_matching_output(listing, file_path)
+            if download_url:
+                print(f"Kaggle session listing located {listed_name}; using its signed file URL.")
+            else:
+                print(
+                    "Kaggle session listing returned no exact file match; "
+                    "trying the per-file download tool.",
+                    file=sys.stderr,
+                )
+        except RuntimeError as exc:
+            print(
+                f"Kaggle session listing unavailable ({str(exc)[:200]}); "
+                "trying the per-file download tool.",
+                file=sys.stderr,
             )
 
-        output_result = _tool_call(
-            session,
-            token,
-            2,
-            "download_notebook_output",
-            {
-                "ownerSlug": owner,
-                "kernelSlug": slug,
-                "filePath": file_path,
-                "versionNumber": version,
-            },
-        )
-        output = _result_value(output_result)
-        download_url = _find_download_url(output)
         if not download_url:
-            raise RuntimeError(
-                "Kaggle MCP did not return a download URL for the requested output file."
+            info_result = _tool_call(
+                session,
+                token,
+                2,
+                "get_notebook_info",
+                {"userName": owner, "kernelSlug": slug},
             )
+            info = _result_value(info_result)
+            version = _find_int(
+                info,
+                {"currentVersionNumber", "current_version_number", "versionNumber", "version_number"},
+            )
+            if version is None:
+                raise RuntimeError(
+                    "Kaggle MCP did not return currentVersionNumber for the requested notebook."
+                )
+
+            output_result = _tool_call(
+                session,
+                token,
+                3,
+                "download_notebook_output",
+                {
+                    "ownerSlug": owner,
+                    "kernelSlug": slug,
+                    "filePath": file_path,
+                    "versionNumber": version,
+                },
+            )
+            output = _result_value(output_result)
+            download_url = _find_download_url(output)
+            if not download_url:
+                raise RuntimeError(
+                    "Kaggle MCP did not return a download URL for the requested output file."
+                )
 
         with session.get(download_url, stream=True, timeout=TIMEOUT) as response:
             response.raise_for_status()
