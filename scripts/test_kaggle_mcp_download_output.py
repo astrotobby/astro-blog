@@ -43,9 +43,9 @@ class KaggleMcpDownloadOutputTests(unittest.TestCase):
             status_code = 200
             headers = {"content-type": "text/event-stream"}
             text = (
-                'event: message\\n'
+                'event: message\n'
                 'data: {"jsonrpc":"2.0","id":2,'
-                '"result":{"content":[{"type":"text","text":"ok"}]}}\\n'
+                '"result":{"content":[{"type":"text","text":"ok"}]}}\n'
             )
 
             def __init__(self):
