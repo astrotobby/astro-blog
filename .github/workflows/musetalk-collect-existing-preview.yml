@@ -62,7 +62,7 @@ jobs:
           # Never enumerate/download the whole Kaggle workspace or sample videos.
           kaggle kernels output "$KERNEL_REF" \
             --path preview-output \
-            --file-pattern '(^|/)(musetalk_preview|presenter_narration)\\.mp4$' \
+            --file-pattern '(^|/)(musetalk_preview|presenter_narration)\.mp4$' \
             --page-size 1
 
           PREVIEW="$(find preview-output -type f -name 'musetalk_preview.mp4' -size +100k -print -quit)"
