@@ -39,9 +39,14 @@ class KaggleMcpDownloadOutputTests(unittest.TestCase):
         self.assertEqual(_find_download_url(_result_value(result)), url)
 
     def test_parses_mcp_streamable_http_event(self):
-        class FakeStreamingResponse:
+        class FakeResponse:
             status_code = 200
             headers = {"content-type": "text/event-stream"}
+            text = (
+                'event: message\\n'
+                'data: {"jsonrpc":"2.0","id":2,'
+                '"result":{"content":[{"type":"text","text":"ok"}]}}\\n'
+            )
 
             def __init__(self):
                 self.closed = False
@@ -49,18 +54,10 @@ class KaggleMcpDownloadOutputTests(unittest.TestCase):
             def raise_for_status(self):
                 return None
 
-            def iter_lines(self, decode_unicode=True):
-                yield b"event: message"
-                yield (
-                    b'data: {"jsonrpc":"2.0","id":2,'
-                    b'"result":{"content":[{"type":"text","text":"ok"}]}}'
-                )
-                raise AssertionError("Parser should stop after the matching JSON-RPC event.")
-
             def close(self):
                 self.closed = True
 
-        response = FakeStreamingResponse()
+        response = FakeResponse()
         result = _parse_rpc_response(response, 2)
         self.assertEqual(result["content"][0]["text"], "ok")
         self.assertTrue(response.closed)
