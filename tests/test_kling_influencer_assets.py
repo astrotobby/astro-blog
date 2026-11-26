@@ -48,6 +48,16 @@ class KlingInfluencerAssetsTests(unittest.TestCase):
             self.assertGreaterEqual(duration, 3.0)
             self.assertLessEqual(duration, 8.0)
 
+    def test_presenter_grade_preserves_source_skin_without_colour_effects(self):
+        source = (ROOT / "scripts/influencer.py").read_text(encoding="utf-8")
+        start = source.index("_SKIN_GRADE =")
+        end = source.index("\n", start)
+        grade = source[start:end]
+        self.assertIn('format=yuv420p', grade)
+        self.assertNotIn("saturation=", grade)
+        self.assertNotIn("colorbalance=", grade)
+        self.assertNotIn("noise=", grade)
+
     def test_presenter_is_not_overused_against_broll(self):
         inf = self.cfg["influencer"]
         self.assertLessEqual(float(inf["aroll_seconds"][1]), 6.0)
