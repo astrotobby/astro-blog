@@ -6,7 +6,7 @@ The lip-sync budget for this project is **USD 0**. The workflow uses the open-so
 
 Kaggle free GPU access is quota-limited and is not guaranteed to be available on demand. The workflow checks the account's reported quota and the notebook checks that a GPU is actually attached. If free capacity is unavailable, the run fails/stops; retry later. Never switch to a paid provider.
 
-## Automated preview (manual and scoped push triggers)
+## Automated preview (manual trigger only)
 
 Workflow: [MuseTalk free Kaggle preview](.github/workflows/musetalk-kaggle-preview.yml)
 
@@ -14,7 +14,7 @@ Before running it:
 
 1. In GitHub repository **Settings → Secrets and variables → Actions**, add the Kaggle personal API token as the secret named **`KAGGLE_API_TOKEN`**. Never commit the token or paste it into a workflow input.
 2. Complete Kaggle **phone verification** in Account Settings before requesting a GPU. The API token can authenticate and create datasets without this step, but Kaggle may refuse to attach an NVIDIA device.
-3. The workflow can run automatically when either the MuseTalk workflow or its notebook changes on `main`. It can also be launched manually from **Actions → MuseTalk free Kaggle preview → Run workflow**. For a manual run, choose an existing Kling presenter video in the repository and provide a brief narration sentence. The workflow discovers your Kaggle username from the authenticated API token, so there is no need to enter it. A free Edge TTS voice creates the sample narration; no paid voice API is used.
+3. The workflow is manual-only and can be launched from **Actions → MuseTalk free Kaggle preview → Run workflow**. Code edits do not start GPU sessions; launch a preview deliberately after the code is ready. For a manual run, choose an existing Kling presenter video in the repository and provide a brief narration sentence. The workflow discovers your Kaggle username from the authenticated API token, so there is no need to enter it. A free Edge TTS voice creates the sample narration; no paid voice API is used.
 4. The workflow trims the chosen video to the speech duration, creates a private Kaggle Dataset containing just the video and narration, and submits this notebook as a private Kaggle GPU kernel with Internet enabled.
 5. After the notebook finishes, the GitHub Actions run summary contains a link to the private Kaggle notebook. Sign in to Kaggle to watch or download its MP4 output.
 
@@ -22,7 +22,7 @@ The repository is public, so the workflow deliberately does **not** upload the r
 
 Each run creates a private, run-specific Kaggle Dataset and notebook so inputs from separate tests cannot be mixed. They remain in your Kaggle account for review and can be deleted there when no longer needed.
 
-The workflow starts a private preview whenever the MuseTalk workflow or notebook is pushed to `main` (including a merge that changes either watched path). It also retains `workflow_dispatch` for later previews. It has no schedule, does not alter the channel publishing workflows, and does not publish or upload anything to YouTube. A completed technical run is only a preview; human review of mouth timing, eye stability, identity consistency, frame continuity, and audio alignment is still required.
+The workflow does not start on code pushes. This avoids duplicate GPU sessions and Kaggle API rate-limit contention. It runs only when deliberately dispatched. It has no schedule, does not alter the channel publishing workflows, and does not publish or upload anything to YouTube. A completed technical run is only a preview; human review of mouth timing, eye stability, identity consistency, frame continuity, and audio alignment is still required.
 
 ## Manual notebook use
 
