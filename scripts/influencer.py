@@ -19,8 +19,10 @@ Per video:
   5. compose()         -> cuts the A-roll into the finished stock-footage montage, which
                           stays as the B-roll (so scene cuts remain locked to the words)
 
-Every step degrades gracefully: no Wav2Lip -> the look's own talking clip is used
-unsynced; a still-only look -> animated still. The render never breaks here.
+Long-form requires synchronized MuseTalk footage for every presenter interval.
+When influencer.require_lipsync is true, a failed GPU job or missing output aborts
+the render; no unsynchronized or presenter-free fallback is allowed. Legacy
+non-required configurations may still use their configured fallback behavior.
 """
 import hashlib
 import random
@@ -192,8 +194,8 @@ def _write_face_key(face, clip, recipe):
 
 
 def _face_source(lk, fps):
-    """What Wav2Lip lip-syncs for a look: a short seamless boomerang of its motion
-    clip (gestures keep flowing across loops), or the still image."""
+    """Source footage for MuseTalk/Wav2Lip: a seamless boomerang of the approved
+    moving clip (gestures continue across loops), or the still image."""
     if lk.get("clip"):
         src = OUT / f"_lk_{lk['id']}_src.mp4"
         bounce = OUT / f"_lk_{lk['id']}_bounce.mp4"
