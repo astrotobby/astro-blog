@@ -1,7 +1,11 @@
 name: Cancel obsolete MuseTalk retrieval attempts
 
 on:
-  # Manual-only maintenance utility.
+  # One-time path-scoped cleanup and replacement retrieval.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/cancel-obsolete-musetalk-retrievals.yml"
   workflow_dispatch:
 
 permissions:
@@ -20,6 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           runs=(
+            45775458525
             45774854830
             45774586995
             45773999660
@@ -38,3 +43,9 @@ jobs:
           for run_id in "${runs[@]}"; do
             gh run view "${run_id}" --repo "${GITHUB_REPOSITORY}" --json status,conclusion
           done
+
+          echo "Starting one replacement retrieval using the updated downloader and capped retry policy."
+          gh workflow run musetalk-collect-existing-preview.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref main \
+            -f kernel_ref=astrotobby/musetalk-preview-45767212996
