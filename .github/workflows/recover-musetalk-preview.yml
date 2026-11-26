@@ -31,8 +31,10 @@ jobs:
           python-version: "3.11"
       - name: Install Kaggle CLI and FFmpeg
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
           python -m pip install --disable-pip-version-check --upgrade kaggle six
       - name: Inspect completed Kaggle run and retrieve only the rendered MP4
         env:
