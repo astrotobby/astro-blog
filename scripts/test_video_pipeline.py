@@ -7,6 +7,7 @@ import copy
 import json
 import sys
 import unittest
+import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -627,6 +628,59 @@ class PersistentInfluencerLayoutTests(unittest.TestCase):
         self.assertIn("drawbox=", command[command.index("-filter_complex") + 1])
         self.assertEqual(command[command.index("-ss") + 1], "12.000")
         self.assertIn("talking.mp4", command)
+
+    def test_broll_pip_ffmpeg_smoke_render_preserves_presenter_pixels(self):
+        from PIL import Image
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temporary:
+            temp = Path(temporary)
+            broll = temp / "broll.mp4"
+            presenter = temp / "presenter.mp4"
+            output = temp / "composite.mp4"
+
+            subprocess.run([
+                "ffmpeg", "-y", "-v", "error",
+                "-f", "lavfi", "-i", "color=c=blue:s=640x360:r=24:d=2",
+                "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(broll),
+            ], check=True, capture_output=True)
+            subprocess.run([
+                "ffmpeg", "-y", "-v", "error",
+                "-f", "lavfi", "-i", "color=c=red:s=180x240:r=24:d=2",
+                "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(presenter),
+            ], check=True, capture_output=True)
+
+            with patch.object(influencer, "OUT", temp):
+                rendered = influencer.build_broll_with_presenter(
+                    broll, presenter, {"w": 640, "h": 360},
+                    24, 0.0, 2.0, output,
+                    {"influencer": {
+                        "pip_height_frac": 0.36,
+                        "pip_position": "top-right",
+                        "pip_margin_x": 0.035,
+                        "pip_margin_y": 0.045,
+                    }},
+                )
+
+            self.assertTrue(rendered.is_file())
+            probe = subprocess.run([
+                "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1", str(rendered),
+            ], check=True, capture_output=True, text=True)
+            self.assertAlmostEqual(float(probe.stdout.strip()), 2.0, delta=0.12)
+
+            frame = temp / "frame.png"
+            subprocess.run([
+                "ffmpeg", "-y", "-v", "error", "-ss", "1.0",
+                "-i", str(rendered), "-frames:v", "1", str(frame),
+            ], check=True, capture_output=True)
+            image = Image.open(frame).convert("RGB")
+            # Presenter image should be red inside the top-right inset, over a blue B-roll base.
+            pip_pixel = image.getpixel((550, 80))
+            background_pixel = image.getpixel((100, 80))
+            self.assertGreater(pip_pixel[0], 170, pip_pixel)
+            self.assertLess(pip_pixel[2], 100, pip_pixel)
+            self.assertGreater(background_pixel[2], 140, background_pixel)
 
     def test_pip_position_validation_rejects_invalid_layout(self):
         with TemporaryDirectory() as temp:
