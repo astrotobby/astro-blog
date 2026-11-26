@@ -1,7 +1,11 @@
 name: Retrieve completed MuseTalk preview
 
 on:
-  # Manual-only: do not create competing Kaggle API calls on every code edit.
+  # One-time path-scoped trigger used to test direct file retrieval without re-running inference.
+  push:
+    branches: [main]
+    paths:
+      - "scripts/kaggle_mcp_download_output.py"
   workflow_dispatch:
     inputs:
       kernel_ref:
@@ -33,7 +37,7 @@ jobs:
       - name: Download only the MuseTalk render (not model files or samples)
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
-          KERNEL_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_ref || 'astrotobby/musetalk-preview-45674076900' }}
+          KERNEL_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.kernel_ref || 'astrotobby/musetalk-preview-45767212996' }}
         shell: bash
         run: |
           set -euo pipefail
