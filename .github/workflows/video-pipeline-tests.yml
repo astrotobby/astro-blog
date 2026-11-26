@@ -6,7 +6,9 @@ on:
     paths:
       - "scripts/influencer.py"
       - "scripts/musetalk_kaggle_batch.py"
+      - "scripts/musetalk_output_relay.py"
       - "scripts/test_musetalk_kaggle_batch.py"
+      - "scripts/test_musetalk_output_relay.py"
       - "scripts/test_video_pipeline.py"
       - "tests/test_kling_influencer_assets.py"
       - "scripts/longform_pipeline.py"
@@ -77,11 +79,13 @@ jobs:
       - name: Compile modified Python modules
         run: python -m py_compile scripts/influencer.py scripts/gen_influencer_motion.py scripts/generate_video.py scripts/motion_cards.py
       - name: Compile modified presenter pipeline modules
-        run: python -m py_compile scripts/influencer.py scripts/musetalk_kaggle_batch.py scripts/test_video_pipeline.py
+        run: python -m py_compile scripts/influencer.py scripts/musetalk_kaggle_batch.py scripts/musetalk_output_relay.py scripts/test_video_pipeline.py scripts/test_musetalk_output_relay.py
       - name: Test continuous presenter coverage and PiP composition
         run: python -m unittest scripts.test_video_pipeline.PersistentInfluencerLayoutTests -v
       - name: Test MuseTalk Kaggle batch authentication and fail-closed behavior
         run: python -m unittest discover -s scripts -p 'test_musetalk_kaggle_batch.py' -v
+      - name: Test private MuseTalk output relay authentication and integrity
+        run: python -m unittest discover -s scripts -p 'test_musetalk_output_relay.py' -v
       - name: Test LTX and VoiceStudio integration contracts
         run: |
           python -m unittest discover -s tests -p 'test_influencer_ltx.py' -v
