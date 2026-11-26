@@ -1,6 +1,14 @@
 name: video-pipeline-integration-tests
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/influencer.py"
+      - "scripts/musetalk_kaggle_batch.py"
+      - "scripts/test_video_pipeline.py"
+      - "config.yaml"
+      - ".github/workflows/video-pipeline-tests.yml"
   pull_request:
     branches: [main]
     paths:
