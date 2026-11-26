@@ -20,6 +20,7 @@ import requests
 
 # Direct single-file output endpoint; avoids the throttled ListKernelSessionOutput call.
 # Prefer direct MCP file retrieval over paginated session-output listing.
+# Bounded response-body mode follows Kaggle's verified MCP client behavior.
 # Parse one JSON-RPC event and close the stream without waiting for EOF.
 # The collector runner checks out this script before invoking it.
 MCP_URL = "https://www.kaggle.com/mcp"
