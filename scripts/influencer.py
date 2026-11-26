@@ -325,70 +325,134 @@ def _render_ltx(plans, voices, cfg):
 
 
 def render_talking(plans, voices, cfg, fps):
-    """Make every A-roll segment of every cut talk. `plans` = {tag: timeline},
-    `voices` = {tag: voiceover path}. LTX-2 (influencer.ltx) animates the whole
-    presenter per segment when the free quota allows. Remaining segments are grouped
-    by look and Wav2Lip runs ONCE per look over the concatenated audio slices (face
-    detection runs once per look, not per segment), then the result is cut back
-    apart. Returns {(tag, i): clip}."""
-    from avatar_lipsync import generate_talking_head
+    """Lip-sync every presenter interval, including B-roll picture-in-picture.
+
+    Each look's speech slices are concatenated into one audio track. MuseTalk 1.5
+    processes one task per look in a single private Kaggle GPU session; the result
+    is split back into the timeline's frame-exact segments.
+    """
+    inf_cfg = cfg.get("influencer", {})
     talking = _render_ltx(plans, voices, cfg)
     by_look = {}
-    for tag, segs in plans.items():
-        for i, s in enumerate(segs):
-            if s.get("look") and (tag, i) not in talking:
-                by_look.setdefault(s["look"]["id"], (s["look"], []))[1].append((tag, i, s))
+    for tag, segments in plans.items():
+        for index, segment in enumerate(segments):
+            if segment.get("look") and (tag, index) not in talking:
+                by_look.setdefault(
+                    segment["look"]["id"], (segment["look"], [])
+                )[1].append((tag, index, segment))
 
-    for lid, (lk, items) in by_look.items():
-        face_src = _face_source(lk, fps)
-        # concat this look's audio slices -> one wav
+    prepared = []
+    for look_id, (look, items) in by_look.items():
+        face_src = _face_source(look, fps)
         parts = []
-        for k, (tag, i, s) in enumerate(items):
-            p = OUT / f"_lk_{lid}_a{k:02d}.wav"
-            _run(["ffmpeg", "-y", "-ss", f"{s['t0']:.3f}", "-t", f"{s['t1'] - s['t0']:.3f}",
-                  "-i", str(voices[tag]), "-ac", "1", "-ar", "16000", p.name], cwd=OUT)
-            parts.append(p)
-        listf = OUT / f"_lk_{lid}_alist.txt"
-        listf.write_text("".join(f"file '{p.name}'\n" for p in parts), encoding="utf-8")
-        audio = OUT / f"_lk_{lid}_audio.wav"
-        _run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listf.name,
-              "-c", "copy", audio.name], cwd=OUT)
+        for part_index, (tag, index, segment) in enumerate(items):
+            audio_part = OUT / f"_lk_{look_id}_a{part_index:02d}.wav"
+            _run([
+                "ffmpeg", "-y", "-ss", f"{segment['t0']:.3f}",
+                "-t", f"{segment['t1'] - segment['t0']:.3f}",
+                "-i", str(voices[tag]), "-ac", "1", "-ar", "16000",
+                audio_part.name,
+            ], cwd=OUT)
+            parts.append(audio_part)
 
-        synced = None
-        try:
-            synced = generate_talking_head(face_src, audio, cfg, out_name=f"_lk_{lid}_talk.mp4")
-        except Exception as e:  # noqa
-            log(f"look {lid}: lip-sync errored ({e})")
-        if not synced:
-            if cfg.get("influencer", {}).get("require_lipsync", False):
-                raise RuntimeError(
-                    f"look {lid}: required lip-sync failed; refusing to use unsynchronized presenter footage"
+        list_file = OUT / f"_lk_{look_id}_alist.txt"
+        list_file.write_text(
+            "".join(f"file '{part.name}'\n" for part in parts),
+            encoding="utf-8",
+        )
+        combined_audio = OUT / f"_lk_{look_id}_audio.wav"
+        _run([
+            "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i",
+            list_file.name, "-c", "copy", combined_audio.name,
+        ], cwd=OUT)
+        prepared.append({
+            "id": look_id,
+            "look": look,
+            "items": items,
+            "parts": parts,
+            "face": Path(face_src),
+            "audio": combined_audio,
+            "output": OUT / f"_lk_{look_id}_musetalk.mp4",
+        })
+
+    backend = str(inf_cfg.get("lipsync_backend", "wav2lip")).strip().lower()
+    synced_by_look = {}
+    if prepared and backend == "musetalk":
+        from musetalk_kaggle_batch import generate_batch
+
+        batch_tasks = [
+            {
+                "id": group["id"],
+                "video": group["face"],
+                "audio": group["audio"],
+                "output": group["output"],
+            }
+            for group in prepared
+        ]
+        # MuseTalk failures are fatal when lip-sync is required. Never silently
+        # replace the approved production model with unsynchronized source footage.
+        synced_by_look = generate_batch(batch_tasks)
+    elif prepared and backend == "wav2lip":
+        from avatar_lipsync import generate_talking_head
+
+        for group in prepared:
+            try:
+                result = generate_talking_head(
+                    group["face"], group["audio"], cfg,
+                    out_name=group["output"].name,
                 )
+                if result:
+                    synced_by_look[group["id"]] = Path(result)
+            except Exception as exc:
+                log(f"look {group['id']}: Wav2Lip failed ({str(exc)[:200]})")
+    elif prepared:
+        raise ValueError(
+            f"Unsupported influencer.lipsync_backend={backend!r}; "
+            "choose 'musetalk' or 'wav2lip'."
+        )
+
+    for group in prepared:
+        look_id = group["id"]
+        synced = synced_by_look.get(look_id)
+        if not synced and inf_cfg.get("require_lipsync", False):
+            raise RuntimeError(
+                f"look {look_id}: required {backend} lip-sync failed; "
+                "refusing to use unsynchronized presenter footage"
+            )
+
         cursor = 0.0
-        for k, (tag, i, s) in enumerate(items):
-            seg_dur = _dur(parts[k])
-            out = OUT / f"_talk_{tag}_{i:02d}.mp4"
+        for part_index, (tag, index, segment) in enumerate(group["items"]):
+            segment_duration = _dur(group["parts"][part_index])
+            output = OUT / f"_talk_{tag}_{index:02d}.mp4"
             try:
                 if synced:
-                    _run(["ffmpeg", "-y", "-ss", f"{cursor:.3f}", "-i", str(synced),
-                          "-t", f"{seg_dur:.3f}", "-an", "-r", str(fps), "-c:v", "libx264",
-                          "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p",
-                          out.name], cwd=OUT)
-                    if not out.exists() or out.stat().st_size < 1000:
-                        raise RuntimeError("lip-synced segment was not created")
-                    talking[(tag, i)] = out
+                    _run([
+                        "ffmpeg", "-y", "-ss", f"{cursor:.3f}", "-i", str(synced),
+                        "-t", f"{segment_duration:.3f}", "-an", "-r", str(fps),
+                        "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+                        "-pix_fmt", "yuv420p", output.name,
+                    ], cwd=OUT)
+                    if not output.is_file() or output.stat().st_size < 1000:
+                        raise RuntimeError("lip-synced presenter segment was not created")
+                    talking[(tag, index)] = output
                 else:
-                    talking[(tag, i)] = _unsynced(face_src, cursor * 1.7 + s["t0"],
-                                                  seg_dur, fps, out)
-            except Exception as e:  # noqa
-                if cfg.get("influencer", {}).get("require_lipsync", False):
-                    raise RuntimeError(f"look {lid}: segment {tag}/{i} lip-sync cut failed: {e}") from e
-                log(f"look {lid}: segment {tag}/{i} cut failed ({e})")
-            cursor += seg_dur
-        log(f"look {lid}: {len(items)} presenter segments "
-            f"({'lip-synced' if synced else 'UNSYNCED fallback'})")
-    return talking
+                    talking[(tag, index)] = _unsynced(
+                        group["face"], cursor * 1.7 + segment["t0"],
+                        segment_duration, fps, output,
+                    )
+            except Exception as exc:
+                if inf_cfg.get("require_lipsync", False):
+                    raise RuntimeError(
+                        f"look {look_id}: presenter segment {tag}/{index} failed: {exc}"
+                    ) from exc
+                log(f"look {look_id}: presenter segment {tag}/{index} failed ({exc})")
+            cursor += segment_duration
 
+        log(
+            f"look {look_id}: {len(group['items'])} presenter intervals "
+            f"processed with {backend}"
+        )
+    return talking
 
 # ---------- 4. full-screen presenter shot ----------
 # Subtle, skin-friendly grade for the presenter (the glass grade is for b-roll only:
@@ -505,10 +569,6 @@ def build_broll_with_presenter(montage, presenter, size, fps, start, seg_dur, ou
         "-r", str(fps), "-c:v", "libx264", "-preset", "veryfast",
         "-crf", "19", "-pix_fmt", "yuv420p", out.name,
     ], cwd=OUT)
-    if not out.exists() and not any(str(part) == out.name for part in []):
-        # _run normally creates the file. This branch gives a direct diagnostic
-        # when a mocked / misconfigured encoder reports success without output.
-        log(f"PiP segment export requested: {out.name}")
     return out
 
 
