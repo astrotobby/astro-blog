@@ -39,23 +39,31 @@ class KaggleMcpDownloadOutputTests(unittest.TestCase):
         self.assertEqual(_find_download_url(_result_value(result)), url)
 
     def test_parses_mcp_streamable_http_event(self):
-        response = Mock()
-        response.status_code = 200
-        response.headers = {"content-type": "text/event-stream"}
-        def event_lines():
-            yield b"event: message"
-            yield (
-                b'data: {"jsonrpc":"2.0","id":2,'
-                b'"result":{"content":[{"type":"text","text":"ok"}]}}'
-            )
-            raise AssertionError("Parser should stop after the matching JSON-RPC event.")
+        class FakeStreamingResponse:
+            status_code = 200
+            headers = {"content-type": "text/event-stream"}
 
-        response.iter_lines.return_value = event_lines()
-        response.raise_for_status.return_value = None
+            def __init__(self):
+                self.closed = False
 
+            def raise_for_status(self):
+                return None
+
+            def iter_lines(self, decode_unicode=True):
+                yield b"event: message"
+                yield (
+                    b'data: {"jsonrpc":"2.0","id":2,'
+                    b'"result":{"content":[{"type":"text","text":"ok"}]}}'
+                )
+                raise AssertionError("Parser should stop after the matching JSON-RPC event.")
+
+            def close(self):
+                self.closed = True
+
+        response = FakeStreamingResponse()
         result = _parse_rpc_response(response, 2)
         self.assertEqual(result["content"][0]["text"], "ok")
-        response.close.assert_called_once()
+        self.assertTrue(response.closed)
 
     def test_rejects_mismatched_json_rpc_id(self):
         response = Mock()
@@ -64,6 +72,7 @@ class KaggleMcpDownloadOutputTests(unittest.TestCase):
         response.json.return_value = {"jsonrpc": "2.0", "id": 99, "result": {}}
         response.raise_for_status.return_value = None
 
+        response.close.return_value = None
         with self.assertRaises(RuntimeError):
             _parse_rpc_response(response, 2)
         response.close.assert_called_once()
