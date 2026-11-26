@@ -26,7 +26,7 @@ jobs:
       - name: Install Kaggle CLI and FFmpeg
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "kaggle==2.2.5" six
+          python -m pip install "kaggle==2.2.5" requests six
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
 
@@ -70,36 +70,46 @@ jobs:
           fi
 
           mkdir -p preview-output
-          echo "Kernel is complete. Waiting for Kaggle output indexing to settle."
-          sleep 60
-          echo "Retrieving only the named MuseTalk render from $KERNEL_REF."
-          # Old completed kernels use presenter_narration.mp4 inside the results tree.
-          # New kernels export the stable root-level name musetalk_preview.mp4.
-          # Never enumerate/download the whole Kaggle workspace or sample videos.
-          OUTPUT_READY=0
-          for attempt in $(seq 1 7); do
-            OUTPUT_LOG="preview-output/kaggle-output-attempt-$attempt.log"
-            if kaggle kernels output "$KERNEL_REF" \
-              --path preview-output \
-              --file-pattern '(^|/)(musetalk_preview|presenter_narration)[.]mp4$' \
-              --page-size 1 >"$OUTPUT_LOG" 2>&1; then
-              cat "$OUTPUT_LOG"
-              OUTPUT_READY=1
+          echo "Kernel is complete. Trying Kaggle's direct single-file MCP download first."
+          MCP_READY=0
+          for OUTPUT_NAME in musetalk_preview.mp4 presenter_narration.mp4; do
+            if python scripts/kaggle_mcp_download_output.py \
+              --kernel-ref "$KERNEL_REF" \
+              --file-path "$OUTPUT_NAME" \
+              --output "preview-output/$OUTPUT_NAME"; then
+              MCP_READY=1
               break
             fi
-            cat "$OUTPUT_LOG"
-            if ! grep -Eqi '429|too many requests|rate.?limit' "$OUTPUT_LOG"; then
-              echo "::error::Kaggle output retrieval failed for a non-rate-limit reason."
+            echo "Direct MCP download did not find $OUTPUT_NAME; checking the alternate known MuseTalk export name."
+          done
+
+          if [[ "$MCP_READY" -ne 1 ]]; then
+            echo "Direct MCP retrieval was unavailable. Falling back to the official Kaggle CLI output endpoint with bounded 429 retries."
+            OUTPUT_READY=0
+            for attempt in $(seq 1 7); do
+              OUTPUT_LOG="preview-output/kaggle-output-attempt-$attempt.log"
+              if kaggle kernels output "$KERNEL_REF" \
+                --path preview-output \
+                --file-pattern '(^|/)(musetalk_preview|presenter_narration)[.]mp4$' \
+                --page-size 1 >"$OUTPUT_LOG" 2>&1; then
+                cat "$OUTPUT_LOG"
+                OUTPUT_READY=1
+                break
+              fi
+              cat "$OUTPUT_LOG"
+              if ! grep -Eqi '429|too many requests|rate.?limit' "$OUTPUT_LOG"; then
+                echo "::error::Kaggle CLI output retrieval failed for a non-rate-limit reason."
+                exit 1
+              fi
+              delay=$((60 * (2 ** (attempt - 1))))
+              (( delay > 600 )) && delay=600
+              echo "Kaggle CLI output API rate-limited; retry $attempt/7 in $delay seconds."
+              sleep "$delay"
+            done
+            if [[ "$OUTPUT_READY" -ne 1 ]]; then
+              echo "::error::Both direct MCP and CLI output retrieval failed. The completed Kaggle kernel is preserved; inference was not rerun."
               exit 1
             fi
-            delay=$((60 * (2 ** (attempt - 1))))
-            (( delay > 600 )) && delay=600
-            echo "Kaggle output API rate-limited; retry $attempt/7 in $delay seconds."
-            sleep "$delay"
-          done
-          if [[ "$OUTPUT_READY" -ne 1 ]]; then
-            echo "::error::Kaggle output API remained rate-limited after seven attempts; the completed kernel is preserved."
-            exit 1
           fi
 
           PREVIEW="$(find preview-output -type f -name 'musetalk_preview.mp4' -size +100k -print -quit)"
