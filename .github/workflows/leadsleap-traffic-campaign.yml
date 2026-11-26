@@ -12,6 +12,11 @@ on:
         type: boolean
         required: true
         default: false
+      retry_blocked:
+        description: "Retry destinations paused for invalid credentials or depleted API credits (only after fixing them)"
+        type: boolean
+        required: true
+        default: false
 
 concurrency:
   group: leadsleap-traffic-campaign
@@ -56,11 +61,14 @@ jobs:
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN || secrets.ACCESS_TOKEN }}
           X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET || secrets.X_SECRET }}
         run: |
+          ARGS=()
           if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.publish }}" = "true" ]; then
-            python scripts/leadsleap_campaign.py --publish
-          else
-            python scripts/leadsleap_campaign.py
+            ARGS+=(--publish)
           fi
+          if [ "${{ github.event_name == 'workflow_dispatch' && inputs.retry_blocked || false }}" = "true" ]; then
+            ARGS+=(--retry-blocked)
+          fi
+          python scripts/leadsleap_campaign.py "${ARGS[@]}"
 
       - name: Save daily deduplication state
         if: always()
