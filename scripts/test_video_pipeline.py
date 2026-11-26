@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import build_script  # noqa: E402
 import generate_video  # noqa: E402
+import influencer  # noqa: E402
 import seed_footage_history  # noqa: E402
 from common import load_config  # noqa: E402
 
@@ -569,3 +570,69 @@ class VisualDuplicateGuardTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+class PersistentInfluencerLayoutTests(unittest.TestCase):
+    def test_every_timeline_segment_has_a_presenter_look(self):
+        looks = [
+            {"id": "front", "clip": Path("front.mp4"), "location": "studio"},
+            {"id": "monitor", "clip": Path("monitor.mp4"), "location": "desk"},
+        ]
+        cfg = {
+            "influencer": {
+                "aroll_seconds": [4.0, 4.0],
+                "broll_seconds": [7.0, 7.0],
+                "min_segment": 1.0,
+            }
+        }
+        timeline = influencer.plan_timeline(40.0, looks, cfg, "persistent-presenter")
+        self.assertTrue(timeline)
+        self.assertEqual(timeline[0]["kind"], "A")
+        self.assertEqual(timeline[-1]["kind"], "A")
+        self.assertTrue(all(segment.get("look") for segment in timeline))
+        self.assertTrue(any(segment["kind"] == "B" for segment in timeline))
+        for previous, current in zip(timeline, timeline[1:]):
+            self.assertEqual(previous["kind"], "A" if current["kind"] == "B" else "B")
+        # B-roll retains the look from the preceding full-screen appearance.
+        for index, segment in enumerate(timeline):
+            if segment["kind"] == "B":
+                self.assertEqual(segment["look"], timeline[index - 1]["look"])
+
+    def test_broll_composition_overlays_presenter_in_caption_safe_corner(self):
+        with TemporaryDirectory() as temp:
+            output = Path(temp) / "pip.mp4"
+            seen = {}
+            def fake_run(command, **kwargs):
+                seen["command"] = command
+                seen["cwd"] = kwargs.get("cwd")
+            cfg = {"influencer": {
+                "pip_height_frac": 0.36,
+                "pip_position": "top-right",
+            }}
+            with (
+                patch.object(influencer, "_dims", return_value=(540, 720)),
+                patch.object(influencer, "_run", side_effect=fake_run),
+            ):
+                result = influencer.build_broll_with_presenter(
+                    Path("broll.mp4"), Path("talking.mp4"),
+                    {"w": 1920, "h": 1080}, 24, 12.0, 8.0,
+                    output, cfg,
+                )
+        self.assertEqual(result, output)
+        command = seen["command"]
+        self.assertIn("overlay=x=", command[command.index("-filter_complex") + 1])
+        self.assertIn("drawbox=", command[command.index("-filter_complex") + 1])
+        self.assertEqual(command[command.index("-ss") + 1], "12.000")
+        self.assertIn("talking.mp4", command)
+
+    def test_pip_position_validation_rejects_invalid_layout(self):
+        with TemporaryDirectory() as temp:
+            with patch.object(influencer, "_dims", return_value=(540, 720)):
+                with self.assertRaisesRegex(ValueError, "Unsupported influencer PiP"):
+                    influencer.build_broll_with_presenter(
+                        Path("broll.mp4"), Path("talking.mp4"),
+                        {"w": 1920, "h": 1080}, 24, 0.0, 5.0,
+                        Path(temp) / "pip.mp4",
+                        {"influencer": {"pip_position": "center"}},
+                    )
