@@ -29,7 +29,7 @@ jobs:
       - name: Install Kaggle CLI and FFmpeg
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "kaggle==2.2.5"
+          python -m pip install "kaggle==2.2.5" six
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
 
@@ -48,7 +48,7 @@ jobs:
           echo "Retrieving MP4 only from ${KERNEL_REF}; no kernel will be submitted or rerun."
           kaggle kernels output "${KERNEL_REF}" \
             --path preview-output \
-            --file-pattern '.*\\.mp4$' \
+            --file-pattern '.*\.mp4$' \
             --page-size 50
           mapfile -t videos < <(find preview-output -type f -iname '*.mp4' -size +100k | sort)
           if [[ "${#videos[@]}" -eq 0 ]]; then
