@@ -308,7 +308,7 @@ jobs:
             echo "Direct MCP retrieval failed; waiting for output indexing and using bounded CLI retries."
             sleep 60
             OUTPUT_READY=0
-            for attempt in $(seq 1 7); do
+            for attempt in $(seq 1 2); do
               OUTPUT_LOG="$OUTPUT_DIR/kaggle-output-attempt-$attempt.log"
               if kaggle kernels output "$KERNEL_ID" --path "$OUTPUT_DIR" --file-pattern '(^|/)(musetalk_preview|presenter_narration)[.]mp4$' --page-size 1 >"$OUTPUT_LOG" 2>&1; then
                 cat "$OUTPUT_LOG"
@@ -320,9 +320,8 @@ jobs:
                 echo "::error::Kaggle CLI output retrieval failed for a non-rate-limit reason."
                 exit 1
               fi
-              delay=$((60 * (2 ** (attempt - 1))))
-              (( delay > 600 )) && delay=600
-              echo "Kaggle CLI output API rate-limited; retry $attempt/7 in $delay seconds."
+              delay=$((60 * attempt))
+              echo "Kaggle CLI output API rate-limited; retry $attempt/2 in $delay seconds."
               sleep "$delay"
             done
             if [[ "$OUTPUT_READY" -ne 1 ]]; then
