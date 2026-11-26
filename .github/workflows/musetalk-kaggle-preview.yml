@@ -293,16 +293,19 @@ jobs:
           # Download only the single known export. Prefer Kaggle's direct per-file MCP API,
           # which avoids listing every session output through the rate-limited CLI endpoint.
           MCP_READY=0
-          for OUTPUT_NAME in musetalk_preview.mp4 presenter_narration.mp4; do
-            if python scripts/kaggle_mcp_download_output.py \
-              --kernel-ref "$KERNEL_ID" \
-              --file-path "$OUTPUT_NAME" \
-              --output "$OUTPUT_DIR/$OUTPUT_NAME"; then
-              MCP_READY=1
-              break
+          OUTPUT_NAME="musetalk_preview.mp4"
+          if python scripts/kaggle_mcp_download_output.py \
+            --kernel-ref "$KERNEL_ID" \
+            --file-path "$OUTPUT_NAME" \
+            --output "$OUTPUT_DIR/$OUTPUT_NAME"; then
+            MCP_READY=1
+          else
+            MCP_EXIT=$?
+            if [[ "$MCP_EXIT" -eq 2 ]]; then
+              echo "::error::Kaggle MCP rejected kernels.get. Update KAGGLE_API_TOKEN to a new KGAT_ bearer token; do not repeatedly retry this credential."
+              exit 1
             fi
-            echo "Direct Kaggle MCP did not find $OUTPUT_NAME; checking the alternate known export name."
-          done
+          fi
 
           if [[ "$MCP_READY" -ne 1 ]]; then
             echo "Direct MCP retrieval failed; waiting for output indexing and using bounded CLI retries."
