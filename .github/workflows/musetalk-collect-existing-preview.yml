@@ -23,12 +23,9 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Kaggle CLI and FFmpeg
+      - name: Install Kaggle CLI and MP4 validator
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install "kaggle==2.2.5" requests six
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
+          python -m pip install --disable-pip-version-check "kaggle==2.2.5" requests six "av>=12,<17"
 
       - name: Download only the MuseTalk render (not model files or samples)
         env:
@@ -125,21 +122,36 @@ jobs:
 
           OUTPUT_MP4=preview-output/musetalk_preview.mp4
           python - "$OUTPUT_MP4" <<'PY'
-          import json, pathlib, subprocess, sys
+          import av
+          import json
+          import pathlib
+          import sys
+
           path = pathlib.Path(sys.argv[1])
-          probe = json.loads(subprocess.check_output([
-              "ffprobe", "-v", "error", "-show_streams", "-show_format",
-              "-of", "json", str(path)
-          ], text=True))
-          stream_types = {stream.get("codec_type") for stream in probe.get("streams", [])}
-          duration = float(probe.get("format", {}).get("duration", 0))
           size = path.stat().st_size
+          with av.open(str(path)) as container:
+              stream_types = {stream.type for stream in container.streams}
+              duration = (
+                  float(container.duration / av.time_base)
+                  if container.duration is not None
+                  else max(
+                      (float(stream.duration * stream.time_base)
+                       for stream in container.streams if stream.duration is not None),
+                      default=0.0,
+                  )
+              )
           if size < 100_000 or duration < 2 or duration > 30:
               raise SystemExit(f"Invalid preview size/duration: {size} bytes, {duration:.2f}s")
           if not {"video", "audio"}.issubset(stream_types):
-              raise SystemExit(f"Preview must contain both audio and video streams; found {sorted(stream_types)}")
-          print(json.dumps({"file": str(path), "bytes": size, "duration_seconds": duration,
-                            "streams": sorted(stream_types)}, indent=2))
+              raise SystemExit(
+                  f"Preview must contain both audio and video streams; found {sorted(stream_types)}"
+              )
+          print(json.dumps({
+              "file": str(path),
+              "bytes": size,
+              "duration_seconds": duration,
+              "streams": sorted(stream_types),
+          }, indent=2))
           PY
 
           {
