@@ -27,7 +27,7 @@ concurrency:
 jobs:
   recover:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -43,11 +43,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Current KGAT_ tokens use KAGGLE_API_TOKEN. A pre-KGAT legacy API
-          # key must instead be paired with the Kaggle username as KAGGLE_KEY.
+          # Handle both current KGAT_ personal tokens and legacy API keys.
           if [[ -n "${KAGGLE_API_TOKEN:-}" && "$KAGGLE_API_TOKEN" != KGAT_* ]]; then
-            export KAGGLE_USERNAME="astrotobby"
-            export KAGGLE_KEY="$KAGGLE_API_TOKEN"
+            if [[ "$KAGGLE_API_TOKEN" == \{* ]]; then
+              export KAGGLE_USERNAME="$(python -c 'import json,os; print(json.loads(os.environ["KAGGLE_API_TOKEN"])["username"])')"
+              export KAGGLE_KEY="$(python -c 'import json,os; print(json.loads(os.environ["KAGGLE_API_TOKEN"])["key"])')"
+            else
+              export KAGGLE_USERNAME="astrotobby"
+              export KAGGLE_KEY="$KAGGLE_API_TOKEN"
+            fi
             unset KAGGLE_API_TOKEN
             echo "Using legacy Kaggle API-key authentication."
           else
@@ -58,7 +62,8 @@ jobs:
           downloaded=0
           for attempt in 1 2 3; do
             rm -f recovered-preview/musetalk_preview.mp4
-            if kaggle kernels output "$KERNEL_ID" \
+            echo "Kaggle output download attempt $attempt."
+            if timeout 35s kaggle kernels output "$KERNEL_ID" \
               --path recovered-preview \
               --file-pattern '(^|/)musetalk_preview[.]mp4$' \
               --page-size 1 > recovered-preview/download-attempt-$attempt.log 2>&1; then
@@ -67,10 +72,13 @@ jobs:
                 downloaded=1
                 break
               fi
+              echo "Command completed but the expected MP4 was not in the download folder."
             else
+              result=$?
+              echo "Kaggle CLI attempt $attempt returned exit code $result."
               cat recovered-preview/download-attempt-$attempt.log
             fi
-            sleep $((attempt * 15))
+            sleep $((attempt * 10))
           done
           if [ "$downloaded" -ne 1 ]; then
             echo "::error::Kaggle CLI did not return the completed MuseTalk MP4."
