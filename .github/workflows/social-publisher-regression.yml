@@ -69,8 +69,8 @@ jobs:
                       raise ValueError("workflow root must be a mapping")
                   # PyYAML's YAML 1.1 resolver treats the plain key 'on' as True.
                   triggers = document.get("on", document.get(True))
-                  if not isinstance(triggers, dict):
-                      raise ValueError("missing or invalid 'on' trigger mapping")
+                  if not isinstance(triggers, (dict, str, list)) or not triggers:
+                      raise ValueError("missing or invalid 'on' trigger declaration")
                   jobs = document.get("jobs")
                   if not isinstance(jobs, dict) or not jobs:
                       raise ValueError("missing or empty jobs mapping")
