@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Cancel only superseded retrieval attempts
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -29,15 +29,15 @@ jobs:
             45773543030
             45772641813
           )
-          for run_id in "\${runs[@]}"; do
-            echo "Cancelling obsolete MuseTalk retrieval run \${run_id}"
-            if gh api --silent --method POST "repos/\${GITHUB_REPOSITORY}/actions/runs/\${run_id}/cancel"; then
-              echo "Cancellation requested for \${run_id}"
+          for run_id in "${runs[@]}"; do
+            echo "Cancelling obsolete MuseTalk retrieval run ${run_id}"
+            if gh api --silent --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/cancel"; then
+              echo "Cancellation requested for ${run_id}"
             else
-              echo "Run \${run_id} was already completed or not cancellable."
+              echo "Run ${run_id} was already completed or not cancellable."
             fi
           done
           echo "Verifying final states:"
-          for run_id in "\${runs[@]}"; do
-            gh run view "\${run_id}" --repo "\${GITHUB_REPOSITORY}" --json status,conclusion
+          for run_id in "${runs[@]}"; do
+            gh run view "${run_id}" --repo "${GITHUB_REPOSITORY}" --json status,conclusion
           done
