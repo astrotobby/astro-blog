@@ -25,17 +25,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - name: Set up Python and FFmpeg
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install Kaggle CLI and FFmpeg
-        run: |
-          if ! command -v ffprobe >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq ffmpeg
-          fi
-          python -m pip install --disable-pip-version-check --upgrade kaggle six
+      - name: Install Kaggle CLI and MP4 parser
+        run: python -m pip install --disable-pip-version-check --upgrade kaggle six av
       - name: Inspect completed Kaggle run and retrieve only the rendered MP4
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
@@ -77,26 +72,28 @@ jobs:
             echo "::error::Kaggle CLI did not return the completed MuseTalk MP4."
             exit 1
           fi
-          ffprobe -v error -show_streams -show_format -of json recovered-preview/musetalk_preview.mp4 > recovered-preview/ffprobe.json
           python - <<'PY'
-          import json, pathlib, os
+          import av, json, pathlib, os
           p = pathlib.Path("recovered-preview/musetalk_preview.mp4")
-          meta = json.loads(pathlib.Path("recovered-preview/ffprobe.json").read_text())
-          streams = {s.get("codec_type") for s in meta.get("streams", [])}
-          duration = float(meta.get("format", {}).get("duration", 0))
           size = p.stat().st_size
           expected = float(os.environ["EXPECTED_SECONDS"])
           if size < 100_000:
               raise SystemExit(f"Preview is too small: {size} bytes.")
-          if not {"video", "audio"}.issubset(streams):
-              raise SystemExit(f"Preview needs both audio and video; got {sorted(streams)}.")
+          container = av.open(str(p))
+          stream_types = {stream.type for stream in container.streams}
+          duration = (float(container.duration) / av.time_base) if container.duration is not None else 0.0
+          if not {"video", "audio"}.issubset(stream_types):
+              raise SystemExit(f"Preview needs both audio and video; got {sorted(stream_types)}.")
           if not expected - 1.5 <= duration <= expected + 3.0:
               raise SystemExit(f"Unexpected preview duration {duration:.2f}s; expected about {expected:.2f}s.")
+          video = next(s for s in container.streams if s.type == "video")
+          audio = next(s for s in container.streams if s.type == "audio")
           summary = {
               "file": p.name, "bytes": size, "duration_seconds": duration,
-              "streams": sorted(streams),
-              "video": next(s for s in meta["streams"] if s.get("codec_type") == "video").get("codec_name"),
-              "audio": next(s for s in meta["streams"] if s.get("codec_type") == "audio").get("codec_name")
+              "streams": sorted(stream_types),
+              "video_codec": video.codec_context.name,
+              "audio_codec": audio.codec_context.name,
+              "resolution": f"{video.width}x{video.height}"
           }
           pathlib.Path("recovered-preview/preview-summary.json").write_text(json.dumps(summary, indent=2))
           print(json.dumps(summary, indent=2))
