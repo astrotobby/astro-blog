@@ -25,6 +25,8 @@ import requests
 # The collector runner checks out this script before invoking it.
 MCP_URL = "https://www.kaggle.com/mcp"
 TIMEOUT = 30
+MAX_MCP_RETRIES = 2
+MAX_MCP_RETRY_WAIT = 30
 
 
 def _parse_rpc_response(response: requests.Response, request_id: int) -> dict[str, Any]:
@@ -94,7 +96,7 @@ def _tool_call(
         "Accept": "application/json, text/event-stream",
     }
     last_error: Exception | None = None
-    for attempt in range(1, 5):
+    for attempt in range(MAX_MCP_RETRIES + 1):
         response = session.post(
             MCP_URL,
             json=body,
@@ -102,25 +104,38 @@ def _tool_call(
             timeout=TIMEOUT,
             allow_redirects=False,
         )
-        if response.status_code == 429 and attempt < 4:
+        if response.status_code == 429:
+            retry_after = response.headers.get("Retry-After", "")
+            try:
+                delay = float(retry_after)
+            except (TypeError, ValueError):
+                delay = 2.0 * (attempt + 1)
+            delay = max(0.0, min(delay, MAX_MCP_RETRY_WAIT))
             response.close()
-            delay = min(30 * (2 ** (attempt - 1)), 180)
-            print(
-                f"Kaggle MCP returned HTTP 429 for {name}; retrying in {delay}s "
-                f"({attempt}/4).",
-                file=sys.stderr,
+            if attempt < MAX_MCP_RETRIES:
+                print(
+                    f"Kaggle MCP returned HTTP 429 for {name}; retrying in {delay:g}s "
+                    f"({attempt + 1}/{MAX_MCP_RETRIES}).",
+                    file=sys.stderr,
+                )
+                time.sleep(delay)
+                continue
+            raise RuntimeError(
+                f"Kaggle MCP returned HTTP 429 for {name} after "
+                f"{MAX_MCP_RETRIES + 1} attempts."
             )
-            time.sleep(delay)
-            continue
         try:
             return _parse_rpc_response(response, request_id)
         except RuntimeError as exc:
             last_error = exc
-            if attempt < 4 and re.search(r"rate.?limit|too many requests|http 429", str(exc), re.I):
-                delay = min(30 * (2 ** (attempt - 1)), 180)
+            throttled = re.search(
+                r"rate.?limit|too many requests|http 429", str(exc), re.I
+            )
+            if throttled and attempt < MAX_MCP_RETRIES:
+                delay = min(2.0 * (attempt + 1), MAX_MCP_RETRY_WAIT)
                 print(
-                    f"Kaggle MCP tool {name} was throttled; retrying in {delay}s "
-                    f"({attempt}/4).",
+                    f"Kaggle MCP tool {name} was throttled; retrying in {delay:g}s "
+                    f"({attempt + 1}/{MAX_MCP_RETRIES}).",
                     file=sys.stderr,
                 )
                 time.sleep(delay)
