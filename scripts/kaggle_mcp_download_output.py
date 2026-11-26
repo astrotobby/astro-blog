@@ -23,51 +23,32 @@ import requests
 # Parse one JSON-RPC event and close the stream without waiting for EOF.
 # The collector runner checks out this script before invoking it.
 MCP_URL = "https://www.kaggle.com/mcp"
-TIMEOUT = (20, 35)
-MCP_RESPONSE_WALL_SECONDS = 45
+TIMEOUT = 30
 
 
 def _parse_rpc_response(response: requests.Response, request_id: int) -> dict[str, Any]:
-    """Consume only the matching JSON-RPC event, then close the stream immediately."""
+    """Parse Kaggle's finite JSON or SSE response using the verified text-body pattern."""
     try:
         response.raise_for_status()
         content_type = response.headers.get("content-type", "").lower()
+        candidates: list[dict[str, Any]] = []
 
         if "application/json" in content_type:
-            candidates = [response.json()]
+            payload = response.json()
+            if isinstance(payload, dict):
+                candidates.append(payload)
         else:
-            candidates = []
-            # Streamable HTTP may keep the SSE response open. Do not wait for EOF:
-            # return on the matching event, or stop after a hard wall-clock deadline
-            # even if the server continues to send keep-alive lines.
-            deadline = time.monotonic() + MCP_RESPONSE_WALL_SECONDS
-            for raw_line in response.iter_lines(decode_unicode=True):
-                if time.monotonic() > deadline:
-                    raise RuntimeError(
-                        f"Kaggle MCP did not return JSON-RPC id {request_id} "
-                        f"within {MCP_RESPONSE_WALL_SECONDS} seconds."
-                    )
-                if isinstance(raw_line, bytes):
-                    line = raw_line.decode("utf-8", errors="replace")
-                else:
-                    line = str(raw_line or "")
+            for line in response.text.splitlines():
                 if not line.startswith("data:"):
                     continue
-                raw = line[5:].strip()
-                if not raw or raw == "[DONE]":
-                    continue
                 try:
-                    payload = json.loads(raw)
+                    payload = json.loads(line[5:].strip())
                 except json.JSONDecodeError:
                     continue
                 if isinstance(payload, dict):
                     candidates.append(payload)
-                    if payload.get("id") in (request_id, str(request_id)):
-                        break
 
         for payload in candidates:
-            if not isinstance(payload, dict):
-                continue
             if payload.get("id") == request_id or payload.get("id") == str(request_id):
                 if payload.get("error"):
                     raise RuntimeError(f"Kaggle MCP JSON-RPC error: {payload['error']}")
@@ -84,7 +65,7 @@ def _parse_rpc_response(response: requests.Response, request_id: int) -> dict[st
                 return result
 
         raise RuntimeError(
-            "Kaggle MCP response ended without the expected JSON-RPC result "
+            "Kaggle MCP response did not include the expected JSON-RPC result "
             f"(HTTP {response.status_code}, content-type={content_type!r})."
         )
     finally:
@@ -118,7 +99,7 @@ def _tool_call(
             json=body,
             headers=headers,
             timeout=TIMEOUT,
-            stream=True,
+            allow_redirects=False,
         )
         if response.status_code == 429 and attempt < 4:
             response.close()
