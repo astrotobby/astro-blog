@@ -51,7 +51,8 @@ jobs:
             scripts/longform_social_bridge.py \
             scripts/test_longform_social_bridge.py \
             scripts/leadsleap_campaign.py \
-            scripts/test_leadsleap_campaign.py
+            scripts/test_leadsleap_campaign.py \
+            scripts/kaggle_mcp_download_output.py
 
       - name: Parse and validate automation workflow YAML
         run: |
