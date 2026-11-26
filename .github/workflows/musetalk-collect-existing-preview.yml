@@ -63,7 +63,7 @@ jobs:
           kaggle kernels output "$KERNEL_REF" \
             --path preview-output \
             --file-pattern '(^|/)(musetalk_preview|presenter_narration)\\.mp4$' \
-            --page-size 5
+            --page-size 1
 
           PREVIEW="$(find preview-output -type f -name 'musetalk_preview.mp4' -size +100k -print -quit)"
           if [[ -z "$PREVIEW" ]]; then
@@ -95,10 +95,12 @@ jobs:
                             "streams": sorted(stream_types)}, indent=2))
           PY
 
-      - name: Upload verified private preview artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: musetalk-preview-retrieved-${{ github.run_id }}
-          path: preview-output/musetalk_preview.mp4
-          if-no-files-found: error
-          retention-days: 7
+          {
+            echo "## MuseTalk preview validated"
+            echo
+            echo "The verified preview remains in the private Kaggle notebook output:"
+            echo
+            echo "https://www.kaggle.com/code/$KERNEL_REF"
+            echo
+            echo "No presenter video or audio was uploaded to this public GitHub repository or a GitHub Actions artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
