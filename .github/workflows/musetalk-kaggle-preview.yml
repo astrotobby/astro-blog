@@ -277,33 +277,10 @@ jobs:
             exit 1
           fi
 
-          # Download only the single known export. The Kaggle workspace also contains
-          # source code, multi-GB model weights, the Python venv and sample videos.
-          kaggle kernels output "$KERNEL_ID" \
-            --path "$OUTPUT_DIR" \
-            --file-pattern '^musetalk_preview\.mp4
-          {
-            echo "## MuseTalk preview finished"
-            echo
-            echo "The preview is stored in your **private Kaggle notebook output**:"
-            echo
-            echo "https://www.kaggle.com/code/$KAGGLE_OWNER/musetalk-preview-$RUN_ID"
-            echo
-            echo "Open the private Kaggle notebook while signed in to watch or download the verified MP4. The video is not uploaded to this public GitHub repository or to GitHub Actions artifacts."
-            echo
-            echo "The workflow does not use paid inference, a paid GPU, or a paid fallback."
-          } >> "$GITHUB_STEP_SUMMARY"
+          # Download only the single known export. Do not pull the cloned repository,
+          # model weights, venv, or example videos from the Kaggle workspace.
+          kaggle kernels output "$KERNEL_ID" --path "$OUTPUT_DIR" --file-pattern '^musetalk_preview\.mp4$' --page-size 1
 
-      - name: Preserve runner logs on failure
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: musetalk-run-logs-${{ github.run_id }}
-          path: musetalk-run-logs/
-          if-no-files-found: ignore
-          retention-days: 3
- \
-            --page-size 1
           OUTPUT_MP4="$OUTPUT_DIR/musetalk_preview.mp4"
           if [[ ! -s "$OUTPUT_MP4" ]]; then
             echo "::error::The completed Kaggle kernel did not expose musetalk_preview.mp4."
@@ -311,7 +288,7 @@ jobs:
             exit 1
           fi
 
-          # The final must be a real audio/video file, not an input clip or an HTML/error page.
+          # Require a real video and audio stream before declaring the preview successful.
           python - "$OUTPUT_MP4" <<'PY'
           import json, pathlib, subprocess, sys
           path = pathlib.Path(sys.argv[1])
@@ -338,9 +315,9 @@ jobs:
             echo
             echo "https://www.kaggle.com/code/$KAGGLE_OWNER/musetalk-preview-$RUN_ID"
             echo
-            echo "Open the notebook while signed in to Kaggle to watch or download the MP4. Nothing was posted to YouTube or uploaded to this public GitHub repository."
+            echo "The verified MP4 remains in private Kaggle output. It is not uploaded to this public GitHub repository or a GitHub Actions artifact."
             echo
-            echo "The workflow does not use paid inference, a paid GPU, or a paid fallback."
+            echo "The workflow uses no paid inference or paid GPU fallback."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Preserve runner logs on failure
