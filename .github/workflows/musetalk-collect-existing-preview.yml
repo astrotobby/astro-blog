@@ -1,7 +1,11 @@
 name: Retrieve completed MuseTalk preview
 
 on:
-  # Manual-only: do not create extra Kaggle API requests on code edits.
+  # One-time path-scoped validation run for the checked-out direct downloader.
+  push:
+    branches: [main]
+    paths:
+      - "scripts/kaggle_mcp_download_output.py"
   workflow_dispatch:
     inputs:
       kernel_ref:
@@ -18,6 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      - name: Check out downloader script
+        uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
