@@ -46,7 +46,7 @@ jobs:
           echo "Kaggle kernel execution log (tail):"
           kaggle kernels logs "$KERNEL_ID" > recovered-preview/kaggle-kernel.log 2>&1 || true
           tail -n 160 recovered-preview/kaggle-kernel.log
-          if grep -Eqi 'Traceback \(most recent call last\)|RuntimeError:|ERROR:' recovered-preview/kaggle-kernel.log; then
+          if grep -Eqi 'Traceback \(most recent call last\)|RuntimeError:|CellExecutionError|The notebook raised an exception|MuseTalk did not create the expected|Invalid MuseTalk output' recovered-preview/kaggle-kernel.log; then
             echo "::error::The MuseTalk notebook log contains an execution error."
             exit 1
           fi
