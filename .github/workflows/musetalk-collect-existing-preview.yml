@@ -1,16 +1,13 @@
 name: Retrieve completed MuseTalk preview
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/musetalk-collect-existing-preview.yml"
+  # Manual-only: do not create competing Kaggle API calls on every code edit.
   workflow_dispatch:
     inputs:
       kernel_ref:
         description: "Existing completed Kaggle kernel (owner/slug)"
         required: true
-        default: "astrotobby/musetalk-preview-45674076900"
+        default: "astrotobby/musetalk-preview-45767212996"
         type: string
 
 permissions:
@@ -45,7 +42,24 @@ jobs:
             exit 1
           fi
 
-          STATUS="$(kaggle kernels status "$KERNEL_REF" 2>&1 || true)"
+          STATUS=""
+          for attempt in 1 2 3 4; do
+            if STATUS="$(kaggle kernels status "$KERNEL_REF" 2>&1)"; then
+              break
+            fi
+            if ! grep -Eqi '429|too many requests|rate.?limit' <<< "$STATUS"; then
+              echo "$STATUS"
+              exit 1
+            fi
+            delay=$((60 * (2 ** (attempt - 1))))
+            (( delay > 300 )) && delay=300
+            echo "Kaggle status API rate-limited; retry $attempt/4 in $delay seconds."
+            sleep "$delay"
+          done
+          if [[ -z "$STATUS" ]]; then
+            echo "::error::Kaggle status API remained rate-limited after retries."
+            exit 1
+          fi
           echo "Existing Kaggle kernel status: $STATUS"
           if ! grep -Eqi 'complete' <<< "$STATUS"; then
             echo "::error::The selected Kaggle kernel is not complete; refusing to download partial output."
@@ -56,14 +70,37 @@ jobs:
           fi
 
           mkdir -p preview-output
+          echo "Kernel is complete. Waiting for Kaggle output indexing to settle."
+          sleep 60
           echo "Retrieving only the named MuseTalk render from $KERNEL_REF."
           # Old completed kernels use presenter_narration.mp4 inside the results tree.
           # New kernels export the stable root-level name musetalk_preview.mp4.
           # Never enumerate/download the whole Kaggle workspace or sample videos.
-          kaggle kernels output "$KERNEL_REF" \
-            --path preview-output \
-            --file-pattern '(^|/)(musetalk_preview|presenter_narration)\.mp4$' \
-            --page-size 1
+          OUTPUT_READY=0
+          for attempt in $(seq 1 7); do
+            OUTPUT_LOG="preview-output/kaggle-output-attempt-$attempt.log"
+            if kaggle kernels output "$KERNEL_REF" \
+              --path preview-output \
+              --file-pattern '(^|/)(musetalk_preview|presenter_narration)\\.mp4$' \
+              --page-size 1 >"$OUTPUT_LOG" 2>&1; then
+              cat "$OUTPUT_LOG"
+              OUTPUT_READY=1
+              break
+            fi
+            cat "$OUTPUT_LOG"
+            if ! grep -Eqi '429|too many requests|rate.?limit' "$OUTPUT_LOG"; then
+              echo "::error::Kaggle output retrieval failed for a non-rate-limit reason."
+              exit 1
+            fi
+            delay=$((60 * (2 ** (attempt - 1))))
+            (( delay > 600 )) && delay=600
+            echo "Kaggle output API rate-limited; retry $attempt/7 in $delay seconds."
+            sleep "$delay"
+          done
+          if [[ "$OUTPUT_READY" -ne 1 ]]; then
+            echo "::error::Kaggle output API remained rate-limited after seven attempts; the completed kernel is preserved."
+            exit 1
+          fi
 
           PREVIEW="$(find preview-output -type f -name 'musetalk_preview.mp4' -size +100k -print -quit)"
           if [[ -z "$PREVIEW" ]]; then
