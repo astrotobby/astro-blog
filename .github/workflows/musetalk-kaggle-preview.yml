@@ -320,7 +320,7 @@ jobs:
                 echo "::error::Kaggle CLI output retrieval failed for a non-rate-limit reason."
                 exit 1
               fi
-              delay=$((60 * (2 ** (attempt - 1)))
+              delay=$((60 * (2 ** (attempt - 1))))
               (( delay > 600 )) && delay=600
               echo "Kaggle CLI output API rate-limited; retry $attempt/7 in $delay seconds."
               sleep "$delay"
