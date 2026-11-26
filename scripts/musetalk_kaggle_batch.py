@@ -166,50 +166,91 @@ def _wait_for_kernel(kernel_id: str) -> None:
 
 
 def _download_outputs(kernel_id: str, filenames: set[str], destination: Path) -> None:
+    """Fetch each exact MuseTalk result via MCP first, then bounded CLI fallback."""
     destination.mkdir(parents=True, exist_ok=True)
-    # One targeted output request after an indexing cooldown avoids aggressive
-    # repeated polling of Kaggle's session-output endpoint.
-    for attempt, delay in ((1, OUTPUT_COOLDOWN), (2, 240)):
-        print(f"Waiting {delay}s before fetching the rendered MP4 batch (attempt {attempt}/2).",
-              flush=True)
-        time.sleep(delay)
-        log_path = destination / f"kaggle-output-attempt-{attempt}.log"
-        result = _run(
-            [
-                "kernels", "output", kernel_id,
-                "--path", str(destination),
-                "--file-pattern", r".*musetalk_preview_[0-9]+\.mp4$",
-                "--page-size", "200",
-            ],
-            timeout=240,
-            check=False,
-        )
-        log_path.write_text(
-            (result.stdout or "") + "\n" + (result.stderr or ""),
-            encoding="utf-8",
-        )
-        if result.returncode == 0:
-            break
-        message = result.stdout + "\n" + result.stderr
-        if not re.search(r"429|too many requests|rate.?limit", message, re.I):
-            raise RuntimeError("Kaggle completed inference but did not return the MP4 outputs.")
-    else:
-        raise RuntimeError(
-            "MuseTalk GPU inference completed, but Kaggle rate-limited the output download. "
-            f"The private notebook is preserved at https://www.kaggle.com/code/{kernel_id}."
-        )
+    missing = set(filenames)
 
-    for filename in filenames:
-        matches = [p for p in destination.rglob(filename) if p.is_file() and p.stat().st_size > 100_000]
-        if len(matches) != 1:
-            raise RuntimeError(
-                f"Expected one downloaded {filename}, found {len(matches)}. "
-                f"Notebook: https://www.kaggle.com/code/{kernel_id}"
+    # The direct per-file MCP route first tries Kaggle's session-output listing,
+    # avoiding the older kernels.get metadata permission that failed on preview #53.
+    # If that route is denied/unavailable, use the official CLI after a cooldown.
+    try:
+        from kaggle_mcp_download_output import download_output
+    except ImportError as exc:
+        print(f"Kaggle MCP downloader helper unavailable: {exc}", file=sys.stderr)
+        download_output = None
+
+    if download_output is not None:
+        for filename in sorted(tuple(missing)):
+            target = destination / filename
+            try:
+                download_output(kernel_id, filename, target)
+                _probe(target)
+                missing.discard(filename)
+            except Exception as exc:  # noqa - CLI remains a supported fallback
+                print(
+                    f"Direct Kaggle MCP download unavailable for {filename}: "
+                    f"{str(exc)[:300]}; will try the official CLI.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                target.unlink(missing_ok=True)
+
+    if missing:
+        # One targeted batch request after a cooldown is less likely to hit
+        # Kaggle's session-output rate limit than polling/listing repeatedly.
+        for attempt, delay in ((1, OUTPUT_COOLDOWN), (2, 240)):
+            print(
+                f"Waiting {delay}s before Kaggle CLI output retrieval "
+                f"(attempt {attempt}/2).",
+                flush=True,
             )
-        target = destination / filename
-        if matches[0].resolve() != target.resolve():
-            shutil.copy2(matches[0], target)
-        _probe(target)
+            time.sleep(delay)
+            result = _run(
+                [
+                    "kernels", "output", kernel_id,
+                    "--path", str(destination),
+                    "--file-pattern", r".*musetalk_preview_[0-9]+\.mp4$",
+                    "--page-size", "200",
+                ],
+                timeout=300,
+                check=False,
+            )
+            message = (result.stdout or "") + "\n" + (result.stderr or "")
+            if result.returncode == 0:
+                break
+            if not re.search(r"429|too many requests|rate.?limit", message, re.I):
+                raise RuntimeError(
+                    "MuseTalk inference completed, but Kaggle did not return the "
+                    f"requested MP4 files. Recent response: {message[-1200:]}"
+                )
+            if attempt == 2:
+                raise RuntimeError(
+                    "MuseTalk GPU inference completed, but Kaggle rate-limited the "
+                    "output download. The private notebook is preserved at "
+                    f"https://www.kaggle.com/code/{kernel_id}."
+                )
+
+        for filename in sorted(missing):
+            matches = [
+                output_path for output_path in destination.rglob(filename)
+                if output_path.is_file() and output_path.stat().st_size > 100_000
+            ]
+            if len(matches) != 1:
+                raise RuntimeError(
+                    f"Expected one downloaded {filename}, found {len(matches)}. "
+                    f"Private notebook: https://www.kaggle.com/code/{kernel_id}"
+                )
+            target = destination / filename
+            if matches[0].resolve() != target.resolve():
+                shutil.copy2(matches[0], target)
+            _probe(target)
+            missing.discard(filename)
+
+    if missing:
+        raise RuntimeError(
+            "MuseTalk batch output collection is incomplete: "
+            + ", ".join(sorted(missing))
+        )
 
 
 def generate_batch(tasks: list[dict[str, Any]], output_dir: Path | None = None) -> dict[str, Path]:
