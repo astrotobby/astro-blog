@@ -1,7 +1,11 @@
 name: Retrieve completed MuseTalk preview
 
 on:
-  # Manual-only: code edits must not create extra Kaggle API requests.
+  # One-time path-scoped retry for the direct-output collector after removing slow apt setup.
+  push:
+    branches: [main]
+    paths:
+      - "scripts/kaggle_mcp_download_output.py"
   workflow_dispatch:
     inputs:
       kernel_ref:
