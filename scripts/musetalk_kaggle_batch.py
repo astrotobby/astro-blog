@@ -61,14 +61,27 @@ def _username() -> str:
     if configured:
         username = configured.lower()
     else:
-        result = _run(["config", "view"], timeout=30)
-        match = re.search(r"(?im)^\s*-?\s*username\s*:\s*([^\s]+)", result.stdout)
+        # Do not route config-view output through the normal command logger:
+        # some Kaggle CLI versions display credential fields in this response.
+        result = subprocess.run(
+            ["kaggle", "config", "view"],
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode:
+            raise RuntimeError("Kaggle CLI could not read its authenticated account configuration.")
+        match = re.search(
+            r"(?im)^\\s*-?\\s*username\\s*:\\s*([^\\s]+)",
+            result.stdout,
+        )
         if not match:
             raise RuntimeError(
                 "Kaggle authenticated, but the CLI did not expose the account username. "
                 "Set KAGGLE_USERNAME as a GitHub Actions variable for the Kaggle account."
             )
-        username = match.group(1).strip("\"'").lower()
+        username = match.group(1).strip("\\\"'").lower()
     if not re.fullmatch(r"[a-z0-9_-]+", username):
         raise RuntimeError("Kaggle returned an invalid account username.")
     return username
