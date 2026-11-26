@@ -93,7 +93,7 @@ def _platform_credential_fingerprint(platform: str) -> str:
 def _permanent_block_reason(platform: str, result: dict) -> str | None:
     error = str(result.get("error") or "")
     if platform == "facebook" and (
-        re.search(r"""(?:\bcode['"]?\\s*:\\s*190\\b|error_subcode['"]?\\s*:\\s*460\\b)""", error)
+        re.search(r"""(?:\bcode['"]?\s*:\s*190\b|error_subcode['"]?\s*:\s*460\b)""", error)
         or "session has been invalidated" in error.lower()
         or "error validating access token" in error.lower()
     ):
@@ -147,7 +147,7 @@ def publish_threads(message: str, link: str) -> dict:
     base = "https://graph.threads.net/v1.0"
     created = requests.post(
         f"{base}/{user_id}/threads",
-        data={"media_type": "TEXT", "text": f"{message}\\n\\n{link}",
+        data={"media_type": "TEXT", "text": f"{message}\n\n{link}",
               "access_token": token},
         timeout=45,
     )
