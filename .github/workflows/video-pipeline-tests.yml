@@ -82,6 +82,8 @@ jobs:
         run: python -m py_compile scripts/influencer.py scripts/musetalk_kaggle_batch.py scripts/musetalk_output_relay.py scripts/test_video_pipeline.py scripts/test_musetalk_output_relay.py
       - name: Test continuous presenter coverage and PiP composition
         run: python -m unittest scripts.test_video_pipeline.PersistentInfluencerLayoutTests -v
+      - name: Test story-aware topic classification and licensed-image fallback queries
+        run: python -m unittest scripts.test_video_pipeline.FootageBriefTests -v
       - name: Test MuseTalk Kaggle batch authentication and fail-closed behavior
         run: python -m unittest discover -s scripts -p 'test_musetalk_kaggle_batch.py' -v
       - name: Test private MuseTalk output relay authentication and integrity
