@@ -41,6 +41,36 @@ class FootageBriefTests(unittest.TestCase):
             "tags": ["AI"],
         }
 
+    def test_source_headline_prevents_ai_title_from_misclassifying_gold_story(self):
+        post = {
+            "title": "Global AI Markets Rebound: Nvidia, Asia, and the New Tech Landscape",
+            "source_title": "Gold rebounds from one-year low as AI jitters ease",
+            "description": "Gold prices recover as investors reassess technology-market volatility.",
+            "body": (
+                "AI jitters eased and gold, bullion, and precious-metal prices rebounded. "
+                "Investors returned to commodities as the safe-haven trade cooled."
+            ),
+        }
+        self.assertEqual(build_script.detect_topic_category(post), "finance")
+
+    def test_gold_market_story_creates_gold_specific_footage_and_image_queries(self):
+        primary, _fallback = build_script._footage_brief(
+            "Gold rebounds as investors buy bullion and precious metals.", "finance", "HOOK"
+        )
+        self.assertIn("gold bullion", primary)
+        queries = generate_video._contextual_fallback_queries(
+            {"broll": "person using smartphone app", "fallback": "content creator video editing"},
+            "Global AI Markets Rebound: Gold rebounds from one-year low as AI jitters ease",
+        )
+        self.assertIn("gold bullion bars", queries)
+        commons_queries = generate_video._commons_search_queries({
+            "topic_context": "Global AI Markets Rebound: Gold rebounds from one-year low as AI jitters ease",
+            "broll": "person using smartphone app",
+            "fallback": "content creator video editing",
+        })
+        self.assertIn("gold bullion bars", commons_queries)
+        self.assertIn("gold commodities trading", commons_queries)
+
     def test_topic_classifier_uses_word_boundaries_and_detects_elevator_industry(self):
         post = {
             "title": "The Looming Shortage of Wizard Elevator Mechanics",
