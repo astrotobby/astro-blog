@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import tempfile
 import unittest
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
 
 from musetalk_output_relay import OutputRelay
 
@@ -75,10 +77,25 @@ class MuseTalkOutputRelayTests(unittest.TestCase):
         self.assertFalse((self.root / self.filename).exists())
 
     def test_rejects_oversized_file_before_writing(self):
-        oversized = b"x" * (2 * 1024 * 1024 + 1)
-        with self.assertRaises(HTTPError) as caught:
-            self._request(body=oversized, digest=hashlib.sha256(oversized).hexdigest())
-        self.assertEqual(caught.exception.code, 413)
+        # Send only the headers. The relay must reject Content-Length before it
+        # attempts to read the body; sending a body that large can race the early
+        # 413 response and produce a client-side BrokenPipeError on CI.
+        parsed = urlsplit(self.local_url)
+        connection = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=5)
+        connection.putrequest(
+            "PUT", f"/upload/{self.relay.route}/{self.filename}"
+        )
+        connection.putheader("Authorization", f"Bearer {self.relay.token}")
+        connection.putheader("Content-Type", "video/mp4")
+        connection.putheader("Content-Length", str(self.relay.max_upload_bytes + 1))
+        connection.putheader("X-Content-SHA256", "0" * 64)
+        connection.endheaders()
+        try:
+            response = connection.getresponse()
+            self.assertEqual(response.status, 413)
+            response.read()
+        finally:
+            connection.close()
         self.assertFalse((self.root / self.filename).exists())
 
 
