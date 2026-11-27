@@ -216,7 +216,7 @@ def _wait_for_kernel(kernel_id: str, *, relay_available: bool = False) -> bool:
         print(f"MuseTalk GPU kernel status ({attempt}/{max_polls}): {status}", flush=True)
         if re.search(r"\bcomplete\b", status, re.I):
             print(f"MuseTalk kernel completed: https://www.kaggle.com/code/{kernel_id}", flush=True)
-            return
+            return True
         if re.search(r"\b(error|failed|cancelled)\b", status, re.I):
             logs = _run(["kernels", "logs", kernel_id], timeout=120, check=False)
             raise RuntimeError(
