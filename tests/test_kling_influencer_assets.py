@@ -4,6 +4,7 @@ import json
 import subprocess
 import unittest
 import sys
+import tempfile
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
@@ -53,14 +54,23 @@ class KlingInfluencerAssetsTests(unittest.TestCase):
             self.assertGreaterEqual(duration, 3.0)
             self.assertLessEqual(duration, 8.0)
 
-    def test_musetalk_receives_original_approved_frames_without_reencoding(self):
-        clip = self.looks[0]["clip"]
-        source = ROOT / clip
+    def test_musetalk_input_matches_preview_cfr25_normalization(self):
+        clip = ROOT / self.looks[0]["clip"]
         cfg = {"influencer": {"lipsync_backend": "musetalk"}}
-        with patch("influencer._run") as ffmpeg:
-            result = _face_source({"id": "approved", "clip": str(source)}, 24, cfg)
-        self.assertEqual(result, source.resolve())
-        ffmpeg.assert_not_called()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_out = Path(temp_dir)
+            def fake_ffmpeg(command, cwd=None):
+                (temp_out / command[-1]).write_bytes(b"validated-test-output" * 100)
+            with patch("influencer.OUT", temp_out):
+                with patch("influencer._run", side_effect=fake_ffmpeg) as ffmpeg:
+                    result = _face_source({"id": "approved", "clip": str(clip)}, 24, cfg)
+        self.assertTrue(result.is_file())
+        command = " ".join(ffmpeg.call_args.args[0])
+        self.assertIn("fps=25,scale=trunc(iw/2)*2:trunc(ih/2)*2", command)
+        self.assertIn("-crf 20", command)
+        self.assertIn("yuv420p", command)
+        self.assertNotIn("scale=540", command)
+        self.assertNotIn("reverse", command)
 
     def test_presenter_grade_preserves_source_skin_without_colour_effects(self):
         source = (ROOT / "scripts/influencer.py").read_text(encoding="utf-8")
@@ -84,6 +94,11 @@ class KlingInfluencerAssetsTests(unittest.TestCase):
         renderer = (ROOT / "scripts/generate_video.py").read_text(encoding="utf-8")
         self.assertIn("presented = compose(montage, voiced, word_timings", renderer)
         self.assertNotIn("presented = compose(montage, voice, word_timings", renderer)
+
+    def test_longform_pipeline_uses_the_musetalk_25fps_cadence(self):
+        pipeline = (ROOT / "scripts/longform_pipeline.py").read_text(encoding="utf-8")
+        self.assertIn('cfg["video"]["fps"]=25', pipeline)
+        self.assertNotIn('cfg["video"]["fps"]=24', pipeline)
 
     def test_longform_pipeline_keeps_the_influencer_enabled(self):
         pipeline = (ROOT / "scripts/longform_pipeline.py").read_text(encoding="utf-8")
