@@ -686,6 +686,16 @@ def _metadata_value(value: str, limit: int = 96) -> str:
     return re.sub(r"[|:\n\r]+", " ", (value or "")).strip()[:limit]
 
 
+def _matches_footage_signal(text: str, signal: str) -> bool:
+    """Match whole words/phrases only; avoid 'gold' matching 'golden', etc."""
+    parts = str(signal or "").lower().split()
+    if not parts:
+        return False
+    expression = r"[\\s-]+".join(re.escape(part) for part in parts)
+    pattern = rf"(?<![a-z0-9]){expression}(?![a-z0-9])"
+    return bool(re.search(pattern, str(text or "").lower()))
+
+
 def _footage_brief(segment: str, category: str, scene_type: str) -> tuple[str, str]:
     """Return a concrete primary and fallback B-roll query for a narration beat.
 
@@ -696,12 +706,12 @@ def _footage_brief(segment: str, category: str, scene_type: str) -> tuple[str, s
     profile = FOOTAGE_BROLL_PROFILES.get(category, FOOTAGE_BROLL_PROFILES["general_ai"])
     text = (segment or "").lower()
     for signals, concrete_query in CONCRETE_FOOTAGE_MATCHES:
-        if any(signal in text for signal in signals):
+        if any(_matches_footage_signal(text, signal) for signal in signals):
             fallback = profile["fallbacks"][(len(concrete_query) + len(segment)) % len(profile["fallbacks"])]
             return _metadata_value(concrete_query), _metadata_value(fallback)
 
     for signals, query in profile["matches"]:
-        if any(signal in text for signal in signals):
+        if any(_matches_footage_signal(text, signal) for signal in signals):
             break
     else:
         query = profile["fallbacks"][0]
