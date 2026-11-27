@@ -61,6 +61,37 @@ class MuseTalkKaggleBatchTests(unittest.TestCase):
                     batch._wait_for_dataset("astrotobby/musetalk-input-test", {"presenter_0.mp4"})
         self.assertEqual(command.call_count, 30)
 
+    def test_private_kernel_status_permission_uses_signed_relay(self):
+        denied = SimpleNamespace(
+            returncode=1,
+            stdout="",
+            stderr="Cannot access private kernel. Permission 'kernels.get' was denied.",
+        )
+        with patch.object(batch, "_run", return_value=denied) as command:
+            with patch("builtins.print") as output:
+                batch._wait_for_kernel(
+                    "astrotobby/musetalk-batch-private",
+                    relay_available=True,
+                )
+        command.assert_called_once()
+        self.assertTrue(any(
+            "output relay as the completion signal" in str(call)
+            for call in output.call_args_list
+        ))
+
+    def test_private_kernel_status_permission_still_fails_without_relay(self):
+        denied = SimpleNamespace(
+            returncode=1,
+            stdout="",
+            stderr="Cannot access private kernel. Permission 'kernels.get' was denied.",
+        )
+        with patch.object(batch, "_run", return_value=denied):
+            with self.assertRaisesRegex(RuntimeError, "kernel status request failed"):
+                batch._wait_for_kernel(
+                    "astrotobby/musetalk-batch-private",
+                    relay_available=False,
+                )
+
     def test_probe_accepts_only_preview_matched_25fps_output(self):
         payload = {
             "streams": [
