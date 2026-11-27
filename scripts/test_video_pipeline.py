@@ -41,6 +41,45 @@ class FootageBriefTests(unittest.TestCase):
             "tags": ["AI"],
         }
 
+    def test_topic_classifier_uses_word_boundaries_and_detects_elevator_industry(self):
+        post = {
+            "title": "The Looming Shortage of Wizard Elevator Mechanics",
+            "description": "Why lift technicians are difficult to recruit and retain.",
+            "body": (
+                "Maintaining aging elevators requires experienced mechanics. "
+                "AI monitoring can help, but it cannot replace a trained technician. "
+                "Maintenance delays affect high-rise residents."
+            ),
+        }
+        self.assertEqual(build_script.detect_topic_category(post), "infrastructure")
+
+    def test_elevator_story_generates_relevant_scene_searches(self):
+        post = {
+            "slug": "elevator-mechanics-shortage",
+            "title": "The Looming Shortage of Wizard Elevator Mechanics",
+            "source_title": "Why is there a shortage of wizard elevator mechanics?",
+            "description": "The shortage of trained lift mechanics is worsening.",
+            "body": (
+                "Elevator technicians repair hydraulic cylinders, service lift doors, "
+                "inspect machine rooms and train apprentices."
+            ),
+            "url": "https://example.test/elevator-mechanics",
+        }
+        prompts = build_script.make_scenes(post, self.cfg)
+        self.assertTrue(any("elevator" in prompt.lower() or "lift" in prompt.lower()
+                            for prompt in prompts))
+        self.assertFalse(any("software developer laptop" in prompt.lower()
+                             for prompt in prompts))
+
+    def test_commons_context_adds_story_specific_elevator_queries(self):
+        queries = generate_video._commons_search_queries({
+            "topic_context": "The Looming Shortage of Wizard Elevator Mechanics",
+            "broll": "software developer laptop",
+            "fallback": "data center servers",
+        })
+        self.assertIn("elevator mechanic", queries)
+        self.assertIn("elevator maintenance", queries)
+
     def test_scene_metadata_contains_concrete_footage_queries(self):
         prompts = build_script.make_scenes(self.post, self.cfg)
         self.assertEqual(len(prompts), self.cfg["visuals"]["scenes"])
