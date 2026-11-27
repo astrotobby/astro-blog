@@ -63,6 +63,26 @@ def _run(
     return result
 
 
+def _validate_kernel_title_slug(kernel_id: str, title: str) -> str:
+    """Require the notebook title to resolve to the exact slug used by the API.
+
+    Kaggle derives the /code/<slug> URL from the title. A descriptive title
+    that differs from kernel-metadata.json's id can be accepted by kernels.push
+    while subsequent status/output calls against the id slug receive 403.
+    """
+    parts = kernel_id.strip("/").split("/")
+    if len(parts) != 2 or not all(parts):
+        raise ValueError("Kaggle kernel id must be owner/kernel-slug.")
+    expected_slug = parts[1]
+    derived_slug = re.sub(r"[^a-z0-9]+", "-", title.strip().lower()).strip("-")
+    if not derived_slug or derived_slug != expected_slug:
+        raise ValueError(
+            "Kaggle notebook title does not resolve to the kernel id slug: "
+            f"{derived_slug!r} != {expected_slug!r}. Use the exact slug as the title."
+        )
+    return derived_slug
+
+
 def _username() -> str:
     configured = os.environ.get("KAGGLE_USERNAME", "").strip()
     if configured:
@@ -547,6 +567,8 @@ def generate_batch(tasks: list[dict[str, Any]], output_dir: Path | None = None) 
         kernel_slug = f"musetalk-batch-{run_slug}"
         dataset_id = f"{owner}/{dataset_slug}"
         kernel_id = f"{owner}/{kernel_slug}"
+        kernel_title = kernel_slug
+        _validate_kernel_title_slug(kernel_id, kernel_title)
 
         manifest_tasks = []
         expected_files: set[str] = {"musetalk_manifest.json"}
@@ -614,7 +636,7 @@ def generate_batch(tasks: list[dict[str, Any]], output_dir: Path | None = None) 
         (kernel_dir / "kernel-metadata.json").write_text(
             json.dumps({
                 "id": kernel_id,
-                "title": f"Private MuseTalk batch {run_slug}",
+                "title": kernel_title,
                 "code_file": "musetalk_free_kaggle_test.ipynb",
                 "language": "python",
                 "kernel_type": "notebook",
