@@ -19,6 +19,8 @@ from fractions import Fraction
 import time
 import uuid
 from pathlib import Path
+
+import requests
 from typing import Any
 
 from musetalk_output_relay import OutputRelay
@@ -237,46 +239,156 @@ def _wait_for_session_outputs(
     *,
     timeout: int = KAGGLE_TIMEOUT,
 ) -> None:
-    """Poll exact Kaggle session files without using the private kernels.get endpoint."""
+    """Poll MuseTalk outputs, falling back from unavailable MCP to Kaggle CLI.
+
+    Kaggle can accept a private notebook push while its MCP HTTP endpoint is
+    unavailable to a runner. A transport-level 404 is not a missing output
+    file: switch to the official `kaggle kernels output` command and keep
+    polling until the exact expected MP4s arrive or the bounded job timeout
+    expires. Every downloaded file must pass ffprobe before it is accepted.
+    """
     from kaggle_mcp_download_output import download_output
 
     destination.mkdir(parents=True, exist_ok=True)
     missing = set(filenames)
     deadline = time.monotonic() + timeout
     attempt = 0
+    use_cli = False
+
     while missing and time.monotonic() < deadline:
         attempt += 1
-        for filename in sorted(tuple(missing)):
-            target = destination / filename
-            try:
-                download_output(kernel_id, filename, target, session_only=True)
+
+        if not use_cli:
+            for filename in sorted(tuple(missing)):
+                target = destination / filename
+                try:
+                    download_output(kernel_id, filename, target, session_only=True)
+                    _probe(target)
+                    missing.discard(filename)
+                    print(
+                        f"Kaggle session output received and validated: {filename}",
+                        flush=True,
+                    )
+                except FileNotFoundError:
+                    target.unlink(missing_ok=True)
+                except requests.HTTPError as exc:
+                    response = getattr(exc, "response", None)
+                    status_code = getattr(response, "status_code", None)
+                    if status_code == 404 or (isinstance(status_code, int) and status_code >= 500):
+                        use_cli = True
+                        target.unlink(missing_ok=True)
+                        print(
+                            f"Kaggle MCP returned HTTP {status_code}; switching to the "
+                            "official Kaggle CLI output downloader.",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                        break
+                    raise RuntimeError(
+                        "Kaggle MCP output access was rejected with "
+                        f"HTTP {status_code or 'an HTTP error'} for {filename}."
+                    ) from exc
+                except requests.RequestException as exc:
+                    use_cli = True
+                    target.unlink(missing_ok=True)
+                    print(
+                        "Kaggle MCP transport is unavailable; switching to the "
+                        f"official Kaggle CLI output downloader ({type(exc).__name__}).",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    break
+                except RuntimeError as exc:
+                    if re.search(r"429|too many requests|rate.?limit", str(exc), re.I):
+                        print(
+                            "Kaggle MCP output listing is rate-limited; "
+                            f"retrying after {STATUS_INTERVAL}s.",
+                            flush=True,
+                        )
+                        continue
+                    if re.search(r"HTTP 404|not found.*mcp|mcp.*not found", str(exc), re.I):
+                        use_cli = True
+                        target.unlink(missing_ok=True)
+                        print(
+                            "Kaggle MCP endpoint is unavailable; switching to the "
+                            "official Kaggle CLI output downloader.",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                        break
+                    raise RuntimeError(
+                        "Kaggle could not retrieve the private MuseTalk session output "
+                        f"{filename}: {str(exc)[:700]}"
+                    ) from exc
+
+        if missing and use_cli:
+            result = _run(
+                [
+                    "kernels", "output", kernel_id,
+                    "--path", str(destination),
+                    "--file-pattern", r".*musetalk_preview_[0-9]+\\.mp4$",
+                    "--page-size", "200",
+                ],
+                timeout=300,
+                check=False,
+            )
+            message = (result.stdout or "") + "\n" + (result.stderr or "")
+            if result.returncode and re.search(
+                r"permission.{0,50}(?:denied|forbidden)|"
+                r"(?:403|forbidden).{0,80}kernels|get.{0,30}denied",
+                message,
+                re.I,
+            ):
+                raise RuntimeError(
+                    "Kaggle accepted the MuseTalk notebook, but this API token cannot "
+                    "read notebook outputs. Regenerate the Kaggle token with notebook "
+                    "read access (kernels.get) and update KAGGLE_API_TOKEN in the "
+                    "AI-GEMS GitHub Actions secrets. Do not paste the token into chat. "
+                    f"Private notebook: https://www.kaggle.com/code/{kernel_id}"
+                )
+            if result.returncode and not re.search(
+                r"429|too many requests|rate.?limit|404|not found|"
+                r"no output|not available|still running",
+                message,
+                re.I,
+            ):
+                raise RuntimeError(
+                    "The official Kaggle CLI could not retrieve MuseTalk outputs: "
+                    f"{message[-1200:]}"
+                )
+
+            for filename in sorted(tuple(missing)):
+                matches = [
+                    candidate
+                    for candidate in destination.rglob(filename)
+                    if candidate.is_file() and candidate.stat().st_size >= 100_000
+                ]
+                if len(matches) > 1:
+                    raise RuntimeError(
+                        f"Expected one Kaggle output named {filename}, found {len(matches)}. "
+                        "Refusing to choose an ambiguous video."
+                    )
+                if not matches:
+                    continue
+                target = destination / filename
+                if matches[0].resolve() != target.resolve():
+                    shutil.copy2(matches[0], target)
                 _probe(target)
                 missing.discard(filename)
                 print(
-                    f"Kaggle session output received and validated: {filename}",
+                    f"Kaggle CLI output received and validated: {filename}",
                     flush=True,
                 )
-            except FileNotFoundError:
-                target.unlink(missing_ok=True)
-            except RuntimeError as exc:
-                if re.search(r"429|too many requests|rate.?limit", str(exc), re.I):
-                    print(
-                        "Kaggle session-output listing is rate-limited; "
-                        f"retrying after {STATUS_INTERVAL}s.",
-                        flush=True,
-                    )
-                    continue
-                raise RuntimeError(
-                    "Kaggle could not retrieve the private MuseTalk session output "
-                    f"{filename}: {str(exc)[:700]}"
-                ) from exc
+
         if missing:
             print(
-                f"Waiting for private Kaggle session output ({attempt}): "
-                f"{len(missing)} file(s) still pending.",
+                f"Waiting for private Kaggle MuseTalk output ({attempt}): "
+                f"{len(missing)} file(s) still pending via "
+                f"{'Kaggle CLI' if use_cli else 'MCP session output'}.",
                 flush=True,
             )
             time.sleep(STATUS_INTERVAL)
+
     if missing:
         raise TimeoutError(
             f"Kaggle did not expose the MuseTalk output file(s) within "
