@@ -8,6 +8,8 @@ import os
 import subprocess
 import tempfile
 import unittest
+
+import requests
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -145,6 +147,34 @@ class MuseTalkKaggleBatchTests(unittest.TestCase):
                         timeout=120,
                     )
         sleep.assert_not_called()
+
+    def test_mcp_http_404_falls_back_to_official_kaggle_cli_output(self):
+        error = requests.HTTPError("404 Client Error: Not Found for url: https://www.kaggle.com/mcp")
+        error.response = SimpleNamespace(status_code=404)
+        fake_helper = SimpleNamespace(download_output=Mock(side_effect=error))
+
+        def fake_kaggle_run(args, **kwargs):
+            self.assertEqual(args[:3], ["kernels", "output", "astrotobby/musetalk-batch-private"])
+            self.assertIn("--file-pattern", args)
+            (Path(args[args.index("--path") + 1]) / "musetalk_preview_0.mp4").write_bytes(b"x" * 120_000)
+            return SimpleNamespace(returncode=0, stdout="downloaded outputs", stderr="")
+
+        with tempfile.TemporaryDirectory() as folder:
+            target_dir = Path(folder)
+            with (
+                patch.dict(sys.modules, {"kaggle_mcp_download_output": fake_helper}),
+                patch.object(batch, "_run", side_effect=fake_kaggle_run) as kaggle_call,
+                patch.object(batch, "_probe", return_value={"fps": 25.0}),
+                patch("builtins.print"),
+            ):
+                batch._wait_for_session_outputs(
+                    "astrotobby/musetalk-batch-private",
+                    {"musetalk_preview_0.mp4"},
+                    target_dir,
+                    timeout=120,
+                )
+            self.assertTrue((target_dir / "musetalk_preview_0.mp4").is_file())
+            kaggle_call.assert_called_once()
 
     def test_probe_accepts_only_preview_matched_25fps_output(self):
         payload = {
