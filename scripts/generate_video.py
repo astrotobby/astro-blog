@@ -1381,6 +1381,36 @@ def _render_original_editorial_visual(destination: Path, target_w: int, target_h
         color = tuple(int(top[c] * (1 - ratio) + bottom[c] * ratio) for c in range(3))
         gradient_draw.line((0, y, width, y), fill=color, width=1)
 
+    # Vary the entire canvas, not only the right-side motif. The permanent
+    # duplicate guard compares cropped/centered perceptual hashes, so a repeated
+    # dark title panel would otherwise make two different illustrations look alike.
+    pattern_bytes = hashlib.sha256(
+        f"editorial-layout:{slug}:{index}:{variant}:{context}".encode("utf-8")
+    ).digest()
+    panel_overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    panel_draw = ImageDraw.Draw(panel_overlay)
+    tile_cols, tile_rows = 6, 4
+    tile_w, tile_h = width / tile_cols, height / tile_rows
+    for row in range(tile_rows):
+        for col in range(tile_cols):
+            cell = row * tile_cols + col
+            value = pattern_bytes[cell]
+            x1, y1 = int(col * tile_w), int(row * tile_h)
+            x2, y2 = int((col + 1) * tile_w), int((row + 1) * tile_h)
+            shade = 20 + (value % 13) * 4
+            fill = (shade, min(105, shade + 11), min(132, shade + 25),
+                    48 + (value % 4) * 18)
+            panel_draw.rectangle((x1, y1, x2, y2), fill=fill)
+            if value & 1:
+                panel_draw.line((x1, y2, x2, y1), fill=(*accent, 65 + value % 45),
+                                width=max(3, int(height * 0.008)))
+            else:
+                inset = max(6, int(min(tile_w, tile_h) * 0.18))
+                panel_draw.ellipse((x1 + inset, y1 + inset, x2 - inset, y2 - inset),
+                                   outline=(*accent, 45 + value % 55),
+                                   width=max(2, int(height * 0.004)))
+    image = Image.alpha_composite(image.convert("RGBA"), panel_overlay)
+
     glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
     gd.ellipse((int(width * 0.48), int(height * -0.18),
