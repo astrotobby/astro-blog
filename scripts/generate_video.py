@@ -1289,6 +1289,15 @@ def _contextual_fallback_queries(meta, context_title=""):
             "music awards ceremony",
         ])
     if any(term in context for term in (
+        "human collaboration", "collaboration", "team meeting", "employees",
+        "workforce", "job cuts", "layoffs", "office workers",
+    )):
+        queries.extend([
+            "office workers collaborating",
+            "team meeting around laptop",
+            "coworkers working together in office",
+        ])
+    if any(term in context for term in (
         "artificial intelligence", " ai ", "software", "programmer", "coding",
         "technology", "developer", "robotics", "computer",
     )):
