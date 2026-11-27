@@ -659,6 +659,66 @@ class ScheduleTests(unittest.TestCase):
         sleep.assert_called_once_with(5)
 
 
+class FailedJobStateTests(unittest.TestCase):
+    def test_render_failure_marks_job_terminal_for_safe_retry(self):
+        target_date = "2099-11-29"
+        key = pipeline.make_job_id(
+            "digital_nomad", "12:00",
+            pipeline.publish_time("digital_nomad", "12:00", target_date),
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "ledger.json"
+            path.write_text(json.dumps({
+                "schema": 1,
+                "jobs": {key: {
+                    "job_id": key,
+                    "status": "rendering",
+                    "workflow_run_id": "old-run",
+                    "updated_at": "2099-11-28T00:00:00+00:00",
+                }},
+                "recent_topics": [],
+            }), encoding="utf-8")
+            with patch.object(pipeline, "ledger_path", return_value=path):
+                updated = pipeline.mark_job_failed(
+                    "digital_nomad", "12:00", target_date, False,
+                    RuntimeError("No usable visual asset for scene 14"),
+                )
+            data = json.loads(path.read_text(encoding="utf-8"))
+        self.assertTrue(updated)
+        job = data["jobs"][key]
+        self.assertEqual(job["status"], "failed")
+        self.assertEqual(job["failure"]["stage"], "rendering")
+        self.assertIn("scene 14", job["failure"]["message"])
+        self.assertIn("failed_at", job["failure"])
+
+    def test_ambiguous_upload_state_is_not_marked_failed(self):
+        target_date = "2099-11-29"
+        key = pipeline.make_job_id(
+            "digital_nomad", "12:00",
+            pipeline.publish_time("digital_nomad", "12:00", target_date),
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "ledger.json"
+            path.write_text(json.dumps({
+                "schema": 1,
+                "jobs": {key: {
+                    "job_id": key,
+                    "status": "uploading",
+                    "video_id": "existing-video-id",
+                }},
+                "recent_topics": [],
+            }), encoding="utf-8")
+            with patch.object(pipeline, "ledger_path", return_value=path):
+                updated = pipeline.mark_job_failed(
+                    "digital_nomad", "12:00", target_date, False,
+                    RuntimeError("network error during upload"),
+                )
+            data = json.loads(path.read_text(encoding="utf-8"))
+        self.assertFalse(updated)
+        self.assertEqual(data["jobs"][key]["status"], "uploading")
+        self.assertNotIn("failure", data["jobs"][key])
+
+
 class TopicTests(unittest.TestCase):
     def test_similarity_ignores_generic_headline_words(self):
         self.assertGreaterEqual(
