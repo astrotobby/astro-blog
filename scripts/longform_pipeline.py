@@ -905,6 +905,44 @@ def save_ledger(ledger, dry_run=False):
             ledger["_active_job_id"] = active_id
 
 
+
+def mark_job_failed(channel, slot, target_date, dry_run, error):
+    """Mark failed pre-upload jobs terminal so schedule recovery can retry safely.
+
+    An upload already in progress is deliberately left untouched because its
+    remote YouTube state may be ambiguous and must be reconciled before retry.
+    """
+    try:
+        target = publish_time(channel, slot, target_date)
+        key = make_job_id(channel, slot, target)
+        ledger = load_ledger()
+        job = (ledger.get("jobs") or {}).get(key)
+        if not job:
+            return False
+        previous_status = str(job.get("status") or "unknown").lower()
+        if previous_status in {"uploading", "scheduled", "published"}:
+            log(f"Failure bookkeeping left {key} in {previous_status}: upload state requires reconciliation")
+            return False
+
+        failed_at = datetime.now(timezone.utc).isoformat()
+        job["status"] = "failed"
+        job["failure"] = {
+            "stage": previous_status,
+            "type": type(error).__name__,
+            "message": str(error)[:500],
+            "failed_at": failed_at,
+        }
+        ledger["_active_job_id"] = key
+        save_ledger(ledger, dry_run)
+        log(f"Marked long-form job {key} failed at {previous_status}; scheduler may safely retry it")
+        return True
+    except Exception as bookkeeping_error:
+        log(
+            "Could not persist failed-job status "
+            f"({type(bookkeeping_error).__name__}): {str(bookkeeping_error)[:300]}"
+        )
+        return False
+
 def yt_service(channel):
     from clipper import publish
     from google.oauth2.credentials import Credentials
@@ -1309,7 +1347,7 @@ def run_job(channel,slot,target_date=None,dry_run=False,skip_render=False,publis
     ledger=load_ledger(); jobs=ledger.setdefault("jobs",{}); job=jobs.get(key)
     ledger["_active_job_id"] = key
     current_run_id = os.environ.get("GITHUB_RUN_ID", "")
-    if publish_now and job:
+    if publish_now and job and str(job.get("status") or "").lower() != "failed":
         if str(job.get("workflow_run_id") or "") != current_run_id or not current_run_id:
             raise RuntimeError(
                 f"Immediate publication requires a fresh job created by this workflow run; "
@@ -1470,6 +1508,7 @@ def main():
           "publish_at":job.get("publish_at"),"published_at":job.get("published_at"),"media":job.get("media")},indent=2,ensure_ascii=False))
         return 0
     except Exception as exc:
+        mark_job_failed(args.channel, args.slot, args.target_date, args.dry_run, exc)
         log(f"LONGFORM PIPELINE FAILED: {type(exc).__name__}: {str(exc)[:600]}")
         return 1
 
