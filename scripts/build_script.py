@@ -84,7 +84,9 @@ TOPIC_VISUAL_PROFILES = {
     "finance": {
         "signals": ["finance", "payment", "fintech", "banking", "transaction", "revenue",
                     "investment", "trading", "stock", "currency", "crypto", "wallet",
-                    "accounting", "invoice", "budget", "financial"],
+                    "accounting", "invoice", "budget", "financial", "gold", "bullion",
+                    "commodity", "commodities", "precious metal", "precious metals",
+                    "safe haven", "markets", "market"],
         "visual_language": [
             "trading floor with real-time data screens, warm amber and gold tones",
             "financial data dashboard with charts, sharp editorial photography",
@@ -203,9 +205,18 @@ FOOTAGE_BROLL_PROFILES = {
         ),
     },
     "finance": {
-        "fallbacks": ("financial data dashboard", "business team meeting", "digital payment phone"),
+        "fallbacks": (
+            "commodity trading floor screens",
+            "gold bullion bars close up",
+            "financial market price charts",
+        ),
         "matches": (
-            (("stock", "trading", "market", "investment"), "financial data charts screen"),
+            (("gold", "bullion", "precious metal", "precious metals", "safe haven"),
+             "gold bullion bars and commodities trading"),
+            (("commodity", "commodities", "futures", "mining", "metal prices"),
+             "commodities trading floor and market screens"),
+            (("stock", "trading", "market", "investment", "investor"),
+             "financial market trading floor"),
             (("payment", "transaction", "banking", "wallet"), "digital payment phone"),
             (("revenue", "budget", "invoice", "finance"), "business analytics dashboard"),
         ),
@@ -279,6 +290,8 @@ FOOTAGE_BROLL_PROFILES = {
 # environment, or real-world application. They directly address the common failure
 # mode where an AI article is illustrated by generic mountains or forests.
 CONCRETE_FOOTAGE_MATCHES = (
+    (("gold", "bullion", "precious metal", "precious metals"), "gold bullion bars and commodities trading"),
+    (("commodity", "commodities", "futures", "metal prices"), "commodities trading floor and market screens"),
     (("elevator", "elevators", "lift", "lifts", "escalator", "escalators", "hoistway", "vertical transport"), "elevator mechanic servicing a lift"),
     (("hydraulic cylinder", "elevator motor", "lift machinery", "elevator machine room"), "elevator machine room hydraulic components"),
     (("veo", "kling", "runway", "luma", "sora", "ai video", "video generator", "text to video", "rendering", "rendered video"), "AI video generation interface"),
@@ -584,6 +597,7 @@ def detect_topic_category(post) -> str:
     previously treated words such as "maintaining" as AI mentions.
     """
     title = str(post.get("title") or "").lower()
+    source_title = str(post.get("source_title") or "").lower()
     description = str(post.get("description") or "").lower()
     body = str(post.get("body") or "")[:3000].lower()
 
@@ -596,11 +610,13 @@ def detect_topic_category(post) -> str:
     for cat, profile in TOPIC_VISUAL_PROFILES.items():
         score = 0
         for signal in profile["signals"]:
-            # A match in the headline is a stronger indication of the actual
-            # story than a passing mention in a long article body.
-            score += min(occurrences(title, signal), 2) * 4
+            # The publisher's original headline is the strongest topic signal.
+            # A generated YouTube title or narration may add secondary AI terms
+            # that should not displace the actual story category.
+            score += min(occurrences(source_title, signal), 2) * 8
+            score += min(occurrences(title, signal), 2) * 3
             score += min(occurrences(description, signal), 3) * 2
-            score += min(occurrences(body, signal), 5)
+            score += min(occurrences(body, signal), 3) * 0.5
         if score > best_score:
             best_score = score
             best_cat = cat
