@@ -194,13 +194,15 @@ def _write_face_key(face, clip, recipe):
     face.with_name(face.name + ".key").write_text(digest, encoding="utf-8")
 
 
-def _face_source(lk, fps, cfg=None):
-    """Choose the approved face clip for the selected lip-sync backend.
+MUSE_TALK_INPUT_FPS = 25
 
-    MuseTalk production receives the same untouched source frames as the
-    validated Kaggle preview: no 540px downscale, reverse/boomerang, extra
-    H.264 generation, or pre-inference resampling. Wav2Lip retains its legacy
-    normalized source path.
+def _face_source(lk, fps, cfg=None):
+    """Prepare presenter frames with the exact CFR/codec contract of the good preview.
+
+    MuseTalk's inference.py reads fps from the video file for video inputs; its CLI
+    --fps setting is not used in that branch. The preview normalized the Kling clip
+    to 25 CFR with even dimensions, H.264, yuv420p and no audio. Production must do
+    the same, or its audio chunks can be generated at a different cadence.
     """
     if lk.get("clip"):
         source = Path(lk["clip"]).resolve()
@@ -210,8 +212,17 @@ def _face_source(lk, fps, cfg=None):
         if backend == "musetalk":
             if not source.is_file():
                 raise FileNotFoundError(f"Approved MuseTalk presenter clip is missing: {source}")
-            log(f"look {lk['id']}: MuseTalk uses original approved source frames ({source.name})")
-            return source
+            normalized = OUT / f"_lk_{lk['id']}_musetalk_cfr25.mp4"
+            _run([
+                "ffmpeg", "-y", "-i", str(source),
+                "-vf", "fps=25,scale=trunc(iw/2)*2:trunc(ih/2)*2",
+                "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-pix_fmt", "yuv420p", "-movflags", "+faststart", normalized.name,
+            ], cwd=OUT)
+            if not normalized.is_file() or normalized.stat().st_size < 1000:
+                raise RuntimeError(f"MuseTalk CFR25 presenter normalization failed: {lk['id']}")
+            log(f"look {lk['id']}: MuseTalk preview-matched input -> 25 CFR ({source.name})")
+            return normalized
 
         src = OUT / f"_lk_{lk['id']}_src.mp4"
         bounce = OUT / f"_lk_{lk['id']}_bounce.mp4"
