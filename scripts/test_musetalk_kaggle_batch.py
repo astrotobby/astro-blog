@@ -26,6 +26,18 @@ class MuseTalkKaggleBatchTests(unittest.TestCase):
                     batch.generate_batch([])
                 kaggle_call.assert_not_called()
 
+    def test_kaggle_kernel_title_must_resolve_to_submitted_id_slug(self):
+        kernel_id = "astrotobby/musetalk-batch-abcdef1234"
+        self.assertEqual(
+            batch._validate_kernel_title_slug(kernel_id, "musetalk-batch-abcdef1234"),
+            "musetalk-batch-abcdef1234",
+        )
+        with self.assertRaisesRegex(ValueError, "does not resolve to the kernel id slug"):
+            batch._validate_kernel_title_slug(
+                kernel_id,
+                "Private MuseTalk batch abcdef1234",
+            )
+
     def test_explicit_username_avoids_kaggle_config_lookup(self):
         with patch.dict(os.environ, {"KAGGLE_USERNAME": "AstroTobby"}, clear=True):
             with patch.object(batch.subprocess, "run") as command:
