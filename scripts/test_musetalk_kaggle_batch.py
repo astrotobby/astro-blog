@@ -12,7 +12,7 @@ import unittest
 import requests
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from types import SimpleNamespace
 
 import musetalk_kaggle_batch as batch
