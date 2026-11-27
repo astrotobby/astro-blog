@@ -1371,22 +1371,44 @@ def _render_original_editorial_visual(destination: Path, target_w: int, target_h
         theme, headline = "technology", "TECHNOLOGY IN TRANSITION"
         accent = (89, 174, 232)
 
-    # A restrained dark editorial palette with a bright, legible focal area.
-    top = (7, 17, 34)
-    bottom = (16, 43, 63)
+    # Each shot receives a different editorial palette and a different full-frame
+    # layout. Adjacent scenes deliberately rotate palettes so the strict pHash
+    # no-reuse guard does not see two otherwise distinct graphics as near-duplicates.
+    pattern_bytes = hashlib.sha256(
+        f"editorial-layout:{slug}:{index}:{variant}:{context}".encode("utf-8")
+    ).digest()
+    palettes = (
+        ((6, 15, 28), (24, 74, 95)),      # deep blue / teal
+        ((22, 9, 21), (110, 42, 53)),     # burgundy / oxblood
+        ((8, 28, 26), (35, 105, 76)),     # forest / emerald
+        ((28, 22, 10), (116, 83, 34)),    # charcoal / bronze
+        ((15, 11, 31), (78, 53, 117)),    # midnight / violet
+        ((8, 29, 48), (36, 98, 140)),     # navy / cobalt
+        ((31, 15, 8), (119, 58, 25)),    # espresso / copper
+    )
+    palette_index = index % len(palettes)
+    top, bottom = palettes[palette_index]
     image = Image.new("RGB", (width, height))
     gradient_draw = ImageDraw.Draw(image)
+    gradient_mode = (pattern_bytes[0] + index) % 3
     for y in range(height):
         ratio = y / max(1, height - 1)
         color = tuple(int(top[c] * (1 - ratio) + bottom[c] * ratio) for c in range(3))
-        gradient_draw.line((0, y, width, y), fill=color, width=1)
+        if gradient_mode == 0:
+            gradient_draw.line((0, y, width, y), fill=color, width=1)
+        elif gradient_mode == 1:
+            gradient_draw.line((0, height - 1 - y, width, height - 1 - y),
+                               fill=color, width=1)
+        else:
+            # Horizontal colour bands provide a visibly different global
+            # composition while remaining behind the foreground illustration.
+            band = max(1, int(height / 16))
+            shade = tuple(min(255, int(v * (0.72 + 0.045 * ((y // band) % 7)))) for v in color)
+            gradient_draw.line((0, y, width, y), fill=shade, width=1)
 
     # Vary the entire canvas, not only the right-side motif. The permanent
     # duplicate guard compares cropped/centered perceptual hashes, so a repeated
     # dark title panel would otherwise make two different illustrations look alike.
-    pattern_bytes = hashlib.sha256(
-        f"editorial-layout:{slug}:{index}:{variant}:{context}".encode("utf-8")
-    ).digest()
     panel_overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     panel_draw = ImageDraw.Draw(panel_overlay)
     tile_cols, tile_rows = 6, 4
@@ -1397,9 +1419,15 @@ def _render_original_editorial_visual(destination: Path, target_w: int, target_h
             value = pattern_bytes[cell]
             x1, y1 = int(col * tile_w), int(row * tile_h)
             x2, y2 = int((col + 1) * tile_w), int((row + 1) * tile_h)
-            shade = 20 + (value % 13) * 4
-            fill = (shade, min(105, shade + 11), min(132, shade + 25),
-                    48 + (value % 4) * 18)
+            # Higher-contrast, per-cell tones alter the full-frame pHash,
+            # including the same left/center/right crops used by the registry.
+            tone = 24 + (value % 8) * 23
+            if value & 1:
+                fill = (min(255, tone + 18), min(255, tone + 36),
+                        min(255, tone + 52), 150 + (value % 4) * 25)
+            else:
+                fill = (max(0, tone - 18), max(0, tone - 8),
+                        max(0, tone + 8), 145 + (value % 4) * 26)
             panel_draw.rectangle((x1, y1, x2, y2), fill=fill)
             if value & 1:
                 panel_draw.line((x1, y2, x2, y1), fill=(*accent, 65 + value % 45),
