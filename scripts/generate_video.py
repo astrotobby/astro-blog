@@ -1325,6 +1325,229 @@ def _contextual_fallback_queries(meta, context_title=""):
     return unique[:3]
 
 
+def _render_original_editorial_visual(destination: Path, target_w: int, target_h: int,
+                                      slug: str, index: int, variant: str,
+                                      meta: dict, context_title: str = "") -> dict:
+    """Create a unique, topic-aware editorial illustration when all external sources fail.
+
+    This is intentionally a last-resort designed graphic, not an empty/black
+    placeholder. It keeps a render visually complete when free image services
+    throttle anonymous requests (for example HTTP 402) or licensed assets are
+    exhausted. The resulting image is fingerprinted and enters the same permanent
+    cross-channel no-repeat registry as stock imagery.
+    """
+    from PIL import Image, ImageDraw, ImageFont, ImageFilter
+
+    width, height = max(640, int(target_w)), max(360, int(target_h))
+    context = " ".join(
+        str(value or "")
+        for value in (
+            context_title, meta.get("topic_context"), meta.get("broll"), meta.get("fallback")
+        )
+    ).lower()
+    seed = int(hashlib.sha256(
+        f"{slug}:{index}:{variant}:{context}".encode("utf-8")
+    ).hexdigest()[:12], 16)
+
+    if any(term in context for term in (
+        "data center", "data centre", "server rack", "server room",
+        "semiconductor", "nvidia", "gpu", "microchip", "chip supply chain",
+    )):
+        theme, headline = "infrastructure", "AI INFRASTRUCTURE"
+        accent = (70, 206, 211)
+    elif any(term in context for term in (
+        "job cuts", "layoff", "workforce", "employees", "office workers",
+        "corporate restructuring", "headcount", "staff reduction", "human collaboration",
+    )):
+        theme, headline = "workforce", "THE WORKFORCE SHIFT"
+        accent = (234, 177, 90)
+    elif any(term in context for term in (
+        "gold bullion", "commodities", "financial market", "trading floor",
+        "precious metal", "investment",
+    )):
+        theme, headline = "markets", "MARKET MOVEMENT"
+        accent = (235, 190, 87)
+    else:
+        theme, headline = "technology", "TECHNOLOGY IN TRANSITION"
+        accent = (89, 174, 232)
+
+    # A restrained dark editorial palette with a bright, legible focal area.
+    top = (7, 17, 34)
+    bottom = (16, 43, 63)
+    image = Image.new("RGB", (width, height))
+    pixels = image.load()
+    for y in range(height):
+        ratio = y / max(1, height - 1)
+        color = tuple(int(top[c] * (1 - ratio) + bottom[c] * ratio) for c in range(3))
+        for x in range(width):
+            pixels[x, y] = color
+
+    glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow)
+    gd.ellipse((int(width * 0.48), int(height * -0.18),
+                int(width * 1.10), int(height * 0.90)),
+               fill=(*accent, 54))
+    gd.ellipse((int(width * 0.62), int(height * 0.30),
+                int(width * 1.12), int(height * 1.12)),
+               fill=(29, 108, 143, 38))
+    glow = glow.filter(ImageFilter.GaussianBlur(max(12, int(width * 0.035))))
+    image = Image.alpha_composite(image.convert("RGBA"), glow)
+    draw = ImageDraw.Draw(image, "RGBA")
+
+    # Delicate drafting grid and diagonal framing make the image feel intentional.
+    grid_step = max(38, int(width * 0.035))
+    for x in range(int(width * 0.48), width, grid_step):
+        draw.line((x, 0, x, height), fill=(170, 205, 222, 18), width=1)
+    for y in range(0, height, max(34, int(height * 0.055))):
+        draw.line((int(width * 0.46), y, width, y), fill=(170, 205, 222, 18), width=1)
+    draw.polygon([
+        (int(width * 0.43), 0), (int(width * 0.56), 0),
+        (int(width * 0.36), height), (int(width * 0.23), height),
+    ], fill=(4, 14, 29, 72))
+
+    # Topic motif: server racks, office tower/workers, market chart or a processor.
+    right_left = int(width * 0.53)
+    if theme == "infrastructure":
+        rack_count = 4
+        gap = int(width * 0.025)
+        rack_w = int((width * 0.41 - gap * (rack_count - 1)) / rack_count)
+        top_y, rack_h = int(height * 0.18), int(height * 0.67)
+        for r in range(rack_count):
+            x = right_left + r * (rack_w + gap)
+            draw.rounded_rectangle((x, top_y, x + rack_w, top_y + rack_h),
+                                   radius=max(8, int(width * 0.006)),
+                                   fill=(11, 24, 42, 238), outline=(*accent, 155), width=3)
+            for row in range(7):
+                yy = top_y + int(height * 0.055) + row * int(height * 0.083)
+                draw.rounded_rectangle((x + 12, yy, x + rack_w - 12, yy + int(height * 0.055)),
+                                       radius=5, fill=(21, 52, 72, 245),
+                                       outline=(131, 184, 203, 85), width=1)
+                led_x = x + int(rack_w * (0.72 + ((seed >> (row % 12)) & 7) / 100))
+                for led in range(3):
+                    draw.ellipse((led_x + led * 13, yy + 10, led_x + led * 13 + 7, yy + 17),
+                                 fill=(*accent, 215 if (r + row + led) % 3 else 105))
+        # Fine circuit traces flowing out from the racks.
+        for k in range(5):
+            y = int(height * (0.26 + 0.12 * k))
+            draw.line((right_left - 28, y, right_left + 8, y, right_left + 8, y + 30),
+                      fill=(*accent, 125), width=3)
+    elif theme == "workforce":
+        bx1, by1 = right_left + 10, int(height * 0.18)
+        bx2, by2 = int(width * 0.96), int(height * 0.80)
+        draw.rounded_rectangle((bx1, by1, bx2, by2), radius=14,
+                               fill=(12, 34, 54, 225), outline=(*accent, 160), width=3)
+        cols, rows = 7, 6
+        cell_w = (bx2 - bx1) // (cols + 1)
+        cell_h = (by2 - by1) // (rows + 1)
+        for row in range(rows):
+            for col in range(cols):
+                x = bx1 + 18 + col * cell_w
+                y = by1 + 16 + row * cell_h
+                light = 50 + ((seed >> ((row + col) % 24)) & 63)
+                draw.rounded_rectangle((x, y, x + int(cell_w * 0.58), y + int(cell_h * 0.48)),
+                                       radius=3, fill=(accent[0], accent[1], accent[2], light))
+        # Three understated employee silhouettes in the foreground.
+        floor = int(height * 0.88)
+        for person in range(3):
+            x = int(width * (0.63 + 0.105 * person))
+            head_r = max(10, int(height * 0.018))
+            draw.ellipse((x - head_r, floor - int(height * 0.19) - head_r,
+                          x + head_r, floor - int(height * 0.19) + head_r),
+                         fill=(195, 216, 226, 230))
+            draw.rounded_rectangle((x - head_r * 2, floor - int(height * 0.16),
+                                    x + head_r * 2, floor + int(height * 0.02)),
+                                   radius=12, fill=(20 + person * 12, 46, 68, 245))
+    elif theme == "markets":
+        base_y = int(height * 0.82)
+        bar_w = int(width * 0.055)
+        for n in range(7):
+            bar_h = int(height * (0.18 + ((seed >> (n * 3)) & 15) / 48))
+            x = right_left + n * int(width * 0.055)
+            draw.rounded_rectangle((x, base_y - bar_h, x + bar_w, base_y),
+                                   radius=5, fill=(*accent, 145 + (n % 3) * 30))
+        points = []
+        for n in range(7):
+            x = right_left + int(width * (0.015 + n * 0.064))
+            y = int(height * (0.40 - 0.035 * n + (((seed >> (n * 4)) & 7) - 3) * 0.012))
+            points.append((x, y))
+        draw.line(points, fill=(*accent, 230), width=max(4, int(width * 0.004)))
+        for x, y in points:
+            rr = max(6, int(width * 0.006))
+            draw.ellipse((x - rr, y - rr, x + rr, y + rr), fill=(*accent, 250))
+    else:
+        cx, cy = int(width * 0.75), int(height * 0.51)
+        half = int(height * 0.19)
+        draw.rounded_rectangle((cx - half, cy - half, cx + half, cy + half),
+                               radius=18, fill=(12, 37, 58, 245),
+                               outline=(*accent, 220), width=5)
+        draw.rounded_rectangle((cx - half * 0.63, cy - half * 0.63,
+                                cx + half * 0.63, cy + half * 0.63),
+                               radius=10, fill=(27, 68, 91, 245),
+                               outline=(175, 210, 223, 100), width=2)
+        for n in range(8):
+            angle_x = cx + int(math.cos(n * math.pi / 4) * half * 0.82)
+            angle_y = cy + int(math.sin(n * math.pi / 4) * half * 0.82)
+            for offset in range(3):
+                ex = angle_x + int(math.cos(n * math.pi / 4) * height * 0.12)
+                ey = angle_y + int(math.sin(n * math.pi / 4) * height * 0.12)
+                draw.line((angle_x, angle_y, ex, ey), fill=(*accent, 165), width=3)
+        draw.text((cx, cy), "AI", fill=(235, 245, 250, 240), anchor="mm")
+
+    def font(size, bold=False):
+        paths = (
+            ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+             "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"]
+            if bold else
+            ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+             "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf"]
+        )
+        for path in paths:
+            try:
+                return ImageFont.truetype(path, size=max(12, int(size)))
+            except OSError:
+                continue
+        return ImageFont.load_default()
+
+    left = int(width * 0.075)
+    draw.rounded_rectangle((left, int(height * 0.13), left + int(width * 0.18), int(height * 0.18)),
+                           radius=12, fill=(*accent, 230))
+    draw.text((left + int(width * 0.012), int(height * 0.137)),
+              "ORIGINAL EDITORIAL VISUAL", font=font(height * 0.020, True),
+              fill=(5, 17, 31, 255))
+    draw.text((left, int(height * 0.31)), headline, font=font(height * 0.052, True),
+              fill=(245, 249, 252, 255))
+    detail = " ".join(str(meta.get("broll") or "technology").split())
+    detail = detail[:64].upper()
+    draw.text((left, int(height * 0.41)), detail, font=font(height * 0.021, True),
+              fill=(*accent, 255))
+    # A short rule and scene marker make each shot's custom art distinguishable.
+    rule_y = int(height * 0.50)
+    draw.rounded_rectangle((left, rule_y, left + int(width * 0.20), rule_y + 5),
+                           radius=3, fill=(*accent, 210))
+    draw.text((left, int(height * 0.88)),
+              f"AI-GEMS  /  {theme.upper()}  /  SCENE {index + 1:02d}",
+              font=font(height * 0.018, True), fill=(191, 211, 224, 220))
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    image.convert("RGB").save(destination, format="JPEG", quality=93, optimize=True)
+    digest = hashlib.sha256(destination.read_bytes()).hexdigest()
+    return {
+        "id": f"original-editorial:{digest[:24]}",
+        "provider": "Original editorial artwork",
+        "title": headline.title(),
+        "creator": "AI-GEMS renderer",
+        "source_url": "",
+        "license": "original",
+        "license_version": "AI-GEMS original editorial graphic",
+        "license_url": "",
+        "attribution": "Original editorial graphic created by the AI-GEMS renderer",
+        "query": str(meta.get("broll") or context_title)[:160],
+        "width": width,
+        "height": height,
+        "theme": theme,
+    }
+
+
 def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
                  used_creators, recent_ids, variant, context_title=""):
     meta = _parse_scene_meta(prompt)
@@ -1395,9 +1618,25 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
             log(f"image fallback failed: {exc}")
         time.sleep(2 * (attempt + 1))  # short backoff; image fallback is best-effort
 
+    # Last resort: render original, scene-specific editorial artwork locally.
+    # Unlike a black placeholder, this produces a real visual; its content hash
+    # is recorded by fetch_scene_assets and checked against permanent visual history.
+    try:
+        original_source = _render_original_editorial_visual(
+            destination, target_w, target_h, slug, index, variant, meta, context_title
+        )
+        if destination.exists() and destination.stat().st_size > 10_000:
+            log(
+                f"scene {index + 1}: external visual sources exhausted; "
+                f"using original {original_source.get('theme')} editorial artwork"
+            )
+            return destination, meta, original_source
+    except Exception as exc:
+        log(f"original editorial visual fallback failed ({type(exc).__name__}): {str(exc)[:180]}")
+
     raise RuntimeError(
-        f"No usable visual asset for scene {index + 1}: stock footage and image fallback failed; "
-        "refusing to render a black placeholder"
+        f"No usable visual asset for scene {index + 1}: stock footage, licensed images, "
+        "generated-image service and original editorial fallback all failed; refusing to render a black placeholder"
     )
 
 
