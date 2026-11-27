@@ -1386,7 +1386,10 @@ def _render_original_editorial_visual(destination: Path, target_w: int, target_h
         ((8, 29, 48), (36, 98, 140)),     # navy / cobalt
         ((31, 15, 8), (119, 58, 25)),    # espresso / copper
     )
-    palette_index = index % len(palettes)
+    # Key the palette to the retry slug as well as the scene number. The
+    # fetch pipeline salts the slug on each rejected pHash attempt, so a retry
+    # must change the full-frame luminance/layout rather than repeating a palette.
+    palette_index = (seed ^ (index * 0x9E3779B1)) % len(palettes)
     top, bottom = palettes[palette_index]
     image = Image.new("RGB", (width, height))
     gradient_draw = ImageDraw.Draw(image)
