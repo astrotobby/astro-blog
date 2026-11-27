@@ -678,7 +678,10 @@ class FailedJobStateTests(unittest.TestCase):
                 }},
                 "recent_topics": [],
             }), encoding="utf-8")
-            with patch.object(pipeline, "ledger_path", return_value=path):
+            with (
+                patch.object(pipeline, "ledger_path", return_value=path),
+                patch.dict("os.environ", {"GITHUB_ACTIONS": ""}),
+            ):
                 updated = pipeline.mark_job_failed(
                     "digital_nomad", "12:00", target_date, False,
                     RuntimeError("No usable visual asset for scene 14"),
@@ -708,7 +711,10 @@ class FailedJobStateTests(unittest.TestCase):
                 }},
                 "recent_topics": [],
             }), encoding="utf-8")
-            with patch.object(pipeline, "ledger_path", return_value=path):
+            with (
+                patch.object(pipeline, "ledger_path", return_value=path),
+                patch.dict("os.environ", {"GITHUB_ACTIONS": ""}),
+            ):
                 updated = pipeline.mark_job_failed(
                     "digital_nomad", "12:00", target_date, False,
                     RuntimeError("network error during upload"),
