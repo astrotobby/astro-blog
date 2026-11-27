@@ -115,6 +115,59 @@ class FootageBriefTests(unittest.TestCase):
         self.assertEqual(commons.call_args_list[1].args[1]["broll"],
                          "office workers collaborating")
 
+    def test_golden_opportunity_does_not_trigger_gold_bullion_footage(self):
+        primary, fallback = build_script._footage_brief(
+            "The company sees a golden opportunity to expand AI infrastructure.",
+            "general_ai",
+            "EXPLAIN",
+        )
+        self.assertNotIn("gold bullion", primary.lower())
+        self.assertNotIn("gold bullion", fallback.lower())
+
+    def test_scene_fallback_creates_unique_original_art_when_external_services_fail(self):
+        class PaymentRequired:
+            status_code = 402
+            content = b""
+
+        with TemporaryDirectory() as temporary_dir:
+            output_dir = Path(temporary_dir)
+            prompt = (
+                "AI hardware, scene_type:EXPLAIN|kb:pan_right|dur:1.10|"
+                "broll:data center server room|fallback:data center servers"
+            )
+            with (
+                patch.object(generate_video, "OUT", output_dir),
+                patch.object(generate_video, "_fetch_video_asset", return_value=(None, None)),
+                patch.object(generate_video, "_fetch_openverse_scene", return_value=(None, None)),
+                patch.object(generate_video, "_fetch_commons_scene", return_value=(None, None)),
+                patch.object(generate_video, "POLLINATIONS_ATTEMPTS", 1),
+                patch.object(generate_video.requests, "get", return_value=PaymentRequired()),
+            ):
+                first_path, _first_meta, first_source = generate_video._fetch_scene(
+                    23, prompt, 1920, 1080, "nvidia-sample", None,
+                    set(), set(), set(), "horizontal",
+                    "Asia made a big AI bet on Nvidia and semiconductor supply chains",
+                )
+                second_path, _second_meta, second_source = generate_video._fetch_scene(
+                    24, prompt, 1920, 1080, "nvidia-sample", None,
+                    set(), set(), set(), "horizontal",
+                    "Asia made a big AI bet on Nvidia and semiconductor supply chains",
+                )
+
+            from PIL import Image
+            with Image.open(first_path) as image:
+                self.assertEqual(image.size, (1920, 1080))
+                self.assertEqual(len(image.getcolors(maxcolors=2_000_000) or []), 0)
+            with Image.open(second_path) as image:
+                self.assertEqual(image.size, (1920, 1080))
+            self.assertTrue(first_path.stat().st_size > 10_000)
+            self.assertTrue(second_path.stat().st_size > 10_000)
+            self.assertEqual(first_source["provider"], "Original editorial artwork")
+            self.assertEqual(second_source["provider"], "Original editorial artwork")
+            self.assertNotEqual(first_source["id"], second_source["id"])
+            self.assertNotEqual(generate_video._visual_hashes(first_path),
+                                generate_video._visual_hashes(second_path))
+
     def test_nvidia_data_center_scene_uses_server_rack_licensed_fallbacks(self):
         title = "Asia made a big AI bet on Nvidia. What happens now?"
         meta = {
