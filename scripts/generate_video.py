@@ -1298,6 +1298,15 @@ def _contextual_fallback_queries(meta, context_title=""):
             "coworkers working together in office",
         ])
     if any(term in context for term in (
+        "data center", "data centre", "server room", "server rack",
+        "semiconductor", "nvidia", "gpu", "chip supply chain",
+    )):
+        queries.extend([
+            "server rack aisle",
+            "data center interior",
+            "semiconductor wafer fabrication",
+        ])
+    if any(term in context for term in (
         "artificial intelligence", " ai ", "software", "programmer", "coding",
         "technology", "developer", "robotics", "computer",
     )):

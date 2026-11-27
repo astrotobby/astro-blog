@@ -115,6 +115,46 @@ class FootageBriefTests(unittest.TestCase):
         self.assertEqual(commons.call_args_list[1].args[1]["broll"],
                          "office workers collaborating")
 
+    def test_nvidia_data_center_scene_uses_server_rack_licensed_fallbacks(self):
+        title = "Asia made a big AI bet on Nvidia. What happens now?"
+        meta = {
+            "broll": "data center server room over-the-shoulder action, hands interacting with technology",
+            "fallback": "data center servers over-the-shoulder action, hands interacting with technology",
+        }
+        queries = generate_video._contextual_fallback_queries(meta, title)
+        self.assertEqual(queries[:3], [
+            "server rack aisle",
+            "data center interior",
+            "semiconductor wafer fabrication",
+        ])
+
+        asset = Path("/tmp/nvidia-data-center-contextual.jpg")
+        source = {"id": "wikimedia-commons:data-center-asset", "provider": "Wikimedia Commons"}
+        prompt = (
+            "city skyline with AI infrastructure overlay, aerial cinematic shot, "
+            "technological massive single, scene_type:EXPLAIN|kb:pan_right|dur:1.10|"
+            "broll:data center server room over-the-shoulder action, hands interacting with technology|"
+            "fallback:data center servers over-the-shoulder action, hands interacting with technology"
+        )
+        with (
+            patch.object(generate_video, "_fetch_video_asset", return_value=(None, None)),
+            patch.object(generate_video, "_fetch_openverse_scene", return_value=(None, None)),
+            patch.object(generate_video, "_fetch_commons_scene", side_effect=[
+                (None, None), (asset, source),
+            ]) as commons,
+            patch.object(generate_video.requests, "get",
+                         side_effect=AssertionError("unavailable generated-image fallback must not be needed")),
+        ):
+            result_asset, _meta, provenance = generate_video._fetch_scene(
+                23, prompt, 1920, 1080, "nvidia-data-center-story", None,
+                set(), set(), set(), "horizontal", title,
+            )
+
+        self.assertEqual(result_asset, asset)
+        self.assertEqual(provenance, source)
+        self.assertEqual(commons.call_count, 2)
+        self.assertEqual(commons.call_args_list[1].args[1]["broll"], "server rack aisle")
+
     def test_topic_classifier_uses_word_boundaries_and_detects_elevator_industry(self):
         post = {
             "title": "The Looming Shortage of Wizard Elevator Mechanics",
