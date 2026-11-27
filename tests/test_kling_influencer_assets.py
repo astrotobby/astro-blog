@@ -64,13 +64,13 @@ class KlingInfluencerAssetsTests(unittest.TestCase):
             with patch("influencer.OUT", temp_out):
                 with patch("influencer._run", side_effect=fake_ffmpeg) as ffmpeg:
                     result = _face_source({"id": "approved", "clip": str(clip)}, 24, cfg)
-        self.assertTrue(result.is_file())
-        command = " ".join(ffmpeg.call_args.args[0])
-        self.assertIn("fps=25,scale=trunc(iw/2)*2:trunc(ih/2)*2", command)
-        self.assertIn("-crf 20", command)
-        self.assertIn("yuv420p", command)
-        self.assertNotIn("scale=540", command)
-        self.assertNotIn("reverse", command)
+            self.assertTrue(result.is_file())
+            command = " ".join(ffmpeg.call_args.args[0])
+            self.assertIn("fps=25,scale=trunc(iw/2)*2:trunc(ih/2)*2", command)
+            self.assertIn("-crf 20", command)
+            self.assertIn("yuv420p", command)
+            self.assertNotIn("scale=540", command)
+            self.assertNotIn("reverse", command)
 
     def test_presenter_grade_preserves_source_skin_without_colour_effects(self):
         source = (ROOT / "scripts/influencer.py").read_text(encoding="utf-8")
