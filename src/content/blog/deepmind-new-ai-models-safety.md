@@ -2,8 +2,7 @@
 title: "DeepMind Debuts Advanced AI Models, Prioritizes Safety Research"
 description: "DeepMind has introduced two new AI models, Gemini Hydrogen and the advanced Neon, showcasing impressive capabilities in complex simulations and game creation, alongside rigorous safety testing."
 pubDate: 2026-11-27
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "complex ai simulation rendering"
+image: "https://images.pexels.com/photos/17483871/pexels-photo-17483871.png?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, google, research, tech-news]
 author: "Astro Tobby"
 ---
