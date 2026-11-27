@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import io
 import os
 import subprocess
@@ -58,6 +59,39 @@ class MuseTalkKaggleBatchTests(unittest.TestCase):
                 with self.assertRaisesRegex(TimeoutError, "within five minutes"):
                     batch._wait_for_dataset("astrotobby/musetalk-input-test", {"presenter_0.mp4"})
         self.assertEqual(command.call_count, 30)
+
+    def test_probe_accepts_only_preview_matched_25fps_output(self):
+        payload = {
+            "streams": [
+                {"codec_type": "video", "width": 720, "height": 1280, "avg_frame_rate": "25/1"},
+                {"codec_type": "audio"},
+            ],
+            "format": {"duration": "4.6"},
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            video = Path(folder) / "musetalk_preview_0.mp4"
+            video.write_bytes(b"x" * 120_000)
+            result = SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+            with patch.object(batch.subprocess, "run", return_value=result):
+                media = batch._probe(video)
+        self.assertEqual(media["fps"], 25.0)
+        self.assertEqual(media["resolution"], "720x1280")
+
+    def test_probe_rejects_output_with_non_preview_frame_rate(self):
+        payload = {
+            "streams": [
+                {"codec_type": "video", "width": 720, "height": 1280, "avg_frame_rate": "24/1"},
+                {"codec_type": "audio"},
+            ],
+            "format": {"duration": "4.6"},
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            video = Path(folder) / "musetalk_preview_0.mp4"
+            video.write_bytes(b"x" * 120_000)
+            result = SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+            with patch.object(batch.subprocess, "run", return_value=result):
+                with self.assertRaisesRegex(RuntimeError, "preview cadence of 25 fps"):
+                    batch._probe(video)
 
     def test_username_parser_rejects_unexpected_account_format(self):
         with patch.dict(os.environ, {"KAGGLE_USERNAME": "bad/owner"}, clear=True):
