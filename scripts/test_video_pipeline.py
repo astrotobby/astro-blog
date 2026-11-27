@@ -166,8 +166,13 @@ class FootageBriefTests(unittest.TestCase):
             self.assertEqual(first_source["provider"], "Original editorial artwork")
             self.assertEqual(second_source["provider"], "Original editorial artwork")
             self.assertNotEqual(first_source["id"], second_source["id"])
-            self.assertNotEqual(generate_video._visual_hashes(first_path),
-                                generate_video._visual_hashes(second_path))
+            first_hashes = generate_video._visual_hashes(first_path)
+            second_hashes = generate_video._visual_hashes(second_path)
+            self.assertNotEqual(first_hashes, second_hashes)
+            self.assertIsNone(generate_video._find_visual_duplicate(
+                second_hashes,
+                [{"id": first_source["id"], "visual_hashes": first_hashes}],
+            ))
 
     def test_nvidia_data_center_scene_uses_server_rack_licensed_fallbacks(self):
         title = "Asia made a big AI bet on Nvidia. What happens now?"
