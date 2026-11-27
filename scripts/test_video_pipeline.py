@@ -5,6 +5,7 @@ Run from the repository root:
 """
 import copy
 import json
+import os
 import sys
 import unittest
 import subprocess
