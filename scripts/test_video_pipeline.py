@@ -174,6 +174,55 @@ class FootageBriefTests(unittest.TestCase):
                 [{"id": first_source["id"], "visual_hashes": first_hashes}],
             ))
 
+    def test_same_scene_fallback_is_unique_across_workflow_reruns(self):
+        class PaymentRequired:
+            status_code = 402
+            content = b""
+
+        with TemporaryDirectory() as temporary_dir:
+            output_dir = Path(temporary_dir)
+            prompt = (
+                "AI hardware, scene_type:EXPLAIN|kb:pan_right|dur:1.10|"
+                "broll:data center server room|fallback:data center servers"
+            )
+            common_patches = (
+                patch.object(generate_video, "OUT", output_dir),
+                patch.object(generate_video, "_fetch_video_asset", return_value=(None, None)),
+                patch.object(generate_video, "_fetch_openverse_scene", return_value=(None, None)),
+                patch.object(generate_video, "_fetch_commons_scene", return_value=(None, None)),
+                patch.object(generate_video, "POLLINATIONS_ATTEMPTS", 1),
+                patch.object(generate_video.requests, "get", return_value=PaymentRequired()),
+            )
+            with (
+                common_patches[0],
+                common_patches[1],
+                common_patches[2],
+                common_patches[3],
+                common_patches[4],
+                common_patches[5],
+            ):
+                with patch.dict(os.environ, {"GITHUB_RUN_ID": "run-visual-100", "GITHUB_RUN_ATTEMPT": "1"}):
+                    first_path, _first_meta, first_source = generate_video._fetch_scene(
+                        23, prompt, 1920, 1080, "same-publication-slot", None,
+                        set(), set(), set(), "horizontal",
+                        "Asia made a big AI bet on Nvidia and semiconductor supply chains",
+                    )
+                    first_hashes = generate_video._visual_hashes(first_path)
+                with patch.dict(os.environ, {"GITHUB_RUN_ID": "run-visual-101", "GITHUB_RUN_ATTEMPT": "1"}):
+                    second_path, _second_meta, second_source = generate_video._fetch_scene(
+                        23, prompt, 1920, 1080, "same-publication-slot", None,
+                        set(), set(), set(), "horizontal",
+                        "Asia made a big AI bet on Nvidia and semiconductor supply chains",
+                    )
+                    second_hashes = generate_video._visual_hashes(second_path)
+
+            self.assertNotEqual(first_source["id"], second_source["id"])
+            self.assertNotEqual(first_hashes, second_hashes)
+            self.assertIsNone(generate_video._find_visual_duplicate(
+                second_hashes,
+                [{"id": first_source["id"], "visual_hashes": first_hashes}],
+            ))
+
     def test_nvidia_data_center_scene_uses_server_rack_licensed_fallbacks(self):
         title = "Asia made a big AI bet on Nvidia. What happens now?"
         meta = {
