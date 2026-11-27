@@ -691,7 +691,7 @@ def _matches_footage_signal(text: str, signal: str) -> bool:
     parts = str(signal or "").lower().split()
     if not parts:
         return False
-    expression = r"[\\s-]+".join(re.escape(part) for part in parts)
+    expression = r"[\s-]+".join(re.escape(part) for part in parts)
     pattern = rf"(?<![a-z0-9]){expression}(?![a-z0-9])"
     return bool(re.search(pattern, str(text or "").lower()))
 
