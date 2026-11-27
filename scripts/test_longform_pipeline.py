@@ -334,18 +334,34 @@ class EdgeTtsWordTimingTests(unittest.TestCase):
         self.assertFalse(pipeline.renderer.word_timings_valid(sparse, narration))
         self.assertFalse(pipeline.renderer.word_timings_valid(malformed, narration))
 
-    def test_scene_fails_instead_of_creating_black_video_frame(self):
-        with patch.object(pipeline.renderer, "_fetch_video_asset", return_value=(None, None)):
-            with patch.object(pipeline.renderer.requests, "get", return_value=SimpleNamespace(
-                status_code=503, content=b""
-            )):
-                with patch.object(pipeline.renderer.time, "sleep"):
-                    with self.assertRaisesRegex(RuntimeError, "refusing to render a black placeholder"):
-                        pipeline.renderer._fetch_scene(
-                            1,
-                            "a visual scene|broll:relevant subject|fallback:alternative subject",
-                            1280, 720, "offline-test", None, set(), set(), set(), "horizontal"
-                        )
+    def test_scene_uses_original_editorial_visual_instead_of_black_frame(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            output_dir = Path(temporary_dir)
+            with (
+                patch.object(pipeline.renderer, "OUT", output_dir),
+                patch.object(pipeline.renderer, "_fetch_video_asset", return_value=(None, None)),
+                patch.object(pipeline.renderer, "_fetch_openverse_scene", return_value=(None, None)),
+                patch.object(pipeline.renderer, "_fetch_commons_scene", return_value=(None, None)),
+                patch.object(pipeline.renderer, "POLLINATIONS_ATTEMPTS", 1),
+                patch.object(pipeline.renderer.requests, "get", return_value=SimpleNamespace(
+                    status_code=402, content=b""
+                )),
+                patch.object(pipeline.renderer.time, "sleep"),
+            ):
+                asset, _meta, source = pipeline.renderer._fetch_scene(
+                    1,
+                    "a visual scene|broll:data center server room|fallback:data center servers",
+                    1280, 720, "offline-test", None, set(), set(), set(), "horizontal"
+                )
+
+            from PIL import Image
+            with Image.open(asset) as image:
+                self.assertEqual(image.size, (1280, 720))
+                samples = [(20, 20), (640, 360), (1260, 700), (1000, 120)]
+                self.assertGreaterEqual(len({image.getpixel(point) for point in samples}), 3)
+            self.assertTrue(asset.is_file())
+            self.assertGreater(asset.stat().st_size, 10_000)
+            self.assertEqual(source["provider"], "Original editorial artwork")
 
 
 class ContextualVisualAssetTests(unittest.TestCase):
