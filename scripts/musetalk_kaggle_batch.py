@@ -180,7 +180,7 @@ def _wait_for_dataset(dataset_id: str, expected_names: set[str]) -> None:
     )
 
 
-def _wait_for_kernel(kernel_id: str) -> None:
+def _wait_for_kernel(kernel_id: str, *, relay_available: bool = False) -> None:
     max_polls = max(1, KAGGLE_TIMEOUT // STATUS_INTERVAL)
     for attempt in range(1, max_polls + 1):
         result = _run(["kernels", "status", kernel_id], timeout=90, check=False)
@@ -190,6 +190,19 @@ def _wait_for_kernel(kernel_id: str) -> None:
                 print(f"Kaggle status is rate-limited; pausing {STATUS_INTERVAL}s.", flush=True)
                 time.sleep(STATUS_INTERVAL)
                 continue
+            if relay_available and re.search(
+                r"kernels\\.get|permission.{0,40}(?:denied|forbidden)|"
+                r"(?:403|forbidden).{0,40}kernels",
+                status,
+                re.I,
+            ):
+                print(
+                    "Kaggle accepted the private MuseTalk kernel push, but its private "
+                    "status endpoint denied metadata access. Using the run-scoped, "
+                    "bearer-protected output relay as the completion signal.",
+                    flush=True,
+                )
+                return
             raise RuntimeError(f"Kaggle kernel status request failed: {status[:800]}")
         print(f"MuseTalk GPU kernel status ({attempt}/{max_polls}): {status}", flush=True)
         if re.search(r"\bcomplete\b", status, re.I):
@@ -461,12 +474,15 @@ def generate_batch(tasks: list[dict[str, Any]], output_dir: Path | None = None) 
             flush=True,
         )
 
-        _wait_for_kernel(kernel_id)
+        _wait_for_kernel(kernel_id, relay_available=relay is not None)
         expected_outputs = {f"musetalk_preview_{index}.mp4" for index in range(len(clean_tasks))}
 
         relay_delivered = False
         if relay is not None:
-            relay_delivered = relay.wait_for_outputs(expected_outputs, timeout=180)
+            # MuseTalk setup and T4 inference can take several minutes. When
+            # Kaggle hides private kernel status metadata, the signed relay is the
+            # authoritative completion signal and must be allowed the full job window.
+            relay_delivered = relay.wait_for_outputs(expected_outputs, timeout=KAGGLE_TIMEOUT)
             if relay_delivered:
                 for filename in sorted(expected_outputs):
                     _probe(downloads / filename)
