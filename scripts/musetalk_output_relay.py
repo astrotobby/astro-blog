@@ -215,8 +215,6 @@ class OutputRelay:
                 "--no-autoupdate",
                 "--loglevel",
                 "info",
-                "--protocol",
-                "http2",
             ],
             stdin=subprocess.DEVNULL,
             env={**os.environ, "HOME": str(work_dir.resolve())},
@@ -243,7 +241,19 @@ class OutputRelay:
         pattern = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com", re.I)
         while time.monotonic() < deadline:
             if self._tunnel.poll() is not None:
-                raise RuntimeError("Cloudflared Quick Tunnel exited before it published a URL.")
+                diagnostics = []
+                while True:
+                    try:
+                        diagnostics.append(self._tunnel_lines.get_nowait().strip())
+                    except queue.Empty:
+                        break
+                detail = " | ".join(line for line in diagnostics if line)[-1600:]
+                code = self._tunnel.returncode
+                suffix = f" Output: {detail}" if detail else " No diagnostic output was received."
+                raise RuntimeError(
+                    "Cloudflared Quick Tunnel exited before it published a URL "
+                    f"(exit code {code}).{suffix}"
+                )
             try:
                 line = self._tunnel_lines.get(timeout=1)
             except queue.Empty:

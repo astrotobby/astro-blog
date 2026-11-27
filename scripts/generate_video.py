@@ -1325,9 +1325,19 @@ def _contextual_fallback_queries(meta, context_title=""):
     return unique[:3]
 
 
+def _visual_run_identity() -> str:
+    """Return a run-scoped salt so a retried publication slot does not regenerate old art."""
+    run_id = os.environ.get("GITHUB_RUN_ID", "").strip()
+    run_attempt = os.environ.get("GITHUB_RUN_ATTEMPT", "1").strip() or "1"
+    if run_id:
+        return f"github:{run_id}:{run_attempt}"
+    return f"local:{os.getpid()}:{time.time_ns()}"
+
+
 def _render_original_editorial_visual(destination: Path, target_w: int, target_h: int,
                                       slug: str, index: int, variant: str,
-                                      meta: dict, context_title: str = "") -> dict:
+                                      meta: dict, context_title: str = "",
+                                      run_identity: str | None = None) -> dict:
     """Create a unique, topic-aware editorial illustration when all external sources fail.
 
     This is intentionally a last-resort designed graphic, not an empty/black
@@ -1345,8 +1355,9 @@ def _render_original_editorial_visual(destination: Path, target_w: int, target_h
             context_title, meta.get("topic_context"), meta.get("broll"), meta.get("fallback")
         )
     ).lower()
+    run_identity = run_identity or _visual_run_identity()
     seed = int(hashlib.sha256(
-        f"{slug}:{index}:{variant}:{context}".encode("utf-8")
+        f"{run_identity}:{slug}:{index}:{variant}:{context}".encode("utf-8")
     ).hexdigest()[:12], 16)
 
     if any(term in context for term in (
@@ -1375,7 +1386,7 @@ def _render_original_editorial_visual(destination: Path, target_w: int, target_h
     # layout. Adjacent scenes deliberately rotate palettes so the strict pHash
     # no-reuse guard does not see two otherwise distinct graphics as near-duplicates.
     pattern_bytes = hashlib.sha256(
-        f"editorial-layout:{slug}:{index}:{variant}:{context}".encode("utf-8")
+        f"editorial-layout:{run_identity}:{slug}:{index}:{variant}:{context}".encode("utf-8")
     ).digest()
     palettes = (
         ((6, 15, 28), (24, 74, 95)),      # deep blue / teal
@@ -1611,6 +1622,7 @@ def _render_original_editorial_visual(destination: Path, target_w: int, target_h
 def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
                  used_creators, recent_ids, variant, context_title=""):
     meta = _parse_scene_meta(prompt)
+    run_identity = _visual_run_identity()
     if context_title:
         meta["topic_context"] = context_title
     video_asset, provenance = _fetch_video_asset(
@@ -1661,7 +1673,9 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
             return commons_asset, meta, commons_source
 
     clean_prompt = _clean_image_prompt(prompt)
-    seed = int(hashlib.sha256(f"{slug}:{index}:{variant}".encode()).hexdigest()[:8], 16) % 100000
+    seed = int(hashlib.sha256(
+        f"{run_identity}:{slug}:{index}:{variant}:{clean_prompt}".encode()
+    ).hexdigest()[:8], 16) % 100000
     url = ("https://image.pollinations.ai/prompt/" + urllib.parse.quote(clean_prompt)
            + f"?width={target_w}&height={target_h}&nologo=true&model=flux&seed={seed}")
     for attempt in range(POLLINATIONS_ATTEMPTS):
@@ -1683,7 +1697,8 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
     # is recorded by fetch_scene_assets and checked against permanent visual history.
     try:
         original_source = _render_original_editorial_visual(
-            destination, target_w, target_h, slug, index, variant, meta, context_title
+            destination, target_w, target_h, slug, index, variant, meta,
+            context_title, run_identity
         )
         if destination.exists() and destination.stat().st_size > 10_000:
             log(

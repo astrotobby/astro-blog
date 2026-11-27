@@ -180,7 +180,7 @@ def _wait_for_dataset(dataset_id: str, expected_names: set[str]) -> None:
     )
 
 
-def _wait_for_kernel(kernel_id: str) -> None:
+def _wait_for_kernel(kernel_id: str, *, relay_available: bool = False) -> bool:
     max_polls = max(1, KAGGLE_TIMEOUT // STATUS_INTERVAL)
     for attempt in range(1, max_polls + 1):
         result = _run(["kernels", "status", kernel_id], timeout=90, check=False)
@@ -190,11 +190,33 @@ def _wait_for_kernel(kernel_id: str) -> None:
                 print(f"Kaggle status is rate-limited; pausing {STATUS_INTERVAL}s.", flush=True)
                 time.sleep(STATUS_INTERVAL)
                 continue
+            if re.search(
+                r"kernels[.]get|permission.{0,40}(?:denied|forbidden)|"
+                r"(?:403|forbidden).{0,40}kernels",
+                status,
+                re.I,
+            ):
+                if relay_available:
+                    print(
+                        "Kaggle accepted the private MuseTalk kernel push, but its private "
+                        "status endpoint denied metadata access. Using the run-scoped, "
+                        "bearer-protected output relay as the completion signal.",
+                        flush=True,
+                    )
+                else:
+                    print(
+                        "Kaggle accepted the private MuseTalk kernel push, but its private "
+                        "status endpoint denied metadata access. Polling the exact private "
+                        "notebook session outputs through Kaggle MCP instead; this path "
+                        "does not call kernels.get.",
+                        flush=True,
+                    )
+                return False
             raise RuntimeError(f"Kaggle kernel status request failed: {status[:800]}")
         print(f"MuseTalk GPU kernel status ({attempt}/{max_polls}): {status}", flush=True)
         if re.search(r"\bcomplete\b", status, re.I):
             print(f"MuseTalk kernel completed: https://www.kaggle.com/code/{kernel_id}", flush=True)
-            return
+            return True
         if re.search(r"\b(error|failed|cancelled)\b", status, re.I):
             logs = _run(["kernels", "logs", kernel_id], timeout=120, check=False)
             raise RuntimeError(
@@ -206,6 +228,61 @@ def _wait_for_kernel(kernel_id: str) -> None:
         f"MuseTalk GPU kernel did not complete within {KAGGLE_TIMEOUT // 60} minutes. "
         "No paid GPU or unsynchronized fallback was attempted."
     )
+
+
+def _wait_for_session_outputs(
+    kernel_id: str,
+    filenames: set[str],
+    destination: Path,
+    *,
+    timeout: int = KAGGLE_TIMEOUT,
+) -> None:
+    """Poll exact Kaggle session files without using the private kernels.get endpoint."""
+    from kaggle_mcp_download_output import download_output
+
+    destination.mkdir(parents=True, exist_ok=True)
+    missing = set(filenames)
+    deadline = time.monotonic() + timeout
+    attempt = 0
+    while missing and time.monotonic() < deadline:
+        attempt += 1
+        for filename in sorted(tuple(missing)):
+            target = destination / filename
+            try:
+                download_output(kernel_id, filename, target, session_only=True)
+                _probe(target)
+                missing.discard(filename)
+                print(
+                    f"Kaggle session output received and validated: {filename}",
+                    flush=True,
+                )
+            except FileNotFoundError:
+                target.unlink(missing_ok=True)
+            except RuntimeError as exc:
+                if re.search(r"429|too many requests|rate.?limit", str(exc), re.I):
+                    print(
+                        "Kaggle session-output listing is rate-limited; "
+                        f"retrying after {STATUS_INTERVAL}s.",
+                        flush=True,
+                    )
+                    continue
+                raise RuntimeError(
+                    "Kaggle could not retrieve the private MuseTalk session output "
+                    f"{filename}: {str(exc)[:700]}"
+                ) from exc
+        if missing:
+            print(
+                f"Waiting for private Kaggle session output ({attempt}): "
+                f"{len(missing)} file(s) still pending.",
+                flush=True,
+            )
+            time.sleep(STATUS_INTERVAL)
+    if missing:
+        raise TimeoutError(
+            f"Kaggle did not expose the MuseTalk output file(s) within "
+            f"{timeout // 60} minutes: {', '.join(sorted(missing))}. "
+            f"Private notebook: https://www.kaggle.com/code/{kernel_id}"
+        )
 
 
 def _download_outputs(kernel_id: str, filenames: set[str], destination: Path) -> None:
@@ -461,12 +538,15 @@ def generate_batch(tasks: list[dict[str, Any]], output_dir: Path | None = None) 
             flush=True,
         )
 
-        _wait_for_kernel(kernel_id)
+        kernel_status_completed = _wait_for_kernel(kernel_id, relay_available=relay is not None)
         expected_outputs = {f"musetalk_preview_{index}.mp4" for index in range(len(clean_tasks))}
 
         relay_delivered = False
         if relay is not None:
-            relay_delivered = relay.wait_for_outputs(expected_outputs, timeout=180)
+            # MuseTalk setup and T4 inference can take several minutes. When
+            # Kaggle hides private kernel status metadata, the signed relay is the
+            # authoritative completion signal and must be allowed the full job window.
+            relay_delivered = relay.wait_for_outputs(expected_outputs, timeout=KAGGLE_TIMEOUT)
             if relay_delivered:
                 for filename in sorted(expected_outputs):
                     _probe(downloads / filename)
@@ -482,7 +562,10 @@ def generate_batch(tasks: list[dict[str, Any]], output_dir: Path | None = None) 
                     flush=True,
                 )
         if not relay_delivered:
-            _download_outputs(kernel_id, expected_outputs, downloads)
+            if relay is None and not kernel_status_completed:
+                _wait_for_session_outputs(kernel_id, expected_outputs, downloads)
+            else:
+                _download_outputs(kernel_id, expected_outputs, downloads)
 
         if relay is not None:
             relay.close()
