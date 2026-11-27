@@ -588,7 +588,7 @@ def detect_topic_category(post) -> str:
     body = str(post.get("body") or "")[:3000].lower()
 
     def occurrences(text, signal):
-        expression = re.escape(signal.lower()).replace(r"\\ ", r"\\s+")
+        expression = r"\\s+".join(re.escape(part) for part in signal.lower().split())
         pattern = rf"(?<![a-z0-9]){expression}(?![a-z0-9])"
         return len(re.findall(pattern, text))
 
