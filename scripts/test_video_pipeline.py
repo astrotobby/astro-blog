@@ -71,6 +71,50 @@ class FootageBriefTests(unittest.TestCase):
         self.assertIn("gold bullion bars", commons_queries)
         self.assertIn("gold commodities trading", commons_queries)
 
+    def test_human_collaboration_scene_uses_broad_licensed_visual_fallback(self):
+        title = (
+            "SAP Considers 10,000 Job Cuts in Major AI Pivot "
+            "German software major SAP weighs cutting at least 10,000 jobs in AI push"
+        )
+        meta = {
+            "broll": "content creator video editing human collaboration",
+            "fallback": "software developer laptop human collaboration",
+        }
+        queries = generate_video._contextual_fallback_queries(meta, title)
+        self.assertEqual(queries[:3], [
+            "office workers collaborating",
+            "team meeting around laptop",
+            "coworkers working together in office",
+        ])
+
+        asset = Path("/tmp/collaboration-contextual.jpg")
+        source = {"id": "wikimedia-commons:collaboration-asset", "provider": "Wikimedia Commons"}
+        prompt = (
+            "human and robot collaboration, warm natural light, editorial photography, "
+            "across meta struggle, scene_type:PAYOFF|kb:pull_back|dur:1.30|"
+            "broll:content creator video editing human collaboration|"
+            "fallback:software developer laptop human collaboration"
+        )
+        with (
+            patch.object(generate_video, "_fetch_video_asset", return_value=(None, None)),
+            patch.object(generate_video, "_fetch_openverse_scene", return_value=(None, None)),
+            patch.object(generate_video, "_fetch_commons_scene", side_effect=[
+                (None, None), (asset, source),
+            ]) as commons,
+            patch.object(generate_video.requests, "get",
+                         side_effect=AssertionError("unavailable generated-image fallback must not be needed")),
+        ):
+            result_asset, _meta, provenance = generate_video._fetch_scene(
+                26, prompt, 1920, 1080, "sap-workforce-story", None,
+                set(), set(), set(), "horizontal", title,
+            )
+
+        self.assertEqual(result_asset, asset)
+        self.assertEqual(provenance, source)
+        self.assertEqual(commons.call_count, 2)
+        self.assertEqual(commons.call_args_list[1].args[1]["broll"],
+                         "office workers collaborating")
+
     def test_topic_classifier_uses_word_boundaries_and_detects_elevator_industry(self):
         post = {
             "title": "The Looming Shortage of Wizard Elevator Mechanics",
