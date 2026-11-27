@@ -8,8 +8,6 @@ on:
       - "scripts/musetalk_kaggle_batch.py"
       - "scripts/kaggle_mcp_download_output.py"
       - "scripts/test_kaggle_mcp_download_output.py"
-      - "scripts/kaggle_mcp_download_output.py"
-      - "scripts/test_kaggle_mcp_download_output.py"
       - "scripts/musetalk_output_relay.py"
       - "scripts/test_musetalk_kaggle_batch.py"
       - "scripts/test_musetalk_output_relay.py"
@@ -23,6 +21,8 @@ on:
     paths:
       - "scripts/influencer.py"
       - "scripts/musetalk_kaggle_batch.py"
+      - "scripts/test_kaggle_mcp_download_output.py"
+      - "scripts/kaggle_mcp_download_output.py"
       - "scripts/test_video_pipeline.py"
       - "config.yaml"
       - "scripts/gen_influencer_motion.py"
