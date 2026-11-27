@@ -254,7 +254,13 @@ def _find_download_url(value: Any) -> str | None:
     return None
 
 
-def download_output(kernel_ref: str, file_path: str, destination: Path) -> None:
+def download_output(
+    kernel_ref: str,
+    file_path: str,
+    destination: Path,
+    *,
+    session_only: bool = False,
+) -> None:
     token = os.getenv("KAGGLE_API_TOKEN", "").strip()
     if not token:
         raise RuntimeError("KAGGLE_API_TOKEN is not configured.")
@@ -293,12 +299,26 @@ def download_output(kernel_ref: str, file_path: str, destination: Path) -> None:
                     file=sys.stderr,
                 )
         except RuntimeError as exc:
+            if session_only:
+                if re.search(
+                    r"no output|not found|not available|not ready|no active session",
+                    str(exc),
+                    re.I,
+                ):
+                    raise FileNotFoundError(
+                        f"Kaggle session output {Path(file_path).name} is not available yet."
+                    ) from exc
+                raise
             print(
                 f"Kaggle session listing unavailable ({str(exc)[:200]}); "
                 "trying the per-file download tool.",
                 file=sys.stderr,
             )
 
+        if not download_url and session_only:
+            raise FileNotFoundError(
+                f"Kaggle session output {Path(file_path).name} is not available yet."
+            )
         if not download_url:
             info_result = _tool_call(
                 session,
@@ -368,9 +388,10 @@ def main() -> int:
     parser.add_argument("--kernel-ref", required=True)
     parser.add_argument("--file-path", default="musetalk_preview.mp4")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--session-only", action="store_true", help="Poll session output without requesting kernels.get metadata.")
     args = parser.parse_args()
     try:
-        download_output(args.kernel_ref, args.file_path, args.output)
+        download_output(args.kernel_ref, args.file_path, args.output, session_only=args.session_only)
     except (requests.RequestException, RuntimeError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2 if "authorization denied kernels.get" in str(exc).lower() else 1
