@@ -8,6 +8,7 @@ import os
 import subprocess
 import tempfile
 import unittest
+import sys
 from pathlib import Path
 from unittest.mock import patch
 from types import SimpleNamespace
@@ -79,18 +80,71 @@ class MuseTalkKaggleBatchTests(unittest.TestCase):
             for call in output.call_args_list
         ))
 
-    def test_private_kernel_status_permission_still_fails_without_relay(self):
+    def test_private_kernel_status_permission_uses_session_output_without_relay(self):
         denied = SimpleNamespace(
             returncode=1,
             stdout="",
             stderr="Cannot access private kernel. Permission 'kernels.get' was denied.",
         )
-        with patch.object(batch, "_run", return_value=denied):
-            with self.assertRaisesRegex(RuntimeError, "kernel status request failed"):
-                batch._wait_for_kernel(
+        with patch.object(batch, "_run", return_value=denied) as command:
+            with patch("builtins.print") as output:
+                completed = batch._wait_for_kernel(
                     "astrotobby/musetalk-batch-private",
                     relay_available=False,
                 )
+        command.assert_called_once()
+        self.assertFalse(completed)
+        self.assertTrue(any(
+            "Polling the exact private notebook session outputs" in str(call)
+            for call in output.call_args_list
+        ))
+
+    def test_session_output_polling_retries_until_validated_mp4_arrives(self):
+        calls = []
+
+        def fake_download(kernel_id, filename, destination, *, session_only=False):
+            calls.append((kernel_id, filename, session_only))
+            if len(calls) == 1:
+                raise FileNotFoundError("output is not available yet")
+            Path(destination).write_bytes(b"x" * 120_000)
+
+        fake_helper = SimpleNamespace(download_output=fake_download)
+        with tempfile.TemporaryDirectory() as folder:
+            target_dir = Path(folder)
+            with (
+                patch.dict(sys.modules, {"kaggle_mcp_download_output": fake_helper}),
+                patch.object(batch, "_probe", return_value={"fps": 25.0}),
+                patch.object(batch.time, "sleep"),
+                patch("builtins.print"),
+            ):
+                batch._wait_for_session_outputs(
+                    "astrotobby/musetalk-batch-private",
+                    {"musetalk_preview_0.mp4"},
+                    target_dir,
+                    timeout=120,
+                )
+            self.assertTrue((target_dir / "musetalk_preview_0.mp4").is_file())
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(all(call[2] is True for call in calls))
+
+    def test_session_output_polling_fails_closed_on_auth_error(self):
+        def denied_download(kernel_id, filename, destination, *, session_only=False):
+            raise RuntimeError("Kaggle MCP authorization denied list session output")
+
+        fake_helper = SimpleNamespace(download_output=denied_download)
+        with tempfile.TemporaryDirectory() as folder:
+            with (
+                patch.dict(sys.modules, {"kaggle_mcp_download_output": fake_helper}),
+                patch.object(batch.time, "sleep") as sleep,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "could not retrieve the private MuseTalk session output"):
+                    batch._wait_for_session_outputs(
+                        "astrotobby/musetalk-batch-private",
+                        {"musetalk_preview_0.mp4"},
+                        Path(folder),
+                        timeout=120,
+                    )
+        sleep.assert_not_called()
 
     def test_probe_accepts_only_preview_matched_25fps_output(self):
         payload = {
