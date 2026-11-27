@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from fractions import Fraction
 import time
 import uuid
 from pathlib import Path
@@ -115,10 +116,22 @@ def _probe(path: Path) -> dict[str, Any]:
             f"MuseTalk output {path.name} is incomplete ({duration:.2f}s, {path.stat().st_size} bytes)."
         )
     video = next(stream for stream in streams if stream.get("codec_type") == "video")
+    rate_text = video.get("avg_frame_rate") or video.get("r_frame_rate") or "0/1"
+    try:
+        frame_rate = Fraction(rate_text)
+    except (ValueError, ZeroDivisionError):
+        frame_rate = Fraction(0, 1)
+    expected_rate = Fraction(MUSE_TALK_INPUT_FPS, 1)
+    if frame_rate != expected_rate:
+        raise RuntimeError(
+            f"MuseTalk output {path.name} must preserve the preview cadence "
+            f"of {MUSE_TALK_INPUT_FPS} fps; got {rate_text}."
+        )
     return {
         "bytes": path.stat().st_size,
         "duration_seconds": duration,
         "resolution": f"{video.get('width')}x{video.get('height')}",
+        "fps": float(frame_rate),
         "streams": sorted(types),
     }
 
