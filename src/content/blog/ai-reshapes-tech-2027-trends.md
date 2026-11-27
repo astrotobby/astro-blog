@@ -2,8 +2,7 @@
 title: "AI Reshapes Tech: Jobs, Open Source, and Hardware in 2027"
 description: "Fireship predicts 2027 will be a tumultuous year for tech, marked by AI's profound impact on software development jobs, open source projects, hardware supply, and the rise of autonomous agents and specialized robotics."
 pubDate: 2026-11-27
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "futuristic tech landscape"
+image: "https://images.pexels.com/photos/30547584/pexels-photo-30547584.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, tech-news, robotics, coding]
 author: "Astro Tobby"
 ---
