@@ -1336,7 +1336,8 @@ def _visual_run_identity() -> str:
 
 def _render_original_editorial_visual(destination: Path, target_w: int, target_h: int,
                                       slug: str, index: int, variant: str,
-                                      meta: dict, context_title: str = "") -> dict:
+                                      meta: dict, context_title: str = "",
+                                      run_identity: str | None = None) -> dict:
     """Create a unique, topic-aware editorial illustration when all external sources fail.
 
     This is intentionally a last-resort designed graphic, not an empty/black
