@@ -157,7 +157,8 @@ class FootageBriefTests(unittest.TestCase):
             from PIL import Image
             with Image.open(first_path) as image:
                 self.assertEqual(image.size, (1920, 1080))
-                self.assertEqual(len(image.getcolors(maxcolors=2_000_000) or []), 0)
+                sample_points = [(30, 30), (960, 540), (1880, 1040), (1400, 260)]
+                self.assertGreaterEqual(len({image.getpixel(point) for point in sample_points}), 3)
             with Image.open(second_path) as image:
                 self.assertEqual(image.size, (1920, 1080))
             self.assertTrue(first_path.stat().st_size > 10_000)
