@@ -980,8 +980,21 @@ def _commons_plain_text(value):
 
 
 def _commons_search_queries(meta):
-    """Build targeted and category-aware Commons queries without over-broad filler."""
+    """Build targeted, story-aware Commons queries without over-broad filler."""
     queries = []
+    topic_context = str(meta.get("topic_context") or "").lower()
+    # The story headline is more authoritative than an occasionally generic scene
+    # prompt. Put its concrete subject queries first so they survive the query cap.
+    if any(term in topic_context for term in (
+        "elevator", "elevators", "lift", "lifts", "escalator", "escalators",
+        "hoistway", "vertical transport",
+    )):
+        queries.extend([
+            "elevator mechanic",
+            "elevator maintenance",
+            "elevator machine room",
+        ])
+
     raw_values = [meta.get("broll"), meta.get("fallback")]
     for raw in raw_values:
         core = _openverse_core_query(raw)
@@ -993,8 +1006,13 @@ def _commons_search_queries(meta):
             if candidate and candidate.lower() not in {q.lower() for q in queries}:
                 queries.append(candidate)
 
-    combined = " ".join(str(value or "").lower() for value in raw_values)
+    combined = " ".join(
+        str(value or "").lower()
+        for value in (topic_context, *raw_values)
+    )
     related = []
+    if any(term in combined for term in ("elevator", "lift", "escalator", "hoistway")):
+        related.extend(["elevator technician", "lift motor machinery", "escalator maintenance"])
     if any(term in combined for term in ("video", "editing", "creator", "film", "content")):
         related.extend(["video editor", "film editing suite", "media production studio"])
     if any(term in combined for term in ("music", "singer", "record label", "recording", "concert", "album", "artist")):
@@ -1023,6 +1041,9 @@ def _commons_terms(value):
         "videos": "video", "studios": "studio", "recordings": "recording",
         "records": "record", "producers": "produce", "producer": "produce",
         "production": "produce", "creators": "creator", "singers": "singer",
+        "elevators": "elevator", "mechanics": "mechanic", "lifts": "lift",
+        "technicians": "technician", "escalators": "escalator",
+        "cylinders": "cylinder", "motors": "motor", "apprentices": "apprentice",
     }
     result = set()
     for token in re.findall(r"[a-z0-9]+", str(value or "").lower()):
@@ -1083,7 +1104,7 @@ def _wikimedia_commons_image_search(query, target_w, target_h):
                 continue
             query_terms = _commons_terms(query)
             asset_terms = _commons_terms(" ".join((title, description, artist)))
-            required_matches = 1 if len(query_terms) <= 2 else 2
+            required_matches = 1 if len(query_terms) <= 4 else 2
             if query_terms and len(query_terms & asset_terms) < required_matches:
                 continue
             candidates.append({
@@ -1197,6 +1218,16 @@ def _contextual_fallback_queries(meta, context_title=""):
     ).lower()
     queries = []
 
+    # Prioritize real-world story subjects before generic technology fallbacks.
+    if any(term in context for term in (
+        "elevator", "elevators", "lift", "lifts", "escalator", "escalators",
+        "hoistway", "vertical transport",
+    )):
+        queries.extend([
+            "elevator mechanic",
+            "elevator maintenance",
+            "elevator machine room",
+        ])
     if "bafta" in context:
         queries.extend([
             "British Academy Film Awards",
@@ -1246,6 +1277,8 @@ def _contextual_fallback_queries(meta, context_title=""):
 def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
                  used_creators, recent_ids, variant, context_title=""):
     meta = _parse_scene_meta(prompt)
+    if context_title:
+        meta["topic_context"] = context_title
     video_asset, provenance = _fetch_video_asset(
         index, meta, target_w, target_h, used_clips, used_creators, recent_ids, variant)
     if video_asset:
@@ -1303,6 +1336,9 @@ def _fetch_scene(index, prompt, target_w, target_h, slug, image_url, used_clips,
             if response.status_code == 200 and len(response.content) > 20000:
                 destination.write_bytes(response.content)
                 return destination, meta, None
+            if response.status_code == 402:
+                log("image fallback HTTP 402: anonymous Pollinations quota/payment required; skipping this unavailable fallback")
+                break
             log(f"image fallback HTTP {response.status_code} (attempt {attempt + 1})")
         except Exception as exc:
             log(f"image fallback failed: {exc}")
