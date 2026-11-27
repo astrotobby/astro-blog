@@ -215,7 +215,7 @@ def _face_source(lk, fps, cfg=None):
             normalized = OUT / f"_lk_{lk['id']}_musetalk_cfr25.mp4"
             _run([
                 "ffmpeg", "-y", "-i", str(source),
-                "-vf", "fps=25,scale=trunc(iw/2)*2:trunc(ih/2)*2",
+                "-vf", f"fps={MUSE_TALK_INPUT_FPS},scale=trunc(iw/2)*2:trunc(ih/2)*2",
                 "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
                 "-pix_fmt", "yuv420p", "-movflags", "+faststart", normalized.name,
             ], cwd=OUT)
