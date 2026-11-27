@@ -326,7 +326,7 @@ def _wait_for_session_outputs(
                 [
                     "kernels", "output", kernel_id,
                     "--path", str(destination),
-                    "--file-pattern", r".*musetalk_preview_[0-9]+\\.mp4$",
+                    "--file-pattern", r".*musetalk_preview_[0-9]+\.mp4$",
                     "--page-size", "200",
                 ],
                 timeout=300,
