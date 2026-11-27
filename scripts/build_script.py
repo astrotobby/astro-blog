@@ -146,6 +146,25 @@ TOPIC_VISUAL_PROFILES = {
                  "colorbalance=rs=0.03:bs=-0.03:rh=0.04:bh=-0.04,"
                  "vignette=PI/5,unsharp=5:5:0.6:5:5:0.0",
     },
+    "infrastructure": {
+        "signals": [
+            "elevator", "elevators", "lift", "lifts", "escalator", "escalators",
+            "mechanic", "mechanics", "technician", "technicians", "apprentice",
+            "apprenticeship", "maintenance", "hoistway", "hydraulic cylinder",
+            "vertical transport", "building services", "skilled trade", "skilled trades",
+            "industrial equipment", "lift engineer",
+        ],
+        "visual_language": [
+            "elevator mechanic inspecting an open lift control panel, documentary photography",
+            "technician servicing elevator machinery in a high-rise machine room",
+            "close-up of industrial elevator motor, cables and hydraulic components",
+            "elevator doors opening inside a modern high-rise building",
+            "apprentice lift engineers learning safe maintenance procedures",
+        ],
+        "grade": "eq=contrast=1.08:saturation=0.98:brightness=0.01:gamma=1.00,"
+                 "colorbalance=rs=0.02:bs=-0.02:rh=0.03:bh=-0.03,"
+                 "vignette=PI/6,unsharp=5:5:0.6:5:5:0.0",
+    },
     "general_ai": {
         "signals": ["ai", "artificial intelligence", "machine learning", "agent",
                     "chatbot", "openai", "anthropic", "deepmind", "algorithm"],
@@ -228,6 +247,23 @@ FOOTAGE_BROLL_PROFILES = {
              "television production studio"),
         ),
     },
+    "infrastructure": {
+        "fallbacks": (
+            "elevator mechanic repairing a lift",
+            "elevator machine room control panel",
+            "escalator maintenance technician",
+        ),
+        "matches": (
+            (("elevator", "elevators", "lift", "lifts", "escalator", "escalators",
+              "hoistway", "vertical transport"), "elevator technician servicing a lift"),
+            (("mechanic", "mechanics", "technician", "technicians", "repair",
+              "maintenance", "apprenticeship", "apprentice"), "elevator mechanic at work"),
+            (("hydraulic", "cylinder", "gearbox", "motor", "machinery", "machine room"),
+             "elevator hydraulic machinery and control panel"),
+            (("high-rise", "apartment", "building", "residents", "accessibility"),
+             "modern elevator inside a high-rise building"),
+        ),
+    },
     "general_ai": {
         "fallbacks": ("software developer laptop", "technology office team", "data center servers"),
         "matches": (
@@ -243,6 +279,8 @@ FOOTAGE_BROLL_PROFILES = {
 # environment, or real-world application. They directly address the common failure
 # mode where an AI article is illustrated by generic mountains or forests.
 CONCRETE_FOOTAGE_MATCHES = (
+    (("elevator", "elevators", "lift", "lifts", "escalator", "escalators", "hoistway", "vertical transport"), "elevator mechanic servicing a lift"),
+    (("hydraulic cylinder", "elevator motor", "lift machinery", "elevator machine room"), "elevator machine room hydraulic components"),
     (("veo", "kling", "runway", "luma", "sora", "ai video", "video generator", "text to video", "rendering", "rendered video"), "AI video generation interface"),
     (("price", "pricing", "cost", "cents per second", "subscription", "credits", "budget"), "digital invoice video production pricing"),
     (("smart thermostat", "smart home", "home automation", "intelligent environment"), "smart home thermostat"),
@@ -540,13 +578,29 @@ def build_narration(post, cfg):
 # ---------------------------------------------------------------------------
 
 def detect_topic_category(post) -> str:
-    """Detect the dominant topic category for this post. Returns a key from
-    TOPIC_VISUAL_PROFILES. Falls back to 'general_ai' if nothing matches."""
-    text = (post.get("title", "") + " " + post.get("description", "") + " "
-            + (post.get("body", "") or "")[:3000]).lower()
+    """Detect the dominant story topic using whole-word, title-weighted matches.
+
+    Short signals such as "ai" must match as complete words; substring counting
+    previously treated words such as "maintaining" as AI mentions.
+    """
+    title = str(post.get("title") or "").lower()
+    description = str(post.get("description") or "").lower()
+    body = str(post.get("body") or "")[:3000].lower()
+
+    def occurrences(text, signal):
+        expression = re.escape(signal.lower()).replace(r"\\ ", r"\\s+")
+        pattern = rf"(?<![a-z0-9]){expression}(?![a-z0-9])"
+        return len(re.findall(pattern, text))
+
     best_cat, best_score = "general_ai", 0
     for cat, profile in TOPIC_VISUAL_PROFILES.items():
-        score = sum(text.count(sig) for sig in profile["signals"])
+        score = 0
+        for signal in profile["signals"]:
+            # A match in the headline is a stronger indication of the actual
+            # story than a passing mention in a long article body.
+            score += min(occurrences(title, signal), 2) * 4
+            score += min(occurrences(description, signal), 3) * 2
+            score += min(occurrences(body, signal), 5)
         if score > best_score:
             best_score = score
             best_cat = cat
