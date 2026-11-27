@@ -7,6 +7,7 @@ from kaggle_mcp_download_output import (
     _find_int,
     _parse_rpc_response,
     _result_value,
+    download_output,
 )
 
 
@@ -91,6 +92,29 @@ class KaggleMcpDownloadOutputTests(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "KGAT_"):
             _parse_rpc_response(FakeResponse(), 1)
+
+    def test_session_only_mode_does_not_call_private_kernel_metadata(self):
+        from unittest.mock import patch
+        from pathlib import Path
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as folder:
+            destination = Path(folder) / "musetalk_preview_0.mp4"
+            listing = {"content": [{"type": "text", "text": "No session output is available yet."}]}
+            with patch("kaggle_mcp_download_output.requests.Session") as session_factory:
+                session = session_factory.return_value.__enter__.return_value
+                with patch("kaggle_mcp_download_output._tool_call", return_value=listing) as tool_call:
+                    with patch.dict("os.environ", {"KAGGLE_API_TOKEN": "KGAT_test-token"}):
+                        with self.assertRaisesRegex(FileNotFoundError, "not available yet"):
+                            download_output(
+                                "astrotobby/musetalk-batch-test",
+                                "musetalk_preview_0.mp4",
+                                destination,
+                                session_only=True,
+                            )
+            tool_call.assert_called_once()
+            self.assertEqual(tool_call.call_args.args[3], "list_notebook_session_output")
+            self.assertFalse(destination.exists())
 
     def test_rejects_mismatched_json_rpc_id(self):
         response = Mock()
