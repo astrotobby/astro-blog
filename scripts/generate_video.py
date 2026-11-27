@@ -983,9 +983,24 @@ def _commons_search_queries(meta):
     """Build targeted, story-aware Commons queries without over-broad filler."""
     queries = []
     topic_context = str(meta.get("topic_context") or "").lower()
-    # The story headline is more authoritative than an occasionally generic scene
-    # prompt. Put its concrete subject queries first so they survive the query cap.
+    # The publisher's original headline is more authoritative than an
+    # occasionally generic scene prompt. Put story-specific searches first.
     if any(term in topic_context for term in (
+        "gold", "bullion", "precious metal", "precious metals", "safe haven",
+    )):
+        queries.extend([
+            "gold bullion bars",
+            "gold coins bullion",
+            "gold commodities trading",
+            "gold price market screens",
+        ])
+    elif any(term in topic_context for term in ("commodity", "commodities", "futures", "metal prices")):
+        queries.extend([
+            "commodities trading floor",
+            "commodity futures market",
+            "gold and silver bullion",
+        ])
+    elif any(term in topic_context for term in (
         "elevator", "elevators", "lift", "lifts", "escalator", "escalators",
         "hoistway", "vertical transport",
     )):
@@ -1011,6 +1026,10 @@ def _commons_search_queries(meta):
         for value in (topic_context, *raw_values)
     )
     related = []
+    if any(term in combined for term in ("gold", "bullion", "precious metal", "safe haven")):
+        related.extend(["gold bullion bars", "gold trading floor", "gold price charts"])
+    elif any(term in combined for term in ("commodity", "commodities", "futures", "metal prices")):
+        related.extend(["commodity trading floor", "commodities market screens"])
     if any(term in combined for term in ("elevator", "lift", "escalator", "hoistway")):
         related.extend(["elevator technician", "lift motor machinery", "escalator maintenance"])
     if any(term in combined for term in ("video", "editing", "creator", "film", "content")):
@@ -1220,6 +1239,20 @@ def _contextual_fallback_queries(meta, context_title=""):
 
     # Prioritize real-world story subjects before generic technology fallbacks.
     if any(term in context for term in (
+        "gold", "bullion", "precious metal", "precious metals", "safe haven",
+    )):
+        queries.extend([
+            "gold bullion bars",
+            "gold price trading screens",
+            "gold commodities market",
+        ])
+    elif any(term in context for term in ("commodity", "commodities", "futures", "metal prices")):
+        queries.extend([
+            "commodities trading floor",
+            "commodity market price screens",
+            "gold and silver bullion",
+        ])
+    if any(term in context for term in (
         "elevator", "elevators", "lift", "lifts", "escalator", "escalators",
         "hoistway", "vertical transport",
     )):
@@ -1376,7 +1409,15 @@ def fetch_scene_assets(script, cfg, variant):
             # Salt the fallback filename for each retry; do not reuse the same hero image.
             retry_slug = f"{post_slug}-visual-attempt-{attempt}"
             hero_image = post.get("image_url") if index == 0 and attempt == 0 else None
-            context_title = str(post.get("title") or post.get("topic_title") or post_slug)
+            context_title = " ".join(
+                str(value or "").strip()
+                for value in (
+                    post.get("title"),
+                    post.get("source_title"),
+                    post.get("description"),
+                )
+                if str(value or "").strip()
+            ) or post_slug
             asset, meta, source = _fetch_scene(
                 index, prompt, target_w, target_h, retry_slug,
                 hero_image, used_clips, used_creators, recent_ids, variant, context_title,
