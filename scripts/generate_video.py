@@ -1375,12 +1375,11 @@ def _render_original_editorial_visual(destination: Path, target_w: int, target_h
     top = (7, 17, 34)
     bottom = (16, 43, 63)
     image = Image.new("RGB", (width, height))
-    pixels = image.load()
+    gradient_draw = ImageDraw.Draw(image)
     for y in range(height):
         ratio = y / max(1, height - 1)
         color = tuple(int(top[c] * (1 - ratio) + bottom[c] * ratio) for c in range(3))
-        for x in range(width):
-            pixels[x, y] = color
+        gradient_draw.line((0, y, width, y), fill=color, width=1)
 
     glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
