@@ -191,7 +191,7 @@ def _wait_for_kernel(kernel_id: str, *, relay_available: bool = False) -> None:
                 time.sleep(STATUS_INTERVAL)
                 continue
             if relay_available and re.search(
-                r"kernels\\.get|permission.{0,40}(?:denied|forbidden)|"
+                r"kernels[.]get|permission.{0,40}(?:denied|forbidden)|"
                 r"(?:403|forbidden).{0,40}kernels",
                 status,
                 re.I,
