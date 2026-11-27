@@ -392,7 +392,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         download_output(args.kernel_ref, args.file_path, args.output, session_only=args.session_only)
-    except (requests.RequestException, RuntimeError, ValueError) as exc:
+    except (requests.RequestException, RuntimeError, ValueError, FileNotFoundError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2 if "authorization denied kernels.get" in str(exc).lower() else 1
     return 0
