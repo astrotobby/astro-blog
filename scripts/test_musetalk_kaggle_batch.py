@@ -38,6 +38,44 @@ class MuseTalkKaggleBatchTests(unittest.TestCase):
                 "Private MuseTalk batch abcdef1234",
             )
 
+    def test_kaggle_gpu_session_limit_is_detected_even_when_cli_exits_zero(self):
+        rejected = SimpleNamespace(
+            returncode=0,
+            stdout="Kernel push error: Maximum batch GPU session count of 2 reached.",
+            stderr="",
+        )
+        with patch.object(batch, "_run", return_value=rejected) as command:
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "already has the maximum of two batch GPU sessions active",
+            ):
+                batch._push_kernel(Path("/tmp/kernel"), "astrotobby/musetalk-batch-abc123")
+        command.assert_called_once()
+        self.assertFalse(any(
+            call.args and call.args[0][:2] == ["kernels", "status"]
+            for call in command.call_args_list
+        ))
+
+    def test_kernel_push_requires_success_confirmation_not_only_exit_zero(self):
+        ambiguous = SimpleNamespace(
+            returncode=0,
+            stdout="Kernel submitted; waiting",
+            stderr="",
+        )
+        with patch.object(batch, "_run", return_value=ambiguous):
+            with self.assertRaisesRegex(RuntimeError, "without confirming"):
+                batch._push_kernel(Path("/tmp/kernel"), "astrotobby/musetalk-batch-abc123")
+
+    def test_successful_kernel_push_requires_and_accepts_cli_acknowledgement(self):
+        accepted = SimpleNamespace(
+            returncode=0,
+            stdout="Kernel version 1 successfully pushed. Please check progress.",
+            stderr="",
+        )
+        with patch.object(batch, "_run", return_value=accepted) as command, patch("builtins.print"):
+            batch._push_kernel(Path("/tmp/kernel"), "astrotobby/musetalk-batch-abc123")
+        command.assert_called_once()
+
     def test_explicit_username_avoids_kaggle_config_lookup(self):
         with patch.dict(os.environ, {"KAGGLE_USERNAME": "AstroTobby"}, clear=True):
             with patch.object(batch.subprocess, "run") as command:
@@ -110,6 +148,25 @@ class MuseTalkKaggleBatchTests(unittest.TestCase):
         self.assertFalse(completed)
         self.assertTrue(any(
             "Polling the exact private notebook session outputs" in str(call)
+            for call in output.call_args_list
+        ))
+
+    def test_kernel_status_404_uses_output_relay_instead_of_failing(self):
+        unavailable = SimpleNamespace(
+            returncode=1,
+            stdout="",
+            stderr="404 Client Error: Not Found for url: GetKernelSessionStatus",
+        )
+        with patch.object(batch, "_run", return_value=unavailable) as command:
+            with patch("builtins.print") as output:
+                completed = batch._wait_for_kernel(
+                    "astrotobby/musetalk-batch-private",
+                    relay_available=True,
+                )
+        command.assert_called_once()
+        self.assertFalse(completed)
+        self.assertTrue(any(
+            "output relay as the completion signal" in str(call)
             for call in output.call_args_list
         ))
 
