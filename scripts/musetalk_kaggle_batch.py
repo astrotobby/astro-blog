@@ -98,10 +98,10 @@ def _push_kernel(kernel_dir: Path, kernel_id: str) -> None:
         timeout=900,
         check=False,
     )
-    response = (result.stdout or "") + "\\n" + (result.stderr or "")
+    response = (result.stdout or "") + "\n" + (result.stderr or "")
 
     if re.search(
-        r"maximum\\s+batch\\s+gpu\\s+session\\s+count\\s+of\\s+\\d+\\s+reached",
+        r"maximum\s+batch\s+gpu\s+session\s+count\s+of\s+\d+\s+reached",
         response,
         re.I,
     ):
@@ -119,7 +119,7 @@ def _push_kernel(kernel_dir: Path, kernel_id: str) -> None:
             "Kaggle MuseTalk kernel push failed: " + response.strip()[-1200:]
         )
 
-    if not re.search(r"kernel\\s+version\\s+\\d+\\s+successfully\\s+pushed", response, re.I):
+    if not re.search(r"kernel\s+version\s+\d+\s+successfully\s+pushed", response, re.I):
         raise RuntimeError(
             "Kaggle CLI returned without confirming that the MuseTalk notebook "
             "was pushed successfully. Refusing to query this kernel's session or "
@@ -131,7 +131,6 @@ def _push_kernel(kernel_dir: Path, kernel_id: str) -> None:
         f"Kaggle accepted the MuseTalk batch submission: {kernel_id}",
         flush=True,
     )
-
 
 def _username() -> str:
     configured = os.environ.get("KAGGLE_USERNAME", "").strip()
@@ -265,21 +264,23 @@ def _wait_for_kernel(kernel_id: str, *, relay_available: bool = False) -> bool:
             if re.search(
                 r"kernels[.]get|permission.{0,40}(?:denied|forbidden)|"
                 r"(?:403|forbidden).{0,40}kernels|"
-                r"GetKernelSessionStatus|\\b404\\b|\\bnot found\\b",
+                r"GetKernelSessionStatus|\b404\b|\bnot found\b",
                 status,
                 re.I,
             ):
                 if relay_available:
                     print(
                         "Kaggle accepted the private MuseTalk kernel push, but its private "
-                        "status endpoint denied metadata access. Using the run-scoped, "
+                        "session-status endpoint is unavailable (permission or 404). "
+                        "Using the run-scoped, "
                         "bearer-protected output relay as the completion signal.",
                         flush=True,
                     )
                 else:
                     print(
                         "Kaggle accepted the private MuseTalk kernel push, but its private "
-                        "status endpoint denied metadata access. Polling the exact private "
+                        "session-status endpoint is unavailable (permission or 404). "
+                        "Polling the exact private "
                         "notebook session outputs through Kaggle MCP instead; this path "
                         "does not call kernels.get.",
                         flush=True,
