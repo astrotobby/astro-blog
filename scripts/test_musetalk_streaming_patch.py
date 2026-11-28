@@ -74,7 +74,7 @@ class MuseTalkStreamingPatchTests(unittest.TestCase):
             self.assertNotIn("cv2.imwrite", updated)
             self.assertNotIn("os.system(cmd_img2video)", updated)
             self.assertNotIn("os.system(cmd_combine_audio)", updated)
-            self.assertRegex(updated, r"except Exception as e:\\n\\s+print\\(.+flush=True\\)\\n\\s+raise")
+            self.assertRegex(updated, r"except Exception as e:\n\s+print\\(.+flush=True\\)\n\s+raise")
 
     def test_patch_is_idempotent(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -88,7 +88,7 @@ class MuseTalkStreamingPatchTests(unittest.TestCase):
     def test_unknown_upstream_layout_fails_closed(self):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / "inference.py"
-            path.write_text("def main():\\n    pass\\n", encoding="utf-8")
+            path.write_text("def main():\n    pass\n", encoding="utf-8")
             with self.assertRaisesRegex(RuntimeError, "unexpected layout"):
                 patch_inference_source(path)
 
