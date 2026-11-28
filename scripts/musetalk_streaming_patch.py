@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import textwrap
 from pathlib import Path
 
 PATCH_MARKER = "ASTROTobby: stream MuseTalk output frames directly to FFmpeg"
@@ -153,38 +154,40 @@ def patch_inference_source(path: str | Path) -> bool:
         compile(source, str(source_path), "exec")
         return False
 
-    start_marker = "            # Pad generated images to original video size\n"
-    end_marker = "            # Clean up temporary files\n"
-    if source.count(start_marker) != 1 or source.count(end_marker) != 1:
+    start_token = "# Pad generated images to original video size\n"
+    end_token = "# Clean up temporary files\n"
+    if source.count(start_token) != 1 or source.count(end_token) != 1:
         raise RuntimeError(
             "MuseTalk upstream inference.py has an unexpected layout; "
             "refusing to run without the bounded-disk frame writer."
         )
-    start = source.index(start_marker)
-    end = source.index(end_marker, start)
+    marker_index = source.index(start_token)
+    start = source.rfind("\n", 0, marker_index) + 1
+    indent = source[start:marker_index]
+    if indent.strip() or len(indent) % 4:
+        raise RuntimeError("MuseTalk render block has unsupported indentation.")
+    end_marker_index = source.index(end_token, marker_index)
+    end = source.rfind("\n", 0, end_marker_index) + 1
     if end <= start:
         raise RuntimeError("MuseTalk frame-writer patch boundaries are invalid.")
 
     old_error_handler = (
-        '        except Exception as e:\n'
-        '            print("Error occurred during processing:", e)\n'
+        f'{indent[:-4]}except Exception as e:\n'
+        f'{indent}print("Error occurred during processing:", e)\n'
     )
     if source.count(old_error_handler) != 1:
         raise RuntimeError(
             "MuseTalk upstream task error handler changed; refusing to suppress a render failure."
         )
 
-    patched = (
-        source[:start]
-        + STREAMING_BLOCK
-        + source[end:]
+    streaming_block = textwrap.indent(textwrap.dedent(STREAMING_BLOCK), indent)
+    patched = source[:start] + streaming_block + source[end:]
+    new_error_handler = (
+        f'{indent[:-4]}except Exception as e:\n'
+        f'{indent}print("Error occurred during processing:", e, flush=True)\n'
+        f'{indent}raise\n'
     )
-    patched = patched.replace(
-        old_error_handler,
-        '        except Exception as e:\n'
-        '            print("Error occurred during processing:", e, flush=True)\n'
-        '            raise\n',
-    )
+    patched = patched.replace(old_error_handler, new_error_handler)
     compile(patched, str(source_path), "exec")
 
     temporary_path = source_path.with_suffix(source_path.suffix + ".tmp")
