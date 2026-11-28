@@ -83,6 +83,56 @@ def _validate_kernel_title_slug(kernel_id: str, title: str) -> str:
     return derived_slug
 
 
+def _push_kernel(kernel_dir: Path, kernel_id: str) -> None:
+    """Submit a Kaggle batch and require an explicit success acknowledgement.
+
+    Kaggle CLI 2.2.x can print a push error for the two-session GPU limit while
+    still exiting with status 0. Treat the message, not the process exit code,
+    as authoritative so we never query status or output for a rejected slug.
+    """
+    result = _run(
+        [
+            "kernels", "push", "-p", str(kernel_dir),
+            "--accelerator", "NvidiaTeslaT4",
+        ],
+        timeout=900,
+        check=False,
+    )
+    response = (result.stdout or "") + "\\n" + (result.stderr or "")
+
+    if re.search(
+        r"maximum\\s+batch\\s+gpu\\s+session\\s+count\\s+of\\s+\\d+\\s+reached",
+        response,
+        re.I,
+    ):
+        raise RuntimeError(
+            "Kaggle rejected this MuseTalk submission because the account already "
+            "has the maximum of two batch GPU sessions active. Kaggle CLI may exit "
+            "with code 0 for this rejection, so this notebook was NOT submitted and "
+            "its status/output must not be polled. Stop or wait for one existing "
+            "batch GPU session in Kaggle's Active Events/session manager, then start "
+            "a fresh workflow run. Each run uses a new private kernel slug."
+        )
+
+    if result.returncode:
+        raise RuntimeError(
+            "Kaggle MuseTalk kernel push failed: " + response.strip()[-1200:]
+        )
+
+    if not re.search(r"kernel\\s+version\\s+\\d+\\s+successfully\\s+pushed", response, re.I):
+        raise RuntimeError(
+            "Kaggle CLI returned without confirming that the MuseTalk notebook "
+            "was pushed successfully. Refusing to query this kernel's session or "
+            "download outputs because submission is unconfirmed. Response: "
+            + response.strip()[-1200:]
+        )
+
+    print(
+        f"Kaggle accepted the MuseTalk batch submission: {kernel_id}",
+        flush=True,
+    )
+
+
 def _username() -> str:
     configured = os.environ.get("KAGGLE_USERNAME", "").strip()
     if configured:
@@ -214,7 +264,8 @@ def _wait_for_kernel(kernel_id: str, *, relay_available: bool = False) -> bool:
                 continue
             if re.search(
                 r"kernels[.]get|permission.{0,40}(?:denied|forbidden)|"
-                r"(?:403|forbidden).{0,40}kernels",
+                r"(?:403|forbidden).{0,40}kernels|"
+                r"GetKernelSessionStatus|\\b404\\b|\\bnot found\\b",
                 status,
                 re.I,
             ):
@@ -650,8 +701,7 @@ def generate_batch(tasks: list[dict[str, Any]], output_dir: Path | None = None) 
         )
 
         print("Submitting private MuseTalk 1.5 notebook with free NvidiaTeslaT4 request.", flush=True)
-        _run(["kernels", "push", "-p", str(kernel_dir), "--accelerator", "NvidiaTeslaT4"],
-             timeout=900)
+        _push_kernel(kernel_dir, kernel_id)
 
         # Validate the exact metadata submitted locally. Kaggle's kernels.push
         # already confirms that version 1 was accepted; kernels.pull -m calls
