@@ -74,7 +74,8 @@ class MuseTalkStreamingPatchTests(unittest.TestCase):
             self.assertNotIn("cv2.imwrite", updated)
             self.assertNotIn("os.system(cmd_img2video)", updated)
             self.assertNotIn("os.system(cmd_combine_audio)", updated)
-            self.assertRegex(updated, r"except Exception as e:\n\s+print\\(.+flush=True\\)\n\s+raise")
+            self.assertIn('print("Error occurred during processing:", e, flush=True)', updated)
+            self.assertIn("\n            raise\n", updated)
 
     def test_patch_is_idempotent(self):
         with tempfile.TemporaryDirectory() as temp:
