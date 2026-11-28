@@ -6,6 +6,8 @@ on:
     paths:
       - "scripts/influencer.py"
       - "scripts/musetalk_kaggle_batch.py"
+      - "scripts/musetalk_streaming_patch.py"
+      - "scripts/test_musetalk_streaming_patch.py"
       - "scripts/kaggle_mcp_download_output.py"
       - "scripts/test_kaggle_mcp_download_output.py"
       - "scripts/musetalk_output_relay.py"
@@ -21,6 +23,8 @@ on:
     paths:
       - "scripts/influencer.py"
       - "scripts/musetalk_kaggle_batch.py"
+      - "scripts/musetalk_streaming_patch.py"
+      - "scripts/test_musetalk_streaming_patch.py"
       - "scripts/test_kaggle_mcp_download_output.py"
       - "scripts/kaggle_mcp_download_output.py"
       - "scripts/test_video_pipeline.py"
@@ -90,6 +94,8 @@ jobs:
         run: python -m unittest scripts.test_video_pipeline.FootageBriefTests -v
       - name: Test MuseTalk Kaggle batch authentication and fail-closed behavior
         run: python -m unittest discover -s scripts -p 'test_musetalk_kaggle_batch.py' -v
+      - name: Test MuseTalk bounded-disk streaming patch
+        run: python -m unittest discover -s scripts -p 'test_musetalk_streaming_patch.py' -v
       - name: Test Kaggle MCP session-output retrieval without private kernel metadata
         run: python -m unittest discover -s scripts -p 'test_kaggle_mcp_download_output.py' -v
       - name: Test private MuseTalk output relay authentication and integrity

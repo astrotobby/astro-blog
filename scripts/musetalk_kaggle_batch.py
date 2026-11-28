@@ -623,7 +623,7 @@ def generate_batch(tasks: list[dict[str, Any]], output_dir: Path | None = None) 
         _validate_kernel_title_slug(kernel_id, kernel_title)
 
         manifest_tasks = []
-        expected_files: set[str] = {"musetalk_manifest.json"}
+        expected_files: set[str] = {"musetalk_manifest.json", "musetalk_streaming_patch.py"}
         output_map: dict[str, Path] = {}
         for index, task in enumerate(clean_tasks):
             video_name = f"presenter_{index}.mp4"
@@ -665,6 +665,7 @@ def generate_batch(tasks: list[dict[str, Any]], output_dir: Path | None = None) 
         manifest_payload = {"tasks": manifest_tasks}
         if relay_config:
             manifest_payload["return"] = relay_config
+        shutil.copy2(ROOT / "scripts" / "musetalk_streaming_patch.py", dataset_dir / "musetalk_streaming_patch.py")
         manifest_path = dataset_dir / "musetalk_manifest.json"
         manifest_path.write_text(
             json.dumps(manifest_payload, indent=2),
