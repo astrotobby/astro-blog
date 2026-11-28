@@ -2,8 +2,7 @@
 title: "Google's Rapid Gemini 4 Rollout Reshapes AI Competition"
 description: "Google has launched four powerful Gemini 4 models in just seven weeks, rapidly advancing its position in the AI industry with enhanced capabilities and competitive pricing."
 pubDate: 2026-11-28
-image: "https://astrotobby.site/agentic-ai-hero.jpg"
-imageQuery: "AI models network"
+image: "https://images.pexels.com/photos/18069816/pexels-photo-18069816.png?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200"
 tags: [ai, google, llm, tech-news]
 author: "Astro Tobby"
 ---
