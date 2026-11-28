@@ -100,9 +100,8 @@ STREAMING_BLOCK = r'''            # ASTROTobby: stream MuseTalk output frames di
 
             if frame_writer_returncode != 0:
                 try:
-                    encoder_log = Path(ffmpeg_log_path).read_text(
-                        encoding="utf-8", errors="replace"
-                    )[-4000:]
+                    with open(ffmpeg_log_path, "r", encoding="utf-8", errors="replace") as log_file:
+                        encoder_log = log_file.read()[-4000:]
                 except OSError:
                     encoder_log = "FFmpeg diagnostic log could not be read."
                 raise RuntimeError(
